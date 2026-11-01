@@ -263,7 +263,7 @@ function _syncedAgentSeriesDays() {
 }
 
 function _agentSeriesKey() {
-  const pid = localStorage.getItem('labcharts-active-profile') || 'default';
+  const pid = state.currentProfile || localStorage.getItem('labcharts-active-profile') || 'default';
   return `labcharts-${pid}-agent-wearable-series`;
 }
 
@@ -281,6 +281,15 @@ export function getAgentWearableSeriesDays() {
   if (v === 'off' || v === null) return 0;
   if (AGENT_SERIES_VALID.has(v)) return v === 'off' ? 0 : Number(v);
   return 0;
+}
+
+// Explicit profile/data reads for reviewed controls; no mutation or secret migration.
+export function readAgentWearableSeriesDays(data: Record<string, unknown>, profileId: string): 0 | 7 | 30 | 90 {
+  const aa = data.agentAccess && typeof data.agentAccess === 'object' ? data.agentAccess as { wearableSeriesDays?: unknown } : null;
+  const saved = typeof data.agentAccessWearableSeriesDays === 'number' ? data.agentAccessWearableSeriesDays : aa?.wearableSeriesDays;
+  if (typeof saved === 'number') return [7, 30, 90].includes(saved) ? saved as 7 | 30 | 90 : 0;
+  const value = localStorage.getItem(`labcharts-${profileId}-agent-wearable-series`);
+  return value === 'on' ? 30 : value === '7' || value === '30' || value === '90' ? Number(value) as 7 | 30 | 90 : 0;
 }
 
 export function setAgentWearableSeriesDays(days: unknown) {

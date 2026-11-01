@@ -11,6 +11,7 @@ export interface MarkerDefinition {
   hidden?: boolean;
 }
 export interface MarkerCategory {
+  contextGroup?: string;
   label: string;
   icon: string;
   markers: Record<string, MarkerDefinition>;

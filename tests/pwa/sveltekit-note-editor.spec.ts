@@ -4,7 +4,7 @@ import {expect, test, type Page} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
 import type {ProfileData} from '../../types/app-state.js';
 import {getConfiguredArrayItemId} from '../../js/data-merge.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
@@ -55,7 +55,8 @@ async function showNotes(page: Page) {
     await page.locator('[data-dashboard-widget-action="open-picker"]:visible').first().click();
     await page.locator('[data-dashboard-widget-id="notes"]').click();
     const close = page.locator('[data-dashboard-widget-action="close-picker"]');
-    if (await close.isVisible()) await close.click();
+    // Selecting a fixed widget closes its picker after the native preference save.
+    await expect(close).toHaveCount(0);
   }
   await expect(add).toBeVisible();
 }

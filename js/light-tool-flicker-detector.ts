@@ -149,11 +149,12 @@ export async function openFlickerDetector(opts: { roomId?: unknown } = {}, deps:
       showNotification('Wait for a camera result before saving.', 'error');
       return;
     }
-    await saveMeasurement('flicker', lastResult.score, {
+    const saved = await saveMeasurement('flicker', lastResult.score, {
       confidence: lastResult.exposureLock === 'manual' ? 0.55 : 0.35,
       extra: lastResult,
       roomId,
     });
+    if (saved === null || saved === false) { if (deps.isCurrent?.() ?? true) showNotification('Could not save this reading. Try again.', 'error'); return; }
     showNotification(`Flicker score saved: ${lastResult.label}`);
     closeFlickerOverlay();
   });

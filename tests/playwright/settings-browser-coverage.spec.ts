@@ -94,6 +94,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       const timeBtn = modal!.querySelector<HTMLElement>('[data-settings-action="set-time-format"][data-timefmt="12h"]');
       if (!timeBtn) throw new Error('time-format 12h button not found in display panel');
       timeBtn.click();
+      await waitFor(() => localStorage.getItem('labcharts-time-format') === '12h' && timeBtn.classList.contains('active'), 'time format commit');
       results.setTimeFormatFromDisplaySettings = localStorage.getItem('labcharts-time-format') === '12h'
         && timeBtn.classList.contains('active')
         && themeModule.formatTime('14:05') === '2:05 PM';

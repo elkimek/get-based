@@ -17,7 +17,7 @@ import {
   getDashboardLightSessions,
   getDashboardSnpTableCache,
 } from './dashboard-widget-runtime.js';
-import { dashboardBiometricSelectionKey, DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
+import { DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
 import { createDashboardLabWidgetRenderers } from './dashboard-lab-widget-renderers.js';
 import { createDashboardRecommendationWidget } from './dashboard-recommendation-widget.js';
 import { detectMtDNAMismatch, ensureHaplogroupTable, ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel, loadDnaModule } from './health-data-loader.js';
@@ -30,6 +30,7 @@ import {getProfileHeight} from './profile.js';
 
 import type {WidgetRendererDependencies, BiometricTile, GenomeStored, GenomeProfile, GenomeEvidence, GenomeFinding, GenomeGroup, GenomeGenetics, GenomeHaplogroupTable, MtdnaReader, WearableConnectionReader} from '../types/dashboard-widget-renderers.js';
 import {prepareDashboardInsights, projectDashboardInsights} from './dashboard-insights-projection.js';
+import { readDashboardPreferenceRaw, writeDashboardPreferenceRaw } from './dashboard-preference-store.js';
 
 /** Same scalar coercion as the original escaper; Svelte now owns escaping. */
 const genomeLiteralText = (value: unknown): string => value == null ? '' : String(value);
@@ -243,14 +244,14 @@ export function createDashboardWidgetRenderers(deps: unknown, quickMarkers: Retu
 
   function getDashboardBiometricSelection() {
     try {
-      const raw = localStorage.getItem(dashboardBiometricSelectionKey());
+      const raw = readDashboardPreferenceRaw('biometrics');
       if (raw != null) return normalizeDashboardBiometricSelection(JSON.parse(raw) as unknown);
     } catch {}
     return normalizeDashboardBiometricSelection(getDashboardDefaultBiometricSelection());
   }
 
   function saveDashboardBiometricSelection(ids: unknown) {
-    localStorage.setItem(dashboardBiometricSelectionKey(), JSON.stringify(normalizeDashboardBiometricSelection(ids)));
+    writeDashboardPreferenceRaw('biometrics', JSON.stringify(normalizeDashboardBiometricSelection(ids)));
   }
 
   function formatDashboardRelativeTime(ts: unknown) {

@@ -26,7 +26,19 @@ for (const kind of ['panel', 'status-toggle', 'modal', 'library-options', 'libra
       const observed = current.find(sample => sample.kind === expected.kind && sample.name === expected.name);
       expect(observed).toBeDefined();
       equalOriginalDOM(observed!.html, expected.html);
-      expect(observed!.controls).toEqual(expected.controls);
+      // Approved native contract: only the toggle's checked property follows
+      // the completed save. Every other original control property stays exact.
+      const expectedControls = expected.controls.map(control => {
+        const originalControl = control as { id?: string };
+        if (expected.kind !== 'status-toggle' || originalControl.id !== 'lens-enabled-toggle') return control;
+        const seed = expected.input as { config: { enabled: boolean } };
+        expect(typeof seed.config.enabled).toBe('boolean');
+        return { ...originalControl, checked: !seed.config.enabled };
+      });
+      if (expected.kind === 'status-toggle') {
+        expect(expected.controls.filter(control => (control as { id?: string }).id === 'lens-enabled-toggle')).toHaveLength(1);
+      }
+      expect(observed!.controls).toEqual(expectedControls);
       expect(observed!.trace).toEqual(expected.trace);
       expect(observed!.scheduledFrames).toBe(expected.scheduledFrames);
       expect(observed!.selected).toBe(expected.selected);

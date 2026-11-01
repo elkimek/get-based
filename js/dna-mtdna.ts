@@ -1,11 +1,9 @@
-import { profileDataBaseline } from './profile-data-writes.js';
-export interface HaplogroupDefinition {
-  mutations: string[]; coupling: string; climate: string; origin?: string; etc?: string; parentHg?: string;
-}
-export interface HaplogroupTable {
-  haplogroups: Record<string, HaplogroupDefinition>;
-  couplingLevels: Record<string, { label: string; shortLabel: string; description: string; implications: string; latitudeBands: number[] }>;
-}
+import { loadHaplogroupCatalog } from './dna-haplogroup-catalog.js';
+import type { HaplogroupDefinition, HaplogroupTable } from './dna-haplogroup-catalog.js';
+export type { HaplogroupDefinition, HaplogroupTable } from './dna-haplogroup-catalog.js';
+import { classifyHaplogroupCoupling as classifyCoupling, replaceMaternalReport, setReportedHaplogroup, clearReportedHaplogroup } from './genetics-mutations.js';
+import { prepareGeneticsWrite, commitGeneticsWrite } from './genetics-record-store.js';
+import { geneticsScopeRemoved } from './genetics-lifecycle.js';
 export interface MtDnaMutation { position: number; allele: string; raw: string }
 export interface PendingMtDnaImport {
   mutations: ReturnType<typeof parseMtDNAMutations>;
@@ -13,6 +11,7 @@ export interface PendingMtDnaImport {
   coupling: ReturnType<typeof classifyCoupling>;
   hgData: HaplogroupDefinition | undefined;
   source: string;
+  restoresRemovedData?: boolean;
 }
 
 // dna-mtdna.js - mtDNA haplogroup parsing, preview, persistence, and manual entry.
@@ -22,11 +21,10 @@ import { publishGeneticsImport } from './genetics-import-events.js';
 import { state } from './state.js';
 import { HAPLOGROUP_LIST } from './constants.js';
 import { showNotification } from './utils.js';
-import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { renderMtDnaImportPreview } from './mtdna-preview-presentation.js';
 import {
-  cacheDnaHaplogroupTable, captureDnaImportOrigin, isPendingDnaImportCurrent,
+  cacheDnaHaplogroupTable, captureDnaImportOrigin, captureDnaReviewOrigin, isPendingDnaImportCurrent, isPendingDnaImportOwned,
   clearPendingMtDnaImport, ensureDnaModalOverlay,
   getDnaProfileLatitudeBand,
   getPendingMtDnaImport,
@@ -36,18 +34,8 @@ import {
   setPendingMtDnaImport,
 } from './dna-runtime.js';
 
-let _haplogroupTable: HaplogroupTable | null = null;
-let _haplogroupTablePromise: Promise<HaplogroupTable> | null = null;
-
 export function loadHaplogroupTable(): Promise<HaplogroupTable> {
-  if (_haplogroupTable) return Promise.resolve(_haplogroupTable);
-  if (!_haplogroupTablePromise) {
-    _haplogroupTablePromise = fetch('data/haplogroups.json')
-      .then(r => r.json())
-      .then(data => { _haplogroupTable = data; cacheDnaHaplogroupTable(data); return data; })
-      .catch(err => { _haplogroupTablePromise = null; console.error('Failed to load haplogroup table:', err); throw err; });
-  }
-  return _haplogroupTablePromise;
+  return loadHaplogroupCatalog().then(data => { cacheDnaHaplogroupTable(data); return data; });
 }
 
 export function ensureHaplogroupTable() {
@@ -108,23 +96,6 @@ export function resolveHaplogroup(mutations: readonly Pick<MtDnaMutation, 'raw'>
   return bestMatch;
 }
 
-function classifyCoupling(haplogroup: string, hapTable: HaplogroupTable) {
-  const hgData = hapTable.haplogroups[haplogroup];
-  if (!hgData) return null;
-  const couplingKey = hgData.coupling;
-  const couplingData = hapTable.couplingLevels[couplingKey];
-  if (!couplingData) return null;
-  return {
-    level: couplingKey,
-    label: couplingData.label,
-    shortLabel: couplingData.shortLabel,
-    climate: hgData.climate,
-    description: couplingData.description,
-    implications: couplingData.implications,
-    matchedLatBands: couplingData.latitudeBands
-  };
-}
-
 export function detectMtDNAMismatch(genetics: { mtdna?: { haplogroup?: string; coupling?: ReturnType<typeof classifyCoupling> } | null } | null | undefined) {
   if (!genetics?.mtdna?.coupling) return null;
   const coupling = genetics.mtdna.coupling;
@@ -158,7 +129,7 @@ export function detectMtDNAMismatch(genetics: { mtdna?: { haplogroup?: string; c
 let _mtdnaImportRunning = false;
 
 export async function handleMtDNAFile(file: Pick<File, 'text' | 'name'>) {
-  const origin = captureDnaImportOrigin();
+  const origin = captureDnaReviewOrigin();
   if (_mtdnaImportRunning) { showNotification('mtDNA import already in progress', 'info'); return false; }
   if (!await loadGeneticsStylesheetForAction() || !origin.current()) return false;
   _mtdnaImportRunning = true;
@@ -180,8 +151,9 @@ export async function handleMtDNAFile(file: Pick<File, 'text' | 'name'>) {
       : lowerName.includes('23andme') || lowerName.includes('genome')
         ? 'mtDNA (23andMe)'
         : 'mtDNA marker list';
-    setPendingMtDnaImport({ mutations, resolved, coupling, hgData, source });
-    _showMtDNAPreview(resolved, coupling, mutations, file.name);
+    const restoresRemovedData = geneticsScopeRemoved(origin.data.geneticsLifecycle, 'genome') || geneticsScopeRemoved(origin.data.geneticsLifecycle, 'maternal');
+    setPendingMtDnaImport({ mutations, resolved, coupling, hgData, source, restoresRemovedData });
+    _showMtDNAPreview(resolved, coupling, mutations, file.name, restoresRemovedData);
     _mtdnaImportRunning = false;
     return true;
   } catch (e) {
@@ -192,10 +164,10 @@ export async function handleMtDNAFile(file: Pick<File, 'text' | 'name'>) {
   }
 }
 
-function _showMtDNAPreview(resolved: PendingMtDnaImport['resolved'], coupling: PendingMtDnaImport['coupling'], mutations: readonly MtDnaMutation[], fileName: string) {
+function _showMtDNAPreview(resolved: PendingMtDnaImport['resolved'], coupling: PendingMtDnaImport['coupling'], mutations: readonly MtDnaMutation[], fileName: string, restoresRemovedData = false) {
   const mismatch = coupling ? detectMtDNAMismatch({ mtdna: { haplogroup: resolved.haplogroup, coupling } }) : null;
 
-  const html = renderMtDnaImportPreview(resolved, coupling, mutations, fileName, mismatch);
+  const html = renderMtDnaImportPreview(resolved, coupling, mutations, fileName, mismatch, restoresRemovedData);
 
   const overlay = ensureDnaModalOverlay();
   overlay.innerHTML = html;
@@ -210,15 +182,16 @@ export function closeMtDNAPreview() {
 export async function confirmMtDNAImport() {
   const pending = getPendingMtDnaImport();
   if (!pending) return;
-  if (!isPendingDnaImportCurrent(pending)) { clearPendingMtDnaImport(); return; }
-  const origin = captureDnaImportOrigin();
-  const baseline = profileDataBaseline(origin.data);
-  const draft = structuredClone(origin.data);
-
-  if (!draft.genetics) {
-    draft.genetics = { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
+  const staleReview = () => { closeMtDNAPreview(); showNotification('Genetic data changed. Open the file again to review it before saving.', 'info'); };
+  if (!isPendingDnaImportCurrent(pending)) {
+    if (isPendingDnaImportOwned(pending)) staleReview(); else clearPendingMtDnaImport();
+    return;
   }
-  draft.genetics.mtdna = {
+  const origin = captureDnaImportOrigin();
+  const { base, next: draft } = prepareGeneticsWrite(origin.data);
+  const previousData = structuredClone(origin.data);
+
+  replaceMaternalReport(draft, {
     haplogroup: pending.resolved.haplogroup,
     confidence: pending.resolved.confidence,
     matchedMutations: pending.resolved.matchedMutations,
@@ -237,64 +210,54 @@ export async function confirmMtDNAImport() {
     mutations: pending.mutations.map(m => m.raw),
     source: pending.source,
     importDate: new Date().toISOString().slice(0, 10)
-  };
+  }, Date.now(), !!pending.restoresRemovedData);
 
-  if (!await saveImportedDataForProfile(origin.profileId, draft, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })) return;
+  let conflict = false;
+  const authorized = () => origin.current() && getPendingMtDnaImport() === pending && isPendingDnaImportCurrent(pending);
+  if (!await commitGeneticsWrite(origin.profileId, origin.data, base, draft, authorized, () => { conflict = true; })) {
+    if (getPendingMtDnaImport() === pending) {
+      if (!origin.current()) clearPendingMtDnaImport();
+      else if (conflict || !isPendingDnaImportCurrent(pending)) staleReview();
+    }
+    return;
+  }
   if (!origin.current() || getPendingMtDnaImport() !== pending) {
     if (getPendingMtDnaImport() === pending) clearPendingMtDnaImport();
     return;
   }
-  if (!baseline) state.importedData = draft;
-  notifyProfileDataContextChanged(origin.profileId);
-  publishGeneticsImport({ profileId: origin.profileId, previousData: origin.data, data: state.importedData, source: pending.source, kind: 'mtdna' });
+  publishGeneticsImport({ profileId: origin.profileId, ownerData: origin.data, previousData, data: state.importedData, source: pending.source, kind: 'mtdna' });
   closeMtDNAPreview();
   showNotification(`Haplogroup ${pending.resolved.haplogroup} imported`, 'success');
   refreshDnaShell('dashboard');
 }
 
 export async function deleteMtDNAData() {
-  if (state.importedData.genetics) {
-    delete state.importedData.genetics.mtdna;
-    if (!await saveImportedData()) return;
-    refreshDnaShell('dashboard');
-    showNotification('mtDNA haplogroup removed', 'info');
-  }
+  const origin = captureDnaImportOrigin();
+  if (!origin.data.genetics?.mtdna) return;
+  const { base, next } = prepareGeneticsWrite(origin.data);
+  clearReportedHaplogroup(next);
+  if (!await commitGeneticsWrite(origin.profileId, origin.data, base, next, origin.current) || !origin.current()) return;
+  refreshDnaShell('dashboard');
+  showNotification('mtDNA haplogroup removed', 'info');
 }
 
 export { HAPLOGROUP_LIST };
 
 export async function setManualHaplogroup(haplogroup: unknown) {
   if (!haplogroup) return;
+  const origin = captureDnaImportOrigin();
   const input = String(haplogroup).trim();
   const hg = HAPLOGROUP_LIST.find(candidate => candidate.toUpperCase() === input.toUpperCase());
   if (!hg) {
     showNotification(`Unknown haplogroup "${input}" - expected one of: ${HAPLOGROUP_LIST.join(', ')}`, 'error');
     return;
   }
-  const hapTable = await loadHaplogroupTable();
-  const coupling = classifyCoupling(hg, hapTable);
-  if (!state.importedData.genetics) {
-    state.importedData.genetics = { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
-  }
-  state.importedData.genetics.mtdna = {
-    haplogroup: hg,
-    confidence: 1,
-    origin: hapTable.haplogroups[hg]?.origin || null,
-    details: hapTable.haplogroups[hg]?.etc || null,
-    coupling: coupling ? {
-      level: coupling.level,
-      label: coupling.label,
-      shortLabel: coupling.shortLabel,
-      climate: coupling.climate,
-      description: coupling.description,
-      implications: coupling.implications,
-      matchedLatBands: coupling.matchedLatBands
-    } : null,
-    mutations: [],
-    source: 'manual',
-    importDate: new Date().toISOString().slice(0, 10)
-  };
-  if (!await saveImportedData()) return;
+  const table = await loadHaplogroupTable();
+  if (!origin.current()) return;
+  const { base, next } = prepareGeneticsWrite(origin.data);
+  setReportedHaplogroup(next, hg, table);
+  if (!await commitGeneticsWrite(origin.profileId, origin.data, base, next, origin.current) || !origin.current()) return;
+  const coupling = next.genetics?.mtdna?.coupling;
   showNotification(`Haplogroup ${hg} saved${coupling ? ' - ' + coupling.shortLabel : ''}`, 'success');
   refreshDnaShell('dashboard');
 }

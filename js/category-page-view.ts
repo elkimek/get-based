@@ -2,10 +2,10 @@ import {categoryLiteral} from './category-presentation.js';
 import type {CategoryPageBodyView,CategoryGapSectionView} from './category-page-presentation.js';
 import { renderCategoryPagePresentation,renderCategoryPageBody } from './category-page-presentation.js';
 import type { CategoryPageData, CategoryPageCategory, CategoryPageMarker, CategoryPageEntries, CategoryPageDelegateRoot } from '../types/category-page-view.js';
-import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // category-page-view.js — category route orchestration and view-mode switching
 
 import { state } from './state.js';
+import { orderedMarkerEntries } from './lab-ordering-view.js';
 import { escapeHTML, getStatus, safeMarkerId } from './utils.js';
 import {
   getActiveData,
@@ -18,7 +18,7 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { createLineChart } from './health-data-loader.js';
 import { loadChartCardRecs } from './chart-card-recs.js';
 import { getCategoryGlyphCode } from './category-glyphs.js';
-import { getCategoryPageCatalogSlots, primeCategoryPageCatalogCache } from './category-page-runtime.js';
+import { getCategoryPageCatalogSlots, primeCategoryPageCatalogCache, renameCategoryFromCategoryPageRuntime, registerCategoryPageBody, setCategoryViewMode } from './category-page-runtime.js';
 import {
   projectCategoryChartCard,
   projectCategoryTable,
@@ -30,14 +30,7 @@ import {
 const categoryPageActionDelegateRoots = new WeakSet<CategoryPageDelegateRoot>();
 
 
-const categoryPageViewDeps: {renameCategory: ((categoryKey:string)=>unknown)|null} = {
-  renameCategory: null,
-};
-
-
-export function configureCategoryPageViewDeps(deps:unknown = {}) {
-  return (configureValidRuntimeCallbacks as (current:unknown,updates:unknown,fields:readonly string[])=>{renameCategory:unknown})(categoryPageViewDeps, deps, ["renameCategory"]);
-}
+export {configureCategoryPageViewDeps} from './category-page-runtime.js';
 
 const CATEGORY_PAGE_ACTION_ATTR = 'data-category-page-action';
 const CATEGORY_PAGE_ACTION_SELECTOR = `[${CATEGORY_PAGE_ACTION_ATTR}]`;
@@ -57,7 +50,7 @@ function handleCategoryPageActionClick(event:Event) {
   const categoryKey = actionEl.dataset.categoryPageCategory || '';
   if (!safeMarkerId(categoryKey)) return;
   if (action === 'rename-category') {
-    categoryPageViewDeps.renameCategory?.(categoryKey);
+    renameCategoryFromCategoryPageRuntime(categoryKey);
   } else if (action === 'switch-view') {
     const view = actionEl.dataset.categoryPageView || '';
     if (view !== 'charts' && view !== 'table' && view !== 'heatmap') return;
@@ -120,6 +113,7 @@ function sortCategoryChartEntries(entries:CategoryPageEntries, categoryKey:strin
     const order = new Map(preserved.markerKeys.map((key, index) => [key, index]));
     entries.sort(([ka], [kb]) => (order.get(ka) ?? Number.MAX_SAFE_INTEGER) - (order.get(kb) ?? Number.MAX_SAFE_INTEGER));
     delete state._preserveCategoryCardOrder;
+    entries.splice(0, entries.length, ...orderedMarkerEntries(entries, categoryKey, state.importedData?.labOrdering));
     return;
   }
   delete state._preserveCategoryCardOrder;
@@ -139,6 +133,7 @@ function sortCategoryChartEntries(entries:CategoryPageEntries, categoryKey:strin
     const bs = bi === -1 ? 'missing' : (br.min == null && br.max == null) ? 'unrated' : (getStatus as (value:unknown,min:unknown,max:unknown)=>ReturnType<typeof getStatus>)(b.values![bi], br.min, br.max);
     return (statusOrder[as] ?? 3) - (statusOrder[bs] ?? 3);
   });
+  entries.splice(0, entries.length, ...orderedMarkerEntries(entries, categoryKey, state.importedData?.labOrdering));
 }
 
 export function showCategory(categoryKey:string, preData?:unknown) {
@@ -205,7 +200,7 @@ export function switchView(view:string, categoryKey:string, btn:Element) {
   if (!safeMarkerId(categoryKey)) return;
   const container = document.getElementById("view-content");
   if (!container) return;
-  state.categoryView = view;
+  if (!setCategoryViewMode(view)) return;
   document.querySelectorAll('.view-toggle .view-btn[role="tab"]').forEach(b => {
     b.classList.remove("active");
     b.setAttribute('aria-selected', 'false');
@@ -266,3 +261,5 @@ export function switchView(view:string, categoryKey:string, btn:Element) {
     }
   }
 }
+
+registerCategoryPageBody({showCategory});

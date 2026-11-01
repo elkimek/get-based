@@ -54,7 +54,9 @@ it('keeps every startup path outside the lazy Biology request and page owners', 
   for (const lazy of ['js/biology-scores.ts', 'js/biology-score-ai.ts', 'js/biology-score-sections.ts',
     'js/biology-score-context-ai.ts', 'js/biology-page-view.ts', 'js/biology-score-dashboard.ts']) expect(reachable).not.toContain(lazy);
   for (const needed of ['js/biology-score-compute.ts',
-    'js/biology-score-navigation.ts', 'js/biology-score-context-contract.ts']) expect(reachable).toContain(needed);
+    'js/biology-score-navigation.ts']) expect(reachable).toContain(needed);
+  expect(reachable).not.toContain('js/biology-score-context-contract.ts');
+  expect(staticClosure('js/biology-score-context-ai.ts')).toContain('js/biology-score-context-contract.ts');
 });
 
 it('loads dashboard Biology projections through the real lazy composition without making AI requests eager', () => {

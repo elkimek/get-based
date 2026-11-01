@@ -17,6 +17,12 @@ const CHECK_ONLY = process.argv.includes('--check');
 const MANIFEST = 'vendor/browser-vendors.json';
 const TARGETS: BrowserVendorTarget[] = [
   {
+    package: '@noble/hashes',
+    entry: 'scripts/vendor-entries/sha256.js',
+    output: 'vendor/sha256.js',
+    format: 'es',
+  },
+  {
     package: '@noble/curves',
     entry: 'scripts/vendor-entries/routstr-crypto.js',
     output: 'vendor/routstr-crypto.js',

@@ -28,7 +28,8 @@ import {
 import { commitAIVerdictData } from './ai-verdict-write.js';
 import type { ProfileData } from '../types/app-state.js';
 import { captureAIVerdictOwner } from './ai-verdict-owner.js';
-import { pushCurrentProfile, isSyncEnabled } from './sync.js';
+import { pushCurrentProfile } from './sync-actions.js';
+import { isSyncEnabled } from './sync-settings-state.js';
 
 // Cross-device LWW behaviour (load-bearing for anyone debugging "verdict
 // mismatch on phone vs desktop"):

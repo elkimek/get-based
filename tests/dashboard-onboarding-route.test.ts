@@ -67,3 +67,25 @@ it.each(['reject', 'throw', 'resize', 'mobile', 'new-render', 'profile-change', 
     document.body.replaceChildren(); document.body.className = ''; localStorage.clear(); vi.clearAllTimers(); vi.unstubAllGlobals(); vi.useRealTimers();
   }
 });
+
+it.each(['profile', 'data'] as const)('does not let a retired %s Dashboard timer open Chat or consume the new reservation', field => {
+  vi.useFakeTimers(); vi.stubGlobal('innerWidth', 1280);
+  const previous = { currentView: state.currentView, currentProfile: state.currentProfile, importedData: state.importedData, chatHistory: state.chatHistory, nutritionSummary: state.nutritionSummary };
+  const open = vi.fn(), previousRuntime = configureDashboardPageRuntimeDeps({ openChatPanel: open });
+  try {
+    Object.assign(state, { currentView: 'dashboard', currentProfile: 'default', importedData: createDefaultProfileData(), chatHistory: [], nutritionSummary: null });
+    localStorage.setItem('labcharts-default-emptyTour', 'completed'); localStorage.setItem('labcharts-next-emptyTour', 'completed');
+    document.body.innerHTML = '<main id="main-content"></main>';
+    const { showDashboard } = createDashboardPageView({ setupDropZone: () => {}, projectAIConnectionReminder: () => null });
+    showDashboard({ dates: [], categories: {} }); vi.advanceTimersByTime(400);
+    if (field === 'profile') state.currentProfile = 'next';
+    else state.importedData = createDefaultProfileData();
+    showDashboard({ dates: [], categories: {} });
+    vi.advanceTimersByTime(400);
+    expect(open).not.toHaveBeenCalled(); expect(document.body.classList.contains('chat-autostart-reserved')).toBe(true);
+    vi.advanceTimersByTime(400); expect(open).toHaveBeenCalledOnce();
+  } finally {
+    configureDashboardPageRuntimeDeps(previousRuntime); Object.assign(state, previous);
+    document.body.replaceChildren(); document.body.className = ''; localStorage.clear(); vi.unstubAllGlobals(); vi.useRealTimers();
+  }
+});

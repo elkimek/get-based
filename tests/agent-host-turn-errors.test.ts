@@ -6,7 +6,7 @@ import { streamAgentTurn } from '../js/agent-chat-client.js';
 import type { AgentHostServiceOptions } from '../lib/agent-host-turn-state.js';
 
 const TOKEN = 'synthetic-test-token';
-const GENERIC_ERROR = 'The agent request failed. Check the Companion and selected agent, then try again.';
+const GENERIC_ERROR = 'The selected agent could not complete this response. Try again, or choose another model in AI settings.';
 const SCHEMA_ERROR = 'Codex rejected the output schema. Update getbased and the Companion, then retry.';
 const PRIVATE_ERROR = 'secret-token /home/private/report.pdf glucose: 123\n at private.js:45';
 

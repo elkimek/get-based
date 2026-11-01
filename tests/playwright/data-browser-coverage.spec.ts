@@ -126,7 +126,8 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       const phaseCheckbox = layersHost!.querySelector<HTMLElement>('[data-lab-data-change="set-phase-overlay"]');
       const phaseCallStart = calls.length;
       phaseCheckbox?.click();
-      await wait(0);
+      // Durable preference writes acquire a Web Lock before publishing state.
+      for (let attempt = 0; attempt < 100 && (state.phaseOverlayMode as string) !== 'on'; attempt++) await wait(10);
       const phaseChanged = (state.phaseOverlayMode as string) === 'on'
         && localStorage.getItem(`labcharts-${profileId}-phaseOverlay`) === 'on'
         && calls.slice(phaseCallStart).some(call => call[0]! === 'navigate' && call[1]! === 'metabolic');
@@ -135,6 +136,10 @@ test('data browser coverage exercises display toggles range refresh and helpers'
         && leakedLayerClicks.length === 0;
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       const closed = dropdown?.classList.contains('open') === false && trigger?.getAttribute('aria-expanded') === 'false';
+      outcomes.chartLayersOpened = opened;
+      outcomes.chartLayersPhaseChanged = phaseChanged;
+      outcomes.chartLayersStayedOpen = stayedOpenAfterLayerClick;
+      outcomes.chartLayersClosed = closed;
       outcomes.chartLayersDropdownOpensAndClosesFromKeyboard = layersHost!.querySelectorAll<HTMLElement>('[onclick],[onchange]').length === 0
         && opened
         && phaseChanged
@@ -166,7 +171,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
         && flagged[0]!.id === 'metabolic_glucose'
         && flagged[0]!.status === 'high';
 
-      dataMod.switchUnitSystem('US');
+      await dataMod.switchUnitSystem('US');
       outcomes.switchUnitSystemRefreshesDataHeaderRouteAndDetail = (state.unitSystem as string) === 'US'
         && localStorage.getItem(`labcharts-${profileId}-units`) === 'US'
         && document.getElementById('header-dates')?.textContent.includes('Dates:')
@@ -174,7 +179,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
         && calls.some(call => call[0]! === 'navigate' && call[1]! === 'metabolic')
         && calls.some(call => call[0]! === 'showDetailModal' && call[1]! === 'metabolic_glucose');
 
-      dataMod.switchUnitSystem('ANZ');
+      await dataMod.switchUnitSystem('ANZ');
       const anzData = dataMod.getActiveData();
       const anzAlt = anzData.categories.biochemistry!.markers.alt;
       outcomes.switchUnitSystemSupportsSchemaWideAnzProjection = (state.unitSystem as string) === 'ANZ'
@@ -184,9 +189,9 @@ test('data browser coverage exercises display toggles range refresh and helpers'
         && anzData.categories.biochemistry!.markers.glucose!.unit === 'mmol/L';
 
       const detailCallsBeforeAlt = calls.filter(call => call[0]! === 'showDetailModal').length;
-      dataMod.toggleAltUnits(true);
-      dataMod.toggleAltUnits(true);
-      dataMod.toggleAltUnits(false);
+      await dataMod.toggleAltUnits(true);
+      await dataMod.toggleAltUnits(true);
+      await dataMod.toggleAltUnits(false);
       const detailCallsAfterAlt = calls.filter(call => call[0]! === 'showDetailModal').length;
       outcomes.toggleAltUnitsForcesPersistsAndRefreshesDetail = state.showAltUnits === false
         && localStorage.getItem(`labcharts-${profileId}-showAltUnits`) === 'off'
@@ -198,8 +203,8 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       calls.length = 0;
       const rangeModeBtn = prebuiltToggle?.querySelector<HTMLElement>('[data-lab-data-action="switch-range-mode"][data-lab-data-range="both"]');
       rangeModeBtn?.click();
-      await wait(0);
-      await wait(0);
+      const rangeDeadline = Date.now() + 2000;
+      while (Date.now() < rangeDeadline && ((state.rangeMode as string) !== 'both' || !calls.some(call => call[0] === 'navigate'))) await wait(10);
       const activeBoth = document.querySelector<HTMLElement>('.range-toggle-btn[data-range="both"]');
       outcomes.switchRangeModeCapturesCardOrderAndRefreshesAfterPaint = hasInitialRangeButtons
         && prebuiltToggle?.querySelectorAll<HTMLElement>('[onclick]').length === 0

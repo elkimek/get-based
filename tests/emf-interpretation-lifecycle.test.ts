@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, expect, it, vi} from 'vitest';
+import {setImmediate as nextTurn} from 'node:timers';
 import type {AssistantFeatureRequestOptions} from '../js/ai-feature-routing.js';
 
 const ports = vi.hoisted(() => ({
@@ -14,6 +15,16 @@ vi.mock('../js/ai-feature-routing.js', () => ({
 }));
 vi.mock('../js/schema.js', () => ({SBM_2015_THRESHOLDS: {}, getEMFSeverity: () => null, calculateCost: () => 0, formatCost: () => '$0', trackUsage: ports.usage}));
 vi.mock('../js/data.js', () => ({saveImportedData: ports.save}));
+vi.mock('../js/emf-native-records.js', () => ({
+  onEMFRecordChanged: () => () => {},
+  commitEMFInterpretation: async (id: unknown, result: unknown, current: () => boolean) => {
+    if (!current()) throw new Error('Retired owner');
+    await ports.save(); if (!current()) return;
+    const data = ports.state.importedData as {emfAssessment?: {assessments: Array<{id: unknown; interpretation?: unknown}>; comparisonInterpretation?: unknown}};
+    if (id === null) data.emfAssessment!.comparisonInterpretation = result;
+    else data.emfAssessment!.assessments.find(row => row.id === id)!.interpretation = result;
+  },
+}));
 vi.mock('../js/health-data-loader.js', () => ({detectMitigationsInText: () => [], isProductRecsEnabled: () => false, loadEMFCatalog: vi.fn(), renderEMFMitigationRecs: vi.fn()}));
 
 beforeEach(() => {
@@ -35,7 +46,7 @@ function assessment() {return {id: 'one', date: '2026-10-16', rooms: [], interpr
 async function open() {
   const owner = await import('../js/emf-interpretation.js');
   const bridge = await import('../js/emf-interpretation-runtime.js');
-  const value = assessment();
+  const value = assessment(); ports.state.importedData = {emfAssessment: {assessments: [value]}};
   document.getElementById('trigger')!.focus();
   owner.interpretEMFAssessment('one', {getAssessments: () => [value]});
   const overlay = document.getElementById('emf-interp-overlay')!;
@@ -43,7 +54,7 @@ async function open() {
   const generate = document.getElementById('emf-interp-generate') as HTMLButtonElement;
   return {owner, bridge, value, overlay, body, generate};
 }
-async function settle() {await Promise.resolve(); await Promise.resolve(); await Promise.resolve();}
+async function settle() {await new Promise<void>(resolve => nextTurn(resolve));}
 const response = {text: '## Accepted interpretation', usage: {inputTokens: 8, outputTokens: 3}};
 
 it('keeps preloaded configuration, cached interpretation, parent close then chat handoff and public binding identity', async () => {
@@ -138,13 +149,14 @@ it('does not replace a newer body with a stale transport failure', async () => {
   expect(ports.save).not.toHaveBeenCalled();
 });
 
-it('preserves current-owner completion errors instead of hiding them after releasing the controller', async () => {
+it('keeps current-owner completion failures retryable without publishing an unsaved interpretation', async () => {
   const pending = heldResponse(); ports.ai.mockReturnValueOnce(pending.promise);
   const failure = new Error('Persistence failure'); ports.save.mockImplementationOnce(() => {throw failure;});
   const opened = await open(); opened.generate.click(); pending.resolve(response); await settle();
   expect(ports.save).toHaveBeenCalledTimes(1); expect(ports.usage).toHaveBeenCalledTimes(1);
-  expect(opened.value.interpretation).toEqual(expect.objectContaining({text: response.text}));
-  expect(opened.body.textContent).toBe('Error: Persistence failure'); expect(opened.generate.textContent).toBe('Retry');
+  expect(opened.value.interpretation).toBeUndefined();
+  expect(opened.body.textContent).toBe('Error: Persistence failure'); expect(opened.generate.textContent).toBe('Retry saving');
+  opened.generate.click(); await settle(); expect(ports.ai).toHaveBeenCalledTimes(1); expect(ports.save).toHaveBeenCalledTimes(2); expect(opened.value.interpretation).toEqual(expect.objectContaining({text: response.text})); expect(opened.generate.textContent).toBe('Re-interpret');
 });
 
 for (const retirement of ['closed', 'reopened', 'profile', 'data', 'body', 'overlay'] as const) {
@@ -190,4 +202,24 @@ it('a direct Discuss call rejects an open whose profile or body has retired befo
   ports.state.currentProfile = 'replacement'; const before = document.body.innerHTML;
   opened.owner.discussEMFInterpretation();
   expect(parent).not.toHaveBeenCalled(); expect(chat).not.toHaveBeenCalled(); expect(document.body.innerHTML).toBe(before);
+});
+it('rejects a late interpretation after the same assessment inputs change in place', async () => {
+  const pending = heldResponse(); ports.ai.mockReturnValueOnce(pending.promise);
+  const opened = await open(); opened.generate.click(); const prior = opened.body.innerHTML;
+  opened.value.date = '2026-10-24'; ports.ai.mock.calls[0]![0].onStream?.('Stale changed-input interpretation');
+  pending.resolve(response); await settle();
+  expect(opened.value.interpretation).toBeUndefined(); expect(ports.save).not.toHaveBeenCalled(); expect(ports.usage).not.toHaveBeenCalled(); expect(opened.body.innerHTML).toBe(prior);
+});
+it('requires reopening after a source change before generating another interpretation', async () => {
+  ports.ai.mockResolvedValueOnce(response); const opened = await open(); opened.value.date = '2026-10-24'; opened.generate.click(); expect(ports.ai).not.toHaveBeenCalled();
+  opened.bridge.closeEMFInterpretation(); expect(opened.overlay.isConnected).toBe(false);
+});
+it('rejects comparison completion after one of its assessment inputs changes in place', async () => {
+  const pending = heldResponse(); ports.ai.mockReturnValueOnce(pending.promise);
+  const owner = await import('../js/emf-interpretation.js');
+  const rows = [{ ...assessment(), id: 'before', date: '2026-10-15' }, { ...assessment(), id: 'after' }];
+  const data = { emfAssessment: { assessments: rows, comparisonInterpretation: undefined as unknown } }; ports.state.importedData = data;
+  owner.interpretEMFComparison(); const body = document.getElementById('emf-interp-body')!, generate = document.getElementById('emf-interp-generate')!; generate.click();
+  const prior = body.innerHTML; rows[1]!.date = '2026-10-24'; ports.ai.mock.calls[0]![0].onStream?.('Stale comparison'); pending.resolve(response); await settle();
+  expect(data.emfAssessment.comparisonInterpretation).toBeUndefined(); expect(body.innerHTML).toBe(prior); expect(ports.save).not.toHaveBeenCalled(); expect(ports.usage).not.toHaveBeenCalled();
 });

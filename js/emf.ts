@@ -3,6 +3,7 @@ import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // emf.js — Baubiologie EMF Assessment sub-module
 // Room-by-room EMF measurements with SBM-2015 severity ratings
 
+import type { EMFNativeOwner } from './emf-native-records.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { SBM_2015_THRESHOLDS } from './schema.js';
@@ -12,7 +13,12 @@ import {
   showPromptDialog,
   isPIIReviewEnabled,
 } from './utils.js';
-import { saveImportedData } from './data.js';
+import type { ProfileData } from '../types/app-state.js';
+import { validAgentDate } from '../shared/agent-data-contract.js';
+import { profileDataValuesEqual } from './profile-data-writes.js';
+import { agentDataObject } from '../shared/agent-data-contract.js';
+import { emfAssessments, emfRecords, emfRoomId } from './emf-record-fields.js';
+import { captureEMFNativeOwner, isEMFNativeOwnerCurrent, stageEMFNativeChange, persistEMFEditorInputs, isEMFNativeSourceCurrent, onEMFRecordChanged } from './emf-native-records.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
 import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { extractPDFText } from './pdf-import.js';
@@ -23,11 +29,10 @@ import {
   configureEMFEditor,
   emfEditorState,
   openEMFAssessmentEditor,
-  renderEMFEditor,
+  refreshEMFEditorAfterChange,
   showEMFImportPreview,
 } from './emf-editor.js';
 import {
-  MEASUREMENT_TYPES,
   SLEEPING_ROOMS,
   ensureEMFAssessments as ensureAssessments,
   safeEMFMediaType as safeMediaType,
@@ -67,6 +72,7 @@ export { openEMFAssessmentEditor };
 
 function newRoom(name: unknown): RoomMutationOperations {
   return {
+    id: createUniqueId('emfr_'),
     name: name || 'Bedroom',
     location: '',
     sleeping: SLEEPING_ROOMS.has((name || 'Bedroom') as string),
@@ -91,228 +97,105 @@ function newAssessment(): AssessmentMutationOperations {
 // ═══════════════════════════════════════════════
 // CRUD OPERATIONS
 // ═══════════════════════════════════════════════
-export function addEMFAssessment() {
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = newAssessment();
-  assessments.push(a);
-  emfEditorState.editingAssessmentId = a.id;
-  renderEMFEditor(document.getElementById('detail-modal'));
+function assessment(data: ProfileData, id: unknown) {
+  const row = emfAssessments(data).find(value => value.id === id); if (!row) throw new Error('This EMF assessment is no longer available.'); return row;
 }
-
-export function toggleEMFAssessment(id: unknown) {
-  collectActiveAssessmentState();
-  emfEditorState.editingAssessmentId = emfEditorState.editingAssessmentId === id ? null : id;
-  emfEditorState.activeRoomIdx = 0;
-  renderEMFEditor(document.getElementById('detail-modal'));
+function roomId(id: unknown, index: number) {
+  return emfRecords(state.importedData, 'emfRooms').find(row => row.assessment.id === id && row.roomIndex === index)?.id;
 }
-
-export function selectEMFRoom(assessmentId: unknown, roomIdx: number) {
-  // Ignore a stale delegated click after another assessment has become active.
-  if (emfEditorState.editingAssessmentId !== assessmentId) return;
-  collectActiveAssessmentState();
-  emfEditorState.activeRoomIdx = roomIdx;
-  renderEMFEditor(document.getElementById('detail-modal'));
+function room(data: ProfileData, id: string | undefined) {
+  const row = emfRecords(data, 'emfRooms').find(value => value.id === id); if (!row?.room) throw new Error('This EMF room is no longer available.'); return row.room;
 }
-
-export async function handleEMFRoomDropdown(assessmentId: unknown, currentRoomIdx: number, value: string, selectEl: {value: string}) {
-  // Switch to existing room
-  if (value.startsWith('_room_')) {
-    const idx = parseInt(value.slice(6));
-    if (idx !== currentRoomIdx) selectEMFRoom(assessmentId, idx);
-    else selectEl.value = `_room_${currentRoomIdx}`; // reset dropdown
-    return;
-  }
-  // Create new room from preset
-  if (value.startsWith('_new_')) {
-    const name = value.slice(5);
-    collectActiveAssessmentState();
-    const assessments = ensureAssessments() as AssessmentMutationOperations[];
-    const a = assessments.find(x => x.id === assessmentId);
-    if (!a) return;
-    a.rooms.push(newRoom(name));
-    emfEditorState.activeRoomIdx = a.rooms.length - 1;
-    saveImportedData();
-    renderEMFEditor(document.getElementById('detail-modal'));
-    return;
-  }
-  // Custom room
-  if (value === '_custom') {
-    const name = await showPromptDialog('Room name:', {
-      placeholder: 'e.g. Master Bedroom',
-      okLabel: 'Create',
-    });
-    if (name) {
-      collectActiveAssessmentState();
-      const assessments = ensureAssessments() as AssessmentMutationOperations[];
-      const a = assessments.find(x => x.id === assessmentId);
-      if (!a) return;
-      a.rooms.push(newRoom(name));
-      emfEditorState.activeRoomIdx = a.rooms.length - 1;
-      saveImportedData();
-      renderEMFEditor(document.getElementById('detail-modal'));
-    } else {
-      selectEl.value = `_room_${currentRoomIdx}`;
-    }
-    return;
-  }
-  // Reset to current
-  selectEl.value = `_room_${currentRoomIdx}`;
+async function change(mutate: (data: ProfileData) => void, operation: string, owner = captureEMFNativeOwner(), publish?: () => void) {
+  const saved = await stageEMFNativeChange(mutate, operation, owner);
+  if (saved && isEMFNativeOwnerCurrent(owner)) { publish?.(); refreshEMFEditorAfterChange(); } return saved;
 }
-
-export function addEMFRoom(assessmentId: unknown) {
-  collectActiveAssessmentState();
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === assessmentId);
-  if (!a) return;
-  a.rooms.push(newRoom(''));
-  emfEditorState.activeRoomIdx = a.rooms.length - 1;
-  saveImportedData();
-  renderEMFEditor(document.getElementById('detail-modal'));
+export async function addEMFAssessment() {
+  const next = newAssessment();
+  return change(data => { data.emfAssessment ||= { assessments: [] }; emfAssessments(data).push(next); }, 'add-assessment', undefined, () => { emfEditorState.editingAssessmentId = next.id; emfEditorState.activeRoomIdx = 0; });
 }
-
-export function removeEMFRoom(assessmentId: unknown, roomIdx: number) {
-  collectActiveAssessmentState();
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === assessmentId);
-  if (!a || a.rooms.length <= 1) return;
-  a.rooms.splice(roomIdx, 1);
-  if (emfEditorState.activeRoomIdx >= a.rooms.length) {
-    emfEditorState.activeRoomIdx = a.rooms.length - 1;
-  }
-  saveImportedData();
-  renderEMFEditor(document.getElementById('detail-modal'));
+export async function toggleEMFAssessment(id: unknown) {
+  const owner = captureEMFNativeOwner(); if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(owner)) return false;
+  emfEditorState.editingAssessmentId = emfEditorState.editingAssessmentId === id ? null : id; emfEditorState.activeRoomIdx = 0; refreshEMFEditorAfterChange(); return true;
 }
-
+export async function selectEMFRoom(assessmentId: unknown, index: number) {
+  if (emfEditorState.editingAssessmentId !== assessmentId) return false;
+  const owner = captureEMFNativeOwner(); if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(owner)) return false;
+  const rooms = assessment(state.importedData, assessmentId).rooms; if (!Array.isArray(rooms) || !Number.isInteger(index) || index < 0 || index >= rooms.length) return false;
+  emfEditorState.activeRoomIdx = index; refreshEMFEditorAfterChange(); return true;
+}
+export async function handleEMFRoomDropdown(assessmentId: unknown, currentRoomIdx: number, value: string, selectEl: { value: string }) {
+  if (value.startsWith('_room_')) { const index = Number(value.slice(6)); if (index !== currentRoomIdx) return selectEMFRoom(assessmentId, index); selectEl.value = `_room_${currentRoomIdx}`; return true; }
+  const initialOwner = captureEMFNativeOwner(); if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(initialOwner)) return false;
+  const owner = captureEMFNativeOwner(true);
+  let name: unknown;
+  if (value.startsWith('_new_')) name = value.slice(5);
+  else if (value === '_custom') name = await showPromptDialog('Room name:', { placeholder: 'e.g. Master Bedroom', okLabel: 'Create' });
+  if (!name || !isEMFNativeOwnerCurrent(owner)) { if (isEMFNativeOwnerCurrent(owner)) selectEl.value = `_room_${currentRoomIdx}`; return false; }
+  return change(data => { const row = assessment(data, assessmentId); if (!Array.isArray(row.rooms)) throw new Error('Review this room collection first.'); row.rooms.push(newRoom(name)); }, 'add-room', owner, () => { emfEditorState.activeRoomIdx = (assessment(state.importedData, assessmentId).rooms as unknown[]).length - 1; });
+}
+export async function addEMFRoom(assessmentId: unknown) {
+  return change(data => { const row = assessment(data, assessmentId); if (!Array.isArray(row.rooms)) throw new Error('Review this room collection first.'); row.rooms.push(newRoom('')); }, 'add-room', undefined, () => { emfEditorState.activeRoomIdx = (assessment(state.importedData, assessmentId).rooms as unknown[]).length - 1; });
+}
+export async function removeEMFRoom(assessmentId: unknown, index: number) {
+  const target = roomId(assessmentId, index);
+  return change(data => {
+    const row = assessment(data, assessmentId); if (!Array.isArray(row.rooms) || row.rooms.length <= 1) throw new Error('Remove the assessment to remove its last room.');
+    const rooms = row.rooms.map(agentDataObject); for (const [position, value] of rooms.entries()) value.id = emfRoomId(String(row.id), value, position);
+    const at = rooms.findIndex(value => value.id === target); if (at < 0) throw new Error('This EMF room changed.'); row.rooms.splice(at, 1);
+  }, 'remove-room', undefined, () => { const length = (assessment(state.importedData, assessmentId).rooms as unknown[]).length; emfEditorState.activeRoomIdx = Math.min(emfEditorState.activeRoomIdx, length - 1); });
+}
 export async function deleteEMFAssessment(id: unknown) {
-  if (await showConfirmDialog('Delete this EMF assessment? This cannot be undone.')) {
-    const assessments = ensureAssessments() as AssessmentMutationOperations[];
-    const idx = assessments.findIndex(x => x.id === id);
-    if (idx === -1) return;
-    assessments.splice(idx, 1);
-    emfEditorState.editingAssessmentId = null;
-    if (assessments.length === 0) state.importedData.emfAssessment = null;
-    saveImportedData();
-    renderEMFEditor(document.getElementById('detail-modal'));
-    showNotification('Assessment deleted', 'info');
-  }
+  const initialOwner = captureEMFNativeOwner(); if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(initialOwner)) return false;
+  const owner = captureEMFNativeOwner(true);
+  if (!await showConfirmDialog('Delete this EMF assessment and its local rooms, readings, photos and edit history? Original files and backups remain.') || !isEMFNativeOwnerCurrent(owner)) return false;
+  return change(data => { const rows = emfAssessments(data), row = assessment(data, id); rows.splice(rows.indexOf(row), 1); }, 'remove-assessment', owner, () => { emfEditorState.editingAssessmentId = null; showNotification('Assessment deleted', 'info'); });
 }
-
-export function updateEMFField(assessmentId: unknown, field: string, value: unknown) {
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === assessmentId);
-  if (a) { applyEMFField(a, field, value); saveImportedData(); }
+export async function updateEMFField(id: unknown, field: string, value: unknown) {
+  return change(data => {
+    if (!['date', 'label', 'consultant', 'note'].includes(field) || typeof value !== 'string' || field === 'date' && !validAgentDate(value)) throw new Error('Enter a valid EMF assessment field and date.');
+    assessment(data, id)[field] = value;
+  }, 'edit-assessment');
 }
-
-export function updateEMFRoom(assessmentId: unknown, roomIdx: number, field: string, value: unknown) {
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === assessmentId);
-  if (a && a.rooms[roomIdx]!) { a.rooms[roomIdx]![field] = value; saveImportedData(); }
-  if (field === 'name' || field === 'sleeping') renderEMFEditor(document.getElementById('detail-modal'));
+export async function updateEMFRoom(id: unknown, index: number, field: string, value: unknown) {
+  const target = roomId(id, index);
+  return change(data => {
+    if (!['name', 'location', 'sleeping', 'note'].includes(field) || (field === 'sleeping' ? typeof value !== 'boolean' : typeof value !== 'string')) throw new Error('Enter a valid EMF room field.');
+    room(data, target)[field] = value;
+  }, 'edit-room');
 }
-
-export function updateEMFMeasurement(assessmentId: unknown, roomIdx: number, type: string, value: unknown) {
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === assessmentId);
-  if (!a || !a.rooms[roomIdx]!) return;
-  applyEMFMeasurementValue(a.rooms[roomIdx]!, type, value);
-  saveImportedData();
-  renderEMFEditor(document.getElementById('detail-modal'));
+export async function updateEMFMeasurement(id: unknown, index: number, type: string, value: unknown) {
+  const target = roomId(id, index);
+  return change(data => {
+    const row = room(data, target), definition = SBM_2015_THRESHOLDS[type]; if (!definition) throw new Error('Choose a supported EMF measurement type.');
+    const raw = value == null ? '' : String(value).trim(), numeric = Number(raw), measurements = row.measurements == null ? {} : agentDataObject(row.measurements);
+    const previous = measurements[type] == null ? {} : agentDataObject(measurements[type]);
+    if (raw === '') { if (Object.keys(previous).length) measurements[type] = { ...previous, value: null }; } else {
+      if (!Number.isFinite(numeric) || numeric < 0) throw new Error('Enter a valid nonnegative EMF reading.');
+      if (previous.unit != null && previous.unit !== definition.unit) throw new Error('Correct this older reading and its canonical unit together first.');
+      measurements[type] = { ...previous, value: numeric, unit: definition.unit, meter: previous.meter || null };
+    }
+    row.measurements = measurements;
+  }, 'edit-reading');
 }
-
-export function updateEMFMeter(assessmentId: unknown, roomIdx: number, type: string, value: unknown) {
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === assessmentId);
-  if (!a || !a.rooms[roomIdx]!) return;
-  const m = (a.rooms[roomIdx]!.measurements || {})[type];
-  if (m) { m.meter = value || null; saveImportedData(); }
+export async function updateEMFMeter(id: unknown, index: number, type: string, value: unknown) {
+  const target = roomId(id, index);
+  return change(data => {
+    const row = room(data, target), definition = SBM_2015_THRESHOLDS[type]; if (!definition) throw new Error('Choose a supported EMF measurement type.');
+    if (value != null && typeof value !== 'string') throw new Error('Enter a reported EMF instrument name.');
+    const measurements = row.measurements == null ? {} : agentDataObject(row.measurements), meter = typeof value === 'string' && value ? value : null;
+    if (measurements[type] != null) agentDataObject(measurements[type]).meter = meter;
+    else if (meter) measurements[type] = { value: null, unit: definition.unit, meter };
+    row.measurements = measurements;
+  }, 'edit-meter');
 }
-
-function isISODate(value: unknown) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec((value || '') as string);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const d = new Date(Date.UTC(year, month - 1, day));
-  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
-}
-
-function applyEMFField(assessment: AssessmentMutationOperations, field: string, value: unknown) {
-  if (field === 'date') {
-    if (isISODate(value)) assessment.date = value;
-    return;
-  }
-  assessment[field] = value;
-}
-
-function applyEMFMeasurementValue(room: RoomMutationOperations, type: string, value: unknown) {
-  if (!room.measurements) room.measurements = {};
-  const raw = value == null ? '' : String(value).trim();
-  const numVal = raw === '' ? null : parseFloat(raw);
-  if (numVal === null || !Number.isFinite(numVal)) {
-    delete room.measurements[type];
-    return;
-  }
-  const def = SBM_2015_THRESHOLDS[type];
-  if (!def) return;
-  room.measurements[type] = {
-    value: numVal,
-    unit: def.unit,
-    meter: (room.measurements[type] || {}).meter || null
-  };
-}
-
-function collectActiveAssessmentInputs() {
-  if (!emfEditorState.editingAssessmentId) return;
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === emfEditorState.editingAssessmentId);
-  const modal = document.getElementById('detail-modal');
-  if (!a || !modal) return;
-
-  for (const field of ['date', 'label', 'consultant', 'note']) {
-    const input = modal.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-emf-field="${field}"]`);
-    if (input) applyEMFField(a, field, input.value || '');
-  }
-
-  const room = a.rooms?.[emfEditorState.activeRoomIdx];
-  if (!room) return;
-  const locationInput = modal.querySelector<HTMLInputElement>('[data-emf-room-field="location"]');
-  if (locationInput) room.location = locationInput.value || '';
-  const noteInput = modal.querySelector<HTMLInputElement>('[data-emf-room-field="note"]');
-  if (noteInput) room.note = noteInput.value || '';
-  const sleepingInput = modal.querySelector<HTMLInputElement>('[data-emf-room-field="sleeping"]');
-  if (sleepingInput) room.sleeping = !!sleepingInput.checked;
-
-  for (const mt of MEASUREMENT_TYPES) {
-    const valueInput = modal.querySelector<HTMLInputElement>(`[data-emf-measurement-type="${mt.key}"]`);
-    if (valueInput) applyEMFMeasurementValue(room, mt.key, valueInput.value);
-    const meterInput = modal.querySelector<HTMLInputElement | HTMLSelectElement>(`[data-emf-meter-type="${mt.key}"]`);
-    const measurement = room.measurements?.[mt.key];
-    if (meterInput && measurement) measurement.meter = meterInput.value || null;
-  }
-}
-
-function collectActiveAssessmentState() {
-  collectActiveAssessmentInputs();
-  collectTags();
-}
-
-/** Collect tags from DOM for the active room */
-function collectTags() {
-  if (!emfEditorState.editingAssessmentId) return;
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === emfEditorState.editingAssessmentId);
-  if (!a) return;
-  const ri = emfEditorState.activeRoomIdx;
-  const srcEl = document.getElementById(`emf-sources-${a.id}-${ri}`);
-  if (srcEl) a.rooms[ri]!.sources = Array.from(srcEl.querySelectorAll('.ctx-tag.active')).map(b => b.textContent);
-  const mitEl = document.getElementById(`emf-mits-${a.id}-${ri}`);
-  if (mitEl) a.rooms[ri]!.mitigations = Array.from(mitEl.querySelectorAll('.ctx-tag.active')).map(b => b.textContent);
-}
+const collectActiveAssessmentState = persistEMFEditorInputs;
 
 // ═══════════════════════════════════════════════
 // PDF IMPORT
 // ═══════════════════════════════════════════════
+let pdfRequest = 0, pdfController: AbortController | null = null, pdfOwner: EMFNativeOwner | null = null;
+onEMFRecordChanged(() => { if (pdfOwner && !isEMFNativeSourceCurrent(pdfOwner)) pdfController?.abort(); });
 const EMF_PARSE_SYSTEM = `You are an EMF assessment report parser. Extract room-by-room electromagnetic field measurements from Building Biology (Baubiologie) assessment reports.
 
 Reference measurement types and their standard units:
@@ -350,6 +233,11 @@ Return ONLY valid JSON:
 }`;
 
 export async function handleEMFPDF(file: Parameters<typeof extractPDFText>[0]) {
+  const request = ++pdfRequest; pdfController?.abort(); const controller = new AbortController(); pdfController = controller; pdfOwner = null;
+  const initialOwner = captureEMFNativeOwner();
+  if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(initialOwner) || request !== pdfRequest) return;
+  const owner = captureEMFNativeOwner(true); pdfOwner = owner;
+  const current = () => request === pdfRequest && !controller.signal.aborted && isEMFNativeSourceCurrent(owner);
   if (!(emfAIDeps as AIInvocationOperations).hasAIProvider()) {
     showNotification('Configure an AI provider in Settings first', 'error');
     return;
@@ -361,10 +249,11 @@ export async function handleEMFPDF(file: Parameters<typeof extractPDFText>[0]) {
   try {
     pdfText = await extractPDFText(file);
   } catch (e) {
-    showNotification('Failed to read PDF: ' + getErrorMessage(e), 'error');
+    if (current()) showNotification('Failed to read PDF: ' + getErrorMessage(e), 'error');
     return;
   }
 
+  if (!current()) return;
   if (!pdfText || pdfText.trim().length < 20) {
     showNotification('Could not extract text from this PDF. Try a text-based report.', 'error');
     return;
@@ -373,6 +262,7 @@ export async function handleEMFPDF(file: Parameters<typeof extractPDFText>[0]) {
   // PII obfuscation — consultant reports contain client names/addresses
   let textToSend = pdfText;
   const piiAvailable = await checkOllamaPII();
+  if (!current()) return;
   const reviewEnabled = isPIIReviewEnabled();
 
   if (piiAvailable.available && reviewEnabled) {
@@ -381,7 +271,7 @@ export async function handleEMFPDF(file: Parameters<typeof extractPDFText>[0]) {
       obfuscatedText: obfuscated,
       streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)
     });
-    if (result === 'cancel') return;
+    if (!current() || result === 'cancel') return;
     textToSend = result;
   } else if (piiAvailable.available) {
     try {
@@ -396,15 +286,18 @@ export async function handleEMFPDF(file: Parameters<typeof extractPDFText>[0]) {
     textToSend = obfuscated;
   }
 
+  if (!current()) return;
   showNotification('AI is analyzing EMF report...', 'info', 5000);
 
   try {
     const { text } = await (emfAIDeps as AIInvocationOperations).callClaudeAPI({
       system: EMF_PARSE_SYSTEM,
+      signal: controller.signal,
       messages: [{ role: 'user', content: textToSend }],
       maxTokens: 4096,
     }) as PDFResponseOperations;
 
+    if (!current()) return;
     const jsonMatch = (text as MatchOperations).match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON in AI response');
     const parsed: unknown = JSON.parse(jsonMatch[0]!);
@@ -414,71 +307,47 @@ export async function handleEMFPDF(file: Parameters<typeof extractPDFText>[0]) {
       return;
     }
 
-    showEMFImportPreview(parsed as PreviewInput);
+    await showEMFImportPreview(parsed as PreviewInput, current);
   } catch (e) {
-    showNotification('Failed to parse EMF report: ' + getErrorMessage(e), 'error');
+    if (current()) showNotification('Failed to parse EMF report: ' + getErrorMessage(e), 'error');
   }
 }
 
-export function toggleEMFCompare() {
-  collectActiveAssessmentState();
-  emfEditorState.compareMode = !emfEditorState.compareMode;
-  emfEditorState.editingAssessmentId = null;
-  renderEMFEditor(document.getElementById('detail-modal'));
+export async function toggleEMFCompare() {
+  const owner = captureEMFNativeOwner(); if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(owner)) return false;
+  emfEditorState.compareMode = !emfEditorState.compareMode; emfEditorState.editingAssessmentId = null; refreshEMFEditorAfterChange(); return true;
 }
-
-// ═══════════════════════════════════════════════
-// AI INTERPRETATION WRAPPERS
-// ═══════════════════════════════════════════════
 export { closeEMFInterpretation, discussEMFInterpretation };
-
-function getEMFInterpretationDeps() {
-  return {
-    collectActiveAssessmentState,
-    getAssessments: ensureAssessments
-  };
+export async function interpretEMFAssessment(id: unknown) {
+  const owner = captureEMFNativeOwner(); if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(owner)) return false;
+  interpretEMFAssessmentImpl(id, { getAssessments: ensureAssessments }); return true;
 }
-
-export function interpretEMFAssessment(assessmentId: unknown) {
-  interpretEMFAssessmentImpl(assessmentId, getEMFInterpretationDeps());
-}
-
-export function interpretEMFComparison() {
-  interpretEMFComparisonImpl(getEMFInterpretationDeps());
+export async function interpretEMFComparison() {
+  const owner = captureEMFNativeOwner(); if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(owner)) return false;
+  interpretEMFComparisonImpl({ getAssessments: ensureAssessments }); return true;
 }
 
 // ═══════════════════════════════════════════════
 // ROOM PHOTOS
 // ═══════════════════════════════════════════════
-export async function addEMFPhotos(assessmentId: unknown, roomIdx: number, files: Iterable<File>) {
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === assessmentId);
-  if (!a || !a.rooms[roomIdx]!) return;
-  const room = a.rooms[roomIdx]!;
-  if (!room.photos) room.photos = [];
-
-  for (const file of files) {
-    if (!isValidImageType(file.type)) continue;
-    if (room.photos.length >= 6) { showNotification('Max 6 photos per room', 'warning'); break; }
-    try {
-      const { base64, mediaType } = await resizeImage(file, 800, 0.8);
-      room.photos.push({ name: file.name, base64, mediaType });
-    } catch { /* skip unreadable */ }
+export async function addEMFPhotos(assessmentId: unknown, index: number, files: Iterable<File>) {
+  const initialOwner = captureEMFNativeOwner(), target = roomId(assessmentId, index), selected = [...files];
+  if (!await persistEMFEditorInputs() || !isEMFNativeOwnerCurrent(initialOwner)) return false;
+  if (!emfRecords(state.importedData, 'emfRooms').some(row => row.id === target)) return false;
+  const owner = captureEMFNativeOwner(true);
+  const current = room(state.importedData, target), oldPhotos = Array.isArray(current.photos) ? current.photos : [];
+  const photos: Array<{ name: string; base64: string; mediaType: string }> = [];
+  for (const file of selected) {
+    if (!isEMFNativeOwnerCurrent(owner)) return false; if (!isValidImageType(file.type)) continue;
+    if (oldPhotos.length + photos.length >= 6) { showNotification('Max 6 photos per room', 'warning'); break; }
+    try { const resized = await resizeImage(file, 800, 0.8); if (!isEMFNativeOwnerCurrent(owner)) return false; photos.push({ name: file.name, ...resized }); } catch { /* A failed chosen file leaves saved photos intact. */ }
   }
-  saveImportedData();
-  renderEMFEditor(document.getElementById('detail-modal'));
+  if (!photos.length) return false;
+  return change(data => { const row = room(data, target); if (row.photos != null && !Array.isArray(row.photos)) throw new Error('Review the older photos first.'); const saved = (row.photos || []) as unknown[]; if (saved.length + photos.length > 6) throw new Error('The room photos changed; choose the files again.'); row.photos = [...saved, ...photos]; }, 'add-photos', owner);
 }
-
-export function removeEMFPhoto(assessmentId: unknown, roomIdx: number, photoIdx: number) {
-  const assessments = ensureAssessments() as AssessmentMutationOperations[];
-  const a = assessments.find(x => x.id === assessmentId);
-  if (!a || !a.rooms[roomIdx]!) return;
-  const photos = a.rooms[roomIdx]!.photos;
-  if (photos && photos[photoIdx]) {
-    photos.splice(photoIdx, 1);
-    saveImportedData();
-    renderEMFEditor(document.getElementById('detail-modal'));
-  }
+export async function removeEMFPhoto(id: unknown, index: number, photoIdx: number) {
+  const target = roomId(id, index), original = structuredClone((room(state.importedData, target).photos as unknown[] | undefined)?.[photoIdx]);
+  return change(data => { const row = room(data, target); if (!Array.isArray(row.photos) || original === undefined || !profileDataValuesEqual(row.photos[photoIdx], original)) throw new Error('This EMF photo changed.'); row.photos.splice(photoIdx, 1); }, 'remove-photo');
 }
 
 export function viewEMFPhoto(assessmentId: unknown, roomIdx: number, photoIdx: number) {
@@ -499,10 +368,9 @@ export function viewEMFPhoto(assessmentId: unknown, roomIdx: number, photoIdx: n
   try { trapModalFocus(overlay); } catch (_) {}
 }
 
-export function saveEMFExplicit() {
-  collectActiveAssessmentState();
-  saveImportedData();
-  showNotification('EMF assessment saved', 'success');
+export async function saveEMFExplicit() {
+  const owner = captureEMFNativeOwner(), saved = await persistEMFEditorInputs();
+  if (saved && isEMFNativeOwnerCurrent(owner)) { refreshEMFEditorAfterChange(); showNotification('EMF assessment saved', 'success'); } return saved;
 }
 
 configureEMFEditor({

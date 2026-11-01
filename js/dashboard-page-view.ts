@@ -235,8 +235,8 @@ export function createDashboardPageView(deps: unknown) {
       // welcome hero. Mobile keeps the welcome/import controls unobscured.
       const isDesktopChatOnboardingViewport = (getDashboardPageRuntimeValue('innerWidth') as number) > 768;
       if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0) {
-        const profile = state.currentProfile;
-        const ownsReservation = () => generation === onboardingGeneration && state.currentProfile === profile
+        const profile = state.currentProfile, onboardingData = state.importedData;
+        const ownsReservation = () => generation === onboardingGeneration && state.currentProfile === profile && state.importedData === onboardingData
           && main.isConnected && document.getElementById('main-content') === main;
         const releaseReservation = () => { if (ownsReservation()) document.body.classList.remove('chat-autostart-reserved'); };
         const hasForegroundOverlay = () => !!document.querySelector('.modal-overlay.show,.confirm-overlay.show,#sync-popover');

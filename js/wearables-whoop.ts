@@ -1,3 +1,4 @@
+import { createWearableFetchScope } from './wearable-fetch-scope.js';
 import type { WearableDailyRow, WearableErrorBody, WearableRequestError, WearableQuery, WearableQueryConstructor } from './wearable-data-types.js';
 
 // wearables-whoop.js — WHOOP data layer
@@ -91,13 +92,15 @@ function isoCeil(dayStr: string)  { return dayStr + 'T23:59:59.999Z'; }
 function dayFromIso(iso: string | undefined) { return (iso || '').slice(0, 10); }
 
 export async function fetchWhoopDailyRange(accessToken: string, startDate: string, endDate: string) {
+  const requests = createWearableFetchScope();
   const params = { start: isoFloor(startDate), end: isoCeil(endDate), limit: 25 };
 
   const [cycles, recoveries, sleeps] = await Promise.all([
-    whoopCollect('developer/v2/cycle', accessToken, params).catch(e => { logDebug('cycle', e); return []; }),
-    whoopCollect('developer/v2/recovery', accessToken, params).catch(e => { logDebug('recovery', e); return []; }),
-    whoopCollect('developer/v2/activity/sleep', accessToken, params).catch(e => { logDebug('sleep', e); return []; }),
+    requests.run(whoopCollect('developer/v2/cycle', accessToken, params), [], e => { logDebug('cycle', e); }),
+    requests.run(whoopCollect('developer/v2/recovery', accessToken, params), [], e => { logDebug('recovery', e); }),
+    requests.run(whoopCollect('developer/v2/activity/sleep', accessToken, params), [], e => { logDebug('sleep', e); }),
   ]);
+  requests.assertSuccessful();
 
   // v2 flattens relationships to bare IDs: a recovery record carries
   // `cycle_id`/`sleep_id` instead of the v1 embedded `cycle`/`sleep` objects.

@@ -41,6 +41,7 @@ import { hashString, showNotification } from './utils.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import { getCurrentSupplements, getSupplementsOverlappingRange } from './supplement-medication-domain.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
+import { createLabContextDisclosure } from './lab-context-disclosure.js';
 import { buildCompactSupplementContextRecords } from './supplement-context.js';
 
 import { biologyScoreContextAIDeps } from './biology-score-context-runtime.js';
@@ -163,10 +164,11 @@ function latest(data: ReviewData, cat: string, key: string) {
 const BIOLOGY_CONTEXT_LABS: [string, string][] = [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']];
 
 function recentContextLabs(data: ReviewData) {
-  if (!isLabMarkersContextEnabled()) return [];
+  if (!isLabMarkersContextEnabled() || !data?.dates || !data.categories) return [];
+  const visible = createLabContextDisclosure().project(data as ActiveData);
   const labs: string[] = [];
   BIOLOGY_CONTEXT_LABS.forEach(([c, k]) => {
-    const v = latest(data, c, k);
+    const v = latest(visible, c, k);
     if (v) labs.push(v);
   });
   return labs;

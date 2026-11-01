@@ -174,7 +174,9 @@ localStorage.removeItem(chatThreadsModule.getChatThreadKey('t_migrated'));
 console.log('9. Save/Load Round-trip');
 st.chatThreads = [];
 st.currentThreadId = null;
-localStorage.removeItem(chatThreadsModule.getChatThreadsKey());
+await (await import('../js/crypto.js')).encryptedRemoveItem(chatThreadsModule.getChatThreadsKey());
+await chatThreadsModule.loadChatThreads();
+st.currentThreadId = null;
 chatThreadsModule.createNewThread();
 const rtThreadId = st.currentThreadId;
 st.chatHistory = [
@@ -252,7 +254,7 @@ assert('ensureActiveThread does not create while index is blocked', st.chatThrea
 chatThreadsModule.createNewThread();
 assert('createNewThread does not create while index is blocked', st.chatThreads.length === 0);
 
-localStorage.removeItem(guardedIndexKey);
+await cryptoModule.encryptedRemoveItem(guardedIndexKey);
 await chatThreadsModule.loadChatThreads();
 await cryptoModule._setTestSessionKey(null);
 if (_origEncryptionEnabled === null) localStorage.removeItem('labcharts-encryption-enabled');
@@ -301,7 +303,7 @@ if (!_origProfiles) {
 st.chatThreads = [
   { id: 't_backup1', name: 'Backup Test', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 1, personality: 'default' }
 ];
-chatThreadsModule.saveChatThreadIndex();
+await chatThreadsModule.saveChatThreadIndex();
 localStorage.setItem(chatThreadsModule.getChatThreadKey('t_backup1'), JSON.stringify([{ role: 'user', content: 'backup test' }]));
 
 const snapshot = backupModule.buildBackupSnapshot();

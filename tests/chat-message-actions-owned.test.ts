@@ -26,6 +26,20 @@ describe('owned message actions', () => {
     state.chatHistory[1] = { role: 'assistant', content: 'Failed', error: true, discussion: true, discussionError: true, discussionPersonaId: 'house', personalityName: 'Dr <House>' };
     expect(projectChatMessageActions(state.chatHistory, 1)).toMatchObject({ retry: { action: 'retry-discussion-participant', personaId: 'house', label: 'Retry Dr <House>' }, resume: true, speech: false });
   });
+  it('counts native pending reviews independently from model claims and completed cards', () => {
+    state.chatHistory[1]!.content = 'Here are ten proposals ready to Apply.';
+    expect(render().querySelector('.chat-review-summary')).toBeNull();
+    state.chatHistory[1]!.agentDrafts = ['pending', 'applied', 'superseded'].map((status, index) => ({
+      id: `actual-${index}`, kind: 'note', profileId: 'origin', status: status as 'pending' | 'applied' | 'superseded',
+      summary: 'Explicit profile note', payload: { scope: 'profile', mode: 'append', text: 'Reported fact' },
+    }));
+    const root = render();
+    expect(root.querySelector('.chat-review-summary')?.textContent).toBe('1 change awaiting review. Proposed changes require Apply.');
+    expect(root.querySelectorAll('[data-chat-message-action="apply-agent-draft"]')).toHaveLength(1);
+    expect(root.querySelectorAll('.chat-agent-draft')).toHaveLength(3);
+    expect(root.querySelector('.chat-agent-draft-applied small')?.textContent).toBe('Saved');
+    expect(root.querySelector('.chat-agent-draft-superseded small')?.textContent).toBe('Replaced by a newer proposal');
+  });
   it('renders literal context and updates its owned disclosure without replacing controls', () => {
     const root = render(); const button = root.querySelector<HTMLButtonElement>('.chat-context-toggle')!;
     expect(root.querySelector('.chat-context-item')?.textContent).toBe('✓ <Labs> (<Private>)'); expect(root.querySelector('labs,private')).toBeNull();

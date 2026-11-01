@@ -113,16 +113,35 @@ describe('meal-photo model routing', () => {
     expect(getMealAISelection()).toMatchObject({ model: 'qwen-vl-chat', usesChatModel: true });
   });
 
-  it('ignores an override from a provider that is no longer the main provider', () => {
+  it('keeps an unavailable explicit provider choice without silently sending meal photos to the chat fallback', () => {
     setNutritionAIRoute({ provider: 'openrouter', model: 'anthropic/claude-opus-5' });
 
     expect(getMealAISelection()).toMatchObject({
-      provider: 'ollama',
-      model: 'qwen-vl-chat',
-      usesChatModel: true,
+      provider: 'openrouter',
+      model: 'anthropic/claude-opus-5',
+      usesChatModel: false,
+      available: false,
     });
     expect(renderNutritionAISettings()).toContain('Only models with confirmed image input are shown');
-    expect(renderNutritionAISettings()).not.toContain('anthropic/claude-opus-5');
+    expect(renderNutritionAISettings()).toContain('anthropic/claude-opus-5');
+    expect(renderNutritionAISettings()).toContain('Saved choice unavailable');
+    expect(buildNutritionAISettingsSnapshot()).toMatchObject({ automaticDisabled: false, automaticLabel: 'Follow chat assistant — qwen-vl-chat' });
+  });
+
+  it('uses a configured vision provider independently of the chat provider and keeps automatic labels tied to chat', () => {
+    updateKeyCache('labcharts-openrouter-key', 'synthetic-other-provider-key');
+    setOpenRouterModel('google/gemini-3.7-flash');
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([{ id: 'google/gemini-3.7-flash', name: 'Meal vision' }]));
+    localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(['google/gemini-3.7-flash']));
+    setNutritionAIRoute({ provider: 'openrouter', model: 'google/gemini-3.7-flash' });
+    expect(getMealAISelection()).toMatchObject({ provider: 'openrouter', model: 'google/gemini-3.7-flash', available: true, usesChatModel: false, usesAutomatic: false });
+    expect(buildNutritionAISettingsSnapshot()).toMatchObject({ automaticLabel: 'Follow chat assistant — qwen-vl-chat', automaticDisabled: false });
+    expect(renderNutritionAISettings()).toContain('OpenRouter vision models'); expect(renderNutritionAISettings()).toContain('Local AI vision models');
+    expect(localStorage.getItem('labcharts-ai-provider')).toBe('ollama'); expect(localStorage.getItem('labcharts-ollama-model')).toBe('qwen-vl-chat');
+  });
+
+  it.each(['{broken', '{"provider":"ollama","model":"llava-meal","future":true}'])('does not grant automatic fallback from unfamiliar saved route data: %s', raw => {
+    localStorage.setItem('labcharts-nutrition-ai-route', raw); expect(getMealAISelection()).toMatchObject({ available: false, usesAutomatic: false, provider: '' }); expect(localStorage.getItem('labcharts-nutrition-ai-route')).toBe(raw);
   });
 
   it('lists every current model family with a confirmed vision capability', () => {

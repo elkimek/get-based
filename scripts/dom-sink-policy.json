@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "sourceInventoryDigest": "0e49f94670a3a98c57381bbf463cab5f6e3b8a52a6740898f57cef9ddb4b2029",
-  "scannedFiles": 1812,
-  "sinkCount": 297,
+  "sourceInventoryDigest": "2ce834138b90b0f27d033346aaee369f5fff0e0ce98b8ce39763d53bdd4c0bfe",
+  "scannedFiles": 2008,
+  "sinkCount": 303,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -249,16 +249,16 @@
     },
     "js/emf-editor.js": {
       "count": 2,
-      "digest": "2018736f6167b9873d028f4150c4e0201f1009480a3e555db49418e05664036d",
+      "digest": "f0dab63734c20e925f551942c3dce1862777604fc7daccb9360cea449712baac",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/emf-interpretation.js": {
-      "count": 6,
-      "digest": "edd339ad97cc194faef63b887e31e9f14153ef046e054fc95986b6f4af1d0287",
+      "count": 8,
+      "digest": "8dcded0876524503356e4319549d93787b24cfc1310428b9a4a0484951c33dc6",
       "kinds": {
-        "innerHTML": 6
+        "innerHTML": 8
       }
     },
     "js/emf.js": {
@@ -317,6 +317,13 @@
         "innerHTML": 1
       }
     },
+    "js/lab-sample-editor.js": {
+      "count": 1,
+      "digest": "608501df291787d9600f37a5cad6a4241d808cca3636b260b2e4fb7255f82dc5",
+      "kinds": {
+        "innerHTML": 1
+      }
+    },
     "js/legal-consent.js": {
       "count": 1,
       "digest": "e1a33d351f8bbc45e249c5b0bcf27f8623eff4d3c49d4152aaf8b037594a51ea",
@@ -325,17 +332,17 @@
       }
     },
     "js/lens-knowledge-base-ui.js": {
-      "count": 8,
-      "digest": "b828cf981b2503178d6bb23594859818e3c098dfc6c77ff949a01d5a519930f2",
+      "count": 10,
+      "digest": "225d96fb8c2f67667b80a7b53589b60e23793333b9c59b961ed5b8394545cd19",
       "kinds": {
-        "innerHTML": 8
+        "innerHTML": 10
       }
     },
     "js/lens-library.js": {
-      "count": 4,
-      "digest": "a1da29456abff2adefc453517adac31e83d5da81f1657dc5a2da5385f2b8d3f7",
+      "count": 5,
+      "digest": "d2a2d4525a52691c09059511bcd8a8fb2b59f35e403ad51da5438109193fc3d3",
       "kinds": {
-        "innerHTML": 4
+        "innerHTML": 5
       }
     },
     "js/lens-pages.js": {
@@ -699,7 +706,7 @@
     },
     "js/sun-session-ui.js": {
       "count": 2,
-      "digest": "aac0d971b29b246149737895e479e03e25ed464ab0c0887cc419480fbe346f26",
+      "digest": "967822504dbfe503465890e2f58dfc72879afc5be543ef6ed5a8ad5c90adcf96",
       "kinds": {
         "innerHTML": 2
       }

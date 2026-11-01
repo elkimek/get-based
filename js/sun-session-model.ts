@@ -15,7 +15,7 @@ export interface SunSessionExposureInput {
   surfaceAlbedo?: string | null;
   eyeExposure?: { mode?: string | null; [key: string]: unknown } | null;
 }
-type SessionInputField = 'id' | 'updatedAt' | 'startedAt' | 'endedAt' | 'durationMin' | 'location'
+type SessionInputField = 'id' | 'updatedAt' | 'startedAt' | 'endedAt' | 'durationMin' | 'location' | 'reportedInputsVersion'
   | 'bodyExposure' | 'eyeExposure' | 'posture' | 'surfaceAlbedo' | 'exposureSegments'
   | 'accumulatedPausedMs' | 'paused' | 'pausedAt' | 'resumedAt';
 export type SunSessionInputSnapshot = Partial<Record<SessionInputField, unknown>>;
@@ -117,7 +117,7 @@ export function sunSessionInputKey(
   session: SunSessionInputSnapshot, data: SunSessionProfileSnapshot | null | undefined,
 ) {
   return JSON.stringify([
-    ...(['id', 'updatedAt', 'startedAt', 'endedAt', 'durationMin', 'location',
+    ...(['id', 'updatedAt', 'startedAt', 'endedAt', 'durationMin', 'location', 'reportedInputsVersion',
       'bodyExposure', 'eyeExposure', 'posture', 'surfaceAlbedo', 'exposureSegments',
       'accumulatedPausedMs', 'paused', 'pausedAt', 'resumedAt'] as const).map(key => session[key]),
     data?.sunDefaults, data?.lightCircadian?.skinType,
@@ -139,3 +139,20 @@ export function sunSessionExposure(sess: SunSessionExposureInput) {
       ? { ...sess.eyeExposure, mode: 'glass-window' } : sess.eyeExposure,
   };
 }
+
+export const EYE_MODES = [
+  { key: 'direct',         label: 'Eyes uncovered',     pickerLabel: 'Eyes uncovered (never stare at sun)', warn: true },
+  { key: 'sunglasses',     label: 'UV-blocking sunglasses', pickerLabel: 'UV-blocking sunglasses' },
+  { key: 'clear-glasses',  label: 'Clear UV-blocking lenses', pickerLabel: 'Clear UV-blocking lenses' },
+  { key: 'closed-eyes',    label: 'Closed eyes',        pickerLabel: 'Closed eyes' },
+  { key: 'glass-window',   label: 'Through window glass', pickerLabel: 'Through window glass' },
+  { key: 'indoor',         label: 'Not eye-exposed',    pickerLabel: 'Not eye-exposed' },
+];
+
+export const LENS_TINTS = [
+  { key: 'clear',         label: 'Clear (no tint)' },
+  { key: 'polarized',     label: 'Polarized' },
+  { key: 'photochromic',  label: 'Photochromic' },
+  { key: 'blue-blocker',  label: 'Blue blocker' },
+  { key: 'amber',         label: 'Amber / red' },
+];

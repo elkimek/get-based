@@ -242,7 +242,12 @@ export function clearMarkerPlacement(profileData: MarkerPlacementProfile, marker
   if (!marker) return { ok: false, changed: false, reason: 'unknown-marker' };
   if (!isRecord(profileData.markerPlacements)) profileData.markerPlacements = {};
   const changed = Object.prototype.hasOwnProperty.call(profileData.markerPlacements, marker.markerId);
-  if (changed) delete profileData.markerPlacements[marker.markerId];
+  if (changed) {
+    const previous = profileData.markerPlacements[marker.markerId];
+    const retained = isRecord(previous) ? Object.fromEntries(Object.entries(previous).filter(([key]) => key !== 'categoryKey')) : {};
+    if (Object.keys(retained).length) profileData.markerPlacements[marker.markerId] = retained;
+    else delete profileData.markerPlacements[marker.markerId];
+  }
   return {
     ok: true,
     changed,

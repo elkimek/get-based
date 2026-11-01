@@ -1,6 +1,6 @@
 import path from 'node:path';
 import {expect, test} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {readyLightArtifact} from '../helpers/light-artifact-navigation.js';
 

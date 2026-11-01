@@ -3,13 +3,13 @@
 import { fetchCustomApiModels, fetchOpenRouterModels, fetchPpqModels, fetchRoutstrModels, fetchVeniceModels,
   getCustomApiKey, getCustomApiUrl, getOllamaConfig, getOpenRouterKey, getPpqKey, getPpqPrivateMode,
   getRoutstrKey, getRoutstrNodeUrl, getVeniceKey, getVeniceE2EE, isRoutstrPrivateModeActive,
-  setCustomApiModel, setOllamaMainModel, setPpqModel, supportsVision } from './api.js';
+  supportsVision } from './api.js';
 import { discoverLocalAI } from './local-ai-discovery.js';
 import { cacheLocalAiModelDetails } from './provider-local-ai-runtime.js';
-import { connectDetectedAgent, getAgentHostEndpoint, getAgentHostToken, saveAgentChatSettings } from './agent-chat-settings.js';
+import { connectDetectedAgent, getAgentHostEndpoint, getAgentHostToken } from './agent-chat-settings.js';
 import { listAgentModels } from './agent-chat-client.js';
 import { cacheAgentModelCatalog, getCachedAgentModelCatalog, resolveAgentModel } from './agent-model-catalog.js';
-import { setDirectChatReasoningEffort } from './chat-model-preferences.js';
+import { captureAssistantSelection, commitAssistantSelection } from './assistant-selection.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 import { hasPendingAttachments } from './chat-images.js';
 import { showNotification } from './utils.js';
@@ -85,25 +85,6 @@ function supportsAttachments(state: ChatModelControlState, value: string): boole
   return supported;
 }
 
-async function selectDirectModel(
-  provider: string,
-  model: string,
-  current: () => boolean,
-  allowed: () => boolean,
-) {
-  if (!current() || !allowed()) return;
-  if (provider === 'ollama') setOllamaMainModel(model);
-  else if (provider === 'ppq') setPpqModel(model);
-  else if (provider === 'custom') setCustomApiModel(model);
-  else {
-    const controls = await import('./provider-model-controls.js');
-    if (!current() || !allowed()) return;
-    if (provider === 'venice') controls.onVeniceModelDropdownChange(model);
-    else if (provider === 'openrouter') controls.onOpenRouterDropdownChange(model);
-    else if (provider === 'routstr') controls.onRoutstrModelDropdownChange(model);
-  }
-}
-
 async function selectModel(value: string, expected: number) {
   const source = actionSource(expected);
   if (!source || !supportsAttachments(source.state, value)) return;
@@ -124,10 +105,10 @@ async function selectModel(value: string, expected: number) {
       if (!ownsChoice()) return;
       cacheAgentModelCatalog(models, source.state.provider, source.state.target);
       if (!ownsChoice() || !supportsAttachments(source.state, value)) return;
-      await saveAgentChatSettings({ model: value });
-    } else {
-      await selectDirectModel(source.state.provider, value, ownsChoice, () => supportsAttachments(source.state, value));
     }
+    if (!ownsChoice()) return;
+    const lease = captureAssistantSelection();
+    await commitAssistantSelection(lease.leaseId, { model: value }, { canCommit: ownsChoice });
     if (!current()) return;
     source.view.close();
     updateChatHeaderModelRuntime();
@@ -189,8 +170,8 @@ async function saveEffort(value: string, expected: number) {
   const state = source.state;
   if (value && !state.efforts.includes(value)) return;
   try {
-    if (state.cli) await saveAgentChatSettings({ effort: value });
-    else setDirectChatReasoningEffort(state.provider, state.selectedId, value);
+    const lease = captureAssistantSelection();
+    await commitAssistantSelection(lease.leaseId, { effort: value }, { canCommit: () => source.context.current(true) });
     if (source.context.current(true)) refreshChatModelControls();
   } catch (error) {
     if (source.context.current(true)) {

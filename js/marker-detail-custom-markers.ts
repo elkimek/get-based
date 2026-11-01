@@ -1,10 +1,10 @@
+import { commitNativeCustomMarkerCreation, readNativeCustomMarker, commitNativeCustomMarkerRemoval } from './custom-marker-store.js';
+import type { CustomMarkerInput } from './custom-marker-core.js';
 // marker-detail-custom-markers.js — Custom biomarker create/delete flow owner
 
 import { state } from './state.js';
-import { createCustomMarkerId } from './custom-marker-identity.js';
-import { showConfirmDialog, showNotification } from './utils.js';
-import { getActiveData, saveImportedData, updateHeaderDates } from './data.js';
-import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
+import { showNotification } from './utils.js';
+import { getActiveData, updateHeaderDates } from './data.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
 import { renderCustomMarkerForm } from './custom-marker-presentation.js';
 import { openModalOverlay } from './modal-lifecycle.js';
@@ -21,7 +21,7 @@ interface CustomMarkerCalls {
   showEmojiPicker(element: Element, callback: (emoji?: unknown) => void): unknown;
 }
 export type CustomMarkerRuntimeSnapshot = { [Key in keyof CustomMarkerCalls]: unknown };
-interface DeletedMarkerReader { markerId?: unknown; name?: unknown; categoryLabel?: unknown }
+const createOwners = new WeakMap<HTMLElement, { profileId: string; root: typeof state.importedData }>();
 const customMarkerRuntime: CustomMarkerCalls = {
   closeModal: () => {},
   navigate: () => {},
@@ -45,6 +45,7 @@ function renderCreateMarkerModal() {
   if (!modal) return;
   const data = getActiveData();
   modal.innerHTML = renderCustomMarkerForm(data.categories);
+  createOwners.set(modal, { profileId: state.currentProfile, root: state.importedData });
   openModalOverlay(overlay, { initialFocus: '#cm-name', focusDelay: 50 });
 }
 
@@ -57,140 +58,60 @@ export function pickNewCatIcon(element: HTMLElement) {
   });
 }
 
-export function saveCustomMarker() {
-  const categorySelect = (document.getElementById('cm-category') as HTMLSelectElement | null);
-  const newCategoryInput = (document.getElementById('cm-new-cat') as HTMLInputElement | null);
-  const nameInput = (document.getElementById('cm-name') as HTMLInputElement | null);
-  const unitInput = (document.getElementById('cm-unit') as HTMLInputElement | null);
-  const refMinInput = (document.getElementById('cm-ref-min') as HTMLInputElement | null);
-  const refMaxInput = (document.getElementById('cm-ref-max') as HTMLInputElement | null);
-  if (!categorySelect) return;
-  if (!nameInput?.value.trim()) {
-    showNotification('Please enter a marker name', 'error');
-    return;
+const formIds = ['cm-category', 'cm-new-cat', 'cm-name', 'cm-unit', 'cm-ref-min', 'cm-ref-max', 'cm-opt-min', 'cm-opt-max'];
+function formSignature(modal: HTMLElement) {
+  return JSON.stringify([...formIds.map(id => (modal.querySelector('#' + id) as HTMLInputElement | null)?.value ?? null), modal.querySelector('#cm-new-cat-icon')?.textContent, (modal.querySelector('#cm-new-cat-icon') as HTMLElement | null)?.dataset.custom]);
+}
+export async function saveCustomMarker() {
+  const modal = document.getElementById('detail-modal'), owner = modal ? createOwners.get(modal) : null;
+  if (!modal || !owner) return false;
+  const current = () => state.currentProfile === owner.profileId && state.importedData === owner.root && modal.isConnected && document.getElementById('detail-modal') === modal;
+  const value = (id: string) => (modal.querySelector('#' + id) as HTMLInputElement | null)?.value.trim() || '';
+  if (!value('cm-name')) { showNotification('Please enter a marker name', 'error'); return false; }
+  if (value('cm-category') === '__new__' && !value('cm-new-cat')) { showNotification('Please enter a category name', 'error'); return false; }
+  const signature = formSignature(modal), sameInput = () => current() && formSignature(modal) === signature;
+  try {
+    const number = (id: string) => value(id) ? Number(value(id)) : null;
+    const input: CustomMarkerInput = { name: value('cm-name'), unit: value('cm-unit'),
+      ...(value('cm-category') === '__new__' ? { newCategory: value('cm-new-cat') } : { category: value('cm-category') }),
+      refMin: number('cm-ref-min'), refMax: number('cm-ref-max'),
+      ...(value('cm-opt-min') || value('cm-opt-max') ? { optimalMin: number('cm-opt-min'), optimalMax: number('cm-opt-max') } : {}) };
+    const iconElement = modal.querySelector<HTMLElement>('#cm-new-cat-icon'), icon = iconElement?.dataset.custom === '1' ? iconElement.textContent?.trim() : undefined;
+    const plan = await commitNativeCustomMarkerCreation(owner.profileId, input, { allowed: sameInput, ...(icon ? { icon } : {}) });
+    if (!current()) return true;
+    buildMarkerDetailSidebarRuntime();
+    if (!sameInput()) { showNotification(`Created "${plan.name}". Your newer form input has been kept.`, 'success'); return true; }
+    customMarkerRuntime.closeModal();
+    showNotification(`Created "${plan.name}" in ${plan.category.label}`, 'success');
+    const id = plan.markerKey.replace('.', '_');
+    state.markerRegistry[id] = { name: plan.name, unit: plan.unit, refMin: input.refMin ?? null, refMax: input.refMax ?? null, custom: true, storageDotKey: plan.markerKey };
+    setTimeout(() => {
+      if (state.currentProfile === owner.profileId && state.importedData === owner.root && !document.querySelector('.modal-overlay.show,.confirm-overlay.show,[data-modal-focus-trap]')) customMarkerRuntime.openManualEntryForm(id);
+    }, 100);
+    return true;
+  } catch (error) {
+    if (current()) showNotification(error instanceof Error ? error.message : 'The custom marker could not be saved. Your input is kept.', 'error');
+    return false;
   }
-  const name = nameInput.value.trim();
-
-  let categoryKey: string;
-  let categoryLabel: string;
-  let newCategoryIcon: string | null = null;
-  if (categorySelect.value === '__new__') {
-    categoryLabel = (newCategoryInput?.value || '').trim();
-    if (!categoryLabel) {
-      showNotification('Please enter a category name', 'error');
-      return;
-    }
-    const iconElement = (document.getElementById('cm-new-cat-icon') as HTMLElement | null);
-    newCategoryIcon = iconElement?.dataset.custom === '1' ? iconElement.textContent!.trim() : null;
-    categoryKey = categoryLabel.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/)
-      .map((word, index) => index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join('');
-    if (!categoryKey || /^\d/.test(categoryKey)) {
-      categoryKey = 'custom' + categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
-    }
-  } else {
-    categoryKey = categorySelect.value;
-    categoryLabel = categorySelect.options[categorySelect.selectedIndex]!.text;
-  }
-
-  const markerKey = name
-    .replace(/[^a-zA-Z0-9\s]/g, '')
-    .split(/\s+/)
-    .map((word, index) => index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join('');
-  if (!markerKey) {
-    showNotification('Could not generate a valid key from marker name', 'error');
-    return;
-  }
-  const fullKey = categoryKey + '.' + markerKey;
-  const data = getActiveData();
-  const existingCategory = data.categories[categoryKey];
-  if (existingCategory?.markers[markerKey]) {
-    showNotification('A marker with this name already exists in that category', 'error');
-    return;
-  }
-
-  const refMin = refMinInput?.value ? parseFloat(refMinInput.value) : null;
-  const refMax = refMaxInput?.value ? parseFloat(refMaxInput.value) : null;
-  const validRefMin = refMin != null && !Number.isNaN(refMin) ? refMin : null;
-  const validRefMax = refMax != null && !Number.isNaN(refMax) ? refMax : null;
-  const optMinInput = (document.getElementById('cm-opt-min') as HTMLInputElement | null);
-  const optMaxInput = (document.getElementById('cm-opt-max') as HTMLInputElement | null);
-  const optMin = optMinInput?.value ? parseFloat(optMinInput.value) : null;
-  const optMax = optMaxInput?.value ? parseFloat(optMaxInput.value) : null;
-
-  if (!state.importedData.customMarkers) state.importedData.customMarkers = {};
-  state.importedData.customMarkers[fullKey] = {
-    markerId: createCustomMarkerId(state.importedData.customMarkers),
-    name,
-    unit: (unitInput?.value || '').trim(),
-    refMin: validRefMin,
-    refMax: validRefMax,
-    categoryLabel,
-    ...(newCategoryIcon ? { icon: newCategoryIcon } : {}),
-  };
-  if (optMin != null && !Number.isNaN(optMin) && optMax != null && !Number.isNaN(optMax)) {
-    if (!state.importedData.refOverrides) state.importedData.refOverrides = {};
-    state.importedData.refOverrides[fullKey] = {
-      ...(state.importedData.refOverrides[fullKey] || {}),
-      optimalMin: optMin,
-      optimalMax: optMax,
-    };
-  }
-  saveImportedData();
-  buildMarkerDetailSidebarRuntime();
-  customMarkerRuntime.closeModal();
-  showNotification(`Created "${name}" in ${categoryLabel}`, 'success');
-
-  const id = categoryKey + '_' + markerKey;
-  state.markerRegistry[id] = {
-    name,
-    unit: (unitInput?.value || '').trim(),
-    refMin: validRefMin,
-    refMax: validRefMax,
-    custom: true,
-  };
-  setTimeout(() => customMarkerRuntime.openManualEntryForm(id), 100);
 }
 
 export async function deleteCustomMarker(id: string) {
-  const separator = id.indexOf('_');
-  const activeMarker = separator > 0
-    ? getActiveData().categories[id.slice(0, separator)]?.markers[id.slice(separator + 1)]
-    : null;
-  const dotKey = getMarkerStorageDotKey(activeMarker || state.markerRegistry[id], id);
-  if (!dotKey) return;
-  const categoryKey = dotKey.split('.')[0];
-  const definition = state.importedData?.customMarkers?.[dotKey] as DeletedMarkerReader | null | undefined;
-  if (!definition) return;
-  const siblings = Object.keys(state.importedData.customMarkers).filter(key => key.startsWith(categoryKey + '.'));
-  const isLastInCategory = siblings.length <= 1;
-  const message = isLastInCategory
-    ? `Delete "${definition.name}" and the entire "${definition.categoryLabel || categoryKey}" category? This cannot be undone.`
-    : `Delete "${definition.name}" and all its values? This cannot be undone.`;
-  if (!await showConfirmDialog(message)) return;
-
-  const keysToDelete = isLastInCategory ? siblings : [dotKey];
-  const now = Date.now();
-  for (const key of keysToDelete) {
-    const markerId = (state.importedData.customMarkers[key] as DeletedMarkerReader | null | undefined)?.markerId;
-    deleteLabEntryMarkerValues(state.importedData, key, { now, deleteEmptyEntries: false });
-    if (state.importedData.refOverrides) delete state.importedData.refOverrides[key];
-    if (state.importedData.markerNotes) delete state.importedData.markerNotes[key];
-    if (state.importedData.markerLabels) delete state.importedData.markerLabels[key];
-    if (markerId && state.importedData.markerPlacements) {
-      delete state.importedData.markerPlacements[markerId as string];
+  const root = state.importedData, profileId = state.currentProfile, modal = document.getElementById('detail-modal');
+  const current = () => state.currentProfile === profileId && state.importedData === root && (!modal || modal.isConnected && document.getElementById('detail-modal') === modal);
+  if (document.querySelector('.ref-edit-form')) { showNotification('Close the current range editor before removing a marker. Your input is kept.', 'error'); return false; }
+  const separator = id.indexOf('_'), marker = separator > 0 ? getActiveData().categories[id.slice(0, separator)]?.markers[id.slice(separator + 1)] : null;
+  const key = getMarkerStorageDotKey(marker || state.markerRegistry[id], id); if (!key) return false;
+  try {
+    const expected = await readNativeCustomMarker(profileId, key, current);
+    await commitNativeCustomMarkerRemoval(profileId, expected, current);
+    if (state.currentProfile === profileId && state.importedData === root && !state.importedData.customMarkers?.[key]) for (const [viewId, value] of Object.entries(state.markerRegistry)) if (getMarkerStorageDotKey(value, viewId) === key) delete state.markerRegistry[viewId];
+    if (current()) {
+      customMarkerRuntime.closeModal(); buildMarkerDetailSidebarRuntime(); updateHeaderDates(); customMarkerRuntime.navigate('dashboard');
+      showNotification(`Deleted "${expected.name}" and its reviewed results`, 'info');
     }
-    delete state.importedData.customMarkers[key];
+    return true;
+  } catch (error) {
+    if (current() && !(error && typeof error === 'object' && 'cancelledBeforeSave' in error)) showNotification(error instanceof Error ? error.message : 'The custom marker removal could not be confirmed.', 'error');
+    return false;
   }
-  deleteEmptyLabEntries(state.importedData);
-  saveImportedData();
-  customMarkerRuntime.closeModal();
-  buildMarkerDetailSidebarRuntime();
-  updateHeaderDates();
-  customMarkerRuntime.navigate('dashboard');
-  showNotification(
-    `Deleted "${definition.name}"${isLastInCategory && siblings.length > 1 ? ` and ${siblings.length - 1} other marker(s)` : ''}`,
-    'info',
-  );
 }

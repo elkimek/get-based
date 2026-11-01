@@ -167,11 +167,12 @@ export async function openDarknessMeter(opts: DarknessMeterOptions = {}, deps: M
       showNotification('Run the camera check first.', 'error');
       return;
     }
-    await saveMeasurement('darkness', result.cameraLevel, {
+    const saved = await saveMeasurement('darkness', result.cameraLevel, {
       confidence: result.isoLocked && result.lockMode === 'manual' ? 0.4 : 0.25,
       extra: result,
       roomId,
     });
+    if (saved === null || saved === false) { if (deps.isCurrent?.() ?? true) showNotification('Could not save this reading. Try again.', 'error'); return; }
     showNotification('Qualitative sleep-light check saved.');
     closeDarknessOverlay();
   });
@@ -183,11 +184,12 @@ export async function openDarknessMeter(opts: DarknessMeterOptions = {}, deps: M
       showNotification('Enter a valid lux-meter reading between 0 and 10,000.', 'error');
       return;
     }
-    await saveMeasurement('darkness', lux, {
+    const saved = await saveMeasurement('darkness', lux, {
       confidence: 0.9,
       extra: { method: 'meter-entry', source: 'meter-entry', unit: 'photopic-lux', context: 'sleep' },
       roomId,
     });
+    if (saved === null || saved === false) { if (deps.isCurrent?.() ?? true) showNotification('Could not save this reading. Try again.', 'error'); return; }
     showNotification('Sleep-time lux-meter reading saved.');
     closeDarknessOverlay();
   });

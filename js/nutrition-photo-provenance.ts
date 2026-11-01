@@ -34,3 +34,20 @@ export function photoEstimateNutrientBasis(source: NutritionPhotoSource | null |
   if (Number(source?.foodComposition?.matchedComponents || 0) > 0) return 'legacy-food-composition';
   return 'visual-core-plus-user-edits';
 }
+
+// A replacement analysis owns these values. Portable source extensions and prior
+// correction history survive, without presenting an obsolete estimate as current.
+const analysisSourceFields = new Set([
+  'kind', 'analysisKind', 'provider', 'model', 'modelDisplay', 'usage', 'analyzedAt',
+  'recordedAt', 'recordedBy', 'nutrientBasis', 'aiNutritionEstimate', 'label',
+  'correction', 'foodData', 'foodComposition', 'originalSource', 'templateMealId', 'review',
+]);
+const currentReviewFields = new Set([
+  'userContext', 'editedNutrients', 'editedComponentIdentities', 'editedPortions',
+  'removedComponents', 'mealNameEdited', 'reviewedAt', 'analysisInvalidated', 'calculatedNutrients',
+]);
+export function preserveMealSourceExtensions<Source extends Record<string, unknown> & { review?: Record<string, unknown> | null }>(previous: Source | null | undefined, current: Source): Source {
+  const extensions = Object.fromEntries(Object.entries(previous || {}).filter(([key]) => !analysisSourceFields.has(key)));
+  const review = Object.fromEntries(Object.entries(previous?.review || {}).filter(([key]) => !currentReviewFields.has(key)));
+  return { ...extensions, ...current, ...(Object.keys(review).length || current.review ? { review: { ...review, ...current.review } } : {}) };
+}

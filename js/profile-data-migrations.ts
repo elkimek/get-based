@@ -1,3 +1,4 @@
+import { reconcileCustomMarkerLifecycle } from './custom-marker-lifecycle.js';
 // profile-data-migrations.js — Deterministic imported profile-data upgrades.
 
 import { SPECIALTY_MARKER_DEFS } from './specialty-marker-catalog.js';
@@ -17,11 +18,18 @@ import { MARKER_SCHEMA } from './schema.js';
 import { migrateSupplementMedicationRecords } from './supplement-medication-domain.js';
 
 import type { ProfileData, NormalizedProfileData } from '../types/app-state.js';
+import { legacyContextNote } from './context-card-legacy.js';
 import type { LightCircadianContext, SleepContext } from '../types/profile-context-data.js';
+import { migrateLabPanelIdentities } from './lab-panel-identity.js';
+import { filterRemovedLabPanels } from './lab-panel-deletions.js';
+import { reconcileGeneticsSnpState } from './genetics-snp-lifecycle.js';
 
 export function migrateProfileData(data: ProfileData): NormalizedProfileData;
 export function migrateProfileData(data: Partial<ProfileData>): Partial<NormalizedProfileData>;
 export function migrateProfileData(data: Partial<ProfileData>): NormalizedProfileData {
+  if (data.geneticsSnpTombstones != null || data.geneticsLifecycle != null) reconcileGeneticsSnpState(data);
+  migrateLabPanelIdentities(data);
+  if (Array.isArray(data.entries) && data.labPanelTombstones != null) data.entries = filterRemovedLabPanels(data.entries, data.labPanelTombstones) as typeof data.entries;
   // Migrate sleepCircadian → sleepRest (sleep fields go to sleepRest, circadian items to lightCircadian)
   if (data.sleepCircadian && !data.sleepRest) {
     const sc = data.sleepCircadian as string | SleepContext;
@@ -53,20 +61,20 @@ export function migrateProfileData(data: Partial<ProfileData>): NormalizedProfil
   delete data.fieldLens;
   // Migrate string fields → structured objects
   if (typeof data.diagnoses === 'string') {
-    data.diagnoses = data.diagnoses.trim() ? { conditions: [], note: data.diagnoses.trim(), familyHistory: [] } : null;
+    data.diagnoses = legacyContextNote('diagnoses', data.diagnoses);
   }
   // Backfill familyHistory on existing diagnoses objects from before v1.7.
   if (data.diagnoses && typeof data.diagnoses === 'object' && !Array.isArray(data.diagnoses.familyHistory)) {
     data.diagnoses.familyHistory = [];
   }
   if (typeof data.diet === 'string') {
-    data.diet = data.diet.trim() ? { type: null, restrictions: [], pattern: null, note: data.diet.trim() } : null;
+    data.diet = legacyContextNote('diet', data.diet);
   }
   if (typeof data.exercise === 'string') {
-    data.exercise = data.exercise.trim() ? { frequency: null, types: [], intensity: null, dailyMovement: null, note: data.exercise.trim() } : null;
+    data.exercise = legacyContextNote('exercise', data.exercise);
   }
   if (typeof data.sleepRest === 'string') {
-    data.sleepRest = data.sleepRest.trim() ? { duration: null, quality: null, schedule: null, issues: [], note: data.sleepRest.trim() } : null;
+    data.sleepRest = legacyContextNote('sleepRest', data.sleepRest);
   }
   // Migrate old lightCircadian practices/timing format.
   if (data.lightCircadian && data.lightCircadian.timing && !data.lightCircadian.amLight) {
@@ -273,6 +281,9 @@ export function migrateProfileData(data: Partial<ProfileData>): NormalizedProfil
   }
   migrateSupplementMedicationRecords(data);
   migrateCustomMarkerIdentities(data.customMarkers);
+  // Preserve malformed foreign removal metadata without substituting a blank
+  // profile. The strict custom-marker owners and sync merger refuse to use it.
+  try { reconcileCustomMarkerLifecycle(data); } catch { /* Retain every original field for native recovery. */ }
   migrateMarkerPlacements(data);
   repairEditedImportProvenance(data);
   // Legacy string context has been converted to records above.

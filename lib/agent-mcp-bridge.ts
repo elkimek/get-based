@@ -8,6 +8,7 @@ export interface AgentMCPBridgeOptions {
   token?: string;
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
+  notifyReady?: boolean;
 }
 
 // Fields remain opaque until their existing protocol-specific coercions.
@@ -34,7 +35,11 @@ export async function runAgentMCPBridge(options: AgentMCPBridgeOptions = {}) {
   const input = options.input || process.stdin;
   const output = options.output || process.stdout;
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-  const send = (value: unknown) => output.write(`${JSON.stringify(value)}\n`);
+  const pendingCatalogPings = new Set<string>();
+  let catalogSequence = 0;
+  const send = (value: unknown) => new Promise<void>((resolve, reject) => {
+    output.write(`${JSON.stringify(value)}\n`, error => error ? reject(error) : resolve());
+  });
   const request = async (path: string, body?: unknown): Promise<unknown> => {
     const response = await fetch(`${endpoint}${path}`, {
       method: body === undefined ? 'GET' : 'POST', headers,
@@ -52,6 +57,13 @@ export async function runAgentMCPBridge(options: AgentMCPBridgeOptions = {}) {
     let message: MCPMessage | null;
     try { message = JSON.parse(line); } catch { continue; }
     if (!message || typeof message !== 'object' || !Object.hasOwn(message, 'id')) continue;
+    if (!message.method) {
+      if (typeof message.id === 'string' && pendingCatalogPings.delete(message.id)
+        && Object.hasOwn(message, 'result') && !Object.hasOwn(message, 'error')) {
+        await request('/internal/mcp/ready', {}).catch(() => {});
+      }
+      continue;
+    }
     try {
       let result;
       if (message.method === 'initialize') {
@@ -66,9 +78,16 @@ export async function runAgentMCPBridge(options: AgentMCPBridgeOptions = {}) {
         name: message.params?.name, arguments: message.params?.arguments || {},
       });
       else throw Object.assign(new Error(`Unsupported MCP method: ${message.method}`), { code: -32601 });
-      send({ jsonrpc: '2.0', id: message.id, result });
+      await send({ jsonrpc: '2.0', id: message.id, result });
+      if (message.method === 'tools/list' && (options.notifyReady ?? process.env.GETBASED_MCP_NOTIFY_READY === '1')) {
+        // Wait for the client to process the catalog, not just for our stdout
+        // write to finish. Ping is the MCP protocol's ordered round trip.
+        const id = `getbased-catalog-ready-${++catalogSequence}`;
+        pendingCatalogPings.add(id);
+        await send({ jsonrpc: '2.0', id, method: 'ping' });
+      }
     } catch (error) {
-      send({
+      await send({
         jsonrpc: '2.0', id: message.id,
         error: { code: Number((error as { code?: unknown } | null)?.code || -32603), message: error instanceof Error ? error.message : String(error) },
       });

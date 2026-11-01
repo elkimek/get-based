@@ -44,7 +44,7 @@ export function closeCameraTool(action: string) {
   if (typeof close === 'function') close();
 }
 
-export function getSaveMeasurement(deps: { saveMeasurement?: SaveLightMeasurement } = {}): SaveLightMeasurement {
+export function getSaveMeasurement(deps: { saveMeasurement?: SaveLightMeasurement; isCurrent?: () => boolean } = {}): SaveLightMeasurement {
   const fn = deps.saveMeasurement;
   if (typeof fn !== 'function') throw new Error('saveMeasurement dependency is required');
   return fn;

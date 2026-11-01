@@ -179,6 +179,8 @@ describe('fresh header range buttons and preserved native patch nodes',()=>{
     expect(trusted).toEqual([false]);
     expect(state.rangeMode).toBe('both');
     expect(localStorage.getItem('labcharts-header-contract-rangeMode')).toBe('both');
+    // Storage is already durable; the shared command schedules repaint after its promise settles.
+    await timer();
     expect(frames).toHaveLength(1);
     expect(calls).toEqual([]);for(const frame of frames.splice(0))frame(0);
     expect(calls).toEqual([]);await timer();

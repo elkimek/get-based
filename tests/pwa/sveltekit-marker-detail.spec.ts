@@ -1,12 +1,13 @@
 import fs from 'node:fs/promises';
 import {expect,test,type Page,type Locator,type TestInfo} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {activate,artifactInputs,cacheReceipt,profile} from './kit-native-receipts.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
 import {expectedNote,requireExactReceipt,noteText,type NativeProfileReceipt} from '../helpers/marker-detail-pwa-receipt.js';
 import {qualifyMarkerDetailNativeShell,modules,sheets} from '../helpers/marker-detail-pwa-receipt.js';
+import {migrateLegacyLabFixture} from '../helpers/legacy-lab-profile-fixture.js';
 const albumin='proteins_albumin',bio='calculatedRatios_biologicalAge';
 const pinKey='labcharts-default-dashboardQuickMarkerPinsV1';
 interface NativeAction {type:string;action:string;id:string|null;trusted:boolean}
@@ -38,6 +39,9 @@ async function snapshot(page:Page,label:string,info:TestInfo){
 test('complete Marker Detail first construction offline and two zero-page cold launches retain one native note mutation',async({page,context,browserName},info)=>{
  test.setTimeout(180000);const artifact=await artifactInputs(modules,sheets),sw=await fs.readFile('service-worker-assets.js','utf8');qualifyMarkerDetailNativeShell(sw);
  const seeded=JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json',import.meta.url),'utf8')) as Record<string,unknown>;expect(Object.keys(seeded)).toHaveLength(39);expect(seeded.markerNotes).toEqual({});
+ // The original fixture predates stable same-day specimen identities. Seed its
+ // canonical migration into both durable and live state; retain the exact oracle.
+ migrateLegacyLabFixture(seeded);
  await installDiscussionFixture(context,{provider:'openrouter',paused:true});await installOfflineStartupDiagnostics(context);
  const registry=JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-registry.json',import.meta.url),'utf8'));
  await context.addInitScript(({seeded,registry})=>{

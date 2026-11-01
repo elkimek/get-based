@@ -1,3 +1,4 @@
+import { createWearableFetchScope } from './wearable-fetch-scope.js';
 import { createBasicWearableRow } from './wearable-daily-row.js';
 import type { BasicWearableDailyRow, WearableErrorBody, WearableRequestError } from './wearable-data-types.js';
 
@@ -145,6 +146,7 @@ export async function fetchPolarDailyRange(accessToken: string, startDate: strin
     e.code = 'needs-reauth'; throw e;
   }
 
+  const requests = createWearableFetchScope();
   const byDate = new Map<string, BasicWearableDailyRow<'polar'>>();
   function ensureRow(day: string): BasicWearableDailyRow<'polar'> {
     if (!byDate.has(day)) {
@@ -163,7 +165,7 @@ export async function fetchPolarDailyRange(accessToken: string, startDate: strin
 
   // ── 1. Sleep (no transaction model — straight GET) ───────────────
   try {
-    const sleep = await polarGET(`${POLAR_API}/v3/users/${encodeURIComponent(userId)}/nights/sleep`, accessToken) as PolarSleep | null;
+    const sleep = await requests.run(polarGET(`${POLAR_API}/v3/users/${encodeURIComponent(userId)}/nights/sleep`, accessToken), null, e => logDebug('nights/sleep', e)) as PolarSleep | null;
     for (const n of (sleep?.nights || [])) {
       const day = n?.date || n?.['calendar-date'];
       if (!day || !inRange(day)) continue;
@@ -175,12 +177,12 @@ export async function fetchPolarDailyRange(accessToken: string, startDate: strin
 
   // ── 2. Activity transactions (daily summaries) ───────────────────
   try {
-    const actTx = await polarSend(
+    const actTx = await requests.run(polarSend(
       `${POLAR_API}/v3/users/${encodeURIComponent(userId)}/activity-transactions`,
       'POST', accessToken
-    ) as PolarTransaction | null;
+    ), null, e => logDebug('activity-transactions', e)) as PolarTransaction | null;
     if (actTx?.['transaction-id']) {
-      pendingTransactions.push({ kind: 'activity', userId, id: actTx['transaction-id'] });
+      let transactionComplete = true;
       for (const itemUrl of (actTx['activity-log'] || actTx?.activities || [])) {
         try {
           const item = await polarGET(itemUrl, accessToken) as PolarActivity | null;
@@ -192,23 +194,24 @@ export async function fetchPolarDailyRange(accessToken: string, startDate: strin
           // late) and the transaction commit then permanently lost them.
           // Keep every dated item; downstream L2 windows trim what they
           // care about, and L1 upserts dedupe so duplicates are harmless.
-          if (!day) continue;
+          if (!day) { transactionComplete = false; continue; }
           const row = ensureRow(day);
           if (row.steps == null && typeof item!['active-steps'] === 'number') row.steps = item!['active-steps'];
           if (row.hr_day == null && typeof item?.['heart-rate']?.average === 'number') row.hr_day = item['heart-rate'].average;
-        } catch (e) { logDebug('activity-item', e); }
+        } catch (e) { transactionComplete = false; logDebug('activity-item', e); }
       }
+      if (transactionComplete) pendingTransactions.push({ kind: 'activity', userId, id: actTx['transaction-id'] });
     }
   } catch (e) { logDebug('activity-transactions', e); }
 
   // ── 3. Exercise transactions (workout-gated HRV) ─────────────────
   try {
-    const exTx = await polarSend(
+    const exTx = await requests.run(polarSend(
       `${POLAR_API}/v3/users/${encodeURIComponent(userId)}/exercise-transactions`,
       'POST', accessToken
-    ) as PolarTransaction | null;
+    ), null, e => logDebug('exercise-transactions', e)) as PolarTransaction | null;
     if (exTx?.['transaction-id']) {
-      pendingTransactions.push({ kind: 'exercise', userId, id: exTx['transaction-id'] });
+      let transactionComplete = true;
       for (const itemUrl of (exTx?.exercises || [])) {
         try {
           const ex = await polarGET(itemUrl, accessToken) as PolarExercise | null;
@@ -216,7 +219,7 @@ export async function fetchPolarDailyRange(accessToken: string, startDate: strin
           // No inRange() filter — same exactly-once concern as the activity
           // transaction above. Drop the workout from THIS sync's window
           // would mean Polar marks it consumed and we never see it again.
-          if (!day) continue;
+          if (!day) { transactionComplete = false; continue; }
           const row = ensureRow(day);
           // Workout-gated HRV: this is a daytime/active measurement during
           // exercise — semantically distinct from overnight rMSSD. Route to
@@ -226,11 +229,13 @@ export async function fetchPolarDailyRange(accessToken: string, startDate: strin
           }
           // Workout HR average — daytime, route accordingly.
           if (row.hr_day == null && typeof ex?.['heart-rate']?.average === 'number') row.hr_day = ex['heart-rate'].average;
-        } catch (e) { logDebug('exercise-item', e); }
+        } catch (e) { transactionComplete = false; logDebug('exercise-item', e); }
       }
+      if (transactionComplete) pendingTransactions.push({ kind: 'exercise', userId, id: exTx['transaction-id'] });
     }
   } catch (e) { logDebug('exercise-transactions', e); }
 
+  requests.assertSuccessful();
   const rows = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
   // Stash pending transactions on the rows array so the caller (wearables-connect.js)
   // can commit them after L1 write succeeds. Hiding on a non-enumerable property

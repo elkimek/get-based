@@ -547,7 +547,7 @@ assert('restored transcript composes the same authored action bar as the public 
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
 assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-panel.js'"), 'found');
 assert('chat-panel.js exports open/close helpers', chatPanelSrc.includes('export async function openChatPanel') && chatPanelSrc.includes('export function closeChatPanel'), 'found');
-assert('chat-panel.js owns web-search toggle state', chatPanelSrc.includes('export function getChatWebSearchEnabled') && chatPanelSrc.includes('export function setChatWebSearchEnabled'), 'found');
+assert('chat-panel.js owns web-search toggle state', chatPanelSrc.includes('export function getChatWebSearchEnabled') && chatPanelSrc.includes('export async function setChatWebSearchEnabled'), 'found');
 assert('chat-panel scopes web-search presentation to owned header', chatPanelSrc.includes('refreshChatHeaderWebSearch()') && read('js/chat-header-view.ts').includes("owner.root.ownerDocument.querySelector('[data-chat-header-view]') === owner.root"), 'found');
 assert('chat.js imports chat nudge helpers', chatSrc.includes("from './chat-nudge.js'"), 'found');
 assert('chat-nudge.js owns FAB nudge state', chatNudgeSrc.includes('export function setChatNudge') && chatNudgeSrc.includes('export function updateChatNudge'), 'found');
@@ -636,7 +636,7 @@ assert('Svelte owns discussion picker rendering and selection through its public
     chatDiscussionPickerSrc.includes('export function showDiscussPersonaPicker') &&
     chatDiscussionPickerSrc.includes('publishDiscussionPicker(chatDiscussionScope()') &&
     read('js/chat-discussion-view.ts').includes('picker.selected.length !== discussionPickerLimit(picker)') &&
-    read('js/components/ChatDiscussion.svelte').includes('disabled={count !== limit}') &&
+    read('js/components/ChatDiscussion.svelte').includes('disabled={round?.saving || count !== limit}') &&
     !chatDiscussionPickerSrc.includes('innerHTML') &&
     !chatDiscussionUiSrc.includes("querySelector('.discuss-persona-picker')"),
   'found');
@@ -782,9 +782,9 @@ if (hasState) {
 // came from a fetch that could be absent before state was ready).
 console.log('Section 19: setChatPersonality thread behavior');
 assert('setChatPersonality is async', chatPersonalitiesSrc.includes('async function setChatPersonality'), 'found in source');
-assert('setChatPersonality switches in-place', chatPersonalitiesSrc.includes('state.currentChatPersonality = id'), 'found');
-assert('Updates thread personality in-place', chatPersonalitiesSrc.includes('thread.personality = id'), 'found in setChatPersonality');
-assert('Updates thread metadata on switch', chatPersonalitiesSrc.includes('thread.personalityName') && chatPersonalitiesSrc.includes('thread.personalityIcon'), 'found');
+assert('setChatPersonality switches in-place', chatPersonalitiesSrc.includes('await capturePersonaSelection(id, { locationLike: opts.locationLike });') && chatPersonalitiesSrc.includes('await commitPersonaSelection(command.leaseId, { canCommit: ownsSelection });') && read('js/chat-personality-selection.js').includes('state.currentChatPersonality = lease.proposed.id'), 'found');
+assert('Updates thread personality in-place', read('js/chat-personality-selection.js').includes('personality: lease.proposed.id, personalityName: lease.proposed.name, personalityIcon: lease.proposed.icon'), 'found in setChatPersonality');
+assert('Updates thread metadata on switch', read('js/chat-personality-selection.js').includes("const fields = ['personality', 'personalityName', 'personalityIcon', 'personalityUpdatedAt'];") && read('js/chat-personality-selection.js').includes('memory[field] = value'), 'found');
 
 // ─── Cleanup ───
 if (hasState && origHistory) (S as {chatHistory: unknown}).chatHistory = origHistory;

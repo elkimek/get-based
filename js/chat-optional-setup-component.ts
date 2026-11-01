@@ -69,7 +69,7 @@ export function renderChatOptionalSetup(container: HTMLElement, initial: ChatOpt
       return !retired;
     },
     imported(detail) {
-      if (detail.profileId !== profile || detail.previousData !== data || !owner.current(detail.data)) return;
+      if (detail.profileId !== profile || (detail.ownerData || detail.previousData) !== data || !owner.current(detail.data)) return;
       data = detail.data;
       if (detail.kind === 'snps') {
         confirmation = projectGeneticsImportConfirmation(data.genetics, detail.source);

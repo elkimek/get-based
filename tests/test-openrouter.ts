@@ -375,9 +375,9 @@ assert('sync refreshes AI header after remote AI settings apply',
     && !syncApplySrc.includes('window.refreshWebSearchToggle'));
 assert('startup sync reconciliation pushes local AI setting drift',
   syncConfigureSrc.includes("from './sync-reconcile.js'")
-    && !syncSrc.includes("from './sync-configure.js'")
-    && startupOrchestratorSrc.includes("from './sync-configure.js'")
-    && startupOrchestratorSrc.includes('configureSyncModules({ enableSync });')
+    && syncSrc.includes("from './sync-configure.js'")
+    && !startupOrchestratorSrc.includes("from './sync-configure.js'") && startupOrchestratorSrc.includes("from './sync-startup.js'")
+    && syncSrc.includes('configureSyncModules({ enableSync: enableSyncRuntime });')
     && syncReconcileSrc.includes('newer local AI settings')
     && syncReconcileSrc.includes('collectAISettings()'));
 const cssSrc = read('styles.css') + '\n' + read('css/settings.css');

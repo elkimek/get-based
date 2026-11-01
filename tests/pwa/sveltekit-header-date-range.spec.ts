@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import {expect, test, type Page} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
 import type {ProfileData} from '../../types/app-state.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
@@ -210,6 +210,6 @@ test('static header dates and native range controls persist exact preference on 
     await info.attach('header-date-range-stopped-origin-acceptance', {body: JSON.stringify({artifact, original, before, onlineControls, onlineEvents, onlineCache,
       swDeclarationsSHA256: sha(swDeclarations), servedWorkerSHA256: sha(new Uint8Array(servedWorker)), stoppedListener: true,
       coldLaunches: 2, boundaries, phases, traffic, errors, csp, external,
-      boundary: 'Actual built static Kit/SW/cache and bundled date/range source, genuine desktop header pointer and native Tab/Space or visible narrow Settings Display taps, full per-profile range preference persistence. Actual lazy Settings warmed online, first offline mutation plus two zero-page cold clients and exact43-key live/stored imported data/full registry/provider/context/preferences invariant except literal rangeMode. Synthetic returning-user unencrypted default profile/recent real-walltime manual backup and paused credential-free OpenRouter; no provider/clock/DOM/style/forced header visibility. Existing kit-test-a/version/legacyProbe server seam. No OS install, physical Safari/iPhone, SW termination, whole-app or migration acceptance.'}, null, 2), contentType: 'application/json'});
+      boundary: 'Actual built static Kit/SW/cache and bundled date/range source, genuine desktop header pointer and native Tab/Space or visible narrow Settings Display taps, full per-profile range preference persistence. Actual lazy Settings warmed online, first offline mutation plus two zero-page cold clients and exact43-key live/stored imported data/full registry/provider/context/preferences invariant except literal rangeMode. Synthetic returning-user unencrypted default profile/recent real-walltime manual backup and paused credential-free OpenRouter; no provider/clock/DOM/style/forced header visibility. Existing aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/version/legacyProbe server seam. No OS install, physical Safari/iPhone, SW termination, whole-app or migration acceptance.'}, null, 2), contentType: 'application/json'});
   } finally {if (!closed) await server.close();}
 });

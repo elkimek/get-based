@@ -66,7 +66,15 @@ const scenarios:Scenario[]=[{name:'two-recent'},{name:'three-earlier-singular',c
  ...['empty-rooms','empty-values','daytime','before-sleeping','added-room','removed-room','duplicate-rooms','null-values','null-measurements','falsy-values','nan','infinity','coercion','coercion-throw','symbol-value','getter-value','throw-value','getter-name','throw-name','name-coercion','symbol-name','nan-name','null-name','label-coercion','getter-label','throw-label','empty-labels','date-coercion','date-throw','invalid-date','proxy-room','sleeping-getter'].map(kind=>({name:kind,kind})),
  ...['false','true','null','throw-first','throw-second'].map(provider=>({name:'provider-'+provider,provider}))];
 for(const scenario of scenarios)it('preserves complete native comparison public renderer '+scenario.name,()=>{
- const before=fixtures.find(row=>row.name===scenario.name)!.original,after=capture(candidate,scenario);expect(after).toEqual(expectedEMFComparisonReceipt(before));
+ const before=fixtures.find(row=>row.name===scenario.name)!.original,after=capture(candidate,scenario),expected=expectedEMFComparisonReceipt(before);
+ if(scenario.kind==='initialize') {
+  // The retained original receipt proves its one empty-container mutation.
+  // The current renderer must produce the same full UI while making no profile mutation.
+  const initializer={key:'emfAssessment',enumerable:true,configurable:true,writable:true,value:{type:'object',properties:[{key:'assessments',enumerable:true,configurable:true,writable:true,value:{type:'array',properties:[{key:'length',enumerable:false,configurable:false,writable:true,value:0}]}}]}};
+  expect(before.profileAfter).toEqual({...before.profileBefore,properties:[...before.profileBefore.properties,initializer]});
+  expect(after).toEqual({...expected,profileAfter:expected.profileBefore});
+  expect(after.profileAfter).toEqual(after.profileBefore);
+ } else expect(after).toEqual(expected);
  if(scenario.name==='two-recent'){expect(before.columns).toEqual(['Room',...MEASUREMENT_TYPES.map(t=>t.short)]);expect(before.raw).toContain('Before: Jan 1, 2026');expect(before.raw).toContain('After: Feb 3, 2026');expect(before.raw).toContain('↓');expect(before.raw).toContain('↑');expect(before.raw).toContain('=');}
  if(scenario.name==='three-earlier-singular')expect(before.raw).toContain('1 earlier assessment not shown.');
  if(scenario.name==='four-earlier-plural')expect(before.raw).toContain('2 earlier assessments not shown.');

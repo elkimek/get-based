@@ -39,6 +39,7 @@ async function seedMarkerPlacementProfile(page: import('@playwright/test').Page)
       refOverrides: { 'biochemistry.glucose': { refMin: 4, refMax: 6 } },
       manualValues: { 'biochemistry.glucose:2026-08-01': true },
     };
+    if (!await data.saveImportedData()) throw new Error('Synthetic native placement fixture could not be saved');
     data.invalidateActiveDataCache();
     const modal = await import('/js/marker-detail-modal.js');
     await modal.showDetailModal('biochemistry_glucose');
@@ -112,6 +113,7 @@ test('calculated ratio can move to a regular category and keeps its diagnostics'
     const data = await import('/js/data.js');
     state.importedData.entries[0]!.markers['lipids.triglycerides'] = 1.5;
     state.importedData.entries[0]!.markers['lipids.hdl'] = 1.2;
+    if (!await data.saveImportedData()) throw new Error('Synthetic native placement fixture could not be saved');
     data.invalidateActiveDataCache();
     const modal = await import('/js/marker-detail-modal.js');
     await modal.showDetailModal('calculatedRatios_tgHdlRatio');

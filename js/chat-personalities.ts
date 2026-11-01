@@ -8,7 +8,8 @@ import type { PersonaEditorLocation } from './chat-personality-editor.js';
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { escapeAttr, showNotification } from './utils.js';
-import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
+import { renderThreadList } from './chat-threads.js';
+import { capturePersonaSelection, commitPersonaSelection } from './chat-personality-selection.js';
 import { configurePersonalityPicker, getPersonalityPickerView, closePersonalityPickerView } from './chat-personality-picker-view.js';
 import { updateChatContextStatus } from './chat-context-status.js';
 import {
@@ -46,8 +47,8 @@ export function chatPersonalityInputAttrs(action: unknown, attrs: Record<string,
 
 export async function setChatPersonality(id: string, opts: { locationLike?: PersonaEditorLocation | null; keepPickerOpen?: unknown; } = {}) {
   const prev = state.currentChatPersonality;
-  const profile = state.currentProfile, threadId = state.currentThreadId, owner = getPersonaEditorIdentity();
-  const ownsSelection = () => state.currentProfile === profile && state.currentThreadId === threadId && getPersonaEditorIdentity() === owner;
+  const profile = state.currentProfile, threadId = state.currentThreadId, owner = getPersonaEditorIdentity(), root = state.importedData, history = state.chatHistory;
+  const ownsSelection = () => state.currentProfile === profile && state.currentThreadId === threadId && getPersonaEditorIdentity() === owner && state.importedData === root && state.chatHistory === history;
   if (isPersonalityDirty() && !(await confirmDiscardPersonalityChanges())) return;
   if (!ownsSelection() || state.currentChatPersonality !== prev) return;
   if (!CHAT_PERSONALITIES.some(item => item.id === id) && !getCustomPersonalities().some(item => item.id === id)) return;
@@ -60,23 +61,14 @@ export async function setChatPersonality(id: string, opts: { locationLike?: Pers
       return;
     }
   }
-  if (prev === id) {
-    if (!opts.keepPickerOpen) closePersonalityPickerView();
-    return;
-  }
   // Switch personality in-place - keep current conversation so users can
   // get different perspectives in the same thread.
-  state.currentChatPersonality = id;
-  localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, id);
-  const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
-  if (thread) {
-    thread.personality = id;
-    const p = getActivePersonality();
-    thread.personalityName = p.name;
-    thread.personalityIcon = p.icon;
-    await saveChatThreadIndex();
-    if (!ownsSelection() || state.currentChatPersonality !== id) return;
-  }
+  try {
+    const command = await capturePersonaSelection(id, { locationLike: opts.locationLike });
+    const receipt = await commitPersonaSelection(command.leaseId, { canCommit: ownsSelection });
+    if (!receipt.refreshed) { showNotification('Persona selection saved. Reopen the chat to refresh its current view.', 'info'); return; }
+  } catch (error) { showNotification(error instanceof Error ? error.message : 'The persona selection could not be confirmed. Reopen the native chat.', 'error'); return; }
+  if (!ownsSelection() || state.currentChatPersonality !== id) return;
   if (state.chatHistory.length === 0) {
     renderChatMessagesRuntime();
   }

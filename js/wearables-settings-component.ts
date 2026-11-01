@@ -23,3 +23,14 @@ export function mountWearablesSettings(host: HTMLElement, initial: WearablesSett
   return view;
 }
 export function getWearablesSettingsView(): WearablesSettingsView | null { return view?.isCurrent() ? view : null; }
+
+/** Native acquisition handoff: reveal the exact current Update now control. */
+export function focusWearableRefreshControl(adapterId: string): boolean {
+  if (!view?.isCurrent() || !target) return false;
+  const row = [...target.querySelectorAll<HTMLElement>('[data-adapter]')].find(item => item.dataset.adapter === adapterId);
+  const button = row?.querySelector<HTMLButtonElement>('[data-wearable-settings-action="sync-now"]');
+  if (!row || !button || button.disabled) return false;
+  if (row instanceof HTMLDetailsElement) row.open = true;
+  button.scrollIntoView({ block: 'center' }); button.focus();
+  return document.activeElement === button;
+}

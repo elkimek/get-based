@@ -143,7 +143,7 @@ assert('Tier 2 threshold at < 150 ms/embed',
   /msPerEmbed\s*<\s*150\b/.test(workerSrcForPicker));
 
 assert('library registry migration auto-fills missing lib.model',
-  /async loadOrMigrate\(\)[\s\S]*?lib\.model\s*=\s*this\.defaultModelKey/.test(libraryRegistrySrc),
+  /async loadOrMigrate\([^)]*\)[\s\S]*?lib\.model\s*=\s*this\.defaultModelKey/.test(libraryRegistrySrc),
   'back-compat migration for libraries that predate the model field');
 
 assert('handleActivateLibrary reloads embedder on model change',
@@ -351,7 +351,7 @@ assert("imports hasLens from './lens.js'", chatSendSrc.includes("from './lens.js
 assert('imports queryLens', chatSendSrc.includes('queryLens'));
 assert('imports injectLensChunks', chatSendSrc.includes('injectLensChunks'));
 assert('chat-panel does not mount a second Knowledge Base status control', !chatPanelSrc.includes('updateLensIndicator'));
-assert('main send calls hasLens()', chatSendSrc.includes('if (hasLens())'));
+assert('main send reserves automatic retrieval for personal gateways without local tools', chatSendSrc.includes('if (useCodexAgent && isPersonalAgentTarget(_msgAgentTarget) && canQueryLens())'));
 assert('main send calls queryLensMulti with user text', /await queryLensMulti\(text,/.test(chatSendSrc));
 assert('multi-persona calls queryLensMulti with msgText',
   /await queryLensMulti\(msgText,/.test(chatDiscussionRoundRequestSrc) &&
@@ -362,9 +362,9 @@ console.log('\n10. focus-card.js wiring');
 const viewsSrc = read('js/views.js');
 const focusCardSrc = read('js/focus-card.js');
 assert('views imports focus card module', viewsSrc.includes("from './focus-card.js'"));
-assert('focus-card imports hasLens + queryLens', focusCardSrc.includes('hasLens') && focusCardSrc.includes('queryLens'));
+assert('focus-card imports canQueryLens + queryLens', focusCardSrc.includes('canQueryLens') && focusCardSrc.includes('queryLens'));
 assert('focus-card imports injectLensChunks', focusCardSrc.includes('injectLensChunks'));
-assert('focus card calls hasLens', /if \(hasLens\(\)\) \{[\s\S]{0,800}await queryLens/.test(focusCardSrc));
+assert('focus card checks configured retrieval before its query', /if \(canQueryLens\(\)\) \{[\s\S]{0,800}await queryLens/.test(focusCardSrc));
 
 // ─── 11. Wiring: lab-context.js helper ───
 console.log('\n11. lab-context.js helper');
@@ -440,7 +440,7 @@ assert('remote backend fetcher extracted', lensSrc.includes('function _fetchRemo
 // ─── 21. BUG 3 regression: toggle does not re-render inputs ───
 console.log('\n21. Toggle does not re-render section');
 assert('handleToggleLens does NOT call _rerenderLensSection', !/function handleToggleLens[\s\S]{0,300}_rerenderLensSection/.test(lensKnowledgeBaseUiSrc));
-assert('handleToggleLens calls _updateLensStatusChip', /function handleToggleLens[\s\S]{0,300}_updateLensStatusChip/.test(lensKnowledgeBaseUiSrc));
+// Verified below through the actual awaited toggle handler and native controls.
 assert('_updateLensStatusChip exists', lensKnowledgeBaseUiSrc.includes('function _updateLensStatusChip()'));
 
 // ─── 21b. v1.20.x forward-compat: saved config without `backend` field ───
@@ -474,7 +474,7 @@ console.log('\n21b. v1.20.x forward-compat migration');
 // ─── 22. BUG 4 regression: meaningful retrieval changes clear cache ───
 console.log('\n22. Cache survives toggle-only save');
 assert('saveLensConfig clears cache for URL, topK, and backend changes',
-  sourceFunctionHasStatement(lensSrc, 'saveLensConfig', 'if (urlChanged || topKChanged || backendChanged) clearLensCache();'));
+  sourceFunctionHasStatement(lensSrc, 'writeLensConfigMirror', 'if (urlChanged || topKChanged || backendChanged) clearLensCache();'));
 assert('library rename clears cached citation envelopes',
   /await _libRename\(activeId, next\);[\s\S]{0,300}clearLensCache\(\)/.test(lensLibrarySrc));
 
@@ -483,15 +483,19 @@ console.log('\n23. Chip shows error state');
 assert('renderCustomLensSection chip renders the error state',
   panel.querySelector('#lens-status-chip .kb-status-error')?.textContent === '⚠ Error · Synthetic <& source');
 const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-let updatedStatusIsSafe = false;
+const originalInputConstructor = Object.getOwnPropertyDescriptor(globalThis, 'HTMLInputElement');
+let updatedStatusIsSafe = false, savedToggleRefreshed = false;
 try {
   Object.defineProperty(globalThis, 'document', {configurable: true, writable: true, value: panel});
+  Object.defineProperty(globalThis, 'HTMLInputElement', {configurable: true, writable: true, value: panel.defaultView!.HTMLInputElement});
   const input = panel.querySelector<HTMLInputElement>('#lens-name-input')!;
   input.value = 'Unsaved synthetic display name';
   panel.querySelector('#lens-status-chip')!.textContent = 'Old status';
   statusReads = 0;
-  displayUi.handleToggleLens(false);
+  await displayUi.handleToggleLens(false);
   const chip = panel.querySelector('#lens-status-chip')!;
+  const toggle = panel.querySelector<HTMLInputElement>('#lens-enabled-toggle')!;
+  savedToggleRefreshed = displayConfig.enabled === false && !toggle.checked && !toggle.defaultChecked && statusReads === 1;
   updatedStatusIsSafe = statusReads === 1 && displayConfig.enabled === false
     && chip.querySelector('.kb-status-error')?.textContent === '⚠ Error · Synthetic <& source'
     && chip.querySelector('.kb-status-detail')?.textContent === `Last error: ${lastError}`
@@ -500,7 +504,10 @@ try {
 } finally {
   if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument);
   else Reflect.deleteProperty(globalThis, 'document');
+  if (originalInputConstructor) Object.defineProperty(globalThis, 'HTMLInputElement', originalInputConstructor);
+  else Reflect.deleteProperty(globalThis, 'HTMLInputElement');
 }
+assert('handleToggleLens refreshes the saved toggle and status chip', savedToggleRefreshed);
 assert('_updateLensStatusChip renders shared escaped error status without replacing live inputs', updatedStatusIsSafe);
 
 // ─── 24. User cancellation stays distinct from a retrieval failure ───

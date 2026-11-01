@@ -1,6 +1,8 @@
 // sync-payload-collectors.ts - local settings/chat/display collection for sync payloads.
 
 import { encryptedGetItem } from './crypto.js';
+import { withCommittedPersonaStorage } from './persona-storage-transaction.js';
+import { LENS_CONFIG_STORAGE_KEY, readCommittedLensConfigRaw } from './lens-config-store.js';
 import { VOICE_SYNC_KEYS } from './voice-settings-schema.js';
 import {
   getAppExtensionSyncEncryptedStorageKeys,
@@ -92,7 +94,7 @@ export async function collectAISettings() {
     } catch {}
   }
   for (const key of keys) {
-    const val = await encryptedGetItem(key);
+    const val = key === LENS_CONFIG_STORAGE_KEY ? await readCommittedLensConfigRaw() : await encryptedGetItem(key);
     if (val) settings[key] = val;
     // An explicitly stored empty value is a durable null tombstone. Missing
     // settings remain omitted so never-configured providers do not bloat every
@@ -108,10 +110,10 @@ export async function collectChatData(profileId: string) {
   const deletedThreads = readChatDeletedThreads(profileId);
   const customKey = `labcharts-${profileId}-chatPersonalityCustom`;
   const customDeletedKey = `labcharts-${profileId}-chatPersonalityDeleted`;
-  const customStored = localStorage.getItem(customKey);
-  const customDeletedStored = localStorage.getItem(customDeletedKey);
-  const customRaw = customStored === null ? null : await encryptedGetItem(customKey);
-  const customDeletedRaw = customDeletedStored === null ? null : await encryptedGetItem(customDeletedKey);
+  const { customStored, customDeletedStored, customRaw, customDeletedRaw } = await withCommittedPersonaStorage(profileId, async () => {
+    const customStored = localStorage.getItem(customKey), customDeletedStored = localStorage.getItem(customDeletedKey);
+    return { customStored, customDeletedStored, customRaw: customStored === null ? null : await encryptedGetItem(customKey), customDeletedRaw: customDeletedStored === null ? null : await encryptedGetItem(customDeletedKey) };
+  });
   const customPersonalities = parseCustomPersonalities(customRaw);
   const customPersonalityDeleted = parseCustomPersonalities(customDeletedRaw);
   const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`);

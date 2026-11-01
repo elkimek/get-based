@@ -136,11 +136,12 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     const quickPinFacade = views.toggleDashboardQuickMarkerPin;
     outcomes.quickPinModuleApiExists = typeof quickPinFacade === 'function';
     outcomes.quickPinStaysOffWindow = !('toggleDashboardQuickMarkerPin' in window);
-    if (typeof quickPinFacade === 'function') quickPinFacade('lipids_apoB');
+    if (typeof quickPinFacade === 'function') await quickPinFacade('lipids_apoB');
+    await waitForToastText(['Pinned to Quick Markers']);
     const pinsAfterAdd = JSON.parse(localStorage.getItem(quickPinsKey) || '[]') as {0?:unknown};
-    if (typeof quickPinFacade === 'function') quickPinFacade('lipids_apoB');
-    const pinsAfterRemove = JSON.parse(localStorage.getItem(quickPinsKey) || '[]') as {length?:unknown};
+    if (typeof quickPinFacade === 'function') await quickPinFacade('lipids_apoB');
     const toastText = await waitForToastText(['Pinned to Quick Markers', 'Removed from Quick Markers']);
+    const pinsAfterRemove = JSON.parse(localStorage.getItem(quickPinsKey) || '[]') as {length?:unknown};
     outcomes.quickPinAddsMarkerToStorage = pinsAfterAdd[0] === 'lipids_apoB';
     outcomes.quickPinRemovesMarkerFromStorage = pinsAfterRemove.length === 0;
     outcomes.quickPinShowsPinnedToast = toastText.includes('Pinned to Quick Markers');

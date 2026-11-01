@@ -1,0 +1,82 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { state } from '../js/state.js';
+import { createProfile, createDefaultProfileData, getProfiles, saveProfiles, profileStorageKey } from '../js/profile.js';
+import { saveImportedData } from '../js/data.js';
+import * as crypto from '../js/crypto.js';
+import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
+import { setContextSourceEnabled } from '../js/context-source-registry.js';
+import { configureDashboardControlPreparation } from '../js/dashboard-control-runtime.js';
+import type { DashboardControlPorts } from '../js/dashboard-control-runtime.js';
+import { readDashboardPresentation, openDashboardPresentation } from '../js/dashboard-presentation-controls.js';
+import { dashboardPreferenceKey, readDashboardPreferenceFootprint, readDashboardPreferenceRaw } from '../js/dashboard-preference-store.js';
+import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
+const renderer = vi.hoisted(() => ({ navigate: vi.fn<() => Promise<boolean>>(async () => false) }));
+vi.mock('../js/data-view-controls.js', async importOriginal => ({ ...await importOriginal<typeof import('../js/data-view-controls.js')>(), navigateDataViewOutcomeRuntime: renderer.navigate }));
+const original = { profile: state.currentProfile, data: state.importedData, thread: state.currentThreadId, history: state.chatHistory, sex: state.profileSex }, locks = navigator.locks;
+let profile: string, healthKey: string, restore: ReturnType<typeof configureDashboardControlPreparation>, ports: DashboardControlPorts;
+beforeEach(async () => {
+  localStorage.clear(); renderer.navigate.mockReset().mockResolvedValue(false);
+  const queues = new Map<string, Promise<unknown>>(); Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: (name: string, options: unknown, callback?: () => unknown) => { const run = typeof options === 'function' ? options as () => unknown : callback!; const pending = (queues.get(name) || Promise.resolve()).then(run); queues.set(name, pending.catch(() => {})); return pending; } } });
+  profile = await createProfile('Synthetic dashboard controls', { skipInitialSync: true }); healthKey = profileStorageKey(profile, 'imported'); state.currentProfile = profile; state.importedData = createDefaultProfileData(); state.currentThreadId = 'dashboard-thread'; state.chatHistory = []; state.profileSex = 'female';
+  state.importedData.contextNotes = 'PRIVATE_HEALTH_NOTE'; setContextSourceEnabled('wearables', true); setContextSourceEnabled('lab-markers', true); setContextSourceEnabled('insight-cards', true); expect(await saveImportedData()).toBe(true);
+  ports = {
+    fixedWidgets: () => [{ id: 'wearables', title: 'Biometrics Overview', source: 'Body' }, { id: 'quick-markers', title: 'Quick Markers', source: 'Labs' }, { id: 'cycle', title: 'Cycle', source: 'Body' }], applicableWidgetIds: () => ['wearables', 'quick-markers', 'cycle'],
+    widgets: () => JSON.parse(readDashboardPreferenceRaw('widgets') || '{"order":["wearables","quick-markers","cycle"],"hidden":[]}') as { order: string[]; hidden: string[] }, saveWidgets: vi.fn(), resetWidgets: vi.fn(),
+    biometrics: () => JSON.parse(readDashboardPreferenceRaw('biometrics') || '["weight"]') as string[], saveBiometrics: vi.fn(), biometricOrder: () => ['weight', 'waist', 'rhr'],
+    biometricTile: id => ({ id, label: 'PRIVATE_TILE_NAME', value: 'PRIVATE_MEASURE', unit: 'PRIVATE_UNIT', change: 'PRIVATE_DELTA', empty: false }),
+    markerOptions: () => [{ id: 'biochemistry_glucose', name: 'Glucose', category: 'Biochemistry', value: 9977, unit: 'PRIVATE_UNIT', status: 'high' }],
+  };
+  restore = configureDashboardControlPreparation({ prepare: async () => ports, current: () => ports });
+});
+afterEach(async () => { vi.restoreAllMocks(); configureDashboardControlPreparation(restore); clearSyncSaveTimers(); await crypto.encryptedRemoveItem(healthKey); await saveProfiles(getProfiles().filter(row => row.id !== profile)); state.currentProfile = original.profile; state.importedData = original.data; state.currentThreadId = original.thread; state.chatHistory = original.history; state.profileSex = original.sex; Object.defineProperty(navigator, 'locks', { configurable: true, value: locks }); document.body.innerHTML = ''; });
+async function read() { const result = await readDashboardPresentation(profile); if (!('snapshotId' in result)) throw new Error('Synthetic native owner unavailable'); return result; }
+async function command(patch: object, snapshot = read()) { const current = await snapshot; return openDashboardPresentation({ view: 'dashboard', marker: '', snapshotId: current.snapshotId, dashboard: JSON.stringify(patch) }, () => true); }
+async function undo(undoId: string) { const current = await read(); return openDashboardPresentation({ view: 'dashboard', marker: '', snapshotId: current.snapshotId, undoId }, () => true); }
+it('reads only permitted labels and IDs, never measurements, tile details, notes or health storage', async () => {
+  const health = await crypto.encryptedGetItem(healthKey), prefs = readDashboardPreferenceFootprint(), current = await read(); expect(current).toMatchObject({ action: 'dashboard.presentation', status: 'read_only', biometrics: { selected: ['weight'], choices: [{ id: 'weight', label: 'Weight' }, { id: 'waist', label: 'Waist' }, { id: 'rhr', label: 'Resting HR' }] }, pins: { selected: [], maximum: 4 } }); expect(JSON.stringify(current)).not.toMatch(/PRIVATE_|9977|"value"|"unit"|"change"/); expect(readDashboardPreferenceFootprint()).toEqual(prefs); expect(await crypto.encryptedGetItem(healthKey)).toBe(health); expect(renderer.navigate).not.toHaveBeenCalled();
+});
+it('withholds body, marker and cycle presence with sources off while retaining their stored preferences', async () => {
+  setContextSourceEnabled('wearables', false); setContextSourceEnabled('lab-markers', false); setContextSourceEnabled('insight-cards', false); localStorage.setItem(dashboardPreferenceKey('pins'), '["biochemistry_glucose"]'); localStorage.setItem(dashboardPreferenceKey('biometrics'), '["weight"]'); const current = await read(); expect(current).toMatchObject({ biometrics: { available: false }, pins: { available: false }, markerOptions: { choices: [] } }); expect(JSON.stringify(current)).not.toMatch(/biochemistry_glucose|"weight"|"cycle"/); const before = readDashboardPreferenceFootprint(); expect(await command({ biometrics: { remove: ['weight'] } })).toMatchObject({ changed: false, settingsSaved: false }); expect(readDashboardPreferenceFootprint()).toEqual(before); expect(await command({ hide: ['wearables'] })).toMatchObject({ settingsSaved: true, dataSaved: false }); expect(readDashboardPreferenceFootprint().biometrics).toBe(before.biometrics); expect(readDashboardPreferenceFootprint().pins).toBe(before.pins);
+});
+it('commits widget, tile and pin presentation together, without a health write or fabricated paint success', async () => {
+  const before = await crypto.encryptedGetItem(healthKey), result = await command({ hide: ['wearables'], markerWidgets: { add: ['biochemistry_glucose'] }, biometrics: { add: ['waist'] }, pins: { add: ['biochemistry_glucose'] } }); expect(result).toMatchObject({ changed: true, settingsSaved: true, dataSaved: false, opened: null }); expect(result.undoId).toBeTypeOf('string'); const after = readDashboardPreferenceFootprint(); expect(JSON.parse(after.widgets!).hidden).toContain('wearables'); expect(JSON.parse(after.widgets!).order).toContain('marker_biochemistry_glucose'); expect(JSON.parse(after.biometrics!)).toEqual(['weight', 'waist']); expect(JSON.parse(after.pins!)).toEqual(['biochemistry_glucose']); expect(await crypto.encryptedGetItem(healthKey)).toBe(before);
+});
+it('restores exact absence/raw formatting only for touched fields through one-use Undo', async () => {
+  const prior = '[ "weight" ]'; localStorage.setItem(dashboardPreferenceKey('biometrics'), prior); const result = await command({ hide: ['wearables'], biometrics: { add: ['waist'] } }); localStorage.setItem(dashboardPreferenceKey('pins'), '["biochemistry_glucose"]'); expect(await undo(result.undoId!)).toMatchObject({ undone: true, settingsSaved: true }); expect(readDashboardPreferenceFootprint()).toEqual({ widgets: null, biometrics: prior, pins: '["biochemistry_glucose"]' }); expect(await undo(result.undoId!)).toMatchObject({ changed: false });
+});
+it('does not reuse a consumed snapshot and rejects a stale no-op instead of overwriting a newer native hide', async () => {
+  const first = read(), result = await command({ hide: ['wearables'] }, first); expect(result.settingsSaved).toBe(true); expect(await command({ show: ['wearables'] }, first)).toMatchObject({ changed: false }); const stale = await read(); localStorage.removeItem(dashboardPreferenceKey('widgets')); expect(await command({ hide: ['wearables'] }, Promise.resolve(stale))).toMatchObject({ changed: false, settingsSaved: false }); expect(readDashboardPreferenceFootprint().widgets).toBeNull();
+});
+it('compares only touched fields and keeps a newer independent preference', async () => { const current = await read(); localStorage.setItem(dashboardPreferenceKey('widgets'), '{"order":["cycle","wearables","quick-markers"],"hidden":["wearables"]}'); expect(await command({ biometrics: { add: ['waist'] } }, Promise.resolve(current))).toMatchObject({ settingsSaved: true }); expect(JSON.parse(readDashboardPreferenceFootprint().widgets!).hidden).toEqual(['wearables']); });
+it('rejects forged and superseded Undo proofs without rewriting newer settings', async () => { expect(await undo('forged')).toMatchObject({ changed: false }); const result = await command({ hide: ['wearables'] }); localStorage.removeItem(dashboardPreferenceKey('widgets')); expect((await read()).undoChoices).toEqual([]); expect(await undo(result.undoId!)).toMatchObject({ changed: false }); expect(readDashboardPreferenceFootprint().widgets).toBeNull(); });
+it.each(['profile', 'thread', 'history', 'root', 'source', 'sex', 'nativeOwner'] as const)('rejects retired %s ownership before any preference save', async cause => {
+  const current = await read(); if (cause === 'profile') state.currentProfile = 'replacement'; if (cause === 'thread') state.currentThreadId = 'replacement'; if (cause === 'history') state.chatHistory = []; if (cause === 'root') state.importedData = structuredClone(state.importedData); if (cause === 'source') setContextSourceEnabled('wearables', false); if (cause === 'sex') state.profileSex = 'male'; if (cause === 'nativeOwner') ports = { ...ports }; expect(await command({ hide: ['wearables'] }, Promise.resolve(current))).toMatchObject({ changed: false, settingsSaved: false }); expect(readDashboardPreferenceFootprint(profile).widgets).toBeNull(); expect(renderer.navigate).not.toHaveBeenCalled();
+});
+it('guards queued requests after the current editor changes and requires Web Locks for chat', async () => {
+  let release!: () => void, editorClear = true; Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: async (_name: string, _options: unknown, callback: () => unknown) => { await new Promise<void>(resolve => { release = resolve; }); return callback(); } } }); const current = await read(), pending = openDashboardPresentation({ view: 'dashboard', marker: '', snapshotId: current.snapshotId, dashboard: '{"hide":["wearables"]}' }, () => editorClear); await vi.waitFor(() => expect(release).toBeTypeOf('function')); editorClear = false; release(); expect(await pending).toMatchObject({ changed: false }); expect(readDashboardPreferenceFootprint().widgets).toBeNull(); Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined }); expect(await command({ hide: ['wearables'] })).toMatchObject({ changed: false }); expect(readDashboardPreferenceFootprint().widgets).toBeNull();
+});
+it('rejects a retired native owner while its preference request is queued', async () => {
+  let release!: () => void; const previousLocks = navigator.locks; Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: async (_name: string, _options: unknown, callback: () => unknown) => { await new Promise<void>(resolve => { release = resolve; }); return callback(); } } });
+  try { const pending = command({ hide: ['wearables'] }); await vi.waitFor(() => expect(release).toBeTypeOf('function')); ports = { ...ports }; release(); expect(await pending).toMatchObject({ changed: false, settingsSaved: false }); expect(readDashboardPreferenceFootprint().widgets).toBeNull(); expect(renderer.navigate).not.toHaveBeenCalled(); }
+  finally { Object.defineProperty(navigator, 'locks', { configurable: true, value: previousLocks }); }
+});
+it.each([false, true])('reports failed two-key storage with rollback uncertainty=%s and no repaint', async uncertain => {
+  const set = Storage.prototype.setItem; vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) { if (key === dashboardPreferenceKey('biometrics')) throw new Error('Synthetic storage failure'); return set.call(this, key, value); }); if (uncertain) vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => { throw new Error('Synthetic rollback failure'); }); const result = await command({ hide: ['wearables'], biometrics: { add: ['waist'] } }); expect(result).toMatchObject({ changed: false, settingsSaved: false, dataSaved: false }); expect(result.persistenceUncertain === true).toBe(uncertain); expect(readDashboardPreferenceFootprint().widgets === null).toBe(!uncertain); expect(renderer.navigate).not.toHaveBeenCalled();
+});
+it('retains a redacted confirmed-save receipt after the origin retires during optional paint', async () => { renderer.navigate.mockImplementationOnce(async () => { state.currentThreadId = 'replacement'; return true; }); const result = await command({ hide: ['wearables'] }); expect(result).toMatchObject({ changed: true, settingsSaved: true, dataSaved: false, opened: null }); expect(result).not.toHaveProperty('undoId'); expect(readDashboardPreferenceFootprint().widgets).not.toBeNull(); });
+it('does not lose an acknowledged save when an optional post-save proof read fails', async () => {
+  renderer.navigate.mockImplementationOnce(async () => { const get = Storage.prototype.getItem; vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key) { if (key === dashboardPreferenceKey('widgets')) throw new Error('Synthetic optional read failure'); return get.call(this, key); }); return false; }); const result = await command({ hide: ['wearables'] }); expect(result).toMatchObject({ settingsSaved: true, dataSaved: false }); expect(result).not.toHaveProperty('undoId');
+});
+it('keeps dashboard.presentation in native UI without exposing saved data or invoking its owner', async () => {
+  const before = structuredClone(state.importedData), settings = Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]);
+  const native = vi.fn(() => ({ secret: 'PRIVATE_NATIVE_DATA' }));
+  const tools = createAgentToolRuntime({ readContext: () => '', listAppActions: native, readAppState: native, prepareAppControl: native, navigate: native });
+  for (const tool of ['getbased_app_actions','getbased_read_app','getbased_request_app']) {
+    const result = await tools.execute({ tool, arguments: { action: 'dashboard.presentation', snapshotId: 'previous', parameters: '{}', evidence: 'Requested', reason: 'Requested' } });
+    expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toContain('PRIVATE_');
+  }
+  expect(native).not.toHaveBeenCalled(); expect(tools.getDrafts()).toEqual([]); expect(tools.getOutcome().reviews).toEqual([]);
+  expect(state.importedData).toEqual(before); expect(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)])).toEqual(settings);
+});
+it('returns an accurate native handoff when the resident Dashboard control owner is unavailable', async () => { configureDashboardControlPreparation(null); const before = readDashboardPreferenceFootprint(), health = await crypto.encryptedGetItem(healthKey); expect(await readDashboardPresentation(profile)).toMatchObject({ action: 'dashboard.presentation', available: false }); expect(readDashboardPreferenceFootprint()).toEqual(before); expect(await crypto.encryptedGetItem(healthKey)).toBe(health); expect(renderer.navigate).not.toHaveBeenCalled(); });

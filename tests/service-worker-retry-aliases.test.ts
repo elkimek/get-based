@@ -387,3 +387,42 @@ it('holds unpublished responses only in memory while verification is pending, pr
   expect([...f.stores.keys()].sort()).toEqual([name, 'labcharts-vbuild-' + buildB].sort());
   expect(prior.has(origin + extra)).toBe(false);
 });
+
+const kitCanonical = '/_app/immutable/chunks/feature-ABC12345.js';
+const kitAlias = kitCanonical + '?lazy-retry=1';
+it('uses exact Kit retry proof without changing cache size or module URL identity', async () => {
+  const f = fixture({aliases: {[kitCanonical]: hash}, appShell: ['/index.html', kitCanonical]}); await f.install();
+  const entries = f.stores.get('labcharts-vbuild-' + buildA)!;
+  const before = [...entries.keys()].sort(); f.fetchImpl.mockRejectedValue(new Error('offline'));
+  const response = await f.request(kitAlias);
+  expect(await response!.text()).toBe(body); expect(response!.url).toBe('');
+  expect(response!.headers.get('x-original')).toBe('preserve');
+  expect([...entries.keys()].sort()).toEqual(before); expect(entries.has(origin + kitAlias)).toBe(false);
+});
+it('retains Kit retry proof for the exact older client build after a worker update', async () => {
+  const client: Client = {id: 'old-kit', url: origin + '/app', postMessage: vi.fn()};
+  const f = fixture({buildId: buildB, aliases: {}, clients: [client]});
+  const cache = await f.storage.open('labcharts-vbuild-' + buildA);
+  await cache.put(kitCanonical, new Response(body, {headers: {[proofHeader]: JSON.stringify({v: 1, build: buildA, canonical: kitCanonical, sha256: hash})}}));
+  await f.activate(); await f.report(client, buildA); f.fetchImpl.mockRejectedValue(new Error('offline'));
+  expect(await (await f.request(kitAlias, client.id))!.text()).toBe(body);
+});
+it.each(['body', 'path', 'build', 'missing'] as const)('refuses %s-corrupted Kit proof and fetches the original query', async changed => {
+  const f = fixture({aliases: {[kitCanonical]: hash}, appShell: ['/index.html', kitCanonical]}); await f.install();
+  const entries = f.stores.get('labcharts-vbuild-' + buildA)!;
+  const proof = changed === 'missing' ? {} : {[proofHeader]: JSON.stringify({v: 1, build: changed === 'build' ? buildB : buildA, canonical: changed === 'path' ? '/_app/immutable/chunks/other-ABC12345.js' : kitCanonical, sha256: hash})};
+  entries.set(origin + kitCanonical, new Response(changed === 'body' ? 'changed' : body, {headers: proof}));
+  f.fetchImpl.mockClear(); f.fetchImpl.mockResolvedValue(new Response('network-query'));
+  expect(await (await f.request(kitAlias))!.text()).toBe('network-query');
+  expect(f.fetchImpl).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({url: origin + kitAlias}));
+  expect(entries.has(origin + kitAlias)).toBe(false);
+});
+it.each(['/_app/immutable/entry/feature-ABC12345.js', '/_app/immutable/chunks/a.js', '/_app/immutable/chunks/nested/feature-ABC12345.js', '/js/private.js'])('rejects an unowned retry declaration %s', invalid => {
+  expect(() => fixture({aliases: {[invalid]: hash}, appShell: ['/index.html', invalid]})).toThrow('Invalid build-proven retry chunk alias');
+});
+it('leaves cross-origin and non-GET Kit retry requests outside the app cache', async () => {
+  const f = fixture({aliases: {[kitCanonical]: hash}, appShell: ['/index.html', kitCanonical]}); await f.install(); f.fetchImpl.mockClear();
+  expect(await f.request('https://other.test' + kitAlias)).toBe(null);
+  expect(await f.request(kitAlias, '', {method: 'POST', body: 'synthetic'})).toBe(null);
+  expect(f.fetchImpl).not.toHaveBeenCalled();
+});

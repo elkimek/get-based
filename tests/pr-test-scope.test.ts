@@ -137,7 +137,7 @@ describe('native tooling and mandatory PR validation', () => {
     ['scripts/build-browser-vendors.mts', 'vendor:check'],
     ['scripts/build-evolu8-vendor.mts', 'vendor:evolu8:check'],
     ['scripts/build-marker-schema.mts', 'marker-schema:check'],
-    ...['cashu', 'ehbp', 'tinfoil', 'venice-e2ee', 'venice-nvidia', 'venice-dcap', 'routstr-crypto', 'zlib-browser-shim'].map(name => [`scripts/vendor-entries/${name}.ts`, 'vendor:check']),
+    ...['cashu', 'ehbp', 'tinfoil', 'venice-e2ee', 'venice-nvidia', 'venice-dcap', 'routstr-crypto', 'sha256', 'zlib-browser-shim'].map(name => [`scripts/vendor-entries/${name}.ts`, 'vendor:check']),
     ...['evolu8', 'evolu8-db-worker', 'evolu8-shared-worker'].map(name => [`scripts/vendor-entries/${name}.ts`, 'vendor:evolu8:check']),
   ];
   it.each(scopes)('requires the real build validation for %s and its deleted runtime alias', (native, check) => {

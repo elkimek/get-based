@@ -2,7 +2,10 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ save: vi.fn(), render: vi.fn(), send: vi.fn(), notify: vi.fn(), streaming: vi.fn(), callbacks: vi.fn(), restore: vi.fn(), input: vi.fn() }));
 vi.mock('../js/chat-history.js', () => ({ saveChatHistory: m.save }));
-vi.mock('../js/utils.js', () => ({ escapeHTML: (value: unknown) => value, showNotification: m.notify }));
+vi.mock('../js/utils.js', async importOriginal => ({
+  ...await importOriginal<typeof import('../js/utils.js')>(),
+  escapeHTML: (value: unknown) => value, showNotification: m.notify,
+}));
 vi.mock('../js/chat-runtime.js', () => ({ isChatRuntimeStreaming: m.streaming, getChatRegenerateCallbacks: m.callbacks }));
 vi.mock('../js/emf-runtime.js', () => ({ openEMFAssessmentEditor: vi.fn() }));
 vi.mock('../js/chat-composer.js', () => ({ setChatInputValue: m.input }));

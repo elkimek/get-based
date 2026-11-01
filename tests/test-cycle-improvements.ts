@@ -106,7 +106,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('setPhaseOverlay is a module API', typeof dataModule.setPhaseOverlay === 'function');
     assert('setPhaseOverlay stays off window', !('setPhaseOverlay' in window));
     const src = read('js/data-view-controls.js');
-    assert('setPhaseOverlay sets phaseOverlayMode', sourceFunctionHasStatement(src, 'setPhaseOverlay', "state.phaseOverlayMode = mode === 'off' ? 'off' : 'on';", 'direct', ['setOverlayMode']));
+    assert('setPhaseOverlay sets phaseOverlayMode', sourceFunctionHasStatement(src, 'setPhaseOverlay', "setOverlayMode('phaseOverlayMode', 'phaseOverlay', mode);") && src.includes("void commitLabOverlayPreferences({ [overlay[key]]: mode !== 'off' }).then(() => {") && read('js/lab-overlay-preferences.js').includes("cycle: 'phaseOverlayMode'") && read('js/lab-overlay-preferences.js').includes("state[cached[field]] = after[field] ? 'on' : 'off';"));
     assert('setPhaseOverlay persists to localStorage', src.includes("'phaseOverlay'") && src.includes('setPhaseOverlay'));
   }
 

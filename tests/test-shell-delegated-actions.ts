@@ -233,8 +233,8 @@ assert('App shell injects category customization view callbacks',
 assert('App shell injects category page actions without bridge or window fallbacks',
   !categoryPageViewSrc.includes("from './views-runtime-bridge.js'")
     && !categoryPageViewSrc.includes('appWindow.renameCategory')
-    && categoryPageViewSrc.includes('categoryPageViewDeps.renameCategory?.(categoryKey);')
-    && appShellHooksSrc.includes("import { configureCategoryPageViewDeps } from './category-page-view.js';")
+    && fs.readFileSync(path.join(root, 'js/category-page-runtime.js'), 'utf8').includes('return categoryPageViewDeps.renameCategory?.(categoryKey);') && categoryPageViewSrc.includes("from './category-page-runtime.js'")
+    && appShellHooksSrc.includes("import { configureCategoryPageViewDeps } from './category-page-runtime.js';")
     && appShellHooksSrc.includes('configureCategoryPageViewDeps({ renameCategory });'));
 
 assert('App shell injects Lens page navigation without bridge or window fallbacks',
@@ -320,11 +320,11 @@ assert('App shell keeps demo imports lazy and delegates prepared data to the nor
 
 assert('App shell injects sync pull profile refresh without bridge lookups',
   !syncPullSrc.includes("from './views-runtime-bridge.js'")
-    && sourceFunctionHasStatement(syncPullSrc, 'configureSyncPull', "if (typeof renderProfileButton === 'function') _renderProfileButton = renderProfileButton;")
-    && syncPullSrc.includes('_renderProfileButton();')
-    && appShellHooksSrc.includes("import { configureSyncPull } from './sync-pull.js';")
+    && sourceFunctionHasStatement(syncPullSrc, 'configureSyncPull', 'configureSyncPullViewDeps({ renderProfileButton, reconcilePulledManualWearables });')
+    && syncPullSrc.includes('const _renderProfileButton = renderProfileButtonAfterSync;') && syncPullSrc.includes('_renderProfileButton();') && fs.readFileSync(path.join(root, 'js/sync-pull-view-runtime.js'), 'utf8').includes('export const renderProfileButtonAfterSync = () => deps.renderProfileButton();')
+    && appShellHooksSrc.includes("import { configureSyncPullViewDeps } from './sync-pull-view-runtime.js';")
     && appShellHooksSrc.includes('reconcilePulledManualWearables,')
-    && appShellHooksSrc.includes('configureSyncPull({ renderProfileButton, reconcilePulledManualWearables });'));
+    && appShellHooksSrc.includes('configureSyncPullViewDeps({ renderProfileButton, reconcilePulledManualWearables });'));
 
 assert('App shell injects PDF import review callbacks without a runtime back-import',
   appShellHooksSrc.includes("const confirmPdfImport = () => import('./pdf-import-commit.js')")

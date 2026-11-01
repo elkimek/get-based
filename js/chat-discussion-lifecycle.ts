@@ -14,7 +14,7 @@ import {
 } from './chat-discussion-callbacks.js';
 import {
   removeDiscussContinuePrompt, removeDiscussPersonaPicker,
-  showDiscussContinuePrompt as showDiscussContinuePromptUI, updateDiscussButton,
+  showDiscussContinuePrompt as showDiscussContinuePromptUI, updateDiscussButton, setDiscussionSaving,
 } from './chat-discussion-ui.js';
 import {
   isRoundThreadActive, persistDiscussionThreadState,
@@ -56,23 +56,48 @@ export function cleanupDiscussionState({ clearThread = false, markEnded = false 
 }
 
 export function endDiscussion() {
+  const origin = captureDiscussionOrigin(), root = state.importedData;
+  const thread = getCurrentThread();
+  if (!thread || thread.discussionEnded) return Promise.resolve(false);
+  const fields = ['discussionPersonas', 'discussionOriginalPersonality', 'discussionPendingPersonas', 'discussionEnded', 'personality', 'personalityName', 'personalityIcon'] as const;
+  const previous = Object.fromEntries(fields.map(field => [field, thread[field]]));
+  const oldPersonality = state.currentChatPersonality;
+  const personalityKey = `labcharts-${state.currentProfile}-chatPersonality`, oldStoredPersonality = localStorage.getItem(personalityKey);
   const orig = (state as DiscussionLifecycleState)._discussionOriginalPersonality;
-  cleanupDiscussionState({ clearThread: true, markEnded: true });
+  // Keep the discussion controls visible until the locked index save commits.
+  // Closing a page as soon as the controls disappear must not lose this action.
+  setDiscussionSaving(true);
+  clearCurrentDiscussionThreadState({ clearThread: true, markEnded: true, persist: false });
   if (orig) {
     (state as DiscussionLifecycleState).currentChatPersonality = orig;
     (localStorage.setItem as (key: string, value: unknown) => void)(`labcharts-${state.currentProfile}-chatPersonality`, orig);
   }
-  const thread = getCurrentThread();
   if (thread) {
     const personality = getActivePersonality();
     thread.personality = state.currentChatPersonality;
     thread.personalityName = personality.name;
     thread.personalityIcon = personality.icon;
-    void saveChatThreadIndex();
   }
-  updateDiscussButton();
-  updateChatHeaderTitle();
-  document.getElementById('chat-input')?.focus();
+  const expected = fields.map(field => thread[field]), expectedPersonality = state.currentChatPersonality;
+  return Promise.resolve(saveChatThreadIndex()).then(saved => {
+    if (!origin.isActive() || state.importedData !== root || fields.some((field, index) => thread[field] !== expected[index])) return false;
+    if (!saved) {
+      for (const field of fields) {
+        if (previous[field] === undefined) delete thread[field];
+        else (thread as Record<string, unknown>)[field] = previous[field];
+      }
+      if (state.currentChatPersonality === expectedPersonality) {
+        state.currentChatPersonality = oldPersonality;
+        if (oldStoredPersonality === null) localStorage.removeItem(personalityKey);
+        else localStorage.setItem(personalityKey, oldStoredPersonality);
+      }
+      return false;
+    }
+    cleanupDiscussionState();
+    updateDiscussButton(); updateChatHeaderTitle();
+    document.getElementById('chat-input')?.focus();
+    return true;
+  }).finally(() => { if (origin.isActive()) setDiscussionSaving(false); });
 }
 
 export function finishDiscussionRound(personas: unknown, originalPersonality: unknown, threadId: unknown = state.currentThreadId, origin?: DiscussionOrigin) {

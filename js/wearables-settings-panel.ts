@@ -7,6 +7,7 @@ type ClosestEventTarget = EventTarget & Partial<Pick<Element, 'closest'>>;
 import { getErrorMessage } from './caught-error.js';
 import { showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
+import { commitHistoryViewPreferences, writeHistoryViewPreferencesNow } from './history-view-preferences.js';
 import {
   adapterById,
   visibleAdapters,
@@ -115,7 +116,7 @@ function handleWearableSettingsChange(event: Event) {
 
   switch (inputEl.dataset.wearableSettingsInput) {
     case 'strip-hidden':
-      setWearableStripHidden(!inputEl.checked);
+      void changeWearableStripHidden(!inputEl.checked, () => inputEl.isConnected).catch(() => { if (inputEl.isConnected) inputEl.checked = !isWearableStripHidden(); });
       break;
     case 'apple-health-file':
       handleAppleHealthFilePick(inputEl);
@@ -174,10 +175,14 @@ export function isWearableStripHidden() {
 }
 
 export function setWearableStripHidden(hidden: boolean) {
-  const key = _wearableStripHiddenKey();
-  if (hidden) localStorage.setItem(key, '1');
-  else localStorage.removeItem(key);
+  writeHistoryViewPreferencesNow({ stripHidden: !!hidden });
   navigateWearablesDashboard();
+}
+async function changeWearableStripHidden(hidden: boolean, isCurrent: () => boolean = () => true) {
+  const profile = state.currentProfile, root = state.importedData;
+  try { await commitHistoryViewPreferences({ stripHidden: hidden }, { canCommit: isCurrent }); }
+  catch (error) { if (state.currentProfile === profile && state.importedData === root && isCurrent()) showNotification('The strip visibility preference could not be saved.', 'error'); throw error; }
+  if (state.currentProfile === profile && state.importedData === root && isCurrent()) navigateWearablesDashboard();
 }
 
 // Public string contract supplies the required host. Owned Svelte supplies markup.

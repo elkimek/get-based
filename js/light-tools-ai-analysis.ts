@@ -14,6 +14,7 @@ import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
+import { lightMeasurementSourceLabel } from './light-env-model.js';
 import type { LightMeasurement, LightRoom } from './light-env-model.js';
 import { projectEnvironmentAI } from './light-environment-ai-presentation.js';
 import { renderHTML } from './components/LightEnvironmentAI.svelte.html.js';
@@ -23,6 +24,7 @@ export interface MeasurementFactsInput extends LightMeasurement {
   extra?: NonNullable<LightMeasurement['extra']> & Record<string, unknown> | null | undefined;
 }
 export interface MeasurementContextInput extends MeasurementFactsInput {
+  label?: unknown; notes?: unknown;
   roomId?: unknown;
   confidence?: unknown;
 }
@@ -46,11 +48,13 @@ function getRoomNameFor(m: MeasurementContextInput) {
 export function getMeasurementFingerprint(m: MeasurementContextInput | null | undefined) {
   if (!m) return '';
   const parts = [
-    'v2-measurement-quality',
+    'v3-reported-measurement-facts',
+    m.capturedAt ?? 'unknown-time',
+    m.label ?? '', m.notes ?? '',
     m.tool || '',
     typeof m.value === 'number' ? Math.round(m.value * 1000) / 1000 : String(m.value || ''),
     m.roomId || '',
-    Math.round(((m.confidence || 0) as number) * 100),
+    typeof m.confidence === 'number' && Number.isFinite(m.confidence) ? Math.round(m.confidence * 100) : 'unknown-confidence',
   ];
   if (m.extra && typeof m.extra === 'object') {
     for (const k of Object.keys(m.extra).sort()) {
@@ -80,7 +84,7 @@ function _buildLuxContext(m: MeasurementFactsInput) {
       ? `Reading: ~${Math.round(m.value as number)} camera-estimated photopic lux; approximate and excluded from indoor scoring`
       : `Reading: ${Math.round(m.value as number)} photopic lux`,
   ];
-  if (m.extra?.source) lines.push(`Sensor: ${m.extra.source}`);
+  lines.push(`Sensor: ${lightMeasurementSourceLabel(m)}`);
   if (m.extra?.source === 'camera-estimate') lines.push(`Camera calibration confirmed: ${m.extra?.calibrationConfirmed === true ? 'yes' : 'no — do not threshold'}`);
   if (m.extra?.calibrationFactor && m.extra.calibrationFactor !== 1) {
     lines.push(`Calibration factor applied: ×${_formatNumber(m.extra.calibrationFactor, 2)}`);
@@ -133,6 +137,7 @@ function _buildSpectrumContext(m: MeasurementFactsInput) {
 }
 
 function _buildGlassContext(m: MeasurementFactsInput) {
+  if (m.extra?.method === 'reported-relative-ratio') return ['Tool: reported relative window response', `Reported ratio: ${_formatNumber(m.value, 3)}; acquisition method is not recorded. Do not infer camera exposure, calibrated visible, UV or IR transmission.`];
   const lines = [`Tool: two-sample camera window comparison`];
   const pct = Math.round(((m.value || 0) as number) * 100);
   lines.push(`Relative camera-visible response: about ${pct}%; not calibrated visible, UV, or IR transmission`);
@@ -169,7 +174,9 @@ export function buildMeasurementContext(m: MeasurementContextInput | null | unde
   const lines = ['### Measurement', ...(buildMeasurementFacts(m))];
   const desc = _TOOL_DESCRIPTIONS[m.tool as string];
   if (desc) lines.push(`Tool description: ${desc}`);
-  lines.push(`Confidence: ${Math.round(((m.confidence || 0.7) as number) * 100)}%`);
+  lines.push(typeof m.confidence === 'number' && Number.isFinite(m.confidence) ? `Confidence: ${Math.round(m.confidence * 100)}%` : 'Confidence: not recorded');
+  if (typeof m.label === 'string' && m.label) lines.push(`Label: ${m.label.replace(/\s+/g, ' ').trim().slice(0, 120)}`);
+  if (typeof m.notes === 'string' && m.notes) lines.push(`Reported notes: ${m.notes.replace(/\s+/g, ' ').trim().slice(0, 2000)}`);
   if (m.capturedAt) {
     const d = new Date(m.capturedAt);
     const hour = d.getHours();

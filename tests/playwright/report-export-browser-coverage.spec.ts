@@ -1117,6 +1117,7 @@ test('report export helpers cover option normalization AI markup and popup block
 
 test('export facade covers JSON downloads imports chat bundle and clear cancel', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.locator('html[data-app-ready]').waitFor();
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ exportUrl, profileUrl, cryptoUrl }) => {
@@ -1350,10 +1351,23 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       };
       viewsModule.navigate('labs');
       await exportFacade.importDataJSON(new File([JSON.stringify(singleImport)], 'single-client.json', { type: 'application/json' }));
-      const singleProfile = profileStore.getProfiles().find(profile => profile.name === 'Imported Facade Client');
+      const malformedProfile = profileStore.getProfiles().find(profile => profile.name === 'Imported Facade Client');
+      // Keep the original legacy fixture: a built-in identity in the custom
+      // catalog is rejected instead of silently dropping it during import.
+      outcomes.singleClientImportRejectsMalformedCustomCatalog = !!malformedProfile
+        && localStorage.getItem(`labcharts-${malformedProfile.id}-chatPersonalityDeleted`) === null
+        && Array.from(document.querySelectorAll('.notification-toast.error')).some(toast => toast.textContent?.includes('native review'));
+      const validSingleImport = { ...singleImport, profile: { ...singleImport.profile, name: 'Imported Valid Facade Client' }, chat: { ...singleImport.chat, customPersonalities: [{ id: 'custom_coach', name: 'Coach', promptText: 'Synthetic imported coach.' }] } };
+      await exportFacade.importDataJSON(new File([JSON.stringify(validSingleImport)], 'valid-single-client.json', { type: 'application/json' }));
+      const singleProfile = profileStore.getProfiles().find(profile => profile.name === 'Imported Valid Facade Client');
       const singleThreads = singleProfile
         ? (JSON.parse as(text:unknown)=>unknown)(localStorage.getItem(`labcharts-${singleProfile.id}-chat-threads`) || '[]')
         : [];
+      const singleDeleted = singleProfile ? JSON.parse(await cryptoStore.encryptedGetItem(`labcharts-${singleProfile.id}-chatPersonalityDeleted`) || '{}') as Record<string, unknown> : {};
+      outcomes.singleClientImportSelectsProfile = !!singleProfile && state.currentProfile === singleProfile.id;
+      outcomes.singleClientImportPreservesLabValue = state.importedData.entries.some(entry => entry.markers?.['vitamins.vitaminD'] === 44);
+      outcomes.singleClientImportPreservesThreadIndex = (singleThreads as {id?:unknown}[])[0]?.id === 'single-thread';
+      outcomes.singleClientImportPreservesPersona = !!singleProfile && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach';
       outcomes.singleClientImportCreatesProfileDataAndChat = !!singleProfile
         && state.currentProfile === singleProfile.id
         && state.importedData.entries.some(entry => entry.markers?.['vitamins.vitaminD'] === 44)
@@ -1361,8 +1375,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && state.importedData.contextSourceSettings?.['lab-group-Specialty Panel'] === true
         && (singleThreads as {id?:unknown}[])[0]?.id === 'single-thread'
         && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach'
-        && ((JSON.parse as(text:unknown)=>unknown)(localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonalityDeleted`) || '{}') as Record<string,unknown>)
-          .custom_imported_retired === 1786186800000;
+        && singleDeleted.custom_imported_retired === 1786186800000;
       outcomes.singleClientImportRefreshesDashboardThroughInjectedShellDeps = state.currentView === 'dashboard';
 
       let restoredMintUrl:unknown = null;

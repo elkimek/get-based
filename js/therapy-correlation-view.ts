@@ -7,7 +7,8 @@ import { saveCorrelationWorkspace } from './correlation-workspace-store.js';
 import { formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
 import { createChartRuntime } from './charts-runtime.js';
-import { localDateKey, getSupplementPeriods } from './supplement-medication-domain.js';
+import { getSupplementPeriods } from './supplement-medication-domain.js';
+import { correlationTimelineBounds } from './correlation-timeline-bounds.js';
 import { correlationDay, correlationDate, therapyExposure, therapySegments } from './therapy-correlations.js';
 
 import type { ChartInstance } from './charts-runtime.js';
@@ -97,17 +98,7 @@ export function renderCorrelationWorkspace(selection: CorrelationViewSelection, 
     ...selection.markers.map((m, i): MarkerSeries => ({ id: m.key, name: m.name, unit: m.unit || 'Unit unavailable', kind: 'marker', marker: m, color: styles[i % styles.length], index: i })),
     ...selection.histories.map((h, i): DoseSeries => ({ id: h.id, name: h.name, unit: amountUnit(h.quantity), kind: 'dose', history: h, color: styles[(selection.markers.length + i) % styles.length], index: selection.markers.length + i })),
   ];
-  const days = selection.markers.flatMap(m => m.rows.map(r => correlationDay(r.date)));
-  for (const h of selection.histories) if (!h.invalid) for (const p of h.periods) {
-    if ((p.start as string) <= h.today) days.push(correlationDay(p.start), correlationDay(p.end && (p.end as string) < h.today ? p.end : h.today));
-  }
-  const validDays = days.filter(day => day !== null);
-  const fallback = (correlationDay(localDateKey()) as number);
-  const requestedEnd = correlationDay(selection.range.end);
-  const naturalStart = validDays.length ? Math.min(...validDays) : fallback;
-  const start = correlationDay(selection.range.start) ?? Math.min(naturalStart, requestedEnd ?? naturalStart);
-  const last = requestedEnd ?? Math.max(start, fallback, validDays.length ? Math.max(...validDays) : fallback);
-  const end = Math.max(start + 1, last + 1);
+  const { start, end, last } = correlationTimelineBounds(selection);
   let cursor = Math.min(end - 1, Math.max(start, correlationDay(view.inspectDate) ?? (correlationDay(selection.markers[0]?.rows.at(-1)?.date) ?? last)));
   const segmentsById = new Map(selection.histories.map(h => [h.id, therapySegments(h, correlationDate(start), correlationDate(end - 1))]));
   const numeric = (s: CorrelationSeries) => s.kind === 'marker' || (s.history.quantity && segmentsById.get(s.id)!.some(seg => seg.value !== null));

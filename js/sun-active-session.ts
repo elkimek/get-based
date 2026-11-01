@@ -9,6 +9,9 @@ import { showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, projectBodySilhouette, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { sunSessionInputKey, sunSessionExposure } from './sun-session-model.js';
+import { sunSessionMissingInputs, sunSessionHasPendingIntervals } from './sun-session-mutations.js';
+import { sunLiveStartChecks } from './sun-session-lifecycle.js';
+import { profileDataValuesEqual } from './profile-data-writes.js';
 import { renderChannelChips } from './sun-session-ui.js';
 import { setSunChannelChipsExpanded } from './sun-session-actions.js';
 import { activeElapsedMs as _activeElapsedMs, formatElapsed as _formatElapsed, plainStopSummary, _renderUVIPreflightBanner, _buildStartSessionToast } from './sun-active-session-format.js';
@@ -18,6 +21,7 @@ const activeDeps: ActiveSessionCalls = {
   getActiveSession: () => null,
   startSession: async () => null,
   stopSession: async () => null,
+  canPersistActiveSlice: () => true, persistActiveSlice: async () => null,
   hydrateSession: async () => null,
   getSunCoords: () => null,
   saveImportedData: async () => {},
@@ -74,8 +78,13 @@ async function _fetchCurrentUVI() {
 }
 
 export async function openStartSunSessionDialog() {
+  const profile = state.currentProfile, origin = state.importedData, generation = _activeGeneration;
+  const startCoords = activeDeps.getSunCoords(), defaults = structuredClone(origin?.sunDefaults || null);
+  const checks = sunLiveStartChecks(origin, !!startCoords && startCoords.source !== 'country-band');
+  const isCurrent = () => state.currentProfile === profile && state.importedData === origin && _activeGeneration === generation
+    && profileDataValuesEqual(defaults, origin.sunDefaults || null) && profileDataValuesEqual(startCoords, activeDeps.getSunCoords());
   const configuredFitz = state.importedData?.sunDefaults?.fitzpatrick || null;
-  if (!/^(I|II|III|IV|V|VI)$/.test(String(configuredFitz || ''))) {
+  if (!checks.skinTypeConfigured) {
     showNotification(
       'Confirm your Fitzpatrick skin type in Light setup before starting a session. It anchors the UV and skin-response estimates.',
       'info',
@@ -84,8 +93,7 @@ export async function openStartSunSessionDialog() {
     activeDeps.openLightSetup();
     return false;
   }
-  const startCoords = activeDeps.getSunCoords();
-  if (!startCoords || startCoords.source === 'country-band') {
+  if (!checks.savedLocationSpecific) {
     showNotification(
       startCoords?.source === 'country-band'
         ? 'A country-level location is too broad for live UV safety guidance. Add a home postal area or use your privacy-rounded current location today before starting.'
@@ -96,6 +104,7 @@ export async function openStartSunSessionDialog() {
     activeDeps.openLightSetup();
     return false;
   }
+  if (checks.activeSessionId) { showNotification('A Sun timer is already active. Use its existing controls.', 'info', 4000); return false; }
   const last = activeDeps.getSessions().filter(s => s.endedAt).slice(-1)[0];
   const lastRegions = new Set((last?.bodyExposure?.regions || []) as Iterable<string>);
   const fitz = configuredFitz;
@@ -142,7 +151,7 @@ export async function openStartSunSessionDialog() {
   updateHint();
 
   uviPromise.then((uvi) => {
-    if (!Number.isFinite(uvi)) return;
+    if (!isCurrent() || !Number.isFinite(uvi)) return;
     latestPreflightUvi = uvi as number;
     const banner = overlay.querySelector('#sun-start-uvi-banner');
     if (!(banner instanceof HTMLElement)) return;
@@ -154,6 +163,7 @@ export async function openStartSunSessionDialog() {
   }).catch(() => {});
 
   confirm.addEventListener('click', async (): Promise<{} | null | void> => {
+    if (!isCurrent()) { closeDialog(); showNotification('The profile or Sun setup changed. Open the start dialog again.', 'info', 4000); return; }
     const eyeMode = (overlay.querySelector('#start-eye-mode') as HTMLSelectElement | null)?.value || 'direct';
     const lensTint = (overlay.querySelector('#start-lens-tint') as HTMLSelectElement | null)?.value || 'clear';
     const glassBetween = !!(overlay.querySelector('#start-glass') as HTMLInputElement | null)?.checked;
@@ -167,7 +177,10 @@ export async function openStartSunSessionDialog() {
       setTimeout(() => hint.classList.remove('sun-silhouette-hint-error'), 2500);
       return;
     }
-    const id = await activeDeps.startSession({ regions, eyeMode: modeledEyeMode, lensTint, glassBetween, posture, surfaceAlbedo, rotatedSides: false, location: startCoords });
+    let id: unknown;
+    try { id = await activeDeps.startSession({ regions, eyeMode: modeledEyeMode, lensTint, glassBetween, posture, surfaceAlbedo, rotatedSides: false, location: startCoords }, { expected: structuredClone(origin), authorized: isCurrent }); }
+    catch { if (!isCurrent()) closeDialog(); showNotification('The Sun timer could not be started. Check the current profile and try again.', 'error', 5000); return; }
+    if (!isCurrent()) { closeDialog(); return; }
     closeDialog();
     showNotification(_buildStartSessionToast({
       regionCount: regions.length,
@@ -194,6 +207,7 @@ let _activeTicker: ReturnType<typeof setInterval> | null = null;
 const _liveState = new Map<unknown, LiveOperations>();
 const _snapshotRequests = new Map<unknown, {isCurrent: () => boolean}>();
 let _activeGeneration = 0;
+let _rateInFlight = new WeakMap<SessionOperations, { inputKey: string; promise: Promise<LiveOperations | null> }>();
 
 function activeSessionOwnership(sess: SessionOperations) {
   const data = state.importedData;
@@ -260,7 +274,15 @@ function nextSunSliceStart(sess: SessionOperations, existing: LiveOperations, re
   return Math.min(now, Math.max(sess.startedAt, resumed || sess.startedAt, recovered.snapshotAt || sess.startedAt));
 }
 
-async function _snapshotActiveRate(sess: SessionOperations) {
+function _snapshotActiveRate(sess: SessionOperations) {
+  const inputKey = sunSessionInputKey(sess, state.importedData), existing = _rateInFlight.get(sess);
+  if (existing?.inputKey === inputKey && _snapshotRequests.get(sess.id)?.isCurrent()) return existing.promise;
+  const pending = snapshotActiveRate(sess), request = { inputKey, promise: pending }; _rateInFlight.set(sess, request);
+  void pending.finally(() => { if (_rateInFlight.get(sess) === request) _rateInFlight.delete(sess); });
+  return pending;
+}
+async function snapshotActiveRate(sess: SessionOperations) {
+  if (sunSessionMissingInputs(sess).length) { clearSunLiveState(sess.id); return null; }
   const cur = _getLiveState(sess.id);
   if (cur && cur.ratePerMin) return cur;
   if (cur && cur.pending) return null;
@@ -325,6 +347,12 @@ async function _snapshotActiveRate(sess: SessionOperations) {
       if (live) live.pending = false;
     }
   }
+}
+// A chat control can be used before any Light view has installed its ticker.
+// Resolve the native current-input rate before closing its timed slice.
+export async function prepareSunLiveAction(id: string) {
+  const row = activeDeps.getSessions().find(session => session.id === id);
+  if (row && !row.endedAt && !row.paused) await _snapshotActiveRate(row);
 }
 
 function _rateAtInstant(sess: SessionOperations, instantMs: number, snapshotAtmosphere: AtmosphereOperations | null = null, coords = sess.location) {
@@ -403,7 +431,7 @@ function _integrateSlice(sess: SessionOperations, startMs: number, endMs: number
   return { doses, sed, retinalUV };
 }
 
-export function commitSunLiveSlice(sess: unknown): SunLiveSegmentReader | null {
+export function stageSunLiveSlice(sess: unknown): { segment: SunLiveSegmentReader; publish: () => void } | null {
   const live = _getLiveState((sess as SessionOperations)?.id);
   if (!live || !live.ratePerMin || !live.snapshotAt) return null;
   const sliceStart = live.snapshotAt;
@@ -432,12 +460,16 @@ export function commitSunLiveSlice(sess: unknown): SunLiveSegmentReader | null {
   };
   if (!Array.isArray((sess as SessionOperations).exposureSegments)) (sess as SessionOperations).exposureSegments = [];
   (sess as SessionOperations).exposureSegments!.push(segment);
-  setSunLiveState((sess as SessionOperations).id, { committedDoses, committedSED, committedRetinalUV, snapshotAt: sliceEnd });
-  return segment;
+  return { segment, publish: () => setSunLiveState((sess as SessionOperations).id, { committedDoses, committedSED, committedRetinalUV, snapshotAt: sliceEnd }) };
+}
+
+export function commitSunLiveSlice(sess: unknown): SunLiveSegmentReader | null {
+  const staged = stageSunLiveSlice(sess); staged?.publish(); return staged?.segment || null;
 }
 
 export function liveDosesFor(sess: unknown): SunLiveDosesReader | null {
   const session = sess as SessionOperations;
+  if (sunSessionMissingInputs(session).length || sunSessionHasPendingIntervals(session)) return null;
   let live = _getLiveState(session?.id);
   if (!live && session?.paused && session.exposureSegments?.length) {
     setSunLiveState(session.id, { ...recoveredSunSlices(session), ...liveSkinInputs(),
@@ -484,7 +516,8 @@ function _renderActiveCardBody(sess: SessionOperations) {
     vitaminD = { iu, ratePerMin: elapsedMin > 0 ? iu / elapsedMin : 0 };
   }
   const elapsedMin = (_activeElapsedMs as ElapsedReader)(sess) / 60000;
-  const liveReadouts = renderHTML({ kind: 'live-readouts', readouts: liveSessionReadouts(live, vitaminD, elapsedMin) });
+  const unavailable = sunSessionMissingInputs(sess).length ? 'Exposure details needed for estimates' : sunSessionHasPendingIntervals(sess) ? 'Earlier exposure incomplete — estimates unavailable' : undefined;
+  const liveReadouts = renderHTML({ kind: 'live-readouts', readouts: liveSessionReadouts(live, vitaminD, elapsedMin, unavailable) });
   return { elapsed, liveReadouts, channelChips };
 }
 
@@ -500,9 +533,8 @@ function _tickActiveCards() {
     if (!sess.paused && (!live || !live.ratePerMin) && (!live || !live.pending)) _snapshotActiveRate(sess);
     if (live && live.ratePerMin && !live.pending && !sess.paused) {
       const last = live.snapshotAt || 0;
-      if (Date.now() - last > 5 * 60 * 1000) {
-        commitSunLiveSlice(sess);
-        setSunLiveState(sess.id, { ratePerMin: null });
+      if (Date.now() - last > 5 * 60 * 1000 && activeDeps.canPersistActiveSlice()) {
+        Promise.resolve(activeDeps.persistActiveSlice(sess.id)).catch(error => { globalThis.console?.warn?.('Sun slice could not be saved', error); });
       }
     }
 
@@ -664,6 +696,7 @@ function _jargonPrefix(key: string) {
 }
 
 export function resetSunActiveSessionState() {
+  _rateInFlight = new WeakMap();
   _activeGeneration++;
   _snapshotRequests.clear();
   if (_activeTicker) { clearInterval(_activeTicker); _activeTicker = null; }

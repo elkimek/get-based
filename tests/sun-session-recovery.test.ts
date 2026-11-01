@@ -1,18 +1,28 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
-vi.mock('../js/data.js', () => ({ saveImportedData: vi.fn(async () => {}) }));
+vi.mock('../js/data.js', () => {
+  const saveImportedData = vi.fn(async () => {});
+  return { saveImportedData, notifyProfileDataContextChanged: vi.fn(), saveImportedDataForProfile: async (_profile: unknown, _next: unknown, options: { canCommit?: () => boolean }) => {
+    if (options.canCommit && !options.canCommit()) return false;
+    const outcome: unknown = await saveImportedData(); return outcome !== false;
+  } };
+});
 vi.mock('../js/state.js', () => ({ state: { currentProfile: 'a', importedData: null } }));
+vi.mock('../js/agent-profile-record-store.js', async () => {
+  const { state } = await import('../js/state.js');
+  return { readAgentProfileRecords: async () => structuredClone(state.importedData) };
+});
 import { state } from '../js/state.js';
 import { saveImportedData } from '../js/data.js';
 import * as store from '../js/sun-sessions-store.js';
 const deferred = () => { let resolve: ((value?: unknown) => void) | undefined, reject: ((reason?: unknown) => void) | undefined; const promise = new Promise<unknown>((yes, no) => { resolve = yes as (value?: unknown) => void; reject = no; }); return { promise, resolve, reject }; };
 const record = (patch: Partial<SessionFixture> = {}): SessionFixture => ({ id: 'sun-a', startedAt: 100000, endedAt: 700000, durationMin: 10, location: { lat: 50, lon: 14 }, bodyExposure: { fraction: 0.1 }, eyeExposure: { mode: 'direct', durationSec: 600 }, ...patch });
 type SaveMockFixture = {mockResolvedValueOnce(value?: unknown): SaveMockFixture;mockRejectedValueOnce(value: unknown): SaveMockFixture;mockReturnValueOnce(value: unknown): SaveMockFixture;mockResolvedValue(value?: unknown): SaveMockFixture;mockClear(): SaveMockFixture};
-type SessionFixture = {id: string; startedAt: unknown; endedAt?: number | null; durationMin: number; location: {lat: number; lon: number} | null; bodyExposure?: {fraction?: number; sunscreenSPF?: number | null; glassBetween?: boolean; regions?: string[]} | null; eyeExposure?: {mode: string; durationSec?: number | null}; atmosphere?: {uvIndex?: unknown} | null; doses?: Record<string, number> | null; safety?: {sed?: number; ocularActinicUV?: number} | null; exposureSegments?: unknown[]; paused?: boolean; pausedAt?: number | null; resumedAt?: number; accumulatedPausedMs?: number; engineVersion?: unknown; calculationStatus?: string; _activeRate?: unknown; _activeRatePending?: boolean; _fractionOfMED?: number; notes?: unknown; aiAnalysis?: unknown; updatedAt?: unknown;};
-type SessionDepsFixture = {fetchAtmosphere: Mock<() => Promise<unknown>>; reconstructSpectrum: Mock<() => object>; computeChannelDoses: Mock<(options: {durationMin: number; eyeExposure: {mode: string}}) => {vitamin_d: number}>; erythemalSED: Mock<() => number>; fractionOfMED: Mock<() => number>; retinalUVdose: Mock<(options: {eyeExposure: {mode: string}}) => number>; solarZenithAngle: Mock<() => number>; maybeAnalyzeSessionAfterFinish: Mock<() => unknown>; commitCurrentSlice: Mock<() => void>; clearLiveState: Mock<() => void>; setLiveState: Mock<() => void>};
+type SessionFixture = {id: string; startedAt: unknown; endedAt?: number | null; durationMin: number; location: {lat: number; lon: number} | null; bodyExposure?: {fraction?: number; sunscreenSPF?: number | null; glassBetween?: boolean; regions?: string[]; rotatedSides?: boolean} | null; eyeExposure?: {mode: string; durationSec?: number | null}; atmosphere?: {uvIndex?: unknown} | null; doses?: Record<string, number> | null; safety?: {sed?: number; ocularActinicUV?: number} | null; exposureSegments?: unknown[]; paused?: boolean; pausedAt?: number | null; resumedAt?: number; accumulatedPausedMs?: number; engineVersion?: unknown; calculationStatus?: string; _activeRate?: unknown; _activeRatePending?: boolean; _fractionOfMED?: number; notes?: unknown; aiAnalysis?: unknown; updatedAt?: unknown;};
+type SessionDepsFixture = {fetchAtmosphere: Mock<() => Promise<unknown>>; reconstructSpectrum: Mock<() => object>; computeChannelDoses: Mock<(options: {durationMin: number; eyeExposure: {mode: string}}) => {vitamin_d: number}>; erythemalSED: Mock<() => number>; fractionOfMED: Mock<() => number>; retinalUVdose: Mock<(options: {eyeExposure: {mode: string}}) => number>; solarZenithAngle: Mock<() => number>; maybeAnalyzeSessionAfterFinish: Mock<() => unknown>; commitCurrentSlice: Mock<(draft: SessionFixture) => void>; clearLiveState: Mock<() => void>; setLiveState: Mock<() => void>};
 let session: SessionFixture, deps: SessionDepsFixture;
 beforeEach(() => {
-  vi.useFakeTimers(); vi.setSystemTime(1000000); vi.clearAllMocks();
+  vi.useFakeTimers(); vi.setSystemTime(1000000); vi.resetAllMocks();
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   store.resetSunSessionsStoreState();
   session = record(); state.currentProfile = 'a'; (state as { importedData: unknown }).importedData = { sunSessions: [session] };
@@ -42,7 +52,7 @@ it.each(Object.keys(changes))('discards atmosphere rejection after %s', async ch
 });
 it('does not request atmosphere after ownership changes during the pending-state save', async () => {
   const wait = deferred(); (saveImportedData as unknown as SaveMockFixture).mockReturnValueOnce(wait.promise);
-  const pending = store.hydrateSession(session.id); await Promise.resolve(); changes['profile switch']!(); wait.resolve!();
+  const pending = store.hydrateSession(session.id); await vi.waitFor(() => expect(saveImportedData).toHaveBeenCalledOnce()); changes['profile switch']!(); wait.resolve!();
   expect(await pending).toBeNull(); expect(deps.fetchAtmosphere).not.toHaveBeenCalled();
 });
 it('latest direct hydration wins when older weather arrives last', async () => {
@@ -60,7 +70,7 @@ it('clears partial computed fields when the dose engine throws', async () => {
 it('stopping an already stopped session preserves its original duration and dose boundary', async () => {
   const snapshot = structuredClone(session);
   expect(await store.stopSession(session.id)).toBe(session);
-  expect(session).toEqual(snapshot); expect(deps.commitCurrentSlice).not.toHaveBeenCalled(); expect(saveImportedData).toHaveBeenCalledTimes(1);
+  expect(session).toEqual(snapshot); expect(deps.commitCurrentSlice).not.toHaveBeenCalled(); expect(saveImportedData).not.toHaveBeenCalled();
 });
 it('a duration edit invalidates older weather before its replacement calculation', async () => {
   const wait = deferred(); deps.fetchAtmosphere.mockReturnValueOnce(wait.promise);
@@ -94,7 +104,7 @@ it('does not analyze a session when ownership changes during its computed-state 
 });
 it('does not queue edited-session hydration after profile reload during save', async () => {
   const wait = deferred(); (saveImportedData as unknown as SaveMockFixture).mockReturnValueOnce(wait.promise);
-  const pending = store.updateSession(session.id, { durationMin: 20 }); changes['profile data reload']!(); wait.resolve!();
+  const pending = store.updateSession(session.id, { durationMin: 20 }); await vi.waitFor(() => expect(saveImportedData).toHaveBeenCalledOnce()); changes['profile data reload']!(); wait.resolve!();
   expect(await pending).toBeNull(); expect(deps.fetchAtmosphere).not.toHaveBeenCalled();
 });
 it('a rejected pending-state save propagates without weather or analysis', async () => {
@@ -131,7 +141,7 @@ it('completed exposure segments are summed without requesting new weather', asyn
 it.each(['profile switch', 'runtime reset', 'session deletion'])('does not analyze saved segments after %s', async change => {
   session.exposureSegments = [{ durationMin: 2, doses: { vitamin_d: 3 } }];
   const wait = deferred(); (saveImportedData as unknown as SaveMockFixture).mockReturnValueOnce(wait.promise);
-  const pending = store.hydrateSession(session.id); changes[change]!(); wait.resolve!();
+  const pending = store.hydrateSession(session.id); await vi.waitFor(() => expect(saveImportedData).toHaveBeenCalledOnce()); changes[change]!(); wait.resolve!();
   expect(await pending).toBeNull(); expect(deps.maybeAnalyzeSessionAfterFinish).not.toHaveBeenCalled();
 });
 it('stale recovery skips active, fresh and location-free records', async () => {
@@ -158,11 +168,11 @@ it.each([1, 3, 15])('the final slice stays inside the stopped session when commi
   session.eyeExposure!.durationSec = null;
   const segments = [{ startedAt: 900000, endedAt: 930000, durationMin: 0.5 }];
   session.exposureSegments = segments;
-  deps.commitCurrentSlice.mockImplementation(() => {
+  deps.commitCurrentSlice.mockImplementation((draft: unknown) => {
     // A real commit reads its end clock and integrates synchronously. Model
     // the clock advancing across the commit rather than freezing both reads.
     vi.setSystemTime(Date.now() + commitMs);
-    segments.push({ startedAt: 950000, endedAt: Date.now(), durationMin: (Date.now() - 950000) / 60000 });
+    (draft as SessionFixture).exposureSegments!.push({ startedAt: 950000, endedAt: Date.now(), durationMin: (Date.now() - 950000) / 60000 });
   });
   await store.stopSession(session.id);
   expect(session.endedAt).toBe(1000000 + commitMs);
@@ -185,7 +195,8 @@ it('coverage edits normalize duplicate/unknown regions and allow fully covered s
 });
 it('repeating pause and rotation does not duplicate dose slices', async () => {
   session.endedAt = null; await store.pauseSession(session.id); await store.pauseSession(session.id); await store.markSessionRotated(session.id); await store.markSessionRotated(session.id);
-  expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(2); expect(saveImportedData).toHaveBeenCalledTimes(2);
+  expect(session.paused).toBe(true); expect(session.bodyExposure!.rotatedSides).toBe(true);
+  expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(1); expect(saveImportedData).toHaveBeenCalledTimes(2);
 });
 it('notes edits preserve computed dose inputs and immutable identity', async () => {
   session.doses = { vitamin_d: 10 }; await (store.updateSession as (id: unknown, patch: {notes: string;id: string;startedAt: number}) => ReturnType<typeof store.updateSession>)(session.id, { notes: 'edited', id: 'other', startedAt: 0 });
@@ -234,7 +245,7 @@ it('completed manual logging preserves explicit exposure records', async () => {
 });
 it('sunscreen removal preserves the preceding slice and clears live rate', async () => {
   session.endedAt = null; session.bodyExposure!.sunscreenSPF = 30;
-  await store.setSessionSunscreen(session.id, 0); expect(session.bodyExposure!.sunscreenSPF).toBeNull(); expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(1); expect(deps.setLiveState).toHaveBeenCalledWith(session.id, { ratePerMin: null });
+  await store.setSessionSunscreen(session.id, 0); expect(session.bodyExposure!.sunscreenSPF).toBe(0); expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(1); expect(deps.setLiveState).toHaveBeenCalledWith(session.id, { ratePerMin: null });
 });
 it('sunscreen addition can repair a legacy missing bodyExposure record', async () => {
   session.endedAt = null; delete session.bodyExposure; await store.setSessionSunscreen(session.id, 30); expect(session.bodyExposure!.sunscreenSPF).toBe(30);
@@ -266,12 +277,11 @@ it('a malformed imported time reports calculation failure without fetching weath
   session.startedAt = 'bad date'; expect(await store.hydrateSession(session.id)).toBeNull();
   expect(session.calculationStatus).toBe('calculation-error'); expect(deps.fetchAtmosphere).not.toHaveBeenCalled();
 });
-it('a repeated stop retries failed persistence without changing the end time', async () => {
-  session.endedAt = null; (saveImportedData as unknown as SaveMockFixture).mockResolvedValueOnce(false);
-  await expect(store.stopSession(session.id)).rejects.toThrow('could not be saved');
-  const end = session.endedAt; vi.setSystemTime(Date.now() + 60000);
-  await store.stopSession(session.id);
-  expect(saveImportedData).toHaveBeenCalledTimes(2); expect(session.endedAt).toBe(end); expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(1);
+it('retries a failed stop from the unchanged active record at the newly accepted boundary', async () => {
+  session.endedAt = null; const active = structuredClone(session); (saveImportedData as unknown as SaveMockFixture).mockResolvedValueOnce(false);
+  await expect(store.stopSession(session.id)).rejects.toThrow('could not be saved'); expect(session).toEqual(active);
+  vi.setSystemTime(Date.now() + 60000); await store.stopSession(session.id);
+  expect(saveImportedData).toHaveBeenCalledTimes(2); expect(session.endedAt).toBe(1060000); expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(2);
 });
 it.each(['location', 'durationMin', 'bodyExposure', 'updatedAt', 'sunDefaults'])('discards in-place synchronized %s changes during weather fetch', async field => {
   const wait = deferred(); deps.fetchAtmosphere.mockReturnValue(wait.promise);

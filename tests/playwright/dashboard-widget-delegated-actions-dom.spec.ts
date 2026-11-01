@@ -505,11 +505,11 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       });
       (state as unknown as { currentView?: unknown }).currentView = 'labs';
       viewsModule.addDashboardWidgetFromLens('alerts');
-      addedFromLens = !readPrefs().hidden.includes('alerts')
-        && lensNavigateCalls.includes('labs');
+      addedFromLens = await waitFor(() => !readPrefs().hidden.includes('alerts')
+        && lensNavigateCalls.includes('labs'));
       viewsModule.removeDashboardWidgetFromLens('alerts');
-      removedFromLens = readPrefs().hidden.includes('alerts')
-        && lensNavigateCalls.filter(route => route === 'labs').length >= 2;
+      removedFromLens = await waitFor(() => readPrefs().hidden.includes('alerts')
+        && lensNavigateCalls.filter(route => route === 'labs').length >= 2);
     } finally {
       if (previousDashboardWidgetRuntimeDeps) {
         dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps(previousDashboardWidgetRuntimeDeps);

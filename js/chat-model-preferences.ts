@@ -24,3 +24,4 @@ export function setDirectChatReasoningEffort(provider: unknown, modelId: unknown
 }
 
 export const CHAT_REASONING_PREFERENCE_KEY_PREFIX = CHAT_REASONING_KEY_PREFIX;
+export const getDirectChatReasoningPreferenceKey = preferenceKey;

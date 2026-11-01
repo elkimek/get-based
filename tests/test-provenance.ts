@@ -28,7 +28,7 @@ const pdfCommitSrc = read('js/pdf-import-commit.js');
 const labEntrySrc = read('js/lab-entry.js');
 assert('Init markerSources on entry', labEntrySrc.includes('function ensureMarkerSources(entry)'));
 assert('PDF import facade re-exports commit actions', pdfSrc.includes("from './pdf-import-commit.js'"));
-assert('Uses importTs timestamp', pdfCommitSrc.includes('const importTs = Date.now()'));
+assert('Uses importTs timestamp', pdfCommitSrc.includes('let importTs = Date.now()') && pdfCommitSrc.includes('importTs = labReportMutationTime(entry, importTs);'));
 assert('Matched markers get markerSources', /setLabEntryMarker\(entry, m\.mappedKey[\s\S]{0,180}source: \{ file: result\.fileName/.test(pdfCommitSrc));
 assert('New markers get markerSources', /setLabEntryMarker\(entry, m\.suggestedKey[\s\S]{0,180}source: \{ file: result\.fileName/.test(pdfCommitSrc));
 
@@ -38,14 +38,13 @@ const markerDetailSrc = read('js/marker-detail-modal-impl.js');
 const markerDetailHistorySrc = read('js/marker-detail-history.js');
 const markerDetailEditingSrc = read('js/marker-detail-editing.js');
 const markerDetailStoreSrc = read('js/marker-detail-store.js');
+  const mutationSrc = read('js/lab-marker-mutations.js');
 assert('saveManualEntry inits markerSources', labEntrySrc.includes('function ensureMarkerSources(entry)'));
 assert('saveManualEntry uses the source-preserving mutation boundary',
-  /saveManualEntry[\s\S]{0,6200}saveManualMarkerValue\(\{[\s\S]{0,250}dotKey,[\s\S]{0,250}noteText,[\s\S]{0,250}collectionContext:/.test(markerDetailEditingSrc)
-    && /saveManualMarkerValue[\s\S]{0,1200}source: editedMarkerSource\(entry, dotKey, now\)/.test(markerDetailStoreSrc));
+  /saveManualEntry[\s\S]{0,6200}saveManualMarkerValue\(\{[\s\S]{0,250}dotKey,[\s\S]{0,250}noteText,[\s\S]{0,250}collectionContext:/.test(markerDetailEditingSrc) && markerDetailStoreSrc.includes("dotKey, date, kind: 'save'") && mutationSrc.includes('rememberLabManualOriginal(data, entry, dotKey);') && mutationSrc.includes("source?.snapshotId || source?.file ? { ...source, at: now, manuallyEdited: true } : { file: null, at: now }") && mutationSrc.includes('source: provenance'));
 const editSection = markerDetailEditingSrc.split('function editMarkerValue')[1] || '';
 assert('editMarkerValue sets provenance',
-  /editManualMarkerValue\(\{ dotKey, date, storedValue \}\)/.test(editSection)
-    && /editManualMarkerValue[\s\S]{0,900}source: editedMarkerSource\(entry, dotKey, now\)/.test(markerDetailStoreSrc));
+  editSection.includes('await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) });') && markerDetailStoreSrc.includes("dotKey, date, kind: 'edit'") && mutationSrc.includes('setLabEntryMarker(entry, dotKey, command.storedValue, { now, source: provenance });'));
 
 // ─── 3. Detail Modal Display ───
 console.log('\n3. Detail Modal Display');

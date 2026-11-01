@@ -1,3 +1,4 @@
+import { supersedePendingDataProposals } from '../shared/agent-data-contract.js';
 import { closeChatHeaderMenu } from './chat-header-view.js';
 // chat-history.js - thread-aware chat history persistence and clearing
 
@@ -15,6 +16,8 @@ import { renderSavedSummaries } from './chat-summaries.js';
 import { getActivePersonality, updateChatHeaderTitle } from './chat-personalities.js';
 import { renderChatMessagesRuntime, updateDiscussButtonRuntime } from './chat-runtime.js';
 import { normalizeChatMessages } from './chat-storage-safety.js';
+import { nextPersonaMetadataStamp } from './chat-thread-index-storage.js';
+import { supersedePendingContextProposals } from '../shared/agent-tool-contract.js';
 
 const blockedChatHistoryKeys = new Set<string>();
 const notifiedChatHistoryKeys = new Set<string>();
@@ -50,11 +53,19 @@ export function getChatStorageKey() {
   return `labcharts-${state.currentProfile}-chat`;
 }
 
+function historyReadValue(history: typeof state.chatHistory): string | null {
+  try { const value = JSON.stringify(history); return typeof value === 'string' ? value : null; } catch { return null; }
+}
+
 export async function loadChatHistory() {
   const revision = ++historyLoadRevision;
   const profile = state.currentProfile;
   const threadId = state.currentThreadId;
-  const isCurrent = () => revision === historyLoadRevision && profile === state.currentProfile && threadId === state.currentThreadId;
+  const live = state.chatHistory, observed = historyReadValue(live);
+  // A profile refresh can finish decrypting after a reply/review has arrived.
+  // Same profile and thread do not authorize replacing that newer live owner.
+  const isCurrent = () => revision === historyLoadRevision && profile === state.currentProfile && threadId === state.currentThreadId
+    && state.chatHistory === live && observed !== null && historyReadValue(live) === observed;
   if (!state.currentThreadId) {
     state.chatHistory = [];
     renderChatMessagesRuntime();
@@ -82,7 +93,9 @@ export async function loadChatHistory() {
     if (stored === null) throw new Error();
     const parsed: unknown = JSON.parse(stored);
     if (!Array.isArray(parsed)) throw new Error();
-    state.chatHistory = normalizeChatMessages(parsed);
+    const history = normalizeChatMessages(parsed);
+    if (!isCurrent()) return false;
+    state.chatHistory = history;
     clearChatHistoryWriteBlock(key);
   } catch {
     if (!isCurrent()) return false;
@@ -111,10 +124,15 @@ export async function saveChatHistory(options: ChatHistorySaveOptions = {}) {
   const history = options.history || state.chatHistory;
   const key = getChatThreadKey(threadId);
   const targetThread = state.chatThreads.find(thread => thread.id === threadId);
+  const personaFields = ['personality', 'personalityName', 'personalityIcon', 'personalityUpdatedAt'] as const;
+  const hasNoPersona = (thread: ChatThread) => personaFields.every(field => !Object.hasOwn(thread, field));
+  const mayInitializePersona = threadId === state.currentThreadId && !!targetThread && hasNoPersona(targetThread);
   const ownsHistory = options.current || (() => threadId === state.currentThreadId && history === state.chatHistory);
   const isCurrent = () => profile === state.currentProfile && ownsHistory();
   if (!isCurrent()) return false;
   invalidateThreadContentCache();
+  supersedePendingContextProposals(history);
+  supersedePendingDataProposals(history);
   const value = JSON.stringify(history);
   const messageCount = history.length;
   const personality = state.currentChatPersonality;
@@ -140,17 +158,24 @@ export async function saveChatHistory(options: ChatHistorySaveOptions = {}) {
       if (!isCurrent()) return false;
       thread = state.chatThreads.find(t => t.id === threadId);
       if (thread) {
-        const fields = ['updatedAt', 'messagesUpdatedAt', 'messageCount', ...(p ? ['personality', 'personalityName', 'personalityIcon'] : [])];
+        const initializePersona = !!p && mayInitializePersona && thread === targetThread && hasNoPersona(thread);
+        const personaStamp = initializePersona ? nextPersonaMetadataStamp(thread) : null;
+        const fields = ['updatedAt', 'messagesUpdatedAt', 'messageCount', ...(initializePersona ? personaFields : [])];
         for (const field of fields) previousMetadata[field] = thread[field];
         if (previousValue !== value || thread.messageCount !== messageCount) {
-          thread.updatedAt = new Date().toISOString();
-          thread.messagesUpdatedAt = thread.updatedAt;
+          const bodyTime = Math.max(Date.now(), (Date.parse(String(thread.messagesUpdatedAt || '')) || 0) + 1);
+          const previousGeneralTime = Date.parse(String(thread.updatedAt || '')) || 0, personaTime = Date.parse(String(thread.personalityUpdatedAt || '')) || 0;
+          const generalTime = Math.max(bodyTime, previousGeneralTime, personaTime);
+          const bodyStamp = new Date(bodyTime).toISOString(), generalStamp = generalTime === previousGeneralTime ? thread.updatedAt : generalTime === personaTime ? String(thread.personalityUpdatedAt) : new Date(generalTime).toISOString();
+          thread.updatedAt = generalStamp; thread.messagesUpdatedAt = bodyStamp;
         }
         thread.messageCount = messageCount;
-        if (p) {
+        if (initializePersona && p && personaStamp) {
           thread.personality = personality;
           thread.personalityName = p.name;
           thread.personalityIcon = p.icon;
+          thread.personalityUpdatedAt = personaStamp;
+          if ((Date.parse(thread.updatedAt) || 0) < Date.parse(personaStamp)) thread.updatedAt = personaStamp;
         }
         for (const field of fields) writtenMetadata[field] = thread[field];
         const saved = await saveChatThreadIndex();

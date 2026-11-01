@@ -3,19 +3,27 @@ import { routeRevision } from './route-lifecycle.js';
 import History, { mount, unmount, flushSync } from './components/NutritionHistory.svelte.native.js';
 import { state } from './state.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
+import { registerReadonlyHistorySurface } from './readonly-history-surfaces.js';
 import type { NutritionHistoryView } from './nutrition-presentation-model.js';
 interface View {
   root: HTMLElement; modal: HTMLElement; overlay: HTMLElement; profile: string;
   data: typeof state.importedData; route: number; component: ReturnType<typeof History>; observer: MutationObserver;
   previousLabel: string | null; previousLabelledBy: string | null;
+  releaseSurface?: () => void;
 }
 const geometry = 'gb:nutrition-modal:w-[min(960px,96vw)] gb:nutrition-modal:max-w-[960px]';
 let view: View | null = null;
+export function ownsReadonlyNutritionHistory(): boolean {
+  return !!view && current(view) && !view.overlay.hasAttribute('data-modal-dismiss-protected');
+}
 function current(owned: View): boolean {
   return view === owned && owned.root.isConnected && owned.overlay.classList.contains('show')
+    && owned.modal.isConnected && owned.overlay.isConnected && owned.modal.contains(owned.root)
+    && document.getElementById('detail-modal') === owned.modal && document.getElementById('modal-overlay') === owned.overlay
     && state.currentProfile === owned.profile && state.importedData === owned.data && routeRevision() === owned.route;
 }
 function dispose(owned: View): void {
+  owned.releaseSurface?.();
   owned.observer.disconnect();
   if (view === owned) view = null;
   // Only release attributes still owned by this view. A replacement keeps its name.
@@ -50,6 +58,7 @@ export function mountNutritionHistory(modal: HTMLElement, overlay: HTMLElement, 
   });
   owned = { root, modal, overlay, component, observer, profile: state.currentProfile, data: state.importedData, route: routeRevision(), previousLabel, previousLabelledBy };
   view = owned;
+  owned.releaseSurface = registerReadonlyHistorySurface('nutritionHistory', () => view === owned && current(owned) && !owned.overlay.hasAttribute('data-modal-dismiss-protected'));
   observer.observe(document.documentElement, { childList: true, subtree: true });
   observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
   return () => current(owned);

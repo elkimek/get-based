@@ -84,7 +84,9 @@ describe('custom marker export boundaries', () => {
               categoryKey: 'biochemistry',
             },
           },
+          customMarkerLifecycle: { [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')!]: { markerKey: 'oatEnergy.acetoaceticAcid', deletedAt: 100, restoredAt: 200 } },
           biologyScoreAI: { thyroidCoherence: { summary: 'Saved insight.', text: 'Saved detailed explanation.', materialFingerprint: 'marker-evidence', updatedAt: 123 } },
+          labOrdering: { sidebar: { version: 99, opaqueFuture: { keep: true } } },
           nutritionContextDays: 90,
           nutritionTargets: { energyKcal: 2200, proteinG: 130 },
         });
@@ -102,6 +104,7 @@ describe('custom marker export boundaries', () => {
       futureField: { preserve: true },
     });
     expect(exported.biologyScoreAI.thyroidCoherence).toEqual({ summary: 'Saved insight.', text: 'Saved detailed explanation.', materialFingerprint: 'marker-evidence', updatedAt: 123 });
+    expect(exported.labOrdering).toEqual({ sidebar: { version: 99, opaqueFuture: { keep: true } } });
     expect(exported.entries[0]!.markers).toEqual({ 'oatEnergy.acetoaceticAcid': 12.5 });
     expect(exported.markerPlacements).toEqual({
       [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')!]: {
@@ -111,6 +114,7 @@ describe('custom marker export boundaries', () => {
     expect(exported.nutrition).toMatchObject({ version: 1, meals: [] });
     expect(exported.nutritionContextDays).toBe(90);
     expect(exported.nutritionTargets).toEqual({ energyKcal: 2200, proteinG: 130 });
+    expect(exported.customMarkerLifecycle).toEqual({ [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')!]: { markerKey: 'oatEnergy.acetoaceticAcid', deletedAt: 100, restoredAt: 200 } });
   });
 
   it('includes the same ids in full database backups', async () => {

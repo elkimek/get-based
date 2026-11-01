@@ -6,8 +6,10 @@ import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 // chat-panel.js — Chat panel chrome, web-search toggle, and input state
 
 import { isAIPaused } from './api.js';
+import { readAssistantPreferences, commitAssistantPreferences } from './assistant-preferences.js';
+import { isProfileChatReady } from './profile-chat-state.js';
 import {
-  loadChatThreads, ensureActiveThread, renderThreadList, restoreRailState,
+  loadChatThreads, ensureActiveThread, renderThreadList, restoreRailState, isChatThreadIndexBlocked,
 } from './chat-threads.js';
 import { loadChatHistory } from './chat-history.js';
 import {
@@ -67,7 +69,6 @@ const panelCallbacks: Record<string,unknown> = {
   restoreVoicePlaybackUi: null,
   stopVoiceActivity: null,
 };
-let chatThreadInputBlocked = false;
 let chatPanelReturnFocus: Element|null = null;
 let chatPanelIntent = 0;
 
@@ -98,12 +99,14 @@ export function configureChatPanel(callbacks: unknown = {}) {
 // WEB SEARCH
 // ═══════════════════════════════════════════════
 export function getChatWebSearchEnabled() {
-  return localStorage.getItem('labcharts-chat-websearch') === 'on';
+  return readAssistantPreferences().webSearch;
 }
 
-export function setChatWebSearchEnabled(val: unknown) {
-  localStorage.setItem('labcharts-chat-websearch', val ? 'on' : 'off');
-  updateWebSearchToggleVisibility();
+export async function setChatWebSearchEnabled(val: unknown) {
+  const profile = state.currentProfile, thread = state.currentThreadId;
+  try { await commitAssistantPreferences({ webSearch: !!val }, { canCommit: () => state.currentProfile === profile && state.currentThreadId === thread }); }
+  catch { showNotification('Web-search preference could not be changed. Check whether this connection supports app web search.', 'error'); }
+  finally { try { updateWebSearchToggleVisibility(); } catch { /* Saved setting remains authoritative. */ } }
 }
 
 export async function setChatBackendFromUI(value: unknown) {
@@ -135,7 +138,7 @@ export function refreshWebSearchToggle() {
 }
 
 export function isChatThreadInputBlocked() {
-  return chatThreadInputBlocked;
+  return isChatThreadIndexBlocked() || !isProfileChatReady(state.currentProfile);
 }
 
 function existingChatPresentationStylesheet(stylesheet: ChatPresentationStylesheet): HTMLLinkElement|null {
@@ -323,7 +326,6 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   if (!liveSessionInProgress) {
     threadsLoaded = await loadChatThreads();
     if (!isCurrent()) return cancelOpening();
-    chatThreadInputBlocked = threadsLoaded === false;
     if (threadsLoaded !== false) ensureActiveThread();
   }
   restoreRailState();
@@ -338,7 +340,7 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   initChatModelControls();
   if (generationInProgress) {
     (panelCallbacks as PanelCallbackOperations).restoreChatGenerationUI?.();
-  } else if (!chatThreadInputBlocked) {
+  } else if (!isChatThreadInputBlocked()) {
     if (prefillMessage) setChatInputValue(prefillMessage, { focus: true });
     else await restoreChatDraft(undefined, { focus: true });
   }
@@ -350,7 +352,7 @@ export function updateChatInputState() {
   const input = document.getElementById('chat-input') as HTMLTextAreaElement|null;
   const sendBtn = document.getElementById('chat-send-btn') as HTMLButtonElement|null;
   const noAI = !hasChatResponseBackend();
-  const blocked = chatThreadInputBlocked;
+  const blocked = isChatThreadInputBlocked();
   if (input) {
     input.disabled = noAI || blocked;
     publishChatComposerPlaceholder(blocked
@@ -372,6 +374,7 @@ export function updateChatInputState() {
 }
 
 if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('getbased:profile-chat-state-changed', updateChatInputState);
   const refreshAgentChatUi = () => {
     refreshChatBackendControl();
     updateChatInputState();

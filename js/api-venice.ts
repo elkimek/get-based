@@ -231,6 +231,8 @@ export async function callVeniceAPI(opts: ProviderRequestOptions) {
     apiMessages.push({ role: msg.role, content: await encryptMessage(session.aesKey, session.publicKey, contentStr(msg.content)) });
   }
 
+  opts.signal?.throwIfAborted();
+  if (opts.requestCurrent && !opts.requestCurrent()) throw new Error('The AI request recipient or owner changed.');
   const useStream = !forceNonStream;
   const isGlmE2EE = /(?:^|-)glm(?:-|$)/i.test(modelId);
   const isGlm52E2EE = /(?:^|-)glm-5-2(?:-|$)/i.test(modelId);

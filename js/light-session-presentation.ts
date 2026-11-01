@@ -17,7 +17,7 @@ export function projectCompletedSunSession(session: SessionReader, stamp: Sessio
   const status = session.calculationStatus;
   let warning: CompletedLightSessionView['warning'] = null;
   if (status && status !== 'computed') {
-    const labels: Record<string, string> = { pending: 'Updating estimates…', 'needs-location': 'Location needed for estimates', 'atmosphere-unavailable': 'Conditions unavailable — retry', 'calculation-error': 'Calculation failed — retry' };
+    const labels: Record<string, string> = { pending: 'Updating estimates…', 'needs-inputs': 'Exposure details needed for estimates', 'needs-location': 'Location needed for estimates', 'atmosphere-unavailable': 'Conditions unavailable — retry', 'calculation-error': 'Calculation failed — retry' };
     warning = { label: labels[literal(status)] || 'Estimates unavailable', danger: status === 'calculation-error' };
   } else {
     const med = Number(session.safety?.medFraction);

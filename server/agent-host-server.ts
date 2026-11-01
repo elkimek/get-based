@@ -10,8 +10,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CodexAppServerClient } from '../lib/codex-app-server-client.js';
 import { ACPAgentClient } from '../lib/acp-agent-client.js';
+import { createOpenCodeTurnClientFactory } from '../lib/opencode-agent-client.js';
 import { ClaudeAgentClient } from '../lib/claude-agent-client.js';
 import { createHermesGatewayRouteProvider } from '../lib/hermes-gateway-client.js';
+import { prepareHermesAgentEnvironment } from '../lib/hermes-agent-isolation.js';
 import { OpenClawAgentClient } from '../lib/openclaw-agent-client.js';
 import { createAgentHostService } from '../lib/agent-host-service.js';
 import {
@@ -20,7 +22,7 @@ import {
 import { prepareAgentHostStorage } from '../lib/agent-host-storage.js';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
 import { recoverCompanionListener } from '../lib/companion-listener.js';
-import { buildLocalAgentEnvironment, createAgentVersionRefresher, detectLocalAgents } from '../lib/local-agent-registry.js';
+import { buildLocalAgentEnvironment, createAgentVersionRefresher, detectLocalAgents, usesOpenCodeV2Configuration } from '../lib/local-agent-registry.js';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
@@ -79,9 +81,17 @@ const agentAdapters = detectedAgents.map<CompanionAdapter>(agent => {
       message = 'Run `codex login` once, then check the connection again.';
     }
   } else if (agent.protocol === 'acp') {
-    client = new ACPAgentClient({
-      id: agent.id, command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment,
-    });
+    try {
+      const baseEnvironment = buildLocalAgentEnvironment(process.env, agent);
+      const env = agent.id === 'hermes' ? prepareHermesAgentEnvironment({
+        command: agent.command, launchArgs: agent.versionArgs, cwd: workspaceRoot, env: baseEnvironment,
+        existingManagedDirectory: process.env.HERMES_MANAGED_DIR,
+      }) : baseEnvironment;
+      client = new ACPAgentClient({ id: agent.id, command: agent.command, args: agent.args, cwd: workspaceRoot, env });
+    } catch (error) {
+      status = 'unavailable';
+      message = error instanceof Error ? error.message : 'The agent tool scope could not be verified.';
+    }
   } else if (agent.protocol === 'claude' && status === 'available') {
     client = new ClaudeAgentClient({ command: agent.command, args: agent.args, cwd: workspaceRoot, env: localAgentEnvironment });
   } else if (agent.protocol === 'openclaw' && status === 'available') {
@@ -99,6 +109,12 @@ const agentAdapters = detectedAgents.map<CompanionAdapter>(agent => {
   }] : [];
   return {
     ...agent, status, message, client, routes,
+    ...(agent.protocol === 'acp' && usesOpenCodeV2Configuration(agent) ? {
+      createTurnClient: createOpenCodeTurnClientFactory({
+        id: agent.id, command: agent.command, args: agent.args, cwd: workspaceRoot,
+        env: buildLocalAgentEnvironment(process.env, agent),
+      }),
+    } : {}),
     ...(agent.id === 'hermes' && hermesRouteProvider ? { routeProvider: hermesRouteProvider } : {}),
   } as CompanionAdapter;
 });

@@ -4,7 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
 import type { BackupSnapshot } from '../../js/backup.js';
 import { createDefaultProfileData } from '../../js/profile.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { seedLightPageFixture } from '../helpers/light-page-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';

@@ -14,8 +14,9 @@ import { listNutritionMeals } from './nutrition-store.js';
 import { state } from './state.js';
 import { mountNutritionHistory } from './nutrition-history-view.js';
 import { showNotification } from './utils.js';
+import { commitHistoryViewPreferences, writeHistoryViewPreferencesNow } from './history-view-preferences.js';
 
-export interface NutritionHistoryOptions { view?: unknown; focus?: unknown; resetMeals?: unknown; preserveScroll?: unknown; returnTo?: unknown }
+export interface NutritionHistoryOptions { view?: unknown; focus?: unknown; resetMeals?: unknown; preserveScroll?: unknown; returnTo?: unknown; persistPreferences?: boolean; onPreferencesCommitted?: (receipt: Awaited<ReturnType<typeof commitHistoryViewPreferences>>) => void }
 type NutritionHistoryReader = (meals: Parameters<typeof computeNutritionHistory>[0], options: Omit<NonNullable<Parameters<typeof computeNutritionHistory>[1]>, 'rangeKey'> & {rangeKey?: unknown}) => ReturnType<typeof computeNutritionHistory>;
 
 const NUTRITION_HISTORY_RANGE_KEY = 'nutrition-history-range';
@@ -33,7 +34,7 @@ export function getNutritionHistoryRange() {
 
 export function setNutritionHistoryRange(rangeKey: unknown) {
   const valid = NUTRITION_HISTORY_RANGES.some(range => range.key === rangeKey) ? (rangeKey as string) : '30d';
-  try { localStorage.setItem(NUTRITION_HISTORY_RANGE_KEY, valid); }
+  try { writeHistoryViewPreferencesNow({ nutritionRange: valid as '30d' | '3m' | '6m' | '1y' | 'all' }); }
   catch {}
   return valid;
 }
@@ -47,7 +48,7 @@ export function getNutritionHistoryView() {
 
 export function setNutritionHistoryView(view: unknown) {
   const valid = view === 'trends' ? 'trends' : 'meals';
-  try { localStorage.setItem(NUTRITION_HISTORY_VIEW_KEY, valid); }
+  try { writeHistoryViewPreferencesNow({ nutritionView: valid }); }
   catch {}
   return valid;
 }
@@ -56,8 +57,8 @@ export async function openNutritionHistory(rangeKey: unknown = getNutritionHisto
   const { view = getNutritionHistoryView(), focus = '', resetMeals = false, preserveScroll = false } = options;
   const generation = ++historyRequestGeneration;
   const previousScrollTop = preserveScroll ? Number(document.getElementById('detail-modal')?.scrollTop || 0) : 0;
-  const selectedRange = setNutritionHistoryRange(rangeKey);
-  const selectedView = setNutritionHistoryView(view);
+  const selectedRange = NUTRITION_HISTORY_RANGES.some(range => range.key === rangeKey) ? rangeKey as '30d' | '3m' | '6m' | '1y' | 'all' : '30d';
+  const selectedView = view === 'trends' ? 'trends' : 'meals';
   if (resetMeals) visibleMealCount = HISTORY_MEAL_PAGE_SIZE;
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -83,6 +84,11 @@ export async function openNutritionHistory(rangeKey: unknown = getNutritionHisto
     storageError = getErrorMessage(error, 'Nutrition history could not be read from encrypted storage.');
   }
   if (!pending()) return false;
+  if (options.persistPreferences !== false) {
+    try { const receipt = await commitHistoryViewPreferences({ nutritionRange: selectedRange, nutritionView: selectedView }, { profileId: profile, canCommit: pending }); try { options.onPreferencesCommitted?.(receipt); } catch { /* An optional observer cannot invalidate the durable preference outcome. */ } }
+    catch { if (pending()) showNotification('The history view is available, but its preferences could not be saved.', 'error'); }
+    if (!pending()) return false;
+  }
   const history = {
     ...computeNutritionHistory(meals, { rangeKey: selectedRange }),
     view: selectedView,

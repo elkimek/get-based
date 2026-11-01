@@ -6,9 +6,11 @@ import {getSyncDirtyToken, markSyncProfileDirty} from '../js/sync-dirty-state.js
 import {getSyncStatus} from '../js/sync-state.js';
 import {makeEvolu, PROFILE_QUERY, ITEM_ROW_QUERY} from './helpers/sync-runtime-fixture.js';
 
+// Keep IndexedDB's setImmediate scheduler real while controlling sync deadlines.
+
 afterEach(() => {vi.restoreAllMocks(); vi.clearAllTimers(); vi.useRealTimers(); localStorage.clear();});
 it.each([false, true])('a delayed forced snapshot cannot overwrite a newer completed edit (initially dirty: %s)', async initiallyDirty => {
-  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-31T12:00:00Z'));
+  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']}); vi.setSystemTime(new Date('2026-10-31T12:00:00Z'));
   const id = `push-order-${initiallyDirty}`;
   const fixture = makeEvolu();
   configureSyncDelta({getEvolu: () => fixture.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
@@ -39,7 +41,7 @@ it.each([false, true])('a delayed forced snapshot cannot overwrite a newer compl
 });
 
 it('retains a later dirty generation when an older snapshot finishes planning without another push', async () => {
-  vi.useFakeTimers(); const id = 'push-order-local-change'; const fixture = makeEvolu();
+  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']}); const id = 'push-order-local-change'; const fixture = makeEvolu();
   configureSyncDelta({getEvolu: () => fixture.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
   configureSyncPush({getEvolu: () => fixture.evolu, getProfileQuery: () => PROFILE_QUERY,
     isSyncEnabled: () => true, isPhase2CutoverEnabled: () => false, getProfiles: () => [{id}]});
@@ -60,7 +62,7 @@ it('retains a later dirty generation when an older snapshot finishes planning wi
 });
 
 it('ignores an older SDK completion after the newer forced push has committed', async () => {
-  vi.useFakeTimers(); const id = 'push-order-late-ack'; const fixture = makeEvolu();
+  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']}); const id = 'push-order-late-ack'; const fixture = makeEvolu();
   configureSyncDelta({getEvolu: () => fixture.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
   configureSyncPush({getEvolu: () => fixture.evolu, getProfileQuery: () => PROFILE_QUERY,
     isSyncEnabled: () => true, isPhase2CutoverEnabled: () => false, getProfiles: () => [{id}]});
@@ -82,7 +84,7 @@ it('ignores an older SDK completion after the newer forced push has committed', 
 });
 
 it.each([false, true])('profile completions retain the other pending push (newest completes first: %s)', async newestFirst => {
-  vi.useFakeTimers(); const fixture = makeEvolu(); const ids = ['push-order-a', 'push-order-b'];
+  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']}); const fixture = makeEvolu(); const ids = ['push-order-a', 'push-order-b'];
   configureSyncDelta({getEvolu: () => fixture.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
   configureSyncPush({getEvolu: () => fixture.evolu, getProfileQuery: () => PROFILE_QUERY,
     isSyncEnabled: () => true, isPhase2CutoverEnabled: () => false, getProfiles: () => ids.map(id => ({id}))});
@@ -106,7 +108,7 @@ it.each([false, true])('profile completions retain the other pending push (newes
 });
 
 it('a timed-out SDK callback cannot later clear its error or apply retired deltas', async () => {
-  vi.useFakeTimers(); const id = 'push-order-timeout'; const fixture = makeEvolu();
+  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']}); const id = 'push-order-timeout'; const fixture = makeEvolu();
   configureSyncDelta({getEvolu: () => fixture.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
   configureSyncPush({getEvolu: () => fixture.evolu, getProfileQuery: () => PROFILE_QUERY,
     isSyncEnabled: () => true, isPhase2CutoverEnabled: () => false, getProfiles: () => [{id}]});
@@ -125,7 +127,7 @@ it('a timed-out SDK callback cannot later clear its error or apply retired delta
 });
 
 it.each([false, true])('a superseded plan settles only its own pending status (newest plan delayed: %s)', async newestDelayed => {
-  vi.useFakeTimers(); const fixture = makeEvolu(); const ids = ['push-plan-a', 'push-plan-b'];
+  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']}); const fixture = makeEvolu(); const ids = ['push-plan-a', 'push-plan-b'];
   const delayedId = ids[newestDelayed ? 1 : 0]!;
   configureSyncDelta({getEvolu: () => fixture.evolu, getItemRowQuery: () => ITEM_ROW_QUERY});
   configureSyncPush({getEvolu: () => fixture.evolu, getProfileQuery: () => PROFILE_QUERY,
@@ -178,7 +180,7 @@ it('a missing item-row acknowledgement keeps the push pending and preserves retr
 });
 
 it.each(['pause', 'runtime replacement', 'identity change'])('a late item-row acknowledgement cannot confirm a retired push after %s',async retirement=>{
-  vi.useFakeTimers(); const fixture=makeEvolu(),original=fixture.evolu.insert,id=`retired-${retirement}`;
+  vi.useFakeTimers(); const fixture=makeEvolu(),original=fixture.evolu.insert,id=`retired-${retirement.replaceAll(' ', '-')}`;
   const initial=Object.assign(fixture.evolu,{name:'initial-owner'});let current=initial,enabled=true,complete:(()=>void)|undefined;
   configureSyncDelta({getEvolu:()=>current,getItemRowQuery:()=>ITEM_ROW_QUERY});
   configureSyncPush({getEvolu:()=>current,getProfileQuery:()=>PROFILE_QUERY,isSyncEnabled:()=>enabled,isPhase2CutoverEnabled:()=>false,getProfiles:()=>[{id}]});

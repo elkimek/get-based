@@ -220,10 +220,10 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
         if (action === 'getmeas') return { status: 502, body: { error: 'measure proxy down' } };
         return { body: { status: 284, error: 'token missing' } };
       });
-      const emptyWithingsRows = await withings.fetchWithingsDailyRange('withings-token', '2026-06-01', '2026-06-02');
+      let failedWithingsBatch: unknown = null;
+      try { await withings.fetchWithingsDailyRange('withings-token', '2026-06-01', '2026-06-02'); } catch (error) { failedWithingsBatch = error; }
       const withingsError = await withings.fetchWithingsPersonalInfo('withings-token');
-      outcomes.withingsErrorPaths = Array.isArray(emptyWithingsRows)
-        && emptyWithingsRows.length === 0
+      outcomes.withingsErrorPaths = (failedWithingsBatch as { status?: unknown } | null)?.status === 401
         && withingsError.ok === false
         && withingsError.status === 502
         && withingsError.error.includes('measure proxy down');
@@ -454,9 +454,10 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
         && whoopDay2?.strain === 9
         && requests.some(req => new URL(req.url as string).searchParams.get('nextToken') === 'cycle-page-2');
       installFetch(() => ({ status: 500, body: { message: 'whoop endpoint down' } }));
-      const emptyWhoopRows = await whoop.fetchWhoopDailyRange('whoop-token', '2026-06-01', '2026-06-02');
+      let failedWhoopBatch: unknown = null;
+      try { await whoop.fetchWhoopDailyRange('whoop-token', '2026-06-01', '2026-06-02'); } catch (error) { failedWhoopBatch = error; }
       const whoopError = await whoop.fetchWhoopPersonalInfo('bad-whoop-token');
-      outcomes.whoopErrorPaths = emptyWhoopRows.length === 0
+      outcomes.whoopErrorPaths = (failedWhoopBatch as { status?: unknown } | null)?.status === 500
         && whoopError.ok === false
         && whoopError.status === 500
         && whoopError.error.includes('whoop endpoint down');
@@ -797,13 +798,14 @@ test('Polar provider fetcher covers registration transactions commits and guards
         && exerciseDay?.hrv_day === 38
         && exerciseDay?.hr_day === 90
         && Array.isArray(pending)
-        && pending.length === 2
+        && pending.length === 1
+        && pending[0]?.kind === 'exercise'
         && JSON.stringify(rows).includes('_polarTransactions') === false;
       outcomes.polarCommits = committed.ok === true
-        && committed.committed === 1
+        && committed.committed === 0
         && emptyCommit.ok === true
         && emptyCommit.committed === 0
-        && requests.some(req => req.method === 'PUT' && (req.url as {includes(value:string):unknown}).includes('/activity-transactions/act-1'))
+        && !requests.some(req => req.method === 'PUT' && (req.url as {includes(value:string):unknown}).includes('/activity-transactions/act-1'))
         && requests.some(req => req.method === 'PUT' && (req.url as {includes(value:string):unknown}).includes('/exercise-transactions/ex-1'));
     } finally {
       window.fetch = originalFetch;

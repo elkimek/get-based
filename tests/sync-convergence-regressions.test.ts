@@ -1,3 +1,5 @@
+import { packLabPanelRows } from '../js/lab-panel-identity.js';
+import type { LabEntryDraft } from '../js/lab-entry.js';
 import {afterEach,expect,it,vi} from 'vitest';
 import {mergeArrayRowsIntoImported} from '../js/sync-delta-array-merge.js';
 import {mergeMapRowsIntoImported} from '../js/sync-delta-map-merge.js';
@@ -221,4 +223,114 @@ it('a synchronous row failure settles once even when other acknowledgements arri
  const args={profileId,arrayName:'markerNotes',itemId:'marker_1',payload:'{}'};
  expect(_applyArrayDelta('markerNotes',{ops:[{kind:'insert',args},{kind:'insert',args}]},done)).toBe(false);
  expect(done).toHaveBeenCalledExactlyOnceWith(false);complete();complete();expect(done).toHaveBeenCalledTimes(1);
+});
+
+it('acknowledges a packed day only after every specimen survives the durable profile write', async () => {
+ const date='2026-10-20',panels:LabEntryDraft[]=[
+  {date,panelId:'serum_panel',specimen:'serum',markers:{'hormones.cortisol':350},sourceFile:'serum.pdf'},
+  {date,panelId:'saliva_panel',specimen:'saliva',markers:{'hormones.cortisol':3},sourceFile:'saliva.pdf'},
+ ];
+ const packed=packLabPanelRows(panels)[0]!,rows=[{...row('packed',packed,later),arrayName:'entries',itemId:date}];
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>rows,insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ const data={entries:[] as LabEntryDraft[]},versions:PulledArrayVersions={};
+ await _mergeItemRowsIntoImported(profileId,data,{arrayVersions:versions});
+ expect(data.entries).toHaveLength(2);expect(packLabPanelRows(data.entries)).toEqual([packed]);
+ expect(readArrayVersions(profileId,'entries')).toEqual({});
+ const incomplete={entries:data.entries.slice(0,1)};
+ acknowledgePulledArrayVersions(profileId,incomplete,versions);expect(readArrayVersions(profileId,'entries')).toEqual({});
+ acknowledgePulledArrayVersions(profileId,structuredClone(data),versions);
+ expect(readArrayVersions(profileId,'entries')[date]).toEqual({hash:_djb2(JSON.stringify(packed)),clock:Date.parse(later)});
+ expect((await _planArrayDelta(profileId,'entries',data.entries)).ops).toEqual([]);
+});
+it.each([false,true])('unions duplicate same-day specimen rows without acknowledging a partial carrier: reversed=%s', async reverse => {
+ const date='2026-10-20',panels:LabEntryDraft[]=[
+  {date,panelId:'serum_panel',specimen:'serum',markers:{'hormones.cortisol':350},sourceFile:'serum.pdf'},
+  {date,panelId:'saliva_panel',specimen:'saliva',markers:{'hormones.cortisol':3},sourceFile:'saliva.pdf'},
+ ];
+ const rows=panels.map((panel,i)=>({...row(String(i),panel,later),arrayName:'entries',itemId:date}));
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>reverse?[...rows].reverse():rows,insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ const data={entries:[] as LabEntryDraft[]},versions:PulledArrayVersions={};
+ await _mergeItemRowsIntoImported(profileId,data,{arrayVersions:versions});
+ expect(data.entries).toHaveLength(2);expect(packLabPanelRows(data.entries)).toEqual(packLabPanelRows(panels));
+ acknowledgePulledArrayVersions(profileId,data,versions);expect(readArrayVersions(profileId,'entries')).toEqual({});
+ expect((await _planArrayDelta(profileId,'entries',data.entries)).ops).toHaveLength(1);
+});
+it('retains explicit SNP removal history in a transport-deleted carrier and refuses a stale call', async () => {
+ const removed={deletedAt:200,restoredAt:0,updatedAt:200};
+ const rows=[
+  {...row('history',{k:'rs429358',v:removed}),arrayName:'geneticsSnpTombstones',itemId:'rs429358',isDeleted:1},
+  {...row('stale',{k:'rs429358',v:{genotype:'TT',updatedAt:100}},later),arrayName:'genetics.snps',itemId:'rs429358'},
+ ];
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>rows,insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ const data:import('../js/sync-delta-row-codec.js').DeltaImportedData={genetics:{snps:{}}};
+ await _mergeItemRowsIntoImported(profileId,data);
+ expect(data.geneticsSnpTombstones).toEqual({rs429358:removed});expect(data.genetics!.snps).toEqual({});
+});
+it('retains an explicitly restored SNP across a later transport tombstone', async () => {
+ const call={genotype:'CT',updatedAt:400},data={genetics:{snps:{rs429358:call}},geneticsSnpTombstones:{rs429358:{deletedAt:200,restoredAt:400,updatedAt:400}}};
+ const tomb={...row('deleted',{k:'rs429358',v:{genotype:'TT',updatedAt:100}},later),arrayName:'genetics.snps',itemId:'rs429358',isDeleted:1};
+ await mergeMapRowsIntoImported(data,'genetics.snps',[tomb]);
+ expect(data.genetics.snps).toEqual({rs429358:call});expect(data.geneticsSnpTombstones.rs429358).toEqual({deletedAt:200,restoredAt:400,updatedAt:400});
+});
+
+it('does not acknowledge merged removal history as the value of a partial physical row', async () => {
+ const key='panel.2026-10-20',removed={deletedAt:100,restoredAt:0,updatedAt:100},restored={deletedAt:0,restoredAt:200,updatedAt:200};
+ const rows=[row('a',{k:key,v:removed}),row('b',{k:key,v:restored},later)].map(r=>({...r,arrayName:'labPanelTombstones',itemId:key}));
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>rows,insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ const data={labPanelTombstones:{}},snapshots:import('../js/sync-delta-merge.js').PulledMapSnapshots={};
+ await _mergeItemRowsIntoImported(profileId,data,{mapSnapshots:snapshots});
+ expect(data.labPanelTombstones).toEqual({[key]:{deletedAt:100,restoredAt:200,updatedAt:200}});
+ const {acknowledgePulledMapSnapshots}=await import('../js/sync-delta-merge.js');
+ acknowledgePulledMapSnapshots(profileId,data,Date.parse(later),snapshots);
+ expect(_readDeltaSnapshot(profileId,'labPanelTombstones')).toEqual({});
+ expect((await _planKeyedMapDelta(profileId,'labPanelTombstones',data.labPanelTombstones)).ops).toHaveLength(1);
+});
+
+it.each([false,true])('same-panel duplicate rows converge at equal embedded clocks while an unrepresented local edit survives: reversed=%s', async reverse => {
+ const date='2026-10-20',first:LabEntryDraft={date,panelId:'serum_panel',specimen:'serum',updatedAt:100,markers:{'hormones.cortisol':350}},second={...first,markers:{'hormones.cortisol':355}};
+ const rows=[first,second].map((panel,i)=>({...row(String(i),panel,later),arrayName:'entries',itemId:date}));
+ const committed={entries:[structuredClone(first)]};
+ await mergeArrayRowsIntoImported(committed,'entries',reverse?[...rows].reverse():rows);
+ expect(committed.entries).toEqual([second]);
+ const draft={entries:[{...first,markers:{'hormones.cortisol':360}}]};
+ await mergeArrayRowsIntoImported(draft,'entries',reverse?[...rows].reverse():rows);
+ expect(draft.entries).toEqual([{...first,markers:{'hormones.cortisol':360}}]);
+});
+it('a committed specimen accepts an in-place equal-clock row update without overwriting an unsaved edit', async () => {
+ const date='2026-10-20',first:LabEntryDraft={date,panelId:'serum_panel',specimen:'serum',updatedAt:100,markers:{'hormones.cortisol':350}},second={...first,markers:{'hormones.cortisol':355}};
+ writeArrayVersions(profileId,'entries',{[date]:{hash:_djb2(JSON.stringify(first)),clock:Date.parse(at)}});
+ const rows=[{...row('physical',second,later),arrayName:'entries',itemId:date}],data={entries:[structuredClone(first)]};
+ await mergeArrayRowsIntoImported(data,'entries',rows,{profileId});expect(data.entries).toEqual([second]);
+ const draft={entries:[{...first,markers:{'hormones.cortisol':360}}]};
+ await mergeArrayRowsIntoImported(draft,'entries',rows,{profileId});expect(draft.entries).toEqual([{...first,markers:{'hormones.cortisol':360}}]);
+});
+
+// The profile envelope can arrive before its item-row tombstone. A receiver
+// may briefly republish that envelope; its clock is not an item restoration.
+it('a later whole-profile echo cannot shield an acknowledged array value from deletion', async () => {
+ const item = {id: 'sun_1', minutes: 10, updatedAt: Date.parse(at)};
+ writeArrayVersions(profileId, 'sunSessions', {sun_1: {hash: _djb2(JSON.stringify(item)), clock: Date.parse(at)}});
+ const tombstone = {...row('physical', item, later), arrayName: 'sunSessions', itemId: 'sun_1', isDeleted: 1};
+ const data = {sunSessions: [item]};
+ const versions: PulledArrayVersions = {};
+ await mergeArrayRowsIntoImported(data, 'sunSessions', [tombstone], {
+  profileId, baselineItems: [item], localItems: [item], baselineSyncedAt: Date.parse(later) + 1000,
+  onVersion: (id, version) => {(versions.sunSessions ??= {})[id] = version;},
+ });
+ expect(data.sunSessions).toEqual([]);
+ acknowledgePulledArrayVersions(profileId, data, versions);
+ expect(readArrayVersions(profileId, 'sunSessions').sun_1).toEqual({hash: null, clock: Date.parse(later)});
+});
+
+it.each(['pending-local', 'newer-row'] as const)('explicit array restoration survives an older tombstone (%s)', async mode => {
+ const item = {id: 'sun_1', minutes: 10, updatedAt: Date.parse(at)};
+ const tombstone = {...row('deleted', item, later), arrayName: 'sunSessions', itemId: 'sun_1', isDeleted: 1};
+ writeArrayVersions(profileId, 'sunSessions', {sun_1: mode === 'pending-local'
+  ? {hash: null, clock: Date.parse(later)} : {hash: _djb2(JSON.stringify(item)), clock: Date.parse(at)}});
+ const restored = {...row('restored', item, new Date(Date.parse(later) + 1000).toISOString()), arrayName: 'sunSessions', itemId: 'sun_1', isDeleted: 0};
+ const data = {sunSessions: [item]};
+ await mergeArrayRowsIntoImported(data, 'sunSessions', mode === 'newer-row' ? [tombstone, restored] : [tombstone], {
+  profileId, baselineItems: [item], localItems: [item], baselineSyncedAt: Date.parse(later) + 2000,
+ });
+ expect(data.sunSessions).toEqual([item]);
 });

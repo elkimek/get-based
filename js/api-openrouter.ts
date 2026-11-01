@@ -86,7 +86,7 @@ export async function callOpenRouterAPI(opts: ProviderRequestOptions) {
     ...extensionOptions,
     // OpenRouter aggregates parameter support across a model's providers.
     // Structured requests must only use endpoints that can honor the schema.
-    ...(requestOpts.jsonMode ? {
+    ...((requestOpts.jsonMode || requestOpts.tools?.length) ? {
       provider: { ...extensionProviderRouting, require_parameters: true },
     } : {}),
     ...(requestOpts.webSearch ? { plugins: [{ id: 'web' }] } : {}),

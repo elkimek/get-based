@@ -1,3 +1,4 @@
+import { profileDataValuesEqual } from './profile-data-writes.js';
 import type{SessionAIView}from'./light-session-ai-presentation.js';
 // light-devices.js — Light therapy device library + device session logging.
 //
@@ -177,6 +178,18 @@ export async function hydrateDevicesFromPresets() {
 // finalizes it through logDeviceSession's dose math so the saved record
 // is identical in shape to an after-the-fact log.
 
+// Dialog choices stay bound to their original record and device specification.
+function captureDeviceEditOwner(id: string) {
+  const profile = state.currentProfile, data = state.importedData;
+  const read = () => {
+    const session = getDeviceSessions().find(row => row.id === id) || null;
+    return { session, device: getDevices().find(row => row.id === session?.deviceId) || session?.deviceSnapshot || null };
+  };
+  const expected = structuredClone(read());
+  const current = () => state.currentProfile === profile && state.importedData === data;
+  return { current, unchanged: () => current() && profileDataValuesEqual(read(), expected) };
+}
+
 // User-facing edit-mode entry point. Mirrors editDeviceSessionDuration
 // but for the mode field — opens a small picker dialog filtered to
 // coupling-valid modes, persists the choice via updateDeviceSession
@@ -184,6 +197,7 @@ export async function hydrateDevicesFromPresets() {
 // Devices without `modes` (or with only one valid mode after coupling
 // filtering) skip the dialog and surface a notice instead.
 export async function editDeviceSessionMode(id: string) {
+  const owner = captureDeviceEditOwner(id);
   const sess = getDeviceSessions().find(s => s.id === id);
   if (!sess) {
     showNotification('Session not found', 'error');
@@ -211,10 +225,13 @@ export async function editDeviceSessionMode(id: string) {
     btn.addEventListener('click', closeDialog);
   });
   overlay.querySelector('#dev-edit-mode-save')?.addEventListener('click', async () => {
+    if (!overlay.isConnected || !owner.current()) return;
+    if (!owner.unchanged()) { closeDialog(); showNotification('This session or device changed. Reopen the editor.', 'warning'); return; }
     const next = _select(overlay, '#dev-edit-mode')?.value || '';
     closeDialog();
     if (next === sess.mode) return;
-    const updated = await updateDeviceSession(id, { mode: next });
+    const updated = await updateDeviceSession(id, { mode: next }, { canCommit: owner.unchanged });
+    if (!owner.current()) return;
     if (!updated) {
       showNotification('The mode could not be updated.', 'error');
       return;
@@ -228,6 +245,7 @@ export async function editDeviceSessionMode(id: string) {
 // editSunSessionDuration. Prompts for new minutes, validates, calls
 // updateDeviceSession (which recomputes doses + endedAt), re-renders.
 export async function editDeviceSessionDuration(id: string) {
+  const owner = captureDeviceEditOwner(id);
   const sess = getDeviceSessions().find(s => s.id === id);
   if (!sess) {
     showNotification('Session not found', 'error');
@@ -235,6 +253,8 @@ export async function editDeviceSessionDuration(id: string) {
   }
   const current = Math.max(0, Math.round((sess.durationMin || 0) * 10) / 10);
   const raw = await promptLightDeviceSessionDuration(current);
+  if (!owner.current()) return;
+  if (!owner.unchanged()) { showNotification('This session or device changed. Reopen the editor.', 'warning'); return; }
   if (raw === null || raw === undefined) return;
   const parsed = parseFloat(raw as string);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 600) {
@@ -243,7 +263,8 @@ export async function editDeviceSessionDuration(id: string) {
   }
   const next = Math.round(parsed * 10) / 10;
   if (next === current) return;
-  const updated = await updateDeviceSession(id, { durationMin: next });
+  const updated = await updateDeviceSession(id, { durationMin: next }, { canCommit: owner.unchanged });
+  if (!owner.current()) return;
   if (!updated) {
     showNotification('The duration could not be updated.', 'error');
     return;
@@ -271,7 +292,7 @@ function _select(root: ParentNode, selector: string) {
   return (root.querySelector(selector) as HTMLSelectElement | null);
 }
 
-export function openDeviceSessionDetail(id?: string) {
+export function openDeviceSessionDetail(id?: string): HTMLElement | undefined {
   const sessions = getDeviceSessions();
   const sess = sessions.find(s => s.id === id);
   if (!sess) return;
@@ -417,6 +438,7 @@ export function openDeviceSessionDetail(id?: string) {
     opener: openDeviceSessionDetail,
     exists: sessionId => getDeviceSessions().some(s => s.id === sessionId),
   });
+  return overlay;
 }
 
 // ─── Active device-session card + 1Hz ticker ─────────────────────────

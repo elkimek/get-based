@@ -18,9 +18,10 @@ vi.mock('../js/agent-chat-settings.js', () => ({
 vi.mock('../js/agent-chat-client.js', () => ({ streamAgentTurn: mocks.stream, uploadAgentImage: vi.fn<(options: AgentHostConnection & {file: Blob}) => Promise<string>>(), listAgentExecutionTargets: mocks.targets }));
 vi.mock('../js/cloud-ai-consent.js', () => ({ requireAIProcessingApproval: mocks.approval }));
 import { callCodexFeature, featureReasoningEffort, strictOutputSchema } from '../js/agent-feature-inference.js';
+import { cacheAgentModelCatalog } from '../js/agent-model-catalog.js';
 
 describe('CLI feature request preferences', () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.agent = 'codex'; mocks.effort = ''; mocks.target = 'local'; });
+  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); mocks.agent = 'codex'; mocks.effort = ''; mocks.target = 'local'; });
   it('rejects oversized feature requests locally before connecting or sending profile text', async () => {
     await expect(callCodexFeature({ prompt: 'x'.repeat(100_001), model: 'test-model' })).rejects.toThrow('size limit');
     expect(mocks.connect).not.toHaveBeenCalled(); expect(mocks.stream).not.toHaveBeenCalled();
@@ -58,6 +59,43 @@ describe('CLI feature request preferences', () => {
     mocks.effort = 'high';
     await callCodexFeature({ prompt: 'Synthetic analysis', model: 'test-model', effort: '' });
     expect(mocks.stream).toHaveBeenCalledWith(expect.objectContaining({ effort: '' }));
+  });
+  it('uses a privately refreshed credential on the bound Companion without publishing it to chat settings', async () => {
+    mocks.connect.mockResolvedValueOnce({ endpoint: 'http://127.0.0.1:8324', token: 'privately-refreshed-token' });
+    await callCodexFeature({ prompt: 'Synthetic bound feature', model: 'test-model', execution: { endpoint: 'http://127.0.0.1:8324', agent: 'codex', target: 'local' }, requestCurrent: () => true });
+    expect(mocks.connect).toHaveBeenCalledWith('codex', expect.objectContaining({ persistConnection: false, requiredEndpoint: 'http://127.0.0.1:8324', isCurrent: expect.any(Function) }));
+    expect(mocks.stream).toHaveBeenCalledWith(expect.objectContaining({ endpoint: 'http://127.0.0.1:8324', token: 'privately-refreshed-token', agent: 'codex', purpose: 'feature' }));
+  });
+  it('combines a bound feature recipient, exact agent reasoning metadata and strict schema without changing saved preferences', async () => {
+    mocks.agent = 'hermes'; mocks.effort = 'high';
+    cacheAgentModelCatalog([{ id: 'native-feature-model', supportedReasoningEfforts: [{ reasoningEffort: 'none' }, { reasoningEffort: 'high' }] }], 'hermes', 'local');
+    const stored = localStorage.getItem('labcharts-agent-model-catalog-v1');
+    const schema = Object.freeze({ type: 'object', properties: { result: { type: 'string' }, note: { type: 'string' } }, required: ['result'] });
+    mocks.connect.mockResolvedValueOnce({ endpoint: 'http://127.0.0.1:8324', token: 'synthetic-private-token' });
+    await callCodexFeature({ prompt: 'Synthetic bound analysis', model: 'native-feature-model', effort: 'minimal', outputSchema: schema,
+      execution: { endpoint: 'http://127.0.0.1:8324', agent: 'hermes', target: 'local' }, requestCurrent: () => true });
+    expect(mocks.connect).toHaveBeenCalledWith('hermes', expect.objectContaining({ persistConnection: false, requiredEndpoint: 'http://127.0.0.1:8324', isCurrent: expect.any(Function) }));
+    expect(mocks.stream).toHaveBeenCalledWith(expect.objectContaining({ agent: 'hermes', target: 'local', model: 'native-feature-model', effort: 'none', purpose: 'feature', tools: [],
+      outputSchema: { type: 'object', properties: { result: { type: 'string' }, note: { type: ['string', 'null'] } }, required: ['result', 'note'], additionalProperties: false } }));
+    expect(schema.required).toEqual(['result']);
+    expect(mocks.effort).toBe('high'); expect(localStorage.getItem('labcharts-agent-model-catalog-v1')).toBe(stored);
+  });
+  it('honors the exact Codex model scale after normalizing a direct-API low-effort hint', async () => {
+    mocks.effort = 'high';
+    cacheAgentModelCatalog([{ id: 'high-only-feature-model', supportedReasoningEfforts: [{ reasoningEffort: 'high' }] }], 'codex', 'local');
+    await callCodexFeature({ prompt: 'Synthetic analysis', model: 'high-only-feature-model', effort: 'minimal' });
+    expect(mocks.stream).toHaveBeenCalledWith(expect.objectContaining({ agent: 'codex', model: 'high-only-feature-model', effort: 'high' }));
+    expect(mocks.effort).toBe('high');
+  });
+  it('does not upload or start inference after approval retires the request', async () => {
+    let current = true; mocks.connect.mockResolvedValueOnce({ endpoint: 'http://127.0.0.1:8324', token: 'private-bound-token' }); mocks.approval.mockImplementationOnce(async () => { current = false; });
+    await expect(callCodexFeature({ prompt: 'Synthetic photo', model: 'test-model', files: [new Blob(['synthetic-image'])], execution: { endpoint: 'http://127.0.0.1:8324', agent: 'codex', target: 'local' }, requestCurrent: () => current })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mocks.stream).not.toHaveBeenCalled();
+  });
+  it('rejects a discovery result for another Companion before asking for processing approval', async () => {
+    mocks.connect.mockResolvedValueOnce({ endpoint: 'http://127.0.0.1:8325', token: 'other-private-token' });
+    await expect(callCodexFeature({ prompt: 'Synthetic bound feature', model: 'test-model', execution: { endpoint: 'http://127.0.0.1:8324', agent: 'codex', target: 'local' }, requestCurrent: () => true })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mocks.approval).not.toHaveBeenCalled(); expect(mocks.stream).not.toHaveBeenCalled();
   });
 });
 

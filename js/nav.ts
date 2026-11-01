@@ -18,6 +18,7 @@ interface ConditionalNavItem {
 }
 
 import { getLabCategoryEntriesInSidebarOrder } from './category-order.js';
+import { orderSidebarLabNodes } from './lab-ordering-sidebar.js';
 import { escapeAttr, hashString } from './utils.js';
 import { getActiveData, filterDatesByRange } from './data.js';
 import { countFlagged } from './marker-analysis.js';
@@ -92,6 +93,7 @@ function handleNavActionClick(event: Event) {
     if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     openEMFAssessmentFromNavRuntime();
   } else if (action === 'open-light-assessment') {
+    if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     navActionDeps.openLightEnvironmentAssessment();
   } else if (action === 'open-knowledge-base') {
     if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) {
@@ -267,7 +269,7 @@ export function buildSidebar(data?: unknown) {
   // Separate categories into blood work (no group) and specialty groups
   const bloodWork: NavItem[] = [];
   const specialtyGroups: Record<string, NavGroup> = {};
-  for (const [key, cat] of getLabCategoryEntriesInSidebarOrder((data as ActiveData).categories)) {
+  for (const [key, cat] of getLabCategoryEntriesInSidebarOrder((data as ActiveData).categories, state.importedData?.labOrdering)) {
     const item = _buildNavItem(key, cat);
     if (!item) continue;
     if (cat.group) {
@@ -303,6 +305,7 @@ export function buildSidebar(data?: unknown) {
   const html = renderSidebarPresentation(view);
 
   nav.innerHTML = html;
+  orderSidebarLabNodes(nav, categories, groups, state.importedData?.labOrdering);
   syncSidebarActive(state.currentView || 'dashboard');
 }
 

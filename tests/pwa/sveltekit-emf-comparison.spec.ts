@@ -3,7 +3,7 @@ import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
 import {expect,test,type Page,type Locator} from '@playwright/test';
 import {createDefaultProfileData,migrateProfileData} from '../../js/profile.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {createEMFParserHTTPFixture} from '../helpers/emf-parser-http-fixture.js';
 import {artifactInputs,cacheReceipt,profile,activate} from './kit-native-receipts.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';

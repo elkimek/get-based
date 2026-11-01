@@ -1,8 +1,8 @@
 import type {PlacementSummaryView} from './marker-placement-view.js';
 /** Already captured native scalars and genuine children; no escaped markup. */
 export type MarkerDetailActionName = 'revert-ref-range'|'edit-ref-range'|'clear-ref-edit-field'|'save-ref-range'|'revert-marker-name'|'rename-marker'|'quick-pin'|'close-modal'|'toggle-history-note'|'revert-marker-value'|'delete-marker-value'|'edit-marker-value'|'edit-value-note'|'delete-value-note'|'show-detail-modal'|'open-manual-entry'|'ask-ai'|'toggle-marker-note-editor'|'save-marker-note'|'delete-marker-note'|'delete-custom-marker';
-export interface MarkerDetailActionFields {id?:unknown;date?:unknown;type?:unknown;field?:unknown;value?:unknown;dotKey?:unknown;showAllHistory?:unknown;historyLimit?:unknown;scrollToHistory?:unknown;}
-export interface MarkerDetailActionView {readonly action:MarkerDetailActionName;readonly id:string|null;readonly date:string|null;readonly type:string|null;readonly field:string|null;readonly value:string|null;readonly dotKey:string|null;readonly showAllHistory:string|null;readonly historyLimit:string|null;readonly scrollToHistory:string|null;}
+export interface MarkerDetailActionFields {id?:unknown;date?:unknown;panelId?:unknown;type?:unknown;field?:unknown;value?:unknown;dotKey?:unknown;showAllHistory?:unknown;historyLimit?:unknown;scrollToHistory?:unknown;}
+export interface MarkerDetailActionView {readonly action:MarkerDetailActionName;readonly id:string|null;readonly date:string|null;readonly panelId:string|null;readonly type:string|null;readonly field:string|null;readonly value:string|null;readonly dotKey:string|null;readonly showAllHistory:string|null;readonly historyLimit:string|null;readonly scrollToHistory:string|null;}
 export interface AlternateRange {readonly label:'Reference'|'Optimal';readonly range:string;readonly optimal:boolean;}
 export type MarkerDetailRangeView =
   | Readonly<{kind: "band"; lowZone: RangeLowZone | null; highZone: RangeHighZone | null; optimalZone: RangeOptimalZone | null; status: string; position: string; minimum: string; maximum: string}>

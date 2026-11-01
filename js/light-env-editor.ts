@@ -1,5 +1,6 @@
 // light-env-editor.js — Room/screen editing state and mutation-command owner.
 
+import { state } from './state.js';
 import { showConfirmDialog, showNotification, showPromptDialog } from './utils.js';
 import {
   addRoom,
@@ -39,6 +40,13 @@ export function configureLightEnvEditor(deps: unknown = {}): Record<string, unkn
   const previous = { ...lightEnvEditorDeps };
   Object.assign(lightEnvEditorDeps, deps);
   return previous;
+}
+
+function captureEditorOwner() {
+  const profile = state.currentProfile, data = state.importedData;
+  const overlay = typeof document === 'undefined' ? null : document.getElementById('light-env-assessment-overlay');
+  return () => state.currentProfile === profile && state.importedData === data
+    && (!overlay || overlay.isConnected && document.getElementById('light-env-assessment-overlay') === overlay);
 }
 
 function refreshUI(options: unknown = {}) {
@@ -111,36 +119,42 @@ export function isLightEnvScreenExpanded(id: unknown) {
 }
 
 async function addLightEnvRoom() {
+  const current = captureEditorOwner();
   const env = getEnvironment();
   const before = env?.rooms?.length || 0;
-  await addRoom(nextDefaultRoomName());
-  const after = env?.rooms || [];
+  const accepted = await addRoom(nextDefaultRoomName());
+  if (!current() || !accepted) return;
+  const after = getEnvironment()?.rooms || [];
   if (after.length > before) writeActiveRoomId(after[after.length - 1]!.id);
   refreshUI();
 }
 
 async function addLightEnvRoomNamed(name: unknown) {
+  const current = captureEditorOwner();
   const env = getEnvironment();
   const before = env?.rooms?.length || 0;
-  await (addRoom as (name: unknown) => ReturnType<typeof addRoom>)(name);
-  const after = env?.rooms || [];
+  const accepted = await (addRoom as (name: unknown) => ReturnType<typeof addRoom>)(name);
+  if (!current() || !accepted) return;
+  const after = getEnvironment()?.rooms || [];
   if (after.length > before) writeActiveRoomId(after[after.length - 1]!.id);
   refreshUI();
 }
 
 async function addLightEnvRoomCustom() {
+  const current = captureEditorOwner();
   const name = await showPromptDialog('Room name', {
     defaultValue: '',
     okLabel: 'Add room',
     placeholder: 'e.g. Workshop, Garage, Studio',
   });
-  if (name === null) return;
+  if (!current() || name === null) return;
   const trimmed = name.trim();
   if (!trimmed) return;
   const env = getEnvironment();
   const before = env?.rooms?.length || 0;
-  await addRoom(trimmed);
-  const after = env?.rooms || [];
+  const accepted = await addRoom(trimmed);
+  if (!current() || !accepted) return;
+  const after = getEnvironment()?.rooms || [];
   if (after.length > before) writeActiveRoomId(after[after.length - 1]!.id);
   refreshUI();
 }
@@ -172,32 +186,41 @@ function toggleLightEnvRoomExpanded(id: unknown, event: unknown) {
 }
 
 async function updateLightEnvRoom(id: unknown, patch: unknown) {
-  await (updateRoom as (id: unknown, patch: unknown) => Promise<unknown>)(id, patch);
+  const current = captureEditorOwner();
+  const accepted = await (updateRoom as (id: unknown, patch: unknown) => Promise<unknown>)(id, patch);
+  if (!current() || !accepted) return;
 }
 
 async function setLightEnvRoomSourceArchetype(id: unknown, archetypeKey: unknown) {
+  const current = captureEditorOwner();
   const archetype = SOURCE_ARCHETYPES.find(item => item.key === archetypeKey);
   if (!archetype) return;
-  await updateRoom(id, { primarySource: archetype.storeAs });
+  const accepted = await updateRoom(id, { primarySource: archetype.storeAs });
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 async function setLightEnvRoomHoursBucket(id: unknown, bucketKey: unknown) {
+  const current = captureEditorOwner();
   const bucket = HOURS_BUCKETS.find(item => item.key === bucketKey);
   if (!bucket) return;
-  await updateRoom(id, { hoursOccupiedPerDay: bucket.midpoint });
+  const accepted = await updateRoom(id, { hoursOccupiedPerDay: bucket.midpoint });
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 async function setLightEnvRoomDaylightLevel(id: unknown, levelKey: unknown) {
+  const current = captureEditorOwner();
   if (!DAYLIGHT_LEVELS.some(item => item.key === levelKey)) return;
-  await updateRoom(id, { daylightLevel: levelKey });
+  const accepted = await updateRoom(id, { daylightLevel: levelKey });
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 // Auto-fill a room's primarySource from the Spectrum tool's classification
 // only while the source remains unknown.
 export async function suggestRoomSourceFromSpectrum(roomId: unknown, spectrumLabel: unknown, metadata: unknown = {}) {
+  const current = captureEditorOwner();
   const env = getEnvironment();
   const room = (env?.rooms || []).find(item => item.id === roomId);
   if (!room) return;
@@ -220,31 +243,41 @@ export async function suggestRoomSourceFromSpectrum(roomId: unknown, spectrumLab
   };
   const mapped = (spectrumToSource as Record<string, unknown>)[spectrumLabel as string] as { replace(search: string, replacement: string): unknown } | null | undefined;
   if (!mapped) return;
-  await updateRoom(roomId, { primarySource: mapped });
+  const accepted = await updateRoom(roomId, { primarySource: mapped });
+  if (!current() || !accepted) return;
   showNotification(`Auto-set ${room.name || 'this room'}'s light source to ${mapped.replace('-', ' ')} from spectrum reading.`);
 }
 
 async function setLightEnvRoomEveningBucket(id: unknown, bucketKey: unknown) {
+  const current = captureEditorOwner();
   const bucket = EVENING_BUCKETS.find(item => item.key === bucketKey);
   if (!bucket) return;
-  await updateRoom(id, { eveningHoursAfterSunset: bucket.midpoint });
+  const accepted = await updateRoom(id, { eveningHoursAfterSunset: bucket.midpoint });
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 async function updateLightEnvRoomAndRender(id: unknown, patch: unknown) {
-  await (updateRoom as (id: unknown, patch: unknown) => Promise<unknown>)(id, patch);
+  const current = captureEditorOwner();
+  const accepted = await (updateRoom as (id: unknown, patch: unknown) => Promise<unknown>)(id, patch);
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 async function deleteLightEnvRoom(id: unknown) {
-  await deleteRoom(id);
+  const current = captureEditorOwner();
+  const accepted = await deleteRoom(id);
+  if (!current() || !accepted) return;
   if (readActiveRoomId() === id) writeActiveRoomId(null);
   refreshUI();
 }
 
 async function deleteLightEnvRoomConfirm(id: unknown) {
+  const current = captureEditorOwner();
   if (await showConfirmDialog('Delete this room? Its saved readings and audit snapshots will remain available as historical data.')) {
-    await deleteRoom(id);
+    if (!current()) return;
+    const accepted = await deleteRoom(id);
+    if (!current() || !accepted) return;
     if (readActiveRoomId() === id) writeActiveRoomId(null);
     refreshUI();
   }
@@ -256,15 +289,18 @@ function setActiveLightEnvRoom(id: unknown) {
 }
 
 async function addLightEnvScreenWithDevice(roomId: unknown, device: unknown) {
+  const current = captureEditorOwner();
   const validDevices = SCREEN_DEVICES.map(item => item.key);
   const deviceKey = (validDevices.includes(device as string) ? device : 'phone') as string;
-  await (addScreen as (device: Parameters<typeof addScreen>[0], roomId: unknown) => ReturnType<typeof addScreen>)(deviceKey, roomId || null);
+  const accepted = await (addScreen as (device: Parameters<typeof addScreen>[0], roomId: unknown) => ReturnType<typeof addScreen>)(deviceKey, roomId || null);
+  if (!current() || !accepted) return;
   const screens = getEnvironment()?.screens || [];
   if (screens.length > 0) expandedScreenId = screens[screens.length - 1]!.id;
   refreshUI();
 }
 
 async function addLightEnvScreen(roomId: unknown = null) {
+  const current = captureEditorOwner();
   let device = 'phone';
   if (roomId) {
     const room = (getEnvironment()?.rooms || []).find(item => item.id === roomId);
@@ -272,28 +308,38 @@ async function addLightEnvScreen(roomId: unknown = null) {
     if (/office|study|desk/.test(name)) device = 'laptop';
     else if (/living|family|tv/.test(name)) device = 'tv';
   }
-  await (addScreen as (device: Parameters<typeof addScreen>[0], roomId: unknown) => ReturnType<typeof addScreen>)(device, roomId);
+  const accepted = await (addScreen as (device: Parameters<typeof addScreen>[0], roomId: unknown) => ReturnType<typeof addScreen>)(device, roomId);
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 async function updateLightEnvScreen(id: unknown, patch: unknown) {
-  await (updateScreen as (id: unknown, patch: unknown) => Promise<unknown>)(id, patch);
+  const current = captureEditorOwner();
+  const accepted = await (updateScreen as (id: unknown, patch: unknown) => Promise<unknown>)(id, patch);
+  if (!current() || !accepted) return;
 }
 
 async function updateLightEnvScreenAndRender(id: unknown, patch: unknown) {
-  await (updateScreen as (id: unknown, patch: unknown) => Promise<unknown>)(id, patch);
+  const current = captureEditorOwner();
+  const accepted = await (updateScreen as (id: unknown, patch: unknown) => Promise<unknown>)(id, patch);
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 async function deleteLightEnvScreen(id: unknown) {
-  await deleteScreen(id);
+  const current = captureEditorOwner();
+  const accepted = await deleteScreen(id);
+  if (!current() || !accepted) return;
   if (expandedScreenId === id) expandedScreenId = null;
   refreshUI();
 }
 
 async function deleteLightEnvScreenConfirm(id: unknown) {
+  const current = captureEditorOwner();
   if (await showConfirmDialog('Delete this screen?')) {
-    await deleteScreen(id);
+    if (!current()) return;
+    const accepted = await deleteScreen(id);
+    if (!current() || !accepted) return;
     if (expandedScreenId === id) expandedScreenId = null;
     refreshUI();
   }
@@ -323,21 +369,27 @@ function toggleLightEnvScreenExpanded(id: unknown, event: unknown) {
 }
 
 async function setLightEnvScreenHoursBucket(id: unknown, bucketKey: unknown) {
+  const current = captureEditorOwner();
   const bucket = SCREEN_HOURS_BUCKETS.find(item => item.key === bucketKey);
   if (!bucket) return;
-  await updateScreen(id, { hoursPerDay: bucket.midpoint });
+  const accepted = await updateScreen(id, { hoursPerDay: bucket.midpoint });
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 async function setLightEnvScreenEveningBucket(id: unknown, bucketKey: unknown) {
+  const current = captureEditorOwner();
   const values = { none: 0, lt1: 0.5, mid: 2, gt3: 4 };
   if (!((bucketKey as PropertyKey) in values)) return;
-  await updateScreen(id, { eveningUseAfterSunset: (values as Record<PropertyKey, unknown>)[bucketKey as PropertyKey] });
+  const accepted = await updateScreen(id, { eveningUseAfterSunset: (values as Record<PropertyKey, unknown>)[bucketKey as PropertyKey] });
+  if (!current() || !accepted) return;
   refreshUI();
 }
 
 async function setLightEnvTodayActive(kind: unknown, id: unknown, active: unknown) {
-  await (setTodayActive as (kind: unknown, id: unknown, active: unknown) => ReturnType<typeof setTodayActive>)(kind, id, active);
+  const current = captureEditorOwner();
+  const accepted = await (setTodayActive as (kind: unknown, id: unknown, active: unknown) => ReturnType<typeof setTodayActive>)(kind, id, active);
+  if (!current() || !accepted) return;
   refreshUI();
 }
 

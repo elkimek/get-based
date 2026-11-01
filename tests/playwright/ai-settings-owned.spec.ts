@@ -13,7 +13,7 @@ test('AI chooser keeps accessible provider controls across themes and narrow lay
     const component = await import('/js/ai-settings-component.js');
     const { buildAiSettingsSnapshot } = await import('/js/ai-settings-presentation.js');
     const view = component.mountAiSettings(document.querySelector<HTMLElement>('[data-ai-settings-host]')!, buildAiSettingsSnapshot({ enabled: true, hideProviders: false, provider: 'custom', backend: 'codex' }), {
-      pause: enabled => view.setEnabled(enabled), select: provider => view.setSelected(provider),
+      chatControls: enabled => view.setChatControlsEnabled(enabled), pause: enabled => view.setEnabled(enabled), select: provider => view.setSelected(provider),
     });
     view.setProviderStatus('ready');
   });
@@ -25,7 +25,7 @@ test('AI chooser keeps accessible provider controls across themes and narrow lay
       const label = `${theme}/${width}`;
       expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth),label).toBe(true);
       const controls = panel.locator('button:visible,input:visible');
-      await expect(controls).toHaveCount(8);
+      await expect(controls).toHaveCount(9);
       for (const control of await controls.all()) {
         const bounds = await control.boundingBox();
         expect(bounds?.height,label).toBeGreaterThanOrEqual(44);
@@ -92,11 +92,11 @@ test('Settings keeps extension interception, latest selection and pause persiste
   await expect(page.locator('[data-provider="cli"]')).toHaveAttribute('aria-pressed','true');
   expect(await page.evaluate(async () => (await import('/js/api.js')).getAIProvider())).toBe(current);
   const toggle = page.locator('#ai-pause-toggle');
-  await toggle.uncheck(); await expect(toggle).not.toBeChecked();
+  await expect(toggle).toBeChecked(); await toggle.click(); await expect(toggle).not.toBeChecked();
   expect(await page.evaluate(() => localStorage.getItem('labcharts-ai-paused'))).toBe('true');
   await page.evaluate(async () => { const settings = await import('/js/settings.js'); settings.closeSettingsModal(); await settings.openSettingsModal('ai'); });
   await expect(toggle).not.toBeChecked();
-  await toggle.check(); expect(await page.evaluate(() => localStorage.getItem('labcharts-ai-paused'))).toBe('false');
+  await toggle.click(); await expect(toggle).toBeChecked(); expect(await page.evaluate(() => localStorage.getItem('labcharts-ai-paused'))).toBe('false');
     const activeColor = await page.locator('.ai-provider-btn[aria-pressed="true"]').evaluate(button => getComputedStyle(button).backgroundColor);
     await expect.poll(() => page.locator('#ai-pause-toggle').evaluate(input => getComputedStyle(input.nextElementSibling!).backgroundColor)).toBe(activeColor);
   await page.locator('[data-provider="custom"]').click();

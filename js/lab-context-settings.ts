@@ -78,6 +78,8 @@ function getContextPreferencePart() {
   ].join('|');
 }
 
+export function getContextDisclosureFingerprint() { return getContextPreferencePart(); }
+
 export function getLabContextFingerprint() {
   const data = state.importedData;
   // Values and per-draw context can change without replacing the entries
@@ -94,7 +96,8 @@ export function getLabContextFingerprint() {
     state.profileSex || '', state.profileDob || '',
     state.unitSystem || '', state.rangeMode || '',
     data.interpretiveLens || '', data.contextNotes || '',
-    JSON.stringify(data.notes || []), JSON.stringify(data.markerNotes || {}),
+    JSON.stringify(data.notes || []), JSON.stringify(data.markerNotes || {}), JSON.stringify(data.markerValueNotes || {}),
+    JSON.stringify(data.customMarkers || {}), JSON.stringify(data.markerPlacements || {}), JSON.stringify(data.labPanelTombstones || {}),
     JSON.stringify(data.contextSourceSettings || {}),
     JSON.stringify(data.nutritionContextDays || 30),
     JSON.stringify(data.biologyScoreContextSettings || {}),

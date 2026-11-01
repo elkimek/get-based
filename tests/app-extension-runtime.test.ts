@@ -188,4 +188,17 @@ describe('app extension runtime', () => {
     expect(() => configureAppExtension({ id: '' })).toThrow(/stable id/i);
     expect(() => configureAppExtension({ id: 'contains spaces' })).toThrow(/stable id/i);
   });
+  it('does not delegate request content after its owner retires during hosted authorization', async () => {
+    let release!: (value: boolean) => void, current = true;
+    const callProvider = vi.fn(async () => ({ text: 'late' }));
+    configureAppExtension({ id: 'synthetic-request-owner', ai: { isProviderCallOwned: () => true, authorizeRequest: () => new Promise<boolean>(resolve => { release = resolve; }), callProvider } });
+    const pending = callAppExtensionAIProvider({ provider: 'openrouter', request: { requestCurrent: () => current } });
+    current = false; release(true); await expect(pending).rejects.toMatchObject({ name: 'AbortError' }); expect(callProvider).not.toHaveBeenCalled();
+  });
+  it('does not publish a delegated result after the request is cancelled', async () => {
+    const controller = new AbortController();
+    configureAppExtension({ id: 'synthetic-request-owner', ai: { isProviderCallOwned: () => true, authorizeRequest: () => true, callProvider: async () => { controller.abort(); return { text: 'late' }; } } });
+    await expect(callAppExtensionAIProvider({ provider: 'openrouter', request: { signal: controller.signal } })).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
 });

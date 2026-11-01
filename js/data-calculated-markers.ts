@@ -23,6 +23,7 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
   // Calculate ratios from component markers
   const ratios = data.categories.calculatedRatios;
   if (ratios) {
+    const reportedValues = Object.fromEntries(Object.entries(ratios.markers).map(([key, marker]) => [key, marker.values?.slice() || []]));
     const getVals = (catKey: string, markerKey: string) => {
       const cat = data.categories[catKey];
       return cat && cat.markers[markerKey] ? cat.markers[markerKey]!.values : null;
@@ -392,6 +393,42 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       if (bortz != null) return bortz;
       return null;
     });
+    // Record the actual automatic-value boundary, separately from formulae and
+    // report values. Context projections must not disclose a hidden input via
+    // a ratio or age estimate. Explicit report ratios have no inferred inputs.
+    const inputs: Record<string, string[]> = {
+      tgHdlRatio: ['lipids.triglycerides', 'lipids.hdl'], ldlHdlRatio: ['lipids.ldl', 'lipids.hdl'],
+      cholHdlRatio: ['lipids.cholesterol', 'lipids.hdl'], apoBapoAIRatio: ['lipids.apoB', 'lipids.apoAI'],
+      nlr: ['differential.neutrophils', 'differential.lymphocytes'], plr: ['hematology.platelets', 'differential.lymphocytes'],
+      mlr: ['differential.monocytes', 'differential.lymphocytes'], deRitisRatio: ['biochemistry.ast', 'biochemistry.alt'],
+      cd4Cd8Ratio: ['lymphocyteSubsets.cd4', 'lymphocyteSubsets.cd8'],
+      lmr: ['differential.lymphocytes', 'differential.monocytes'],
+      copperZincRatio: ['electrolytes.copper', 'electrolytes.zinc'], ft3ft4Ratio: ['thyroid.ft3', 'thyroid.ft4'],
+      bunCreatRatio: ['biochemistry.urea', 'biochemistry.creatinine'],
+      freeWaterDeficit: ['electrolytes.sodium', '@wearables', '@insight-cards'],
+      crpHdlRatio: ['proteins.hsCRP', 'lipids.hdl'], atherogenicIndexPlasma: ['lipids.triglycerides', 'lipids.hdl'],
+      tygIndex: ['lipids.triglycerides', 'biochemistry.glucose'],
+      albuminGlobulinRatio: ['proteins.albumin'], fib4Index: ['biochemistry.ast', 'biochemistry.alt', 'hematology.platelets', '@insight-cards'],
+      systemicImmuneInflammationIndex: ['hematology.platelets', 'differential.neutrophils', 'differential.lymphocytes'],
+      anionGap: ['electrolytes.sodium', 'electrolytes.chloride', 'biochemistry.bicarbonate'],
+      phenoAge: ['proteins.albumin', 'biochemistry.creatinine', 'biochemistry.glucose', 'proteins.hsCRP', 'differential.lymphocytesPct', 'hematology.mcv', 'hematology.rdwcv', 'biochemistry.alp', 'hematology.wbc', '@insight-cards'],
+      bortzAge: ['proteins.albumin', 'biochemistry.alp', 'biochemistry.urea', 'lipids.cholesterol', 'biochemistry.creatinine', 'biochemistry.cystatinC', 'diabetes.hba1c', 'proteins.hsCRP', 'biochemistry.ggt', 'hematology.rbc', 'hematology.mcv', 'hematology.rdwcv', 'differential.monocytes', 'differential.neutrophils', 'differential.lymphocytesPct', 'biochemistry.alt', 'hormones.shbg', 'vitamins.vitaminD', 'biochemistry.glucose', 'hematology.mch', 'lipids.apoAI', '@insight-cards'],
+      biologicalAge: [],
+    };
+    const alwaysAutomatic = new Set(['freeWaterDeficit', 'phenoAge', 'bortzAge', 'biologicalAge']);
+    for (const [key, dependencies] of Object.entries(inputs)) {
+      const marker = ratios.markers[key];
+      if (!marker) continue;
+      marker.contextDependencies = sortedDates.map((_, i) => {
+        if (marker.values?.[i] == null || (!alwaysAutomatic.has(key) && reportedValues[key]?.[i] != null)) return [];
+        if (key === 'albuminGlobulinRatio') return [...dependencies, ...(globulinVals?.[i] != null ? ['proteins.globulin'] : ['proteins.totalProtein'])];
+        if (key === 'biologicalAge') return [
+          ...(ratios.markers.phenoAge?.values?.[i] != null ? ['calculatedRatios.phenoAge'] : []),
+          ...(ratios.markers.bortzAge?.values?.[i] != null ? ['calculatedRatios.bortzAge'] : []),
+        ];
+        return dependencies;
+      });
+    }
   }
 
 }

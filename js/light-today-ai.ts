@@ -67,8 +67,7 @@ function _dayBoundaries(date: Date) {
 }
 
 function _getDailyVerdicts(data: ProfileData = state.importedData) {
-  if (!data.lightDailyVerdicts) data.lightDailyVerdicts = {};
-  return data.lightDailyVerdicts as Record<string, unknown>;
+  return (data.lightDailyVerdicts || {}) as Record<string, unknown>;
 }
 
 // Synthetic target wrapper. The engine reads/writes via getAIAnalysis /
@@ -299,7 +298,7 @@ const engine = createAIVerdict<DayTarget>({
   getId: (t) => t?.key,
   getAIAnalysis: (t, data) => (_getDailyVerdicts(data)[t.key] || null) as AIVerdictAnalysis | null,
   setAIAnalysis: (t, v, data) => {
-    const verdicts = _getDailyVerdicts(data);
+    const verdicts = (v == null ? _getDailyVerdicts(data) : (data.lightDailyVerdicts ||= {})) as Record<string, unknown>;
     if (v == null) delete verdicts[t.key];
     else verdicts[t.key] = v;
     // Trim cache: keep last 30 days only — stops the map growing unbounded.

@@ -1,0 +1,235 @@
+[
+  {
+    "file": "js/marker-detail-editing.ts",
+    "currentSHA256": "70c6de306310c693732f24ff31b0e8fcb3b84a375735102e9866a4aeda516605",
+    "previousSHA256": "2684c2d004979d68fd1e9a914f4d51878f869f87d587d82d2ce5bada526530e5",
+    "edits": [
+      {
+        "start": 9027,
+        "before": "export async function deleteMarkerValue(id: string, date: string, panelId?: string) {\n",
+        "after": "export async function deleteMarkerValue(id: string, date: string) {\n"
+      },
+      {
+        "start": 9452,
+        "before": "    const deleted = await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });\n",
+        "after": "    const deleted = await deleteManualMarkerValue(dotKey, date);\n"
+      },
+      {
+        "start": 9977,
+        "before": "export function editMarkerValue(id: string, date: string, currentValue: unknown, event: Event, panelId?: string) {\n",
+        "after": "export function editMarkerValue(id: string, date: string, currentValue: unknown, event: Event) {\n"
+      },
+      {
+        "start": 11102,
+        "before": "    const updated = await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) });\n",
+        "after": "    const updated = await editManualMarkerValue({ dotKey, date, storedValue });\n"
+      },
+      {
+        "start": 11687,
+        "before": "export async function revertMarkerValue(id: string, date: string, panelId?: string) {\n",
+        "after": "export async function revertMarkerValue(id: string, date: string) {\n"
+      },
+      {
+        "start": 11837,
+        "before": "  const updated = await revertManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });\n",
+        "after": "  const updated = await revertManualMarkerValue(dotKey, date);\n"
+      }
+    ]
+  },
+  {
+    "file": "js/marker-detail-history.ts",
+    "currentSHA256": "b1668165b5d05e90e8bd94b442eb328ec2bcd6ac2a405d7ef2af16ce38bd394c",
+    "previousSHA256": "4e9a5230400fbd6aec3e5ab996d40ed611be9a2fe949b2710d1cd33e00f55201",
+    "edits": [
+      {
+        "start": 251,
+        "before": "import { labPanelId } from './lab-panel-identity.js';\nimport { convertCanonicalToDisplay } from './unit-profiles.js';\nimport type { MarkerModalPoint } from '../types/marker-detail-modal-impl.js';\n",
+        "after": ""
+      },
+      {
+        "start": 519,
+        "before": "export function buildMarkerHistoryMetadata(entry: (Pick<LabEntry, 'context' | 'sourceFile'> & { specimen?: unknown }) | null | undefined, source: MarkerProvenance | null | undefined, rawDate: unknown): { collection: HistoryCollection|null; sources: readonly HistorySource[] } {\n",
+        "after": "export function buildMarkerHistoryMetadata(entry: Pick<LabEntry, 'context' | 'sourceFile'> | null | undefined, source: MarkerProvenance | null | undefined, rawDate: unknown): { collection: HistoryCollection|null; sources: readonly HistorySource[] } {\n"
+      },
+      {
+        "start": 844,
+        "before": "  if (entry && Object.hasOwn(entry, 'specimen') && typeof entry.specimen === 'string' && entry.specimen.trim()) collectionContextParts.push(entry.specimen.trim());\n",
+        "after": ""
+      },
+      {
+        "start": 3328,
+        "before": "\n// Charts retain their date projection. History selects every actual same-day sample.\nexport function markerHistorySamplePoints(points: MarkerModalPoint[], dates: string[], entries: LabEntry[], markerKey: string, unitSystem: unknown, canonicalUnit: string | null) {\n  return points.flatMap<MarkerModalPoint & { entry: LabEntry | undefined; panelId: string | undefined; multipleSamples: boolean; sampleIndex: number }>(point => {\n    const rows = entries.filter(entry => entry.date === dates[point.i] && typeof entry.markers?.[markerKey] === 'number' && Number.isFinite(entry.markers[markerKey]));\n    return rows.length ? rows.map((entry, sampleIndex) => ({ ...point, v: convertCanonicalToDisplay(markerKey, entry.markers![markerKey]!, unitSystem, canonicalUnit), entry, panelId: labPanelId(entry), multipleSamples: rows.length > 1, sampleIndex }))\n      : [{ ...point, entry: undefined, panelId: undefined, multipleSamples: false, sampleIndex: 0 }];\n  });\n}\n",
+        "after": ""
+      }
+    ]
+  },
+  {
+    "file": "js/marker-detail-modal-impl.ts",
+    "currentSHA256": "14e440794acc2bafbfc860995fc61e0adccccdd0b437bbae212480b24e2eaf97",
+    "previousSHA256": "e1bd8757dcd7b136972c62d6d76b2330e8936fb2624346dfe9c372be4f5efb4b",
+    "edits": [
+      {
+        "start": 1681,
+        "before": "import { getManualOriginalForMarker } from './marker-detail-store.js';\nimport { buildMarkerHistoryMetadata, markerHistorySamplePoints } from './marker-detail-history.js';\n",
+        "after": "import { buildMarkerHistoryMetadata } from './marker-detail-history.js';\n"
+      },
+      {
+        "start": 6999,
+        "before": "",
+        "after": "function getManualValueForMarker(dotKey: string, date: unknown) {\n  const map = state.importedData.manualValues;\n  if (!map || typeof map !== 'object' || !dotKey || !date) return undefined;\n  const key = dotKey + ':' + (date as string);\n  if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) return map[key];\n  if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];\n  return undefined;\n}\n\n"
+      },
+      {
+        "start": 8873,
+        "before": "  const dotKey = (getMarkerStorageDotKey as (marker:unknown,id:string)=>string|null)(marker, id);\n  if (!dotKey) return false;\n  const historyPoints = marker.singlePoint ? modalPoints.map(point => ({ ...point, entry: undefined, panelId: undefined, multipleSamples: false, sampleIndex: 0 })) : markerHistorySamplePoints(modalPoints, data.dates, state.importedData.entries || [], dotKey, state.unitSystem, state.importedData.customMarkers?.[dotKey]?.unit || null);\n",
+        "after": ""
+      },
+      {
+        "start": 9570,
+        "before": "  const expandedHistoryLimit = Math.min(historyPoints.length, requestedHistoryLimit);\n  const visibleHistoryPoints = showAllHistory ? historyPoints.slice(-expandedHistoryLimit) : historyPoints.slice(-MARKER_HISTORY_DEFAULT_CAP);\n  const hiddenHistoryCount = historyPoints.length - visibleHistoryPoints.length;\n",
+        "after": "  const expandedHistoryLimit = Math.min(modalPoints.length, requestedHistoryLimit);\n  const visibleHistoryPoints = showAllHistory ? modalPoints.slice(-expandedHistoryLimit) : modalPoints.slice(-MARKER_HISTORY_DEFAULT_CAP);\n  const hiddenHistoryCount = modalPoints.length - visibleHistoryPoints.length;\n"
+      },
+      {
+        "start": 17556,
+        "before": "",
+        "after": "  const dotKey = (getMarkerStorageDotKey as (marker:unknown,id:string)=>string|null)(marker, id);\n  if (!dotKey) return false;\n"
+      },
+      {
+        "start": 25408,
+        "before": "    const ri = point.multipleSamples ? { min: null, max: null } : (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);\n",
+        "after": "    const ri = (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);\n"
+      },
+      {
+        "start": 25696,
+        "before": "    const sl = point.multipleSamples ? 'No sample-specific range' : s===\"normal\"?\"\\u2713 In Range\":s===\"high\"?\"\\u25B2 Above Range\":s===\"low\"?\"\\u25BC Below Range\":s === 'unrated' ? 'No range' : \"Unknown\";\n    const phaseLabel = !point.multipleSamples && marker.phaseLabels && marker.phaseLabels[i];\n",
+        "after": "    const sl = s===\"normal\"?\"\\u2713 In Range\":s===\"high\"?\"\\u25B2 Above Range\":s===\"low\"?\"\\u25BC Below Range\":s === 'unrated' ? 'No range' : \"Unknown\";\n    const phaseLabel = marker.phaseLabels && marker.phaseLabels[i];\n"
+      },
+      {
+        "start": 26703,
+        "before": "    const srcEntry = point.entry || (rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null);\n",
+        "after": "    const srcEntry = rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null;\n"
+      },
+      {
+        "start": 26991,
+        "before": "    const manualVal = rawDate ? getManualOriginalForMarker(dotKey, rawDate, point.panelId) : undefined;\n",
+        "after": "    const manualVal = rawDate ? getManualValueForMarker(dotKey, rawDate) : undefined;\n"
+      },
+      {
+        "start": 27383,
+        "before": "      ? ({ kind: \"manual-revert\", actions: projectMarkerDetailAction('revert-marker-value', { id, date: actionDate, panelId: point.panelId }) } satisfies MarkerDetailHistoryView)\n",
+        "after": "      ? ({ kind: \"manual-revert\", actions: projectMarkerDetailAction('revert-marker-value', { id, date: actionDate }) } satisfies MarkerDetailHistoryView)\n"
+      },
+      {
+        "start": 27650,
+        "before": "    const deleteBtn = ({ kind: \"delete-value\", actions: projectMarkerDetailAction('delete-marker-value', { id, date: actionDate, panelId: point.panelId }) } satisfies MarkerDetailHistoryView);\n    const editAction = rawDate ? projectMarkerDetailAction('edit-marker-value', { id, date: actionDate, value: v, panelId: point.panelId }) : null;\n",
+        "after": "    const deleteBtn = ({ kind: \"delete-value\", actions: projectMarkerDetailAction('delete-marker-value', { id, date: actionDate }) } satisfies MarkerDetailHistoryView);\n    const editAction = rawDate ? projectMarkerDetailAction('edit-marker-value', { id, date: actionDate, value: v }) : null;\n"
+      },
+      {
+        "start": 28989,
+        "before": "    historyRows.push({ kind: \"row\", sampleActions: point.panelId ? projectMarkerDetailAction('edit-lab-sample', { id, panelId: point.panelId }) : null, status: `${s}`, deleteButton: deleteBtn, date: `${dates[i]}${point.multipleSamples ? ` · Sample ${point.sampleIndex + 1}` : ''}`, dateNote: noteIcon, source: sourceHtml,\n",
+        "after": "    historyRows.push({ kind: \"row\", status: `${s}`, deleteButton: deleteBtn, date: `${dates[i]}`, dateNote: noteIcon, source: sourceHtml,\n"
+      },
+      {
+        "start": 29737,
+        "before": "      ? Math.min(historyPoints.length, expandedHistoryLimit + MARKER_HISTORY_EXPANDED_CAP)\n",
+        "after": "      ? Math.min(modalPoints.length, expandedHistoryLimit + MARKER_HISTORY_EXPANDED_CAP)\n"
+      },
+      {
+        "start": 30155,
+        "before": "      : `View more history (${historyPoints.length} values)`;\n",
+        "after": "      : `View more history (${modalPoints.length} values)`;\n"
+      },
+      {
+        "start": 30475,
+        "before": "  } else if (showAllHistory && historyPoints.length > MARKER_HISTORY_DEFAULT_CAP) {\n",
+        "after": "  } else if (showAllHistory && modalPoints.length > MARKER_HISTORY_DEFAULT_CAP) {\n"
+      }
+    ]
+  },
+  {
+    "file": "js/lab-context-assembly.ts",
+    "currentSHA256": "89555234473f474fa724fb1d5c2e4bd0ac241dd0831738c2fe47eb77d9b9852c",
+    "previousSHA256": "c0f71925a952640fb64e94941689c509081e938897b485b9c3de9b833cd4a65e",
+    "edits": [
+      {
+        "start": 1622,
+        "before": "",
+        "after": "  isGroupInAIContext,\n"
+      },
+      {
+        "start": 2019,
+        "before": "import { buildLabCollectionContextSection, buildLabSampleResultsSection } from './lab-context-collection.js';\nimport { createLabContextDisclosure } from './lab-context-disclosure.js';\n",
+        "after": "import { buildLabCollectionContextSection } from './lab-context-collection.js';\n"
+      },
+      {
+        "start": 4777,
+        "before": "  const disclosure = createLabContextDisclosure({ skipGroupFilter, ignoreContextToggles });\n  const data = disclosure.project(getActiveData());\n",
+        "after": "  const data = getActiveData();\n"
+      },
+      {
+        "start": 7114,
+        "before": "    if (!includeLabMarkers) {\n",
+        "after": "    if (hasImportedLabData && !includeLabMarkers) {\n"
+      },
+      {
+        "start": 7809,
+        "before": "      ctx += `No lab result values are available in the enabled context. Do not assume that unavailable results have never been imported. Use the enabled context below to discuss which blood panels and specific tests might be useful, explaining their relevance.${insightHint}${demoWarning}\\n${includeInsightCards ? '[/section:profile]\\n\\n' : '\\n'}`;\n",
+        "after": "      ctx += `No lab data has been imported yet.\\nNOTE: The user has not imported any lab results. Use the enabled context below to recommend which blood panels and specific tests would be most valuable for them, and explain why each is relevant to their situation.${insightHint}${demoWarning}\\n${includeInsightCards ? '[/section:profile]\\n\\n' : '\\n'}`;\n"
+      },
+      {
+        "start": 9592,
+        "before": "    const entries = disclosure.entries(state.importedData.entries || []);\n    ctx += buildLabCollectionContextSection(entries);\n    if (entries.length > 1) ctx += buildLabSampleResultsSection(entries, data, state.unitSystem);\n",
+        "after": "    ctx += buildLabCollectionContextSection(state.importedData.entries || []);\n"
+      },
+      {
+        "start": 10058,
+        "before": "",
+        "after": "      if (!skipGroupFilter && !ignoreContextToggles && _ct.group && !isGroupInAIContext(_ct.group)) continue;\n"
+      },
+      {
+        "start": 10675,
+        "before": "",
+        "after": "      if (!skipGroupFilter && !ignoreContextToggles && cat.group && !isGroupInAIContext(cat.group)) continue;\n"
+      },
+      {
+        "start": 14868,
+        "before": "  const mnKeys = Object.keys(markerNotes).filter(key => disclosure.allows(key) && typeof markerNotes[key] === 'string' && markerNotes[key]!.trim());\n",
+        "after": "  const mnKeys = Object.keys(markerNotes);\n"
+      },
+      {
+        "start": 15492,
+        "before": "    const byMarker = new Map<string, { date: string; note: string }[]>();\n",
+        "after": "    const byMarker = new Map<string, { date: string; note: string | undefined }[]>();\n"
+      },
+      {
+        "start": 15598,
+        "before": "      const text = mvNotes[key];\n      if (typeof text !== 'string' || !text.trim()) continue;\n",
+        "after": ""
+      },
+      {
+        "start": 15864,
+        "before": "      if (!disclosure.allows(dotKey, date)) continue;\n",
+        "after": ""
+      },
+      {
+        "start": 15977,
+        "before": "      byMarker.get(dotKey)!.push({ date, note: text });\n",
+        "after": "      byMarker.get(dotKey)!.push({ date, note: mvNotes[key] });\n"
+      },
+      {
+        "start": 16039,
+        "before": "    if (byMarker.size) ctx += `[section:markerValueNotes]\\n## Per-Value Notes (context tied to specific readings)\\n`;\n",
+        "after": "    ctx += `[section:markerValueNotes]\\n## Per-Value Notes (context tied to specific readings)\\n`;\n"
+      },
+      {
+        "start": 16429,
+        "before": "    if (byMarker.size) ctx += `[/section:markerValueNotes]\\n\\n`;\n",
+        "after": "    ctx += `[/section:markerValueNotes]\\n\\n`;\n"
+      },
+      {
+        "start": 26456,
+        "before": "        let desc = `${fmtD(p.startDate)}-${p.endDateKnown === false ? 'end not reported' : fmtD(p.endDate)} (${p.flowKnown === false ? 'flow not reported' : p.flow})`;\n",
+        "after": "        let desc = `${fmtD(p.startDate)}-${fmtD(p.endDate)} (${p.flow})`;\n"
+      }
+    ]
+  }
+]

@@ -39,13 +39,15 @@ function finish(owned: View, message: string): void {
 }
 async function mutate(owned: View, intent: HealthGoalMutation, observed = owned.observed): Promise<void> {
   if (!current(owned) || owned.busy) return;
+  const focusedPriority = intent.kind === 'priority' && document.activeElement instanceof HTMLSelectElement && owned.root.contains(document.activeElement) ? document.activeElement : null;
   owned.busy = true; owned.component.report('Saving…', true); flushSync();
   const result = await owned.session.mutate(intent, observed);
   owned.busy = false;
   if (!current(owned)) return;
-  if (result === 'saved') {
+  if (result === 'saved' || result === 'unchanged') {
     refresh(owned); owned.component.report('Saved', false, intent.kind === 'add'); flushSync();
     if (intent.kind === 'add') owned.component.focusInput();
+    if (intent.kind === 'priority' && focusedPriority && (document.activeElement === focusedPriority || document.activeElement === document.body)) owned.component.focusPriority(intent.index);
     if (intent.kind === 'clear') finish(owned, 'Health goals cleared');
     return;
   }
@@ -90,6 +92,7 @@ export function openHealthGoalsEditor(): void | Promise<unknown> {
     const component = mount(Goals, { target: modal, props: {
       initial: structuredClone(origin.healthGoals), current: () => !!owned && current(owned),
       add: () => { void addHealthGoal(); }, remove: (index: number) => { if (current(owned)) void mutate(owned, { kind: 'remove', index }); },
+      prioritize: (index: number, severity: string) => { if (current(owned)) void mutate(owned, { kind: 'priority', index, severity }); },
       clear: () => { void confirmClear(owned); }, done: () => { if (current(owned)) closeHealthGoals(); }, close: () => close(owned)
     } }); flushSync();
     const root = modal.querySelector<HTMLElement>('[data-context-goals-view]')!;
@@ -99,7 +102,9 @@ export function openHealthGoalsEditor(): void | Promise<unknown> {
       dispose(owned);
     });
     owned = { modal, overlay, root, component, observer, session: createHealthGoalsSession(), observed: structuredClone(origin.healthGoals), busy: false, confirming: false };
-    view = owned; openModalOverlay(overlay);
+    // This editor owns synchronous focus; a delayed generic focus must not
+    // take the keyboard away while an immediate priority save disables its control.
+    view = owned; openModalOverlay(overlay, { autoFocus: false });
     observer.observe(document.documentElement, { childList: true, subtree: true });
     observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
     component.focusInput();

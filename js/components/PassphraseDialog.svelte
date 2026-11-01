@@ -2,7 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import type { PassphraseState, PassphraseActions } from '../passphrase-contract.js';
   import { PASSPHRASE_LABELS, PASSPHRASE_RULES, passphraseChecks } from '../passphrase-presentation.js';
-  import { PASSPHRASE_INPUT, PASSPHRASE_PRIMARY, PASSPHRASE_SECONDARY, PASSPHRASE_DANGER, PASSPHRASE_LINK } from '../passphrase-classes.js';
+  import { PASSPHRASE_INPUT, PASSPHRASE_PRIMARY, PASSPHRASE_SECONDARY, PASSPHRASE_DANGER, PASSPHRASE_LINK, PASSPHRASE_OVERLAY, PASSPHRASE_DIALOG } from '../passphrase-classes.js';
   let { initial, actions }: { initial: PassphraseState; actions: PassphraseActions } = $props();
   let snapshot = $state(untrack(() => initial));
   let passphrase = $state(''); let confirmation = $state(''); let oldPassphrase = $state('');
@@ -38,8 +38,8 @@
   }
 </script>
 <svelte:window onkeydown={trapFocus}/>
-<div class="gb:passphrase:fixed gb:passphrase:inset-0 gb:passphrase:z-[400] gb:passphrase:flex gb:passphrase:items-center gb:passphrase:justify-center gb:passphrase:bg-[rgba(0,0,0,0.85)] gb:passphrase:backdrop-blur-[8px] gb:passphrase:py-3 gb:passphrase:overscroll-contain">
-  <div bind:this={dialog} class="passphrase-dialog gb:passphrase:bg-secondary-surface gb:passphrase:rounded-[var(--radius)] gb:passphrase:border gb:passphrase:border-line gb:passphrase:px-8 gb:passphrase:py-9 gb:passphrase:max-w-[420px] gb:passphrase:w-[90vw] gb:passphrase:max-h-[calc(100dvh-24px)] gb:passphrase:overflow-y-auto gb:passphrase:overscroll-contain gb:passphrase:shadow-[0_12px_48px_rgba(0,0,0,0.5)] gb:passphrase:text-center" role="dialog" aria-modal="true" aria-label={labels.label} aria-describedby={snapshot.kind==='change' ? undefined : 'passphrase-description'} aria-busy={snapshot.pending} tabindex="-1">
+<div class={PASSPHRASE_OVERLAY}>
+  <div bind:this={dialog} class={PASSPHRASE_DIALOG} role="dialog" aria-modal="true" aria-label={labels.label} aria-describedby={snapshot.kind==='change' ? undefined : 'passphrase-description'} aria-busy={snapshot.pending} tabindex="-1">
     <div class="passphrase-icon gb:passphrase:text-[48px] gb:passphrase:mb-3" aria-hidden="true">{snapshot.kind==='erase' ? '⚠️' : snapshot.kind==='backup-nudge' ? '💾' : '🔒'}</div>
     <h3 class="passphrase-title gb:passphrase:text-[20px] gb:passphrase:font-bold gb:passphrase:text-ink gb:passphrase:font-display gb:passphrase:mt-0 gb:passphrase:mb-2">{labels.title}</h3>
     {#if snapshot.kind!=='change'}

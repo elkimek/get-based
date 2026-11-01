@@ -5,7 +5,9 @@ import { showNotification, showConfirmDialog } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
-import { collectRawChatBackup } from './backup-chat-storage.js';
+import { LENS_CONFIG_STORAGE_KEY, replaceLensConfigRaw } from './lens-config-store.js';
+import { collectRawChatBackup, collectRawPersonaBackup } from './backup-chat-storage.js';
+import { personaJournalFence, recoverAllPersonaStorage } from './persona-storage-transaction.js';
 import { prepareRestoredProfilesForSync } from './sync-backup-restore-state.js';
 import { getDailyRangeRaw, upsertDailyBatchRaw } from './wearables-store.js';
 import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
@@ -129,7 +131,8 @@ async function readRawStoredItem(key: string) {
 }
 
 async function writeRawStoredItem(key: string, value: unknown) {
-  if (shouldUseBlob(key)) {
+  if (key === LENS_CONFIG_STORAGE_KEY) await replaceLensConfigRaw(String(value));
+  else if (shouldUseBlob(key)) {
     await setBlob(key, value);
     // Best-effort cleanup of any pre-IDB localStorage residue for this key.
     try { localStorage.removeItem(key); } catch {}
@@ -164,6 +167,7 @@ const PER_PROFILE_PREF_SUFFIXES = [
 ];
 
 function collectLocalProfileKeys(p: Pick<ProfileListEntry, 'id'>) {
+  if (localStorage.getItem(personaJournalFence(p.id)) !== null) throw new Error('Finish persona storage recovery before creating a backup.');
   const keys: Record<string, string> = {};
   const imported = localStorage.getItem(profileStorageKey(p.id, 'imported'));
   if (imported) keys.imported = imported;
@@ -203,7 +207,8 @@ async function restoreBackupSettings(backup: BackupRestoreView) {
   const deps = getBackupRuntimeDeps();
   for (const [key, value] of Object.entries(backup.settings)) {
     // Re-wrap credentials from legacy unencrypted backups before local storage.
-    if (!backup.encrypted && deps.isCredentialKey(key)) await deps.encryptedSetItem(key, String(value));
+    if (key === LENS_CONFIG_STORAGE_KEY) await replaceLensConfigRaw(String(value));
+    else if (!backup.encrypted && deps.isCredentialKey(key)) await deps.encryptedSetItem(key, String(value));
     else localStorage.setItem(key, String(value));
   }
 }
@@ -328,6 +333,7 @@ export function buildBackupSnapshot(): BackupSnapshot | null {
 // whose blob already moved. Patch that here by fetching from IDB when
 // localStorage didn't have the value.
 export async function buildFullBackupSnapshot() {
+  await recoverAllPersonaStorage();
   const snap = buildBackupSnapshot();
   if (!snap) return null;
 
@@ -357,6 +363,7 @@ export async function buildFullBackupSnapshot() {
       if (rawImported != null) p.keys.imported = rawImported;
     }
     await collectRawChatBackup(p, { encryptedGetItem: getBackupRuntimeDeps().encryptedGetItem, readRawStoredItem });
+    await collectRawPersonaBackup(p);
   }
   const profileIds = (snap.profiles || []).map(p => p.profileId);
   snap.wearableIDB = await collectWearableIDB(profileIds);

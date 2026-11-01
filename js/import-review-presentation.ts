@@ -14,6 +14,7 @@ export interface ImportUnitMenuOption {unit: string; index: number; selected: bo
 export interface ImportUnitMenuOptionView extends ImportUnitMenuOption {label: string}
 export interface ImportReviewPresentationInput {
   batchLabel: string; fileName: unknown; date: unknown; sampleTime: string; fasting: boolean | null;
+  samples?: { options: Array<{ value: string; label: string }>; value: string; locked: boolean; required: boolean };
   counts: {matched: number; new: number; unmatched: number}; rows: ImportReviewRowView[];
   unmatchedWarning: boolean; dateWarning: boolean;
   ranges: {count: number; checked: boolean} | null;

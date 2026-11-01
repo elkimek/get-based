@@ -123,7 +123,7 @@ assert('saveDiagnoses considers familyHistory.length before nulling diagnoses',
 // Profile migration backfills familyHistory on legacy diagnoses objects.
 const profSrc = await fetch('js/profile-data-migrations.js').then(r => r.text());
 assert('profile migration owner converts string diagnoses with familyHistory: []',
-  /data\.diagnoses\.trim\(\)\s*\?\s*\{ conditions: \[\], note: data\.diagnoses\.trim\(\), familyHistory: \[\] \}/.test(profSrc));
+  profSrc.includes("data.diagnoses = legacyContextNote('diagnoses', data.diagnoses);") && read('js/context-card-legacy.js').replace(/\s+/g, ' ').includes("if (card === 'diagnoses') return { conditions: [], note, familyHistory: [] };") && read('js/context-card-legacy.js').includes('const note = value.trim();') && read('js/context-card-legacy.js').replace(/\s+/g, ' ').includes('if (!note) return null;'));
 assert('profile migration owner backfills familyHistory=[] on legacy diagnoses',
   /data\.diagnoses && typeof data\.diagnoses === 'object' && !Array\.isArray\(data\.diagnoses\.familyHistory\)[\s\S]{0,200}data\.diagnoses\.familyHistory = \[\]/.test(profSrc));
 

@@ -37,6 +37,9 @@ import { getErrorMessage } from './caught-error.js';
 import { BENCHMARK_TEXTS, DEFAULT_MODEL_KEY, MODELS, createMockEmbedding } from './lens-local-embedder-config.js';
 import { buildLocalIngestTransaction } from './lens-local-ingest.js';
 import { LensLocalLibraryRegistry } from './lens-local-library-registry.js';
+import { installLensLocalWorkerDispatch } from './lens-local-worker-dispatch.js';
+import { handleReviewedKnowledgeChange, acknowledgeKnowledgeLibraryCommit } from './knowledge-reviewed-changes.js';
+import { verifyKnowledgeLibraryExpectation } from './knowledge-library-source.js';
 import { mmrSelect } from './lens-local-utils.js';
 import {
   OPFS_SUBDIR,
@@ -81,6 +84,7 @@ const MMR_LAMBDA = 0.5;            // 0 = max diversity, 1 = pure relevance
 const MMR_OVERSAMPLE_FACTOR = 3;   // multiplier on topK before MMR re-rank
 const MMR_OVERSAMPLE_FLOOR = 30;   // never oversample below this many chunks
 
+let _metadataOnly = false;
 let _embedder: WorkerEmbedder | null = null;
 let _embedderBackend = 'wasm';  // 'webgpu' | 'wasm' — whichever transformers.js actually booted
 let _benchmarkVerdict: BenchmarkVerdict | null = null;   // Latest benchmark result for the currently-loaded model; null until first load
@@ -111,23 +115,41 @@ let _manifest: CorpusManifest | null = null;           // Active library's manif
 let _vectors: Float32Array | null = null;            // Active library's packed Float32Array
 let _chunks: CorpusChunk[] | null = null;             // Active library's [{source, text}]
 
-// ── Message dispatch ───────────────────────────────────────────────
-//
-// Every handler (ingest, query, stats, delete, clear) scopes to the ACTIVE
-// library. Library-management handlers (activate, create, rename, delete,
-// list) delegate registry metadata + OPFS subdirectories to their owner.
 
-self.addEventListener('message', async (e: MessageEvent<WorkerRequest>) => {
-  // Same-origin guard. Browsers only deliver messages to a Worker from
-  // its spawning origin, but the codepaths here (file ingest, library
-  // delete) are destructive enough that an explicit check is cheap
-  // defense-in-depth against future regressions / weird embed contexts.
-  // Same-origin postMessage to a dedicated Worker yields e.origin === ''.
-  if (e.origin && e.origin !== self.location.origin) return;
-  const msg = (e.data || {}) as WorkerRequest;
-  try {
+installLensLocalWorkerDispatch(self, {
+  dispatch: handleRequest,
+  begin: (message, cancelled) => { if (message.type === 'ingest' || message.type === 'apply_document_import') _abortRequested = cancelled; },
+  refresh: async message => {
+    if (message.type === 'init') { await verifyKnowledgeLibraryExpectation(message); return; }
+    if (!message.type || message.type.startsWith('test_') || ['init', 'init_metadata', 'apply_library_change', 'confirm_library_change', 'apply_document_change', 'confirm_document_change', 'apply_document_import', 'confirm_document_import'].includes(message.type) || !_libraryRegistry) return;
+    if (_metadataOnly && ['ingest', 'query', 'stats', 'delete', 'clear'].includes(message.type)) throw new Error('Open the full Knowledge Base before using documents or search.');
+    // Another tab may have changed the active library, registry or corpus while
+    // this worker was idle. Refresh only after acquiring the shared lock.
+    await _libraryRegistry.loadOrMigrate({ repair: false });
+    if (message.expectedLibraryId && message.expectedLibraryId !== _libraryRegistry.activeId) throw Object.assign(new Error('The active library changed. Review the selected library before retrying. Nothing was applied.'), { noChangeApplied: true });
+    await verifyKnowledgeLibraryExpectation(message);
+    if (['ingest', 'query', 'stats', 'delete', 'clear'].includes(message.type)) {
+      await ensureActiveLibraryEmbedderLoaded();
+      await loadCorpusIntoMemory();
+    }
+  },
+  abort: () => { _abortRequested = true; },
+  acknowledgeIngest: () => { const resolve = _ingestCommitResolve; _ingestCommitResolve = null; resolve?.(); },
+  acknowledgeLibrary: message => acknowledgeKnowledgeLibraryCommit(message.token, message.allowed),
+});
+async function handleRequest(msg: WorkerRequest) {
     switch (msg.type) {
       case 'init':              return await handleInit();
+      case 'init_metadata':     return await handleMetadataInit();
+      case 'apply_document_change':
+      case 'apply_library_change': return await handleReviewedKnowledgeChange(msg.proposal, message => self.postMessage(message));
+      case 'apply_document_import': return await handleReviewedKnowledgeChange(msg.proposal, message => self.postMessage(message), false, {
+        load: async modelKey => { _applyModelSpec(modelKey); if (isMockMode()) { _embedder = input => createMockEmbedding(input, DIM); } else await _loadEmbedder(modelKey); return { embedder: _embedder!, backend: _embedderBackend }; },
+        yieldTask: macroYield, isAbortRequested: () => _abortRequested, progress: value => self.postMessage({ type: 'progress', ...value }),
+      }, msg.files);
+      case 'confirm_document_import':
+      case 'confirm_document_change':
+      case 'confirm_library_change': return await handleReviewedKnowledgeChange(msg.proposal, message => self.postMessage(message), true);
       case 'ingest':            return await handleIngest(msg.files || []);
       case 'query':             return await handleQuery(msg.text, msg.topK || 10);
       case 'stats':             return handleStats();
@@ -138,12 +160,6 @@ self.addEventListener('message', async (e: MessageEvent<WorkerRequest>) => {
       case 'create_library':    return await handleCreateLibrary(msg.name, msg.model);
       case 'rename_library':    return await handleRenameLibrary(msg.libraryId!, msg.name);
       case 'delete_library':    return await handleDeleteLibrary(msg.libraryId!);
-      case 'commit_ingest': {
-        const resolve = _ingestCommitResolve;
-        _ingestCommitResolve = null;
-        resolve?.();
-        return;
-      }
       case 'test_fail_next_registry_persist':
         if (isMockMode()) {
           _libraryRegistry!.failNextPersist();
@@ -158,17 +174,15 @@ self.addEventListener('message', async (e: MessageEvent<WorkerRequest>) => {
           return;
         }
         throw new Error(`Unknown message type: ${msg.type}`);
-      // Abort is a side-channel signal — skips the serial queue on the
-      // main thread so it can interrupt an in-flight ingest. handleIngest
-      // polls _abortRequested between batches. Ingest is transactional:
-      // stopping discards the pending batch and leaves the library intact.
-      case 'abort':             _abortRequested = true; return;
+      case 'test_fail_next_registry_primary_persist':
+        if (isMockMode()) { _libraryRegistry!.failNextPrimaryPersist(); self.postMessage({ type: 'test_ack' }); return; }
+        throw new Error(`Unknown message type: ${msg.type}`);
+      case 'test_fail_next_registry_confirmation':
+        if (isMockMode()) { _libraryRegistry!.failNextConfirmation(); self.postMessage({ type: 'test_ack' }); return; }
+        throw new Error(`Unknown message type: ${msg.type}`);
       default:                  throw new Error(`Unknown message type: ${msg.type}`);
     }
-  } catch (err) {
-    self.postMessage({ type: 'error', message: getErrorMessage(err, String(err)) });
-  }
-});
+}
 
 function isMockMode() {
   return new URLSearchParams(self.location.search || '').has('mock');
@@ -176,7 +190,15 @@ function isMockMode() {
 
 // ── Init: load model + open OPFS ───────────────────────────────────
 
+async function handleMetadataInit() {
+  _metadataOnly = true; _embedder = null; _benchmarkVerdict = null;
+  await openOpfs();
+  await ensureActiveLibraryEmbedderLoaded();
+  await loadCorpusIntoMemory();
+  self.postMessage(readyPayload());
+}
 async function handleInit() {
+  _metadataOnly = false;
   // Test hook — `?mock=1` on the worker URL skips the real transformers.js
   // load + WebGPU probe. Uses a deterministic text-hash stub embedder so
   // tests/test-lens-local-worker.js can exercise the full message protocol
@@ -486,7 +508,6 @@ async function activeLibraryDir() {
 
 async function handleIngest(files: LensInputFile[]) {
   if (!_embedder) throw new Error('Worker not initialized');
-  _abortRequested = false;
   const transaction = await buildLocalIngestTransaction({
     files,
     embedder: _embedder,
@@ -677,6 +698,7 @@ async function ensureActiveLibraryEmbedderLoaded() {
   // Skip for mock mode (tests pin _embedder to mockEmbedder and don't
   // want it replaced by a jsdelivr import).
   const targetModelKey = _libraryModelKey(_libraryRegistry!.activeId);
+  if (_metadataOnly) { _applyModelSpec(targetModelKey); return; }
   if (targetModelKey !== _modelKey && !isMockMode()) {
     console.log(`[lens-local] Library model change: ${_modelKey} → ${targetModelKey}, reloading embedder`);
     await _loadEmbedder(targetModelKey);
@@ -717,14 +739,14 @@ async function handleRenameLibrary(libraryId: string, name: unknown) {
 /// would leave zero libraries, auto-create a default so the UI always
 /// has something to show.
 async function handleDeleteLibrary(libraryId: string) {
-  const { wasActive } = await _libraryRegistry!.delete(libraryId);
+  const { wasActive, cleanupPending } = await _libraryRegistry!.delete(libraryId);
   if (wasActive || _libraryRegistry!.libraries.length === 1) {
     await ensureActiveLibraryEmbedderLoaded();
     await loadCorpusIntoMemory();
   }
   self.postMessage({
     type: 'library_deleted',
-    id: libraryId,
+    id: libraryId, cleanupPending,
     libraries: _libraryRegistry!.libraries.slice(),
     activeId: _libraryRegistry!.activeId!,
     numChunks: _manifest?.numChunks || 0,

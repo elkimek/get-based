@@ -1,5 +1,7 @@
 import path from 'node:path';
 import vm from 'node:vm';
+import fs from 'node:fs';
+import { CHAT_TOOL_INSTRUCTIONS } from '../shared/chat-tool-instructions.js';
 import { describe, expect, it } from 'vitest';
 import { rewriteNativeAssetBase, staticKitTemplate, externalizeKitBootstrap } from '../scripts/sveltekit-contracts.mjs';
 
@@ -85,4 +87,11 @@ const mode = import.meta.env.MODE;`;
     expect(() => externalizeKitBootstrap('<script>alert(1)</script>')).toThrow('Unexpected inline');
     expect(() => externalizeKitBootstrap('<script src="/version.js"></script>')).toThrow('Expected one');
   });
+});
+
+it('uses the maintained static policy directly without a runtime prompt decoder', () => {
+  const source = fs.readFileSync(path.resolve('shared/chat-tool-instructions.js'), 'utf8');
+  const context = { globalThis: { prompt: '' } };
+  vm.runInNewContext(source.replace(/^export /gm, '') + '\nglobalThis.prompt = CHAT_TOOL_INSTRUCTIONS;', context);
+  expect(context.globalThis.prompt).toBe(CHAT_TOOL_INSTRUCTIONS);
 });

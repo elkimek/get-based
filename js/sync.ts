@@ -1,4 +1,6 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
+import { configureSyncModules } from './sync-configure.js';
+import { enableSync as enableSyncRuntime, disableSync as disableSyncRuntime, pauseSync as pauseSyncRuntime } from './sync-lifecycle.js';
 // sync.js — Evolu sync layer public entry point (opt-in, E2E encrypted)
 // Stores importedData + profile metadata per profile as a JSON blob.
 // Last-write-wins at the profile level — fine for single-user cross-device sync.
@@ -108,3 +110,8 @@ export {
   pushCurrentProfile, syncNow,
   disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
 };
+
+// Loading this opt-in feature prepares every public sync operation before it
+// can be called. Cold startup wires only its local save/UI/context ports.
+configureSyncLifecycleDeps({ enableSync: enableSyncRuntime, disableSync: disableSyncRuntime, pauseSync: pauseSyncRuntime });
+configureSyncModules({ enableSync: enableSyncRuntime });

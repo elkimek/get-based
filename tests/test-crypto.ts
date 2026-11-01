@@ -415,7 +415,7 @@ console.log('13. Passphrase modal CSS');
 try {
   const cssText = read('css/data-protection.css');
   assert('CSS scopes dialogs to #passphrase-overlay', cssText.includes('#passphrase-overlay'));
-  assert('Owned Tailwind styles cover passphrase-dialog', passphraseViewSrc.includes('passphrase-dialog') && passphraseViewSrc.includes('gb:passphrase:') && cssText.includes('gb\\:passphrase\\:bg-secondary-surface'));
+  assert('Owned Tailwind styles cover passphrase-dialog', passphraseViewSrc.includes('class={PASSPHRASE_DIALOG}') && passphraseClassesSrc.includes("PASSPHRASE_DIALOG = 'passphrase-dialog gb:passphrase:bg-secondary-surface") && cssText.includes('gb\\:passphrase\\:bg-secondary-surface'));
   assert('Owned Tailwind styles cover passphrase-input', passphraseClassesSrc.includes('passphrase-input') && passphraseClassesSrc.includes('gb:passphrase:') && cssText.includes('gb\\:passphrase\\:w-full'));
   assert('Owned Tailwind styles cover passphrase-btn', passphraseClassesSrc.includes('passphrase-btn') && passphraseClassesSrc.includes('gb:passphrase:') && cssText.includes('gb\\:passphrase\\:min-h-11'));
   assert('Owned Tailwind styles cover passphrase-btn-primary', passphraseClassesSrc.includes('passphrase-btn-primary') && passphraseClassesSrc.includes('gb:passphrase:') && cssText.includes('gb\\:passphrase\\:bg-accent'));
@@ -619,7 +619,7 @@ try {
   const panelsSrc = await fetchWithRetry('js/components/SettingsPanels.svelte');
   const shellSrc = await fetchWithRetry('js/settings-shell.js');
   const shellViewSrc = await fetchWithRetry('js/components/SettingsShell.svelte');
-  const protectionSrc = await fetchWithRetry('js/settings-protection-component.js');
+  const protectionSrc = await fetchWithRetry('js/settings-protection-component.ts');
   const dataPanel = panelsSrc.match(/<div[^>]*\bdata-tab-panel="data"[\s\S]*?(?=<!-- Wearables Tab)/)?.[0] || '';
   const mountAt = src.indexOf('mountSettingsShell(modal,');
   assert('settings prepares the encryption feature through its crypto boundary before mounting the shell',
@@ -638,15 +638,15 @@ try {
     dataPanel.includes('<div class="settings-group-title">Backup &amp; Restore</div>'));
   assert('the encryption section exposes the host consumed by the typed EncryptionSettings owner',
     /id="encryption-section">\s*<div data-encryption-settings-root data-settings-protection-view="encryption"/.test(dataPanel) &&
-    protectionSrc.includes("from './components/EncryptionSettings.svelte.native.js'") &&
-    protectionSrc.includes("document.querySelector('[data-encryption-settings-root]')") &&
-    protectionSrc.includes('mount(EncryptionSettings, { target: host, props: { initial: snapshot } })') &&
+    protectionSrc.includes("import('./components/EncryptionSettings.svelte.native.js')") && protectionSrc.includes('EncryptionSettings.svelte.native.js?lazy-retry=1') &&
+    protectionSrc.includes("document.querySelector<HTMLElement>('[data-encryption-settings-root]')") &&
+    protectionSrc.includes('encryption = module.mount(module.default, { target: host, props: { initial: snapshot } })') &&
     cryptoUiSrc.includes('refreshEncryptionSettings({ enabled })'));
   assert('the backup section exposes the host consumed by the typed BackupSettings owner',
     /id="backup-section">\s*<div data-backup-settings-root data-settings-protection-view="backup"/.test(dataPanel) &&
-    protectionSrc.includes("from './components/BackupSettings.svelte.native.js'") &&
-    protectionSrc.includes("document.querySelector('[data-backup-settings-root]')") &&
-    protectionSrc.includes('mountBackup(BackupSettings, { target: host, props: { initial: snapshot } })') &&
+    protectionSrc.includes("import('./components/BackupSettings.svelte.native.js')") && protectionSrc.includes('BackupSettings.svelte.native.js?lazy-retry=1') &&
+    protectionSrc.includes("document.querySelector<HTMLElement>('[data-backup-settings-root]')") &&
+    protectionSrc.includes('backup = module.mount(module.default, { target: host, props: { initial: snapshot } })') &&
     cryptoUiSrc.includes('refreshBackupSettings(getBackupSettingsSnapshot('));
   assert('the settings controller mounts the Svelte shell which composes the actual protection hosts',
     src.includes("from './settings-shell.js'") && mountAt >= 0 &&
@@ -658,7 +658,7 @@ try {
     src.indexOf('disposeSettingsProtection();') >= 0 && src.indexOf('disposeSettingsProtection();') < mountAt &&
     src.indexOf('hydrateProtectionSettings();') > mountAt &&
     src.indexOf('loadBackupSnapshots();') > mountAt &&
-    protectionSrc.includes('void unmount(encryption)') && protectionSrc.includes('void unmountBackup(backup)'));
+    protectionSrc.includes('void encryptionPresentation.module!.unmount(encryption)') && protectionSrc.includes('void backupPresentation.module!.unmount(backup)'));
   assert('settings.js delegates browser runtime hooks to settings-runtime',
     src.includes("from './settings-runtime.js'") &&
     !/\bwindow(?:\.|\s*\[)/.test(src));

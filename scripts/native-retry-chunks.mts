@@ -212,3 +212,6 @@ export async function buildNativeRetryChunks(createOptions: () => NativeRetryOpt
     removedPhysicalFiles: removedFiles.size, removedPhysicalBodyBytes,
     qualifiedRetries: Object.freeze(qualifiedRetries)};
 }
+
+// Shared proof primitives; the native producer keeps its existing strict policy.
+export {digest as retryBodyDigest, identity as retryChunkIdentity, same as retryArraysEqual, target as retryReferenceTarget, syntax as retryChunkSyntax};

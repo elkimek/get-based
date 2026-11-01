@@ -1,6 +1,7 @@
 /** Canonical persisted meal metadata; images contain bounded thumbnails only. */
 export interface MealImage {
   thumbnailUrl: string;
+  purpose?: 'attachment' | 'analysis';
   mediaType?: string;
   fileName?: string;
   width?: number;

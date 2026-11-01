@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   INITIAL_CHAT_DISCUSSION, configureChatDiscussionContext, currentChatDiscussion,
   ownChatDiscussion, publishDiscussionButton, publishDiscussionPicker, publishDiscussionRound,
-  publishDiscussionProgress, selectDiscussionPersona, discussionPickerSelection,
+  publishDiscussionProgress, publishDiscussionSaving, selectDiscussionPersona, discussionPickerSelection,
   closeOwnedDiscussionPicker, guardDiscussionAction, type ChatDiscussionView,
 } from '../js/chat-discussion-view.js';
 import { registerChatComposerInput, ownChatComposerPlaceholder, publishChatComposerPlaceholder } from '../js/chat-composer-input-port.js';
@@ -16,6 +16,13 @@ beforeEach(() => {
 });
 afterEach(() => { dispose(); });
 describe('composer-owned discussion selection and lifetime', () => {
+  it('blocks discussion actions during a durable save and restores them after failure', () => {
+    publishDiscussionRound(scope, {participants: ['Analyst', 'House'], pending: 1, progress: ''});
+    publishDiscussionSaving(true); expect(view.round?.saving).toBe(true);
+    const blocked = new MouseEvent('click', {cancelable: true}); guardDiscussionAction(root, blocked); expect(blocked.defaultPrevented).toBe(true);
+    publishDiscussionSaving(false); expect(view.round?.participants).toEqual(['Analyst', 'House']);
+    const retry = new MouseEvent('click', {cancelable: true}); guardDiscussionAction(root, retry); expect(retry.defaultPrevented).toBe(false);
+  });
   it('requires one additional perspective and preserves literal metadata', () => {
     publishDiscussionPicker(scope, { options, selected: [], addingToExisting: false });
     expect(discussionPickerSelection(view.picker)).toBeNull();

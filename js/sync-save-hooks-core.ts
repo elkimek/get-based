@@ -193,7 +193,7 @@ export function createSyncSaveHooks({
     }).catch(() => {});
   }
 
-  function onProfileSaved(profileId: string | null | undefined, importedData: unknown = null) {
+  function onProfileSaved(profileId: string | null | undefined, importedData: unknown = null, options: { immediate?: unknown } = {}) {
     if (!profileId) return;
     if (!(0, syncSaveHooksDeps.isSyncConfigured)()) return;
     if (isProfileSyncBlocked(profileId)) return;
@@ -201,6 +201,12 @@ export function createSyncSaveHooks({
     if (!(0, syncSaveHooksDeps.isSyncEnabled)()) return;
     const prev = _profileSyncTimers.get(profileId);
     if (prev) clearTimeout(prev);
+    if (options.immediate) {
+      _profileSyncTimers.delete(profileId);
+      if (importedData && typeof importedData === 'object') scheduleProfilePush(profileId, importedData);
+      else void readProfileImportedData(profileId).then(data => scheduleProfilePush(profileId, data)).catch(() => {});
+      return;
+    }
     const timer = setTimeout(async () => {
       if (_profileSyncTimers.get(profileId) === timer) _profileSyncTimers.delete(profileId);
       if (!(0, syncSaveHooksDeps.isSyncEnabled)()) return;

@@ -27,6 +27,9 @@ export interface LibraryDirectory extends OpfsDirectory {
   entries?: () => AsyncIterable<[string, { kind: 'file' } | (LibraryDirectory & { kind: 'directory' })]>;
 }
 type ModelCatalog = Record<string, { id: string; dim: number }>;
+function unconfirmedWrite(cause?: unknown) {
+  return Object.assign(new Error('Library save could not be confirmed. Reopen Knowledge Base to review it before retrying.', { cause }), { requiresReload: true as const });
+}
 
 function registryEntry(library: LibraryRecord) {
   return { id: library.id, name: library.name, createdAt: library.createdAt, model: library.model };
@@ -40,6 +43,10 @@ export class LensLocalLibraryRegistry {
   declare activeId: string | null;
   declare revision: number;
   declare failNextPersistForTest: boolean;
+  declare failNextPrimaryPersistForTest: boolean;
+  declare failNextConfirmationForTest: boolean;
+  declare extensions: Record<string, unknown>;
+  declare needsReload: boolean;
   constructor(rootDir: LibraryDirectory, models: ModelCatalog, defaultModelKey: string) {
     this.rootDir = rootDir;
     this.models = models;
@@ -48,11 +55,17 @@ export class LensLocalLibraryRegistry {
     this.activeId = null;
     this.revision = 0;
     this.failNextPersistForTest = false;
+    this.failNextPrimaryPersistForTest = false;
+    this.failNextConfirmationForTest = false;
+    this.extensions = {};
+    this.needsReload = false;
   }
 
   failNextPersist() {
     this.failNextPersistForTest = true;
   }
+  failNextPrimaryPersist() { this.failNextPrimaryPersistForTest = true; }
+  failNextConfirmation() { this.failNextConfirmationForTest = true; }
 
   modelKey(libOrId: string | Pick<LibraryRecord, 'model'> | null | undefined) {
     const lib = typeof libOrId === 'string'
@@ -62,13 +75,20 @@ export class LensLocalLibraryRegistry {
     return (key && this.models[key]) ? key : this.defaultModelKey;
   }
 
-  async loadOrMigrate() {
+  async loadOrMigrate(options: { repair?: boolean } = {}) {
+    this.needsReload = false; this.extensions = {}; this.libraries = []; this.activeId = null; this.revision = 0;
+    try { await this.loadCurrentState(options); } catch (error) { this.needsReload = true; throw error; }
+  }
+
+  async loadCurrentState({ repair = true } = {}) {
     const registry = await this.readRegistry();
 
     if (registry?.payload) {
+      this.extensions = Object.fromEntries(Object.entries(registry.payload).filter(([key]) => !['activeId', 'libraries', 'revision', 'updatedAt'].includes(key)));
       this.revision = registry.payload.revision || 0;
       this.libraries = registry.payload.libraries;
       this.activeId = registry.payload.activeId;
+      if (!repair) return;
 
       let migrated = false;
       for (const lib of this.libraries) {
@@ -91,6 +111,7 @@ export class LensLocalLibraryRegistry {
       return;
     }
 
+    if (!repair) throw new Error('Library metadata needs review. Reopen Knowledge Base before continuing.');
     let hasLegacy = false;
     try {
       await this.rootDir.getFileHandle(FILE_MANIFEST);
@@ -131,6 +152,7 @@ export class LensLocalLibraryRegistry {
   }
 
   async activate(libraryId: string) {
+    if (this.needsReload) throw unconfirmedWrite();
     if (!this.libraries.some((lib) => lib.id === libraryId)) {
       throw new Error(`No library with id "${libraryId}"`);
     }
@@ -141,6 +163,7 @@ export class LensLocalLibraryRegistry {
   }
 
   async create(name: unknown, modelKey?: string) {
+    if (this.needsReload) throw unconfirmedWrite();
     const label = String(name || '').trim() || 'Untitled library';
     const id = createUniqueId('lib-');
     const model = (modelKey && this.models[modelKey]) ? modelKey : this.defaultModelKey;
@@ -152,6 +175,7 @@ export class LensLocalLibraryRegistry {
   }
 
   async rename(libraryId: string, name: unknown) {
+    if (this.needsReload) throw unconfirmedWrite();
     const library = this.libraries.find((lib) => lib.id === libraryId);
     if (!library) throw new Error(`No library with id "${libraryId}"`);
     const nextName = String(name || '').trim() || library.name;
@@ -163,6 +187,7 @@ export class LensLocalLibraryRegistry {
   }
 
   async delete(libraryId: string) {
+    if (this.needsReload) throw unconfirmedWrite();
     const index = this.libraries.findIndex((lib) => lib.id === libraryId);
     if (index === -1) throw new Error(`No library with id "${libraryId}"`);
     const wasActive = libraryId === this.activeId;
@@ -170,8 +195,11 @@ export class LensLocalLibraryRegistry {
     let nextLibraries = this.libraries.filter((lib) => lib.id !== libraryId);
     let nextActiveId = this.activeId;
     if (nextLibraries.length === 0) {
-      nextLibraries = [this.defaultLibrary()];
-      nextActiveId = 'default';
+      // Never reuse the removed directory. Cleanup can fail or the worker can
+      // stop after the registry commit; neither may revive the old corpus.
+      const replacement = { ...this.defaultLibrary(), id: createUniqueId('lib-') };
+      nextLibraries = [replacement];
+      nextActiveId = replacement.id;
     } else if (wasActive) {
       nextActiveId = nextLibraries[0]!.id;
     }
@@ -180,29 +208,50 @@ export class LensLocalLibraryRegistry {
     this.libraries = nextLibraries;
     this.activeId = nextActiveId;
 
-    try { await this.rootDir.removeEntry(libraryId, { recursive: true }); } catch {}
-    if (this.libraries.length === 1 && this.activeId === 'default') {
-      await this.rootDir.getDirectoryHandle('default', { create: true });
-    }
-    return { wasActive };
+    const cleanupPending = await this.cleanupLibraryFiles(libraryId);
+    return { wasActive, cleanupPending };
+  }
+
+  async cleanupLibraryFiles(libraryId: string) {
+    if (!isSafeLibraryId(libraryId)) throw new Error('Invalid library identity');
+    try { await this.rootDir.removeEntry(libraryId, { recursive: true }); return false; }
+    catch (error) { return !(error instanceof DOMException && error.name === 'NotFoundError'); }
+  }
+
+  async commitState(libraries: LibraryRecord[], activeId: string, extensions: Record<string, unknown>, beforeCommit: () => Promise<void>) {
+    await this.persistState(libraries, activeId, { extensions, beforeCommit });
+    this.libraries = libraries; this.activeId = activeId; this.extensions = extensions;
   }
 
   async persist() {
     return this.persistState(this.libraries, this.activeId);
   }
 
-  async persistState(libraries: LibraryRecord[], activeId: string | null) {
+  async persistState(libraries: LibraryRecord[], activeId: string | null, options: { extensions?: Record<string, unknown>; beforeCommit?: () => Promise<void> } = {}) {
+    if (this.needsReload) throw unconfirmedWrite();
     if (this.failNextPersistForTest) {
       this.failNextPersistForTest = false;
       throw new Error('Test registry persist failure');
     }
     const nextRevision = this.revision + 1;
-    const payload = { activeId, libraries, revision: nextRevision, updatedAt: Date.now() };
+    const payload = { ...(options.extensions ?? this.extensions), activeId, libraries, revision: nextRevision, updatedAt: Date.now() };
     const bytes = new TextEncoder().encode(JSON.stringify(payload));
     // Write backup first. If the worker dies before the primary write,
     // startup chooses the newer revision and repairs the stale copy.
-    await writeBinaryTo(this.rootDir, FILE_LIBRARIES_BACKUP, bytes);
-    await writeBinaryTo(this.rootDir, FILE_LIBRARIES, bytes);
+    try { await writeBinaryTo(this.rootDir, FILE_LIBRARIES_BACKUP, bytes, options.beforeCommit); }
+    catch (error) { if (error instanceof Error && 'noChangeApplied' in error && error.noChangeApplied === true) throw error; this.needsReload = true; throw unconfirmedWrite(error); }
+    if (this.failNextConfirmationForTest) { this.failNextConfirmationForTest = false; this.needsReload = true; throw unconfirmedWrite(new Error('Test registry confirmation lost')); }
+    try {
+      if (this.failNextPrimaryPersistForTest) { this.failNextPrimaryPersistForTest = false; throw new Error('Test primary registry persist failure'); }
+      await writeBinaryTo(this.rootDir, FILE_LIBRARIES, bytes);
+    }
+    catch (error) {
+      try {
+        const accepted = await this.readRegistry();
+        if (!sameLibraryRegistry(accepted?.payload, normaliseLibraryRegistry(payload))) throw error;
+      } catch (verificationError) { this.needsReload = true; throw unconfirmedWrite(verificationError); }
+      console.warn('[lens-local] Library change saved in recovery copy; primary copy needs repair.');
+    }
     this.revision = nextRevision;
   }
 
@@ -237,8 +286,9 @@ export class LensLocalLibraryRegistry {
     try {
       const text = await readOpfsFileFrom(this.rootDir, name);
       return normaliseLibraryRegistry(JSON.parse(text));
-    } catch {
-      return null;
+    } catch (error) {
+      if (error instanceof SyntaxError || error instanceof DOMException && error.name === 'NotFoundError') return null;
+      throw error;
     }
   }
 

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { captureOfflineLaunchDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');

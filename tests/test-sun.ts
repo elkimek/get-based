@@ -26,6 +26,9 @@ const sun = await import('../js/sun.js');
 const sunChannelMetrics = await import('../js/sun-channel-metrics.js');
 const sunSessionModel = await import('../js/sun-session-model.js');
 const sunSessionsStore = await import('../js/sun-sessions-store.js');
+const nativeData = await import('../js/data.js');
+const nativeStorage = await import('../js/crypto.js');
+const nativeProfiles = await import('../js/profile.js');
 const {
   BODY_REGIONS, EXPOSURE_PRESETS, EYE_MODES, LENS_TINTS,
   CHANNEL_DISPLAY,
@@ -43,9 +46,14 @@ const {
 
   // Stash importedData so we don't pollute the host page.
   const orig = state.importedData;
+  const originalProfile = state.currentProfile;
+  const nativeProfileId = `sun-native-fixture-${process.pid}`;
+  state.currentProfile = nativeProfileId;
   // Reset to a clean slate per test block.
-  function reset(seed = {}) {
+  async function reset(seed = {}) {
+    await nativeStorage.encryptedRemoveItem(nativeProfiles.profileStorageKey(nativeProfileId, 'imported'));
     (state as {importedData: unknown}).importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
+    if (!await nativeData.saveImportedDataForProfile(nativeProfileId, state.importedData, { forceProfileScope: true })) throw new Error('Native fixture seed failed');
   }
 
   // ─── 1. Constant shape ───────────────────────────────────────────────
@@ -153,7 +161,7 @@ const {
   // ─── 3. Session storage + lifecycle ──────────────────────────────────
   console.log('%c 3. Session lifecycle ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   assert('getSessions on empty importedData returns [] (lazy init)',
     Array.isArray(getSessions()) && getSessions().length === 0);
   assert('getActiveSession with no sessions → null', getActiveSession() === null);
@@ -220,8 +228,8 @@ const {
   assert('setSessionSunscreen writes SPF and stamps updatedAt',
     sess2!.bodyExposure!.sunscreenSPF! === 30 && sess2!.updatedAt! >= rotatedAt!);
   await setSessionSunscreen(id2, 0);
-  assert('setSessionSunscreen stores zero SPF as null',
-    sess2!.bodyExposure!.sunscreenSPF! === null);
+  assert('setSessionSunscreen retains explicit no-sunscreen as zero',
+    sess2!.bodyExposure!.sunscreenSPF! === 0);
   const beforeInvalidSpfAt = sess2!.updatedAt;
   const invalidSpf = await setSessionSunscreen(id2, 101);
   assert('setSessionSunscreen rejects out-of-range SPF at the store boundary',
@@ -249,7 +257,7 @@ const {
   assert('deleteSession on unknown id returns false', (await deleteSession('sun_nope')) === false);
 
   // Paused wall-clock time must not leak into duration or eye exposure.
-  reset();
+  await reset();
   const pausedId = await startSession({ exposurePreset: 'tshirt', eyeMode: 'direct' });
   const pausedSess = getSessions().find(s => s.id === pausedId);
   pausedSess!.startedAt = Date.now() - 10 * 60000;
@@ -266,7 +274,7 @@ const {
   // ─── 4. logCompletedSession (after-the-fact entry) ────────────────────
   console.log('%c 4. logCompletedSession ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   const startedAt = Date.now() - 3600 * 1000; // 1h ago
   const endedAt = Date.now() - 1800 * 1000;   // 30min ago
   const idLog = await logCompletedSession({
@@ -307,7 +315,7 @@ const {
   // ─── 6. rollingChannelTotals ─────────────────────────────────────────
   console.log('%c 6. rollingChannelTotals ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   // Within 7d
   await logCompletedSession({
     startedAt: Date.now() - 2 * 86400 * 1000,
@@ -349,7 +357,7 @@ const {
   // ─── 7. dailyChannelBreakdown ────────────────────────────────────────
   console.log('%c 7. dailyChannelBreakdown ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   // Today + yesterday + a week-old session
   await logCompletedSession({
     startedAt: Date.now(), endedAt: Date.now() + 1,
@@ -372,7 +380,7 @@ const {
   // ─── 8. rollingVitaminDIU ────────────────────────────────────────────
   console.log('%c 8. rollingVitaminDIU ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   await logCompletedSession({
     startedAt: Date.now() - 86400 * 1000,
     endedAt: Date.now() - 86400 * 1000 + 1800 * 1000,
@@ -388,7 +396,7 @@ const {
       const d = new Date(ts);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
-    reset();
+    await reset();
     const now = new Date();
     const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime();
     const beforeMidnight = yesterdayStart - 10 * 60 * 1000;
@@ -413,7 +421,7 @@ const {
   {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    reset();
+    await reset();
     await logCompletedSession({
       startedAt: todayStart + 60 * 1000,
       endedAt: todayStart + 2 * 60 * 1000,
@@ -437,7 +445,7 @@ const {
       && separatedBudget.totalIntakeIU === 1000
       && separatedBudget.total === 1000,
       JSON.stringify(separatedBudget));
-    reset();
+    await reset();
     const beforeMidnight = todayStart - 10 * 60 * 1000;
     const afterMidnight = todayStart + 60 * 1000;
     await logCompletedSession({
@@ -488,7 +496,7 @@ const {
   // ─── 9. MED today / yesterday ─────────────────────────────────────────
   console.log('%c 9. cumulativeMEDToday / Yesterday ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   // Today = local midnight to now. Use very-near-now times to be inside today.
   await logCompletedSession({
     startedAt: Date.now() - 60000, endedAt: Date.now() - 1,
@@ -528,7 +536,7 @@ const {
   // ─── 10. _applyAtmOverrides ───────────────────────────────────────────
   console.log('%c 10. _applyAtmOverrides ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   const baseAtm = { uvIndex: 5, ozoneDU: 300, cloudCover: 30 };
   // No overrides → returns input unchanged
   assert('_applyAtmOverrides with no sunDefaults returns input unchanged',
@@ -563,7 +571,7 @@ const {
   // ─── 12. rehydrateStaleSessions dedupe ──────────────────────────────
   console.log('%c 12. rehydrateStaleSessions dedupe ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   let fetchCalls = 0;
   let releaseFetch!: (value?: unknown) => void;
   const fetchGate = new Promise(resolve => { releaseFetch = resolve; });
@@ -667,7 +675,9 @@ const {
     sunSrc.includes("from './sun-sessions-store.js'") &&
     storeSrc.includes('export async function startSession') &&
     storeSrc.includes('export async function hydrateSession') &&
-    storeSrc.includes('fetchAtmosphere: async () => null') &&
+    storeSrc.includes("import('./sun-uvdata.js')") &&
+    storeSrc.includes('computeChannelDoses: spectrumMath.computeChannelDoses') &&
+    storeSrc.includes('stageSunSessionChange') &&
     !storeSrc.includes('window.fetchAtmosphere') &&
     !storeSrc.includes('window.reconstructSpectrum') &&
     storeSrc.includes('export function getSessions') &&
@@ -732,6 +742,8 @@ const {
     swSrc.includes("'/js/light-sun-ai-hooks.js'"));
 
   // Restore
+  await nativeStorage.encryptedRemoveItem(nativeProfiles.profileStorageKey(nativeProfileId, 'imported'));
+  state.currentProfile = originalProfile;
   (state as {importedData: unknown}).importedData = orig;
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

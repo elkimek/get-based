@@ -8,10 +8,13 @@ import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // Browser controls for data views, chart layers, and display preferences.
 
 import { state } from './state.js';
-import { escapeAttr } from './utils.js';
-import { profileStorageKey } from './profile.js';
+import { escapeAttr, showNotification } from './utils.js';
 import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';
 import { normalizeUnitProfile } from './unit-profiles.js';
+import { commitDisplayPreferences } from './display-preferences.js';
+import { LAB_VIEW_RANGES } from '../shared/app-navigation-contract.js';
+import type { DisplayPreferenceCommitOptions, DisplayPreferenceReceipt } from './display-preferences.js';
+import { commitLabOverlayPreferences } from './lab-overlay-preferences.js';
 
 export interface DataRuntimeDeps {
   buildSidebar: ((data?: ImportedDataRecord | ActiveData) => unknown) | null;
@@ -60,6 +63,20 @@ function navigateDataView(route: string, data?: unknown) {
 export function navigateDataViewRuntime(route: string, data?: unknown) {
   if (!dataRuntimeDeps.navigate) return false;
   dataRuntimeDeps.navigate(route, data);
+  return true;
+}
+export async function navigateDataViewOutcomeRuntime(route: string, data?: unknown): Promise<boolean> {
+  if (!dataRuntimeDeps.navigate) return false;
+  return await dataRuntimeDeps.navigate(route, data) !== false;
+}
+
+/** Publish committed data in the current view without navigating away. */
+export function refreshDataViewRuntime() {
+  if (!dataRuntimeDeps.navigate) return false;
+  dataRuntimeDeps.buildSidebar?.(getActiveData());
+  const pending = dataRuntimeDeps.navigate(state.currentView || 'dashboard', { preserveScroll: true, preserveSidebar: true });
+  void Promise.resolve(pending).catch(() => { /* The view owner handles its load failure; committed data remains saved. */ });
+  updateHeaderDates(); updateHeaderRangeToggle();
   return true;
 }
 
@@ -135,7 +152,7 @@ function handleDataClick(event: Event) {
   }
   if (action === 'switch-range-mode') {
     event.preventDefault();
-    switchRangeMode(actionEl.getAttribute(DATA_RANGE_ATTR) || 'optimal');
+    void switchRangeMode(actionEl.getAttribute(DATA_RANGE_ATTR) || 'optimal').catch(() => showNotification('The range preference could not be confirmed. Check Display settings before trying again.', 'error'));
     return;
   }
 }
@@ -172,10 +189,12 @@ export function renderDateRangeFilter({ showScope = false } = {}) {
   return renderLabRange({view:projectLabDateRange(state.dateRangeFilter,showScope)});
 }
 
-export function setDateRange(range: string) {
+export function setDateRange(range: string, options: { navigate?: boolean } = {}) {
+  if (!LAB_VIEW_RANGES.includes(range as typeof LAB_VIEW_RANGES[number])) return false;
   state.dateRangeFilter = range;
   buildDataSidebar();
-  navigateDataView(state.currentView || 'dashboard');
+  if (options.navigate !== false) navigateDataView(state.currentView || 'dashboard');
+  return true;
 }
 
 export function projectChartLayersDropdown() {
@@ -245,10 +264,22 @@ function setOverlayMode(
   field: 'suppOverlayMode' | 'noteOverlayMode' | 'phaseOverlayMode',
   key: 'suppOverlay' | 'noteOverlay' | 'phaseOverlay', mode: unknown,
 ) {
-  state[field] = mode === 'off' ? 'off' : 'on';
-  localStorage.setItem(profileStorageKey(state.currentProfile, key), state[field]);
+  const profile = state.currentProfile, root = state.importedData, view = state.currentView;
   const activeCat = _getActiveNavCategory();
-  navigateDataView(activeCat);
+  const overlay = { suppOverlay: 'supplements', noteOverlay: 'notes', phaseOverlay: 'cycle' } as const;
+  const owns = () => state.currentProfile === profile && state.importedData === root && state.currentView === view;
+  const repaintFailed = () => { if (owns()) showNotification('Chart-layer preference saved. Reopen the view to refresh it.', 'info'); };
+  void commitLabOverlayPreferences({ [overlay[key]]: mode !== 'off' }).then(() => {
+    if (owns() && !document.querySelector('.modal-overlay.show,.confirm-overlay.show,[data-modal-focus-trap]')) {
+      try { void Promise.resolve(dataRuntimeDeps.navigate?.(activeCat)).catch(repaintFailed); } catch { repaintFailed(); }
+    }
+  }, error => {
+    if (owns()) {
+      const action = { noteOverlay: 'set-note-overlay', suppOverlay: 'set-supp-overlay', phaseOverlay: 'set-phase-overlay' }[key];
+      for (const input of document.querySelectorAll<HTMLInputElement>(`[data-lab-data-change="${action}"]`)) input.checked = state[field] === 'on';
+      showNotification(error instanceof Error ? error.message : 'The chart-layer preference could not be saved. Check the Layers menu.', 'error');
+    }
+  });
 }
 
 export function setSuppOverlay(mode: unknown) { setOverlayMode('suppOverlayMode', 'suppOverlay', mode); }
@@ -260,26 +291,29 @@ export function destroyAllCharts() {
   state.chartInstances = {};
 }
 
-export function switchUnitSystem(system: unknown) {
+export async function switchUnitSystem(system: unknown, options: DisplayPreferenceCommitOptions = {}): Promise<DisplayPreferenceReceipt> {
   const unitProfile = normalizeUnitProfile(system);
-  invalidateActiveDataCache();
-  state.unitSystem = unitProfile;
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'units'), unitProfile);
-  const openId = state._activeDetailMarkerId;
-  const data = getActiveData();
-  buildDataSidebar(data);
-  updateHeaderDates(data);
-  navigateDataView(state.currentView || 'dashboard', data);
-  if (openId) dataRuntimeDeps.showDetailModal?.(openId);
+  const receipt = await commitDisplayPreferences({ unitSystem: unitProfile }, options);
+  if (state.currentProfile !== receipt.profileId) return receipt;
+  try {
+    invalidateActiveDataCache();
+    const openId = state._activeDetailMarkerId;
+    const data = getActiveData();
+    buildDataSidebar(data);
+    updateHeaderDates(data);
+    navigateDataView(state.currentView || 'dashboard', data);
+    if (openId) dataRuntimeDeps.showDetailModal?.(openId);
+  } catch { showNotification('Units were saved. Reopen the view to refresh its display.', 'info'); }
+  return receipt;
 }
 
-export function toggleAltUnits(force?: unknown) {
-  const next = (force === true || force === false) ? force : !state.showAltUnits;
-  if (next === state.showAltUnits) return;
-  state.showAltUnits = next;
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'showAltUnits'), next ? 'on' : 'off');
+export async function toggleAltUnits(force?: unknown, options: DisplayPreferenceCommitOptions = {}): Promise<DisplayPreferenceReceipt> {
+  const receipt = await commitDisplayPreferences((current: Readonly<import('./display-preferences.js').DisplayPreferenceValues>) => ({ showAltUnits: typeof force === 'boolean' ? force : !current.showAltUnits }), options);
+  if (state.currentProfile !== receipt.profileId || !receipt.refresh.length) return receipt;
   const openId = state._activeDetailMarkerId;
-  if (openId) dataRuntimeDeps.showDetailModal?.(openId);
+  try { if (openId) dataRuntimeDeps.showDetailModal?.(openId); }
+  catch { showNotification('Alternate units were saved. Reopen the marker to refresh its display.', 'info'); }
+  return receipt;
 }
 
 let _rangeModeRefreshToken = 0;
@@ -301,11 +335,31 @@ function _afterNextPaint(fn: () => void) {
   scheduleUtilsAfterNextPaint(fn);
 }
 
-export function switchRangeMode(mode: unknown) {
+export async function switchRangeMode(mode: unknown, options: DisplayPreferenceCommitOptions = {}): Promise<DisplayPreferenceReceipt> {
   const nextMode = mode === 'reference' ? 'reference' : mode === 'both' ? 'both' : 'optimal';
-  if (state.rangeMode === nextMode) return;
-  state.rangeMode = nextMode;
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'rangeMode'), nextMode);
+  const receipt = await commitDisplayPreferences({ rangeMode: nextMode }, options);
+  if (state.currentProfile !== receipt.profileId || !receipt.refresh.length) return receipt;
+  try { refreshCommittedDisplayPreferences(receipt); }
+  catch { showNotification('Range preferences were saved. Reopen the view to refresh its display.', 'info'); }
+  return receipt;
+}
+
+/** Repaint an already durable command without issuing a second preference write. */
+export function refreshCommittedDisplayPreferences(receipt: DisplayPreferenceReceipt): void {
+  if (state.currentProfile !== receipt.profileId || !receipt.refresh.length) return;
+  if (receipt.refresh.includes('unitSystem') || receipt.refresh.includes('timeFormat')) {
+    invalidateActiveDataCache();
+    const openId = state._activeDetailMarkerId, data = getActiveData();
+    buildDataSidebar(data); updateHeaderDates(data);
+    navigateDataView(state.currentView || 'dashboard', data);
+    if (openId) dataRuntimeDeps.showDetailModal?.(openId);
+    return;
+  }
+  if (!receipt.refresh.includes('rangeMode')) {
+    if (receipt.refresh.includes('showAltUnits') && state._activeDetailMarkerId) dataRuntimeDeps.showDetailModal?.(state._activeDetailMarkerId);
+    return;
+  }
+  const nextMode = receipt.after.rangeMode;
   updateHeaderRangeToggle();
   const openId = state._activeDetailMarkerId;
   const preservedOrder = _captureCategoryCardOrderForRangeRefresh(state.currentView);
@@ -314,12 +368,13 @@ export function switchRangeMode(mode: unknown) {
   const token = ++_rangeModeRefreshToken;
   _afterNextPaint(() => {
     if (token !== _rangeModeRefreshToken || state.rangeMode !== nextMode) return;
-    const data = getActiveData();
-    buildDataSidebar(data);
-    navigateDataView(state.currentView || 'dashboard', data);
-    if (openId && state._activeDetailMarkerId === openId) {
-      dataRuntimeDeps.showDetailModal?.(openId);
-    }
+    if (state.currentProfile !== receipt.profileId) return;
+    try {
+      const data = getActiveData();
+      buildDataSidebar(data);
+      navigateDataView(state.currentView || 'dashboard', data);
+      if (openId && state._activeDetailMarkerId === openId) dataRuntimeDeps.showDetailModal?.(openId);
+    } catch { showNotification('Range preferences were saved. Reopen the view to refresh its display.', 'info'); }
   });
 }
 

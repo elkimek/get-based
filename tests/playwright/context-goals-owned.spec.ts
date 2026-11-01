@@ -79,3 +79,31 @@ test('authored Goals retire controls and confirmations after profile or dialog c
   await seed(page); await page.evaluate(async () => { Reflect.set(window, 'retiredGoalAdd', Array.from(document.querySelectorAll<HTMLButtonElement>('#detail-modal button')).find(button => button.textContent === 'Add goal')); await (await import('/js/context-card-lifestyle-editors.js')).openStressEditor(); (Reflect.get(window, 'retiredGoalAdd') as HTMLButtonElement).click(); await (await import('/js/context-card-lifestyle-editors.js')).addHealthGoal(); });
   await expect(page.locator('[data-context-form-view]')).toHaveAttribute('data-context-form-view', 'stress'); expect((await stored(page)).healthGoals).toHaveLength(4);
 });
+test('saved priority edits persist, retain metadata and keep an unsubmitted new goal', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' }); await seed(page);
+  const input = page.locator('#goal-text-input'); await input.fill('Keep this draft');
+  const priority = page.getByRole('combobox', { name: 'Priority for goal: Low original', exact: true });
+  await expect(priority).toHaveValue('minor'); await priority.focus(); await priority.selectOption('major');
+  await expect(page.locator('#detail-modal').getByRole('status')).toHaveText('Saved');
+  await expect(page.locator('.goals-text')).toHaveText(['Low original', 'High <goal> & literal', 'Medium original', 'Legacy']);
+  await expect(priority).toHaveValue('major'); await expect(priority, await page.evaluate(() => document.activeElement?.outerHTML || 'No focused element')).toBeFocused(); await expect(input).toHaveValue('Keep this draft');
+  const saved = await stored(page); expect(saved.healthGoals[0]).toMatchObject({ text: 'Low original', severity: 'major', extra: 'keep' });
+  expect(saved.healthGoals).toHaveLength(4); expect(saved._deleted?.healthGoals || []).toEqual([]);
+  await page.reload({ waitUntil: 'load' }); await page.evaluate(async () => { await (await import('/js/context-card-lifestyle-editors.js')).openHealthGoalsEditor(); });
+  await expect(page.getByRole('combobox', { name: 'Priority for goal: Low original', exact: true })).toHaveValue('major');
+  expect((await stored(page)).healthGoals).toEqual(saved.healthGoals);
+});
+test('saved priority controls retain the stored value after failure and refuse a stale-tab edit', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' }); await seed(page);
+  await page.evaluate(() => { const original = IDBObjectStore.prototype.put; let failed = false; IDBObjectStore.prototype.put = function(value, key) { if (!failed && String(key).endsWith('-imported')) { failed = true; throw new DOMException('Synthetic quota', 'QuotaExceededError'); } return original.call(this, value, key); }; });
+  const priority = page.getByRole('combobox', { name: 'Priority for goal: Low original', exact: true }), status = page.locator('#detail-modal').getByRole('status');
+  await priority.selectOption('major'); await expect(status).toContainText('Not saved — try again'); await expect(priority).toHaveValue('minor');
+  expect((await stored(page)).healthGoals[0].severity).toBe('minor');
+  await priority.selectOption('major'); await expect(status).toHaveText('Saved'); await expect(priority).toHaveValue('major');
+  await page.evaluate(async () => {
+    const [{ state }, crypto, profile] = await Promise.all([import('/js/state.js'), import('/js/crypto.js'), import('/js/profile.js')]);
+    const key = profile.profileStorageKey(state.currentProfile, 'imported'), peer = JSON.parse((await crypto.encryptedGetItem(key))!); peer.healthGoals[0].severity = 'mild'; await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  });
+  await priority.selectOption('minor'); await expect(status).toContainText('goals changed elsewhere'); await expect(priority).toHaveValue('major');
+  expect((await stored(page)).healthGoals[0].severity).toBe('mild');
+});

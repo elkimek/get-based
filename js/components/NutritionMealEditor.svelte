@@ -31,6 +31,11 @@
         <span class="nutrition-photo-preview gb:nutrition:relative gb:nutrition:grid gb:nutrition:grid-cols-1 gb:nutrition:min-h-[210px] gb:nutrition:place-content-center gb:nutrition:justify-items-center gb:nutrition:gap-[5px] gb:nutrition:overflow-hidden gb:nutrition:rounded-xl gb:nutrition:border gb:nutrition:border-dashed gb:nutrition:border-line gb:nutrition:bg-surface" id="nutrition-photo-preview"><span aria-hidden="true" class="gb:nutrition:text-[30px] gb:nutrition:text-accent">＋</span><strong id="nutrition-photo-prompt">Add meal photo</strong><small class={copy}>Up to 4 photos · 20 MB each</small></span>
         <input id="nutrition-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" multiple data-nutrition-action="photo" class="gb:nutrition:absolute gb:nutrition:inset-0 gb:nutrition:h-full gb:nutrition:w-full gb:nutrition:cursor-pointer gb:nutrition:opacity-0"/>
       </label>
+      {#if view.canAttachReferencePhotos}
+        <button type="button" class={button} data-nutrition-action="choose-reference-photos">Add reference photos</button>
+        <input id="nutrition-reference-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden aria-label="Add reference photos to this saved meal"/>
+        <p class={copy}>Reference photos keep the existing meal and photos. No analysis runs. Choosing photos for a new analysis replaces the estimate and photo set when you Save.</p>
+      {/if}
       <div id="nutrition-label-consumption" class={`nutrition-label-consumption gb:nutrition:grid gb:nutrition:grid-cols-2 gb:nutrition:gap-2 gb:nutrition:max-[430px]:grid-cols-1 ${hidden}`} hidden>
         <label class={`nutrition-field ${field}`}><span>Amount eaten</span><input id="nutrition-consumed-amount" inputmode="decimal" type="number" min="0.01" step="0.1" value="1" class={input}/></label>
         <label class={`nutrition-field ${field}`}><span>Unit</span><select id="nutrition-consumed-unit" class={input}><option value="servings">serving(s)</option><option value="g">grams</option><option value="ml">milliliters</option><option value="packages">package(s)</option></select></label>

@@ -8,9 +8,7 @@ import type{EnvironmentAIView}from'./light-environment-ai-presentation.js';
 
 import { state } from './state.js';
 import { showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
-import { saveImportedData } from './data.js';
-import { deleteImportedArrayItems } from './data-merge.js';
-import { createUniqueId } from './unique-id.js';
+import { captureLightMeasurementOwner, nativeLightAudits, saveNativeLightAudit, updateNativeLightAudit, deleteNativeLightAudit } from './light-measurement-store.js';
 import { renderHTML as renderAuditBlockHTML } from './components/LightAuditBlock.svelte.html.js';
 import { auditActionValue, auditComparisonArrow, type LightAuditBlockView, type LightAuditCardView, type LightAuditDetailView, type LightAuditComparisonView, type LightAuditComparisonRoomView, type LightAuditComparisonRowView } from './light-audit-presentation.js';
 
@@ -25,14 +23,13 @@ import { auditActionValue, auditComparisonArrow, type LightAuditBlockView, type 
 //     screens: [...deep-copy], measurements: [...room-mapped readings, deep-copy],
 //     createdAt, updatedAt? }
 
-import type { LightRoom, LightScreen, LightMeasurement } from './light-env-model.js';
+import type { LightRoom, LightScreen } from './light-env-model.js';
 
 // These private views describe unchecked readers, not normalized persisted DTOs.
 type AuditRoomReader = { [Key in keyof LightRoom]?: unknown };
 type AuditScreenReader = { [Key in keyof LightScreen]?: unknown };
 interface AuditMeasurementReader extends Record<string, unknown> { tool?: unknown; roomId?: unknown; value?: unknown; capturedAt?: unknown; extra?: Record<string, unknown> | null }
 interface AuditReader extends Record<string, unknown> { id?: unknown; date?: unknown; label?: unknown; notes?: unknown; rooms?: AuditRoomReader[] | null; screens?: AuditScreenReader[] | null; measurements?: AuditMeasurementReader[] | null; createdAt?: unknown; updatedAt?: unknown }
-interface EnvironmentReader { rooms?: AuditRoomReader[] | null; screens?: unknown }
 interface SeverityReader { tier: number; color?: unknown; label?: unknown; reason?: unknown }
 interface ArithmeticMeasurementReader extends Omit<AuditMeasurementReader, 'value' | 'extra'> { value: number; extra: { cameraBlueRatioProxy: number; melanopic: number } }
 type AuditDependencyName = 'getEnvironment' | 'computeRoomSeverity' | 'refreshLightEnvironmentUI' | 'hasAIProvider' | 'maybeAnalyzeAuditAfterSave' | 'getAuditAIView' | 'getAuditDotView' | 'openChatPanel';
@@ -138,67 +135,14 @@ function refreshAuditCardUI(id: unknown) {
   });
 }
 
-export function getLightAudits(): unknown {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.lightAudits)) state.importedData.lightAudits = [];
-  return state.importedData.lightAudits;
-}
-
-export async function saveLightAudit(label: unknown = '') {
-  const env = getEnvironmentSnapshot() as EnvironmentReader | null | undefined;
-  if (!env) return null;
-  const audits = (getLightAudits() as unknown[]);
-  // Snapshot only room-mapped measurements. Unmapped readings do not
-  // have enough context to grade or compare an environment change.
-  const roomIds = new Set((env.rooms || []).map(r => r.id).filter(Boolean));
-  const measurements = ((state.importedData?.lightMeasurements || []) as Array<LightMeasurement & { roomId?: unknown }>)
-    .filter(m => m?.roomId && roomIds.has(m.roomId))
-    .map(m => JSON.parse(JSON.stringify(m)) as unknown);
-  const today = new Date();
-  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const audit = {
-    id: createUniqueId('la_'),
-    date,
-    label: String(label || `Audit ${audits.length + 1}`).replace(/\s+/g, ' ').trim().slice(0, 80),
-    notes: '',
-    rooms: JSON.parse(JSON.stringify(env.rooms || [])) as unknown,
-    screens: JSON.parse(JSON.stringify(env.screens || [])) as unknown,
-    measurements,
-    createdAt: Date.now(),
-  };
-  audits.push(audit);
-  await saveImportedData();
-  // Audits are explicit checkpoint events — saving one is the user
-  // saying "freeze my environment as it is now." Auto-fire the AI
-  // verdict so the snapshot is interpretable from the moment it lands,
-  // same way session-stop and onboarding-save do. Manual refresh on the
-  // card re-rolls. Best-effort, no-throw — sync push handles propagation.
-  maybeAnalyzeAuditAfterSave(audit);
+export function getLightAudits(): unknown { return nativeLightAudits(); }
+export async function saveLightAudit(label: unknown = '', options: { canCommit?: () => boolean } = {}) {
+  const owner = captureLightMeasurementOwner(), audit = await saveNativeLightAudit(label, getEnvironmentSnapshot(), options.canCommit);
+  if (audit && owner.current()) maybeAnalyzeAuditAfterSave(audit);
   return audit;
 }
-
-export async function updateLightAudit(id: unknown, patch: unknown) {
-  const audits = (getLightAudits() as AuditReader[]);
-  const a = audits.find(x => x.id === id);
-  if (!a) return;
-  if (Object.prototype.hasOwnProperty.call(patch || {}, 'label')) {
-    a.label = String((patch as { label?: unknown }).label || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-  }
-  if (Object.prototype.hasOwnProperty.call(patch || {}, 'notes')) {
-    a.notes = String((patch as { notes?: unknown }).notes || '').slice(0, 1000);
-  }
-  if (Object.prototype.hasOwnProperty.call(patch || {}, 'date')) {
-    const date = String((patch as { date?: unknown }).date || '');
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(new Date(`${date}T00:00:00`).getTime())) a.date = date;
-  }
-  a.updatedAt = Date.now();
-  await saveImportedData();
-}
-
-export async function deleteLightAudit(id: unknown) {
-  deleteImportedArrayItems(state.importedData, 'lightAudits', a => (a as AuditReader).id === id);
-  await saveImportedData();
-}
+export function updateLightAudit(id: unknown, patch: unknown, options: { canCommit?: () => boolean } = {}) { return updateNativeLightAudit(id, patch, options.canCommit); }
+export function deleteLightAudit(id: unknown, options: { canCommit?: () => boolean } = {}) { return deleteNativeLightAudit(id, options.canCommit); }
 
 // Worst-room-tier rolls up to the audit-level severity badge.
 function computeAuditSeverity(audit: AuditReader | null | undefined) {
@@ -462,6 +406,7 @@ export function renderLightAuditsBlock() {
 }
 
 export async function saveLightAuditFromUI() {
+  const owner = captureLightMeasurementOwner();
   const defaultLabel = `Audit ${(getLightAudits() as AuditReader[]).length + 1}`;
   const label = await showPromptDialog('Audit label (e.g. "Pre-mitigation", "After LED swap")', {
     defaultValue: defaultLabel,
@@ -469,10 +414,10 @@ export async function saveLightAuditFromUI() {
     placeholder: 'Audit label',
   });
   // showPromptDialog resolves to null on Cancel/Esc/backdrop-click.
-  if (label === null) return;
+  if (label === null || !owner.unchanged()) return;
   const trimmed = label.trim() || defaultLabel;
-  const audit = await saveLightAudit(trimmed);
-  if (audit) {
+  const audit = await saveLightAudit(trimmed, { canCommit: owner.unchanged });
+  if (audit && owner.current()) {
     showNotification(`Saved audit: ${audit.label}`);
     _expandedAuditId = audit.id;
     _showAllAudits = false;
@@ -519,16 +464,19 @@ export function setLightAuditsBlockOpen(open: unknown) {
 }
 
 export async function updateLightAuditField(id: unknown, field: unknown, value: unknown) {
-  await updateLightAudit(id, { [field as PropertyKey]: value });
+  const owner = captureLightMeasurementOwner();
+  if (!await updateLightAudit(id, { [field as PropertyKey]: value }) || !owner.current()) return;
   _expandedAuditId = id;
   keepAuditVisible(id);
   refreshAuditCardUI(id);
 }
 
 export async function deleteLightAuditConfirm(id: unknown) {
+  const owner = captureLightMeasurementOwner();
   if (await showConfirmDialog('Delete this audit? This cannot be undone.')) {
+    if (!owner.unchanged()) return;
     const deletingExpandedAudit = _expandedAuditId === id;
-    await deleteLightAudit(id);
+    if (!await deleteLightAudit(id, { canCommit: owner.unchanged }) || !owner.current()) return;
     _auditsBlockOpen = true;
     if ((getLightAudits() as AuditReader[]).length < 2) _auditCompareMode = false;
     if (deletingExpandedAudit) {

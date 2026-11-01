@@ -1,6 +1,7 @@
 // chat-thread-search.js — chat thread rail message search and highlighting
 
 import { state } from './state.js';
+import { normalizeChatMessages } from './chat-storage-safety.js';
 import { encryptedGetItem, getEncryptionEnabled } from './crypto.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 import { getChatThreadNavigationView } from './chat-thread-navigation-component.js';
@@ -212,6 +213,21 @@ async function getThreadMessages(threadId: string) {
   } catch { return []; }
 }
 
+/** Fresh native storage read for bounded model retrieval; no shared search-cache reuse. */
+export async function readStoredThreadSearchMessages(threadId: string, maxCharacters: number, current: () => boolean) {
+  if (!current() || !state.chatThreads.some(thread => thread.id === threadId)) throw new Error('The source conversation is no longer available.');
+  const key = threadSearchCallbacks.getChatThreadKey(threadId), before = key ? localStorage.getItem(key) : null;
+  if (!key) throw new Error('Native conversation storage is unavailable.');
+  let raw: string | null;
+  try { raw = getEncryptionEnabled() ? await encryptedGetItem(key, { throwOnDecryptError: true }) : before; }
+  catch { if (!current()) throw new Error('The conversation search ended.'); return { messages: [] as unknown[], characters: 0, skipped: true }; }
+  if (!current() || localStorage.getItem(key) !== before) throw new Error('A source conversation changed during search.');
+  if (!raw) return { messages: [] as unknown[], characters: 0, skipped: false };
+  if (raw.length > maxCharacters) return { messages: [] as unknown[], characters: raw.length, skipped: true };
+  try { const messages: unknown = JSON.parse(raw); return { messages: Array.isArray(messages) ? normalizeChatMessages(messages) : [], characters: raw.length, skipped: !Array.isArray(messages) }; }
+  catch { return { messages: [] as unknown[], characters: raw.length, skipped: true }; }
+}
+
 // Invalidate cache when messages change
 export function invalidateThreadContentCache() {
   _threadContentCache = null;
@@ -281,7 +297,7 @@ async function searchThreadContent(query: string, revision = ++searchRevision, v
   view?.setSearch({ phase: 'done', progress: '', results: results.slice(0, SEARCH_RESULT_LIMIT), truncated: results.length > SEARCH_RESULT_LIMIT });
 }
 
-export async function jumpToSearchResult(threadId: string, msgIndex: number, contentPrefix: unknown) {
+export async function jumpToSearchResult(threadId: string, msgIndex: number, contentPrefix: unknown, expectedSource?: string | { content: string; role: 'user' | 'assistant' }) {
   const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
   const query = input?.value?.trim() || '';
   const profile = state.currentProfile, revision = ++jumpRevision, view = getChatThreadNavigationView();
@@ -296,11 +312,14 @@ export async function jumpToSearchResult(threadId: string, msgIndex: number, con
   // callback. Later navigation must not highlight another conversation.
   const destination = state.currentThreadId;
   const isCurrent = () => contextIsCurrent() && state.currentThreadId === destination;
-  if (!isCurrent()) return;
+  const exact = () => { const message = state.chatHistory[msgIndex]; return expectedSource === undefined || state.currentThreadId === threadId && !!message
+    && message.content === (typeof expectedSource === 'string' ? expectedSource : expectedSource.content)
+    && (typeof expectedSource === 'string' || message.role === expectedSource.role) && !message.hidden && !message.auto && !message.joined; };
+  if (!isCurrent() || !exact()) return;
   threadSearchCallbacks.revealMessage(msgIndex);
   // Wait for DOM to settle after potential re-render
   requestAnimationFrame(() => {
-    if (!isCurrent()) return;
+    if (!isCurrent() || !exact()) return;
     let msgEl = document.getElementById('chat-msg-' + msgIndex);
     // Verify we're highlighting the right message (index may have shifted)
     if (msgEl && contentPrefix && state.chatHistory[msgIndex]) {

@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {parseAst} from 'rolldown/parseAst';
 import {expect, it} from 'vitest';
+import {restoreReviewedMigrationSource} from './helpers/migration-review-exact-source-inverse.js';
 
 const root = process.cwd();
 const fixturePath = path.join(root, 'tests/fixtures/lab-context-assembly-original.json');
@@ -11,7 +12,7 @@ const bytes = fs.readFileSync(fixturePath, 'utf8');
 expect(createHash('sha256').update(bytes).digest('hex')).toBe('17d73972d9bda69be90e10ffaebfb4a6de7b01e1382c11e3fc5e1de41fa0b184');
 const original = JSON.parse(bytes) as {source: string};
 const facade = fs.readFileSync(path.join(root, 'js/lab-context.ts'), 'utf8');
-const core = fs.readFileSync(path.join(root, 'js/lab-context-assembly.ts'), 'utf8');
+const core = restoreReviewedMigrationSource('js/lab-context-assembly.ts', fs.readFileSync(path.join(root, 'js/lab-context-assembly.ts'), 'utf8'));
 function declaration(source: string, name: string) {
   for (const statement of parseAst(source, {lang: 'ts'}).body) {
     const node = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
@@ -26,7 +27,7 @@ function importSources(source: string) {
   return parseAst(source, {lang: 'ts'}).body.filter(node => node.type === 'ImportDeclaration')
     .map(node => source.slice(node.start, node.end));
 }
-it('moves the complete original pipeline, assembly and date algorithm without changing their logic or dependency bindings', () => {
+it('retains the original pipeline and bindings outside separately qualified note and unknown-period fixes', () => {
   for (const name of ['buildLabContext', '_buildLabContextInner']) {
     expect(declaration(core, name).source).toBe(declaration(original.source, name).source);
   }
@@ -66,10 +67,13 @@ async function run(mode) {
       };
     }
   }
-  const importedData = new Proxy({supplements: [], entries: []}, {
+  const seed = {supplements: [], entries: []};
+  if (scenario === 'cleared-notes') seed.markerValueNotes = {'fixture.sample:2026-10-17': null, 'fixture.sample:2026-10-16': 'Retain this active note'};
+  if (scenario === 'unknown-periods') seed.menstrualCycle = {coverage: {}, historySummary: {recent12: {}, last12Months: {}, allTime: {}}, periods: [{startDate: '2026-10-17', endDate: '2026-10-20', flow: 'moderate', endDateKnown: false, flowKnown: false}]};
+  const importedData = new Proxy(seed, {
     get(target, key) {trace.push('data:' + String(key)); return target[key];},
   });
-  const state = new Proxy({importedData, currentProfile: 'synthetic', profileSex: 'male', profileDob: null, unitSystem: 'EU'}, {
+  const state = new Proxy({importedData, currentProfile: 'synthetic', profileSex: scenario === 'unknown-periods' ? 'female' : 'male', profileDob: null, unitSystem: 'EU'}, {
     get(target, key) {trace.push('state:' + String(key)); return target[key];},
   });
   const data = {dates: ['2026-10-17'], categories: {fixture: {label: 'Fixture', markers: {sample: {name: 'Sample', values: [1], unit: 'u'}}}}};
@@ -96,7 +100,8 @@ async function run(mode) {
       trace.push('cache:miss'); const result = build(); cache.set(key, result); return result;
     },
     isLabMarkersContextEnabled: () => true, isLightSunContextEnabled: () => true,
-    isInsightContextCardsEnabled: () => false, isSupplementsMedsContextEnabled: () => false,
+    isInsightContextCardsEnabled: () => scenario === 'unknown-periods', isSupplementsMedsContextEnabled: () => false,
+    upgradeMenstrualCycleProfile: value => value, recentCyclePeriods: value => value.periods || [], getBloodDrawPhases: () => ({}),
     isGeneticsSummaryInAIContext: () => false, isGeneticsPriorityInAIContext: () => false,
     isGeneticsInventoryInAIContext: () => false, isWearableContextEnabled: () => false,
     isNutritionContextEnabled: () => false,
@@ -104,6 +109,8 @@ async function run(mode) {
     getCurrentSupplements: () => [], getSupplementsOverlappingRange: () => [],
     getProfileHeight: () => ({}), getLatitudeFromLocation: () => 0, getProfileLocation: () => ({}),
     getUnitProfileLabel: () => 'EU', buildContextChangeTimeline: () => '', buildLabCollectionContextSection: () => '',
+    buildLabSampleResultsSection: () => '',
+    createLabContextDisclosure: () => ({project: data => data, entries: rows => rows, allows: () => true}),
   });
   const context = vm.createContext({Date: Clock, console});
   function load(url) {
@@ -115,7 +122,8 @@ async function run(mode) {
       const source = mode === 'original' ? frozen.source : fs.readFileSync(path.join(root, 'js', file.replace(/\.js$/, '.ts')), 'utf8');
       module = new vm.SourceTextModule(stripTypeScriptTypes(source, {mode: 'strip'}), {context, identifier: url});
     } else {
-      const names = frozen.imports['./' + file];
+      const names = file === 'lab-context-disclosure.js' ? ['createLabContextDisclosure']
+        : file === 'lab-context-collection.js' ? [...frozen.imports['./' + file], 'buildLabSampleResultsSection'] : frozen.imports['./' + file];
       if (!names) throw Error('Unexpected candidate dependency ' + file);
       module = new vm.SyntheticModule(names, function() {
         for (const name of names) this.setExport(name, values[name]);
@@ -175,6 +183,14 @@ interface Evidence {
   error?: {name: string; message: string; injectedIdentity: boolean};
   trace: string[];
 }
+it('omits cleared date-note tombstones from the actual model context while retaining active notes', () => {
+  const result = JSON.parse(execFileSync(process.execPath, ['--experimental-vm-modules', '--input-type=module', '--eval', harness, root, 'cleared-notes'], { encoding: 'utf8', timeout: 10000 })) as { original: Evidence; candidate: Evidence };
+  expect(result.candidate.error).toBeUndefined(); expect(result.candidate.output).toContain('Retain this active note'); expect(result.candidate.output).not.toContain('on 2026-10-17:'); expect(result.original.output).toContain('on 2026-10-17: null');
+});
+it('retains unknown observed period end and flow in the actual model context', () => {
+  const result = JSON.parse(execFileSync(process.execPath, ['--experimental-vm-modules', '--input-type=module', '--eval', harness, root, 'unknown-periods'], { encoding: 'utf8', timeout: 10000 })) as { original: Evidence; candidate: Evidence };
+  expect(result.candidate.error).toBeUndefined(); expect(result.candidate.output).toContain('end not reported (flow not reported)'); expect(result.original.output).not.toContain('end not reported');
+});
 for (const scenario of ['no-argument', 'undefined', 'null', 'options', 'inherited', 'cache',
   'fault:skipGroupFilter', 'fault:ignoreContextToggles', 'fault:queryText', 'fault:nutritionHistoryLabel',
   'format-default', 'format-explicit-zero', 'format-explicit-null', 'format-explicit-undefined', 'format-now-undefined', 'format-now-throw']) {

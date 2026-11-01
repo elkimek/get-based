@@ -12,8 +12,8 @@ import { state } from './state.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
-import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
-import { isQuantitativeDarknessMeasurement, isQuantitativeLuxMeasurement } from './light-env-model.js';
+import { getRoomEveningHoursAfterSunset, hasRoomEveningAnswer } from './light-env-evening.js';
+import { isQuantitativeDarknessMeasurement, isQuantitativeLuxMeasurement, lightMeasurementSourceLabel } from './light-env-model.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
 
@@ -36,7 +36,7 @@ function _getScreensForRoom(roomId: string | undefined) {
 // Bumped 2026-05-08: prompt biology priors tightened to Brown 2022
 // melanopic-EDI thresholds. Existing cached verdicts may carry the
 // older 100-lux daytime / >1-photopic-lux night anchors — invalidate.
-const _roomFingerprintSalt = 'v3-measurement-quality';
+const _roomFingerprintSalt = 'v4-explicit-unknowns-and-source-privacy';
 export function getRoomFingerprint(r: LightRoom | null | undefined) {
   if (!r) return '';
   const measurements = _getMeasurementsForRoom(r.id);
@@ -46,8 +46,9 @@ export function getRoomFingerprint(r: LightRoom | null | undefined) {
     r.name || '',
     r.primarySource || '',
     r.daylightLevel || '',
-    r.hoursOccupiedPerDay || 0,
-    getRoomEveningHoursAfterSunset(r),
+    r.hoursOccupiedPerDay ?? 'unknown',
+    hasRoomEveningAnswer(r) ? getRoomEveningHoursAfterSunset(r) : 'unknown',
+    r.cct ?? 'unknown', r.flickerScore ?? 'unknown', _safeText(r.notes, 1000),
   ];
   const byTool = new Map<unknown, RoomMeasurements>();
   for (const m of measurements.sort((a, b) => (b.capturedAt as number) - (a.capturedAt as number))) {
@@ -56,7 +57,7 @@ export function getRoomFingerprint(r: LightRoom | null | undefined) {
   for (const [tool, m] of [...byTool.entries()].sort()) {
     parts.push(`${tool}:${typeof m.value === 'number' ? Math.round(m.value * 100) / 100 : m.value}:${m.extra?.method || m.extra?.source || ''}`);
   }
-  parts.push(`screens:${screens.map(s => `${s.device}:${s.eveningUseAfterSunset ?? ''}:${s.blueBlockerEnabled ? 1 : 0}`).sort().join(',')}`);
+  parts.push(`screens:${screens.map(s => `${s.device}:${s.hoursPerDay ?? 'unknown'}:${s.eveningUseAfterSunset ?? 'unknown'}:${s.blueBlockerEnabled == null ? 'unknown' : s.blueBlockerEnabled ? 1 : 0}`).sort().join(',')}`);
   return hashString(parts.join('|'));
 }
 
@@ -96,9 +97,12 @@ export function buildRoomContext(r: LightRoom | null | undefined) {
   lines.push(`Name: ${_safeText(r.name) || '(unnamed)'}`);
   if (r.primarySource) lines.push(`Primary light source: ${_SOURCE_LABELS[r.primarySource] || r.primarySource}`);
   if (r.daylightLevel && r.daylightLevel !== 'unknown') lines.push(`Daylight reaching room during usual use: ${r.daylightLevel}`);
-  if (r.hoursOccupiedPerDay != null) lines.push(`Hours occupied per day: ${r.hoursOccupiedPerDay}`);
+  lines.push(`Hours occupied per day: ${r.hoursOccupiedPerDay ?? 'unknown'}`);
+  if (r.cct != null) lines.push(`Reported color temperature: ${r.cct} K`);
+  if (r.flickerScore != null) lines.push(`Reported flicker score: ${r.flickerScore}/3`);
+  if (r.notes) lines.push(`Room note: ${_safeText(r.notes, 1000)}`);
   const eveningHrs = getRoomEveningHoursAfterSunset(r);
-  lines.push(eveningHrs > 0
+  lines.push(!hasRoomEveningAnswer(r) ? 'Evening use after sunset: unknown' : eveningHrs > 0
     ? `Evening use after sunset: ${eveningHrs} hr/day`
     : 'Evening use after sunset: not used after dark');
 
@@ -112,7 +116,7 @@ export function buildRoomContext(r: LightRoom | null | undefined) {
     for (const [tool, m] of byTool) {
       switch (tool) {
         case 'lux':
-          lines.push(`Lux: ${Math.round(m.value as number)} photopic lux (${m.extra?.source || 'legacy/unknown source'}; ${isQuantitativeLuxMeasurement(m) ? 'usable spot-check' : 'unverified camera estimate — do not threshold'})`);
+          lines.push(`Lux: ${Math.round(m.value as number)} photopic lux (${lightMeasurementSourceLabel(m)}; ${isQuantitativeLuxMeasurement(m) ? 'usable spot-check' : 'unverified camera estimate — do not threshold'})`);
           break;
         case 'flicker': {
           const score = Math.round((m.value || 0) as number);

@@ -239,7 +239,7 @@ function disposeOwnedProviderSettings(): void {
 // AI PAUSE / PROVIDER SWITCH
 // ═══════════════════════════════════════════════
 export function toggleAIPause(enabled: unknown) {
-  setAiSettingsEnabled(enabled,() => (providerPanelDeps as ProviderPanelOperations).loadFocusCard());
+  return setAiSettingsEnabled(enabled,() => (providerPanelDeps as ProviderPanelOperations).loadFocusCard());
 }
 
 let providerSwitchSequence = 0;

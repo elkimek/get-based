@@ -1,127 +1,95 @@
+import { captureChatControlAuthorization } from './chat-control-settings.js';
+import { chatDataPatchAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
+import { applyAgentDataProposal } from './agent-data-apply.js';
+import { isLegacyAgentDraft } from './agent-draft-upgrade.js';
+import { readAgentProfileRecords } from './agent-profile-record-store.js';
 // Review-and-approve boundary for changes proposed by a connected CLI agent.
 
 import { state } from './state.js';
-import { saveImportedDataForProfile } from './data.js';
-import { appendImportedArrayItem } from './data-merge.js';
+import { captureChatTurnScope } from './chat-turn-scope.js';
+import { saveImportedDataForProfile, notifyProfileDataContextChanged, refreshDataViewRuntime } from './data.js';
+import { normalizeAgentContextProposal } from '../shared/agent-tool-contract.js';
+import { normalizeAgentDataProposal, parseAgentDataPatch } from '../shared/agent-data-contract.js';
+import { agentContextCardModel, applyAgentContextChanges, environmentEMFMode, usesEnvironmentEMFQuickFields } from './agent-context-fields.js';
+import { profileDataValuesEqual } from './profile-data-writes.js';
+import { recordContextCardChange } from './context-cards-runtime.js';
+import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
 import { getActiveProfileId } from './profile.js';
-import { saveMarkerNoteText } from './marker-detail-store.js';
-import { saveActiveProfileMeal } from './nutrition-store.js';
-import { logManualBP, logManualMetric } from './wearables-manual.js';
-import {
-  createSupplementRecordId,
-  localDateKey,
-  SUPPLEMENT_RECORD_VERSION,
-} from './supplement-medication-domain.js';
-import { resolveAgentMarker } from './agent-tool-bindings.js';
 
 import type { DraftReader } from './agent-draft-presentation.js';
-import type { AgentDraft } from './agent-tool-runtime.js';
-type DraftPayload = Readonly<AgentDraft['payload']>;
-type RawReading<Reading> = { [Key in keyof Reading]?: unknown };
 export { renderAgentDraftCards } from './agent-draft-component.js';
 
-function localMealTime(date: Date) {
-  return {
-    localDate: localDateKey(date),
-    localTimeMinutes: date.getHours() * 60 + date.getMinutes(),
-    timezoneOffsetMinutes: date.getTimezoneOffset(),
-  };
+export class AgentDraftConflictError extends Error { readonly noChangeApplied = true; }
+export async function confirmAgentDraftSaved(draft: DraftReader | null | undefined) {
+  const profile = getActiveProfileId();
+  if (!draft || draft.kind !== 'data' || !['failed', 'applying'].includes(String(draft.status)) || draft.profileId !== profile || state.currentProfile !== profile) throw new Error('Switch back to the originating profile and select an unconfirmed library proposal.');
+  const proposal = normalizeAgentDataProposal(draft.payload);
+  if (proposal && !chatDataPatchAllowed(proposal.resource, proposal.operation, parseAgentDataPatch(proposal.patch))) throw new Error(CHAT_NATIVE_UI_NOTICE);
+  throw new Error('This proposal has no Knowledge Base receipt to check.');
 }
 
-async function applyNote(payload: DraftPayload, profileId: string) {
-  if (payload.scope === 'marker') {
-    const resolved = resolveAgentMarker(payload.marker);
-    if (!resolved.row) throw new Error(resolved.matches.length ? 'Choose an unambiguous marker before applying.' : 'That marker is no longer available.');
-    const current = String(state.importedData?.markerNotes?.[resolved.row.key] || '').trim();
-    const next = payload.mode === 'replace' || !current ? payload.text : `${current}\n\n${payload.text}`;
-    if (!await saveMarkerNoteText(resolved.row.key, next)) throw new Error('Could not save the marker note.');
-    return `Marker note saved for ${resolved.row.name}.`;
+async function applyContext(payload: unknown, profileId: string, controlsCurrent: () => boolean) {
+  const proposal = normalizeAgentContextProposal(payload);
+  if (!proposal) throw new Error('This context proposal is invalid.');
+  if (!isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS)) throw new AgentDraftConflictError('Insight Context Cards are disabled. No change was applied.');
+  const baseline: unknown = JSON.parse(proposal.baseline);
+  const origin = state.importedData, quickEMF = usesEnvironmentEMFQuickFields(proposal);
+  const editor = typeof document !== 'undefined' && document.querySelector('[data-context-form-view]')?.getAttribute('data-context-form-view') === proposal.card ? await import('./context-lifestyle-form-view.js') : null;
+  const baseData = await readAgentProfileRecords(profileId);
+  if (!profileDataValuesEqual(baseData[proposal.card] ?? null, baseline)) {
+    throw new AgentDraftConflictError('This context card changed since the proposal. Ask for a new proposal. No change was applied.');
   }
-  const baseData = structuredClone(state.importedData);
-  const draft = structuredClone(baseData);
-  const current = String(draft.contextNotes || '').trim();
-  (draft as { contextNotes?: unknown }).contextNotes = payload.mode === 'replace' || !current ? payload.text : `${current}\n\n${payload.text}`;
-  if (!await saveImportedDataForProfile(profileId, draft, { baseData })) throw new Error('Could not save the profile context note.');
-  return 'Profile context note saved.';
-}
-
-async function applyMeal(payload: DraftPayload) {
-  const date = payload.eatenAt ? new Date(payload.eatenAt as string | number) : new Date();
-  if (!Number.isFinite(date.getTime())) throw new Error('The proposed meal time is invalid.');
-  let timeZone = '';
-  try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
-  const saved = await saveActiveProfileMeal({
-    id: globalThis.crypto?.randomUUID?.() || `meal-${Date.now()}`,
-    name: payload.name,
-    mealType: payload.mealType || 'other',
-    eatenAt: date.toISOString(),
-    ...localMealTime(date),
-    timeZone,
-    note: payload.note || '',
-    nutrients: { ...((payload.nutrients || {}) as Record<string, unknown>) },
-    components: [], assumptions: [], warnings: [], images: [],
-    confidence: null,
-    source: { kind: 'manual-agent-draft', recordedAt: new Date().toISOString(), nutrientBasis: 'user-entered', review: { reviewedAt: new Date().toISOString() } },
-    reviewed: true,
-  });
-  return `Meal “${saved.name}” saved.`;
-}
-
-async function applyBiometric(payload: DraftPayload, profileId: string) {
-  if (payload.metric === 'bp') {
-    await (logManualBP as (profileId: Parameters<typeof logManualBP>[0], reading: RawReading<Parameters<typeof logManualBP>[1]>) => ReturnType<typeof logManualBP>)(profileId, {
-      date: payload.date || undefined,
-      systolic: payload.systolic,
-      diastolic: payload.diastolic,
-      pulse: payload.pulse ?? undefined,
-      tags: undefined,
-      note: payload.note || undefined,
-    });
-    return 'Blood pressure saved.';
-  }
-  await (logManualMetric as (profileId: Parameters<typeof logManualMetric>[0], metric: unknown, reading: RawReading<Parameters<typeof logManualMetric>[2]>) => ReturnType<typeof logManualMetric>)(profileId, payload.metric, {
-    date: payload.date || undefined,
-    value: payload.value,
-    unit: payload.unit || (payload.metric === 'weight' ? 'kg' : 'bpm'),
-    tags: undefined,
-    note: payload.note || undefined,
-  });
-  return payload.metric === 'weight' ? 'Weight saved.' : 'Resting pulse saved.';
-}
-
-async function applySupplement(payload: DraftPayload, profileId: string) {
-  const startDate = payload.startDate || localDateKey();
-  const now = Date.now();
-  const entry = {
-    id: createSupplementRecordId(),
-    schemaVersion: SUPPLEMENT_RECORD_VERSION,
-    name: payload.name,
-    type: payload.type,
-    dosage: payload.dosage || '',
-    note: payload.note || '',
-    startDate,
-    endDate: null,
-    periods: [{ start: startDate, end: null }],
-    schedule: { mode: 'daily', timesPerDay: null },
-    lifecycle: { state: (startDate as string) <= localDateKey() ? 'active' : 'planned', changedAt: now },
-    updatedAt: now,
+  let conflict = false, revoked = false;
+  const canCommit = () => {
+    if (!controlsCurrent() || state.currentProfile !== profileId || state.importedData !== origin || !isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS)) revoked = true;
+    if (quickEMF && (environmentEMFMode(baseData) !== 'selfReport' || !profileDataValuesEqual(origin.environment ?? null, baseline) || !profileDataValuesEqual(origin.emfAssessment ?? null, baseData.emfAssessment ?? null))) conflict = true;
+    if (editor?.hasLifestyleFormDraft(proposal.card)) conflict = true;
+    return !revoked && !conflict;
   };
-  const baseData = structuredClone(state.importedData);
-  const draft = structuredClone(baseData);
-  appendImportedArrayItem(draft, 'supplements', entry);
-  if (!await saveImportedDataForProfile(profileId, draft, { baseData })) throw new Error('Could not save the proposed supplement or medication.');
-  return `${payload.type === 'medication' ? 'Medication' : 'Supplement'} “${payload.name}” saved.`;
+  if (!canCommit()) throw new AgentDraftConflictError('Context editing authorization or source changed. Ask for a fresh proposal. No change was applied.');
+  const next = structuredClone(baseData);
+  // The allowlisted card and fields are validated again at the commit boundary.
+  applyAgentContextChanges(next, proposal);
+  recordContextCardChange(proposal.card, next);
+  const saved = await saveImportedDataForProfile(profileId, next, {
+    forceProfileScope: true, baseData,
+    expectedContextField: { key: proposal.card, value: baseline },
+    expectedContextFields: quickEMF ? [{ key: 'emfAssessment', value: baseData.emfAssessment ?? null }] : [],
+    canCommit,
+    onContextFieldConflict: () => { conflict = true; },
+  });
+  if (!saved) {
+    if (revoked) throw new AgentDraftConflictError('Context editing authorization changed. No change was applied.');
+    if (conflict) throw new AgentDraftConflictError('This context card changed. No change was applied. Ask for a new proposal.');
+    throw new Error('Could not save the context change.');
+  }
+  try { if (state.currentProfile === profileId) notifyProfileDataContextChanged(profileId); } catch { /* Storage is already committed. */ }
+  try { if (state.currentProfile === profileId && state.importedData === origin) editor?.refreshLifestyleFormAfterContextChange(proposal.card); } catch { /* Storage is already committed; keep any newer draft. */ }
+  return `${agentContextCardModel(proposal.card).title} updated.`;
 }
 
-export async function applyAgentDraft(draft: DraftReader | null | undefined) {
+export async function applyAgentDraft(draft: DraftReader | null | undefined, originCurrent: () => boolean = () => true) {
+  const authorization = captureChatControlAuthorization(draft?.id); authorization.assert();
   if (!draft || draft.status !== 'pending') throw new Error('This proposal is no longer pending.');
   const activeProfileId = getActiveProfileId();
   if (!draft.profileId || draft.profileId !== activeProfileId) {
     throw new Error('Switch back to the profile where this proposal was created before applying it.');
   }
-  if (draft.kind === 'note') return applyNote(draft.payload as DraftPayload, activeProfileId);
-  if (draft.kind === 'meal') return applyMeal(draft.payload as DraftPayload);
-  if (draft.kind === 'biometric') return applyBiometric(draft.payload as DraftPayload, activeProfileId);
-  if (draft.kind === 'supplement') return applySupplement(draft.payload as DraftPayload, activeProfileId);
-  throw new Error('This proposal type is not supported.');
+  if (isLegacyAgentDraft(draft)) throw Object.assign(new Error('This older proposal requires a refreshed exact review before Apply. Nothing was changed.'), { noChangeApplied: true, requiresReview: true });
+  const scope = captureChatTurnScope(activeProfileId, originCurrent);
+  const canCommit = () => authorization.current() && scope.current();
+  if (!canCommit()) throw new AgentDraftConflictError('The originating conversation or review changed. Ask for a fresh proposal. No change was applied.');
+  let result: string;
+  if (draft.kind === 'data') result = await applyAgentDataProposal(draft.payload, activeProfileId, canCommit);
+  else if (draft.kind === 'context') result = await applyContext(draft.payload, activeProfileId, canCommit);
+  else throw new Error('This proposal type is not supported.');
+  // Publishing saved data must neither destroy an open editor's draft nor turn
+  // an already committed operation into a failed Apply.
+  try {
+    if (scope.current() && typeof document !== 'undefined' && document.getElementById('main-content')
+      && !document.querySelector('#main-content form, #main-content [contenteditable="true"]')
+      && !document.querySelector('dialog[open], .modal-overlay.show')
+      && ![...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some(dialog => !dialog.closest('#chat-panel') && dialog.getClientRects().length)) refreshDataViewRuntime();
+  } catch { /* The domain commit is authoritative. */ }
+  return result;
 }

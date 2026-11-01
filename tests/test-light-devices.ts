@@ -46,15 +46,21 @@ const {
   resolveDeviceMode,
 } = sessionEngine;
 
-  const orig = state.importedData;
-  function reset(seed = {}) {
+  const orig = state.importedData, originalProfile = state.currentProfile;
+  state.currentProfile = 'light-device-canonical-fixture';
+  const { saveImportedData } = await import('../js/data.js');
+  const { encryptedSetItem } = await import('../js/crypto.js');
+  const { profileStorageKey } = await import('../js/profile.js');
+  async function reset(seed = {}) {
     (state as { importedData: unknown }).importedData = Object.assign({ entries: [] }, seed);
+    await encryptedSetItem(profileStorageKey(state.currentProfile, 'imported'), JSON.stringify(state.importedData));
+    assert('fixture seed saves canonically', await saveImportedData() === true);
   }
 
   // ─── 1. Lazy init ────────────────────────────────────────────────────
   console.log('%c 1. Lazy init ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   assert('getDevices lazily initializes empty list',
     Array.isArray(getDevices()) && getDevices().length === 0);
   assert('getDeviceSessions lazily initializes empty list',
@@ -273,7 +279,7 @@ const {
   // ─── 2b. addCustomDevice owner path ─────────────────────────────────
   console.log('%c 2b. addCustomDevice ', 'font-weight:bold;color:#f59e0b');
 
-  reset({ lightDevices: [], deviceSessions: [] });
+  await reset({ lightDevices: [], deviceSessions: [] });
   const addedCustom = await addCustomDevice({
     brand: 'Bench',
     model: 'Hybrid',
@@ -303,7 +309,7 @@ const {
   // ─── 3. deleteDevice ─────────────────────────────────────────────────
   console.log('%c 3. deleteDevice ', 'font-weight:bold;color:#f59e0b');
 
-  (state as { importedData: unknown }).importedData = { entries: [], lightDevices: [dPulse, dCustom], deviceSessions: [] };
+  await reset({ entries: [], lightDevices: [dPulse, dCustom], deviceSessions: [] });
   const removed = await deleteDevice(dCustom.id);
   assert('deleteDevice → true on hit', removed === true);
   assert('Device removed from list', getDevices().length === 1);
@@ -371,7 +377,7 @@ const {
   // ─── 7. rollingDeviceTotals ──────────────────────────────────────────
   console.log('%c 7. rollingDeviceTotals ', 'font-weight:bold;color:#f59e0b');
 
-  reset();
+  await reset();
   // Two sessions in window, one outside
   const inWindow1 = {
     id: 'd1', deviceId: 'X',
@@ -483,7 +489,7 @@ const {
       peakWavelengths: [660], mwPerCm2At15cm: 50,
       recommendedDistanceCm: 30, peakShares: [1.0],
     };
-    (state as { importedData: unknown }).importedData = { lightDevices: [distDevice], deviceSessions: [] };
+    await reset({ lightDevices: [distDevice], deviceSessions: [] });
     await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 30, bodyArea: 'torso', eyesProtected: true });
     await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
     await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 5, bodyArea: 'torso', eyesProtected: true });
@@ -515,7 +521,7 @@ const {
       peakWavelengths: [660], mwPerCm2At15cm: 50,
       recommendedDistanceCm: 15, peakShares: [1.0],
     };
-    (state as { importedData: unknown }).importedData = { lightDevices: [ephemeral], deviceSessions: [] };
+    await reset({ lightDevices: [ephemeral], deviceSessions: [] });
     await logDeviceSession({ deviceId: 'D-ephemeral', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
     const sessId = (state.importedData.deviceSessions as FixtureSessionRead[] | undefined)![0]?.id;
     assert('logDeviceSession persists session with deviceId reference',
@@ -574,7 +580,7 @@ const {
       ],
       coupling: [{ if: 'uv-blue', requires: ['red-nir'] }],
     };
-    (state as { importedData: unknown }).importedData = { lightDevices: [maxiDevice], deviceSessions: [] };
+    await reset({ lightDevices: [maxiDevice], deviceSessions: [] });
 
     // 1. Log session without explicit mode → resolves to default 'all-on'
     await logDeviceSession({
@@ -633,7 +639,7 @@ const {
       peakWavelengths: [660, 850], mwPerCm2At15cm: 100,
       recommendedDistanceCm: 15, peakShares: [0.5, 0.5],
     };
-    (state as { importedData: unknown }).importedData = { lightDevices: [pbmDevice], deviceSessions: [] };
+    await reset({ lightDevices: [pbmDevice], deviceSessions: [] });
     await logDeviceSession({
       deviceId: 'D-pbm-test', durationMin: 5, distanceCm: 15, bodyArea: 'torso', eyesProtected: true,
     });
@@ -660,7 +666,7 @@ const {
   // no-op since fields are now present.
   console.log('%c hydrateDevicesFromPresets backfill ', 'font-weight:bold;color:#f59e0b');
   {
-    (state as { importedData: unknown }).importedData = { lightDevices: [], deviceSessions: [] };
+    await reset({ lightDevices: [], deviceSessions: [] });
     // Add a Maxi UVB then strip the Round-7 fields, simulating a device
     // record persisted to localStorage before the schema additions.
     await addDeviceFromPreset('mitochondriak-maxi-uvb');
@@ -702,7 +708,7 @@ const {
   // the boot-time hydration migration to fire.
   console.log('%c addDeviceFromPreset copies Round-7 schema ', 'font-weight:bold;color:#f59e0b');
   {
-    (state as { importedData: unknown }).importedData = { lightDevices: [], deviceSessions: [] };
+    await reset({ lightDevices: [], deviceSessions: [] });
     await addDeviceFromPreset('mitochondriak-maxi-uvb');
     const fresh = (state.importedData.lightDevices as FixtureDeviceRead[] | undefined)![0];
     assert('Fresh-add: device carries `modes` immediately',
@@ -717,6 +723,7 @@ const {
     assert('Fresh-add: non-moded bulb preset has null modes',
       bulb!.modes === null);
     (state as { importedData: unknown }).importedData = orig;
+  state.currentProfile = originalProfile;
   }
 
   // ─── Runtime adapter ownership ─────────────────────────────────────

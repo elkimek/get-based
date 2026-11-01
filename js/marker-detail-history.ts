@@ -3,10 +3,14 @@ import type { LabEntry, MarkerProvenance } from '../types/lab-data.js';
 
 // marker-detail-history.js — per-result collection context and provenance
 
+import { labPanelId } from './lab-panel-identity.js';
+import { convertCanonicalToDisplay } from './unit-profiles.js';
+import type { MarkerModalPoint } from '../types/marker-detail-modal-impl.js';
 import {captureMarkerDetailText} from './marker-detail-projection.js';
 
-export function buildMarkerHistoryMetadata(entry: Pick<LabEntry, 'context' | 'sourceFile'> | null | undefined, source: MarkerProvenance | null | undefined, rawDate: unknown): { collection: HistoryCollection|null; sources: readonly HistorySource[] } {
+export function buildMarkerHistoryMetadata(entry: (Pick<LabEntry, 'context' | 'sourceFile'> & { specimen?: unknown }) | null | undefined, source: MarkerProvenance | null | undefined, rawDate: unknown): { collection: HistoryCollection|null; sources: readonly HistorySource[] } {
   const collectionContextParts: string[] = [];
+  if (entry && Object.hasOwn(entry, 'specimen') && typeof entry.specimen === 'string' && entry.specimen.trim()) collectionContextParts.push(entry.specimen.trim());
   if (entry?.context?.sampleTime) collectionContextParts.push(`Collected ${entry.context.sampleTime}`);
   if (entry?.context?.fasting === true) collectionContextParts.push('fasting');
   else if (entry?.context?.fasting === false) collectionContextParts.push('not fasting');
@@ -44,4 +48,13 @@ export function buildMarkerHistoryMetadata(entry: Pick<LabEntry, 'context' | 'so
     }
   }
   return { collection, sources };
+}
+
+// Charts retain their date projection. History selects every actual same-day sample.
+export function markerHistorySamplePoints(points: MarkerModalPoint[], dates: string[], entries: LabEntry[], markerKey: string, unitSystem: unknown, canonicalUnit: string | null) {
+  return points.flatMap<MarkerModalPoint & { entry: LabEntry | undefined; panelId: string | undefined; multipleSamples: boolean; sampleIndex: number }>(point => {
+    const rows = entries.filter(entry => entry.date === dates[point.i] && typeof entry.markers?.[markerKey] === 'number' && Number.isFinite(entry.markers[markerKey]));
+    return rows.length ? rows.map((entry, sampleIndex) => ({ ...point, v: convertCanonicalToDisplay(markerKey, entry.markers![markerKey]!, unitSystem, canonicalUnit), entry, panelId: labPanelId(entry), multipleSamples: rows.length > 1, sampleIndex }))
+      : [{ ...point, entry: undefined, panelId: undefined, multipleSamples: false, sampleIndex: 0 }];
+  });
 }

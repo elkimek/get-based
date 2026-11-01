@@ -12,7 +12,7 @@ import { configureBiologyScoreContextAIDeps } from './biology-score-context-runt
 import './biology-score-navigation.js';
 import { closeChangelog } from './changelog.js';
 import { configureCategoryCustomizationRuntimeDeps } from './category-customization-runtime.js';
-import { configureCategoryPageViewDeps } from './category-page-view.js';
+import { configureCategoryPageViewDeps } from './category-page-runtime.js';
 import {
   askAIAboutCorrelations,
   askAIAboutMarker,
@@ -142,7 +142,7 @@ import {
   discussRecommendation,
   saveRecommendation,
   toggleDashboardOrganizeMode,
-} from './views-runtime.js';
+} from './navigation-views.js';
 import { configureViewsRouterRuntimeDeps } from './views-router-runtime.js';
 import { openProfileShareModal } from './profile-share-loader.js';
 import {
@@ -160,12 +160,9 @@ import {
   refreshProfileWearables,
   reloadProfileRuntimeShell,
 } from './profile-runtime.js';
-import {
-  deleteProfileFromRelay,
-  onChatSaved,
-  onProfileSaved,
-  pushContextToGateway,
-} from './sync.js';
+import { deleteProfileFromRelay } from './sync-tombstones.js';
+import { onChatSaved, onProfileSaved } from './sync-save-hooks.js';
+import { pushContextToGateway } from './sync-messenger.js';
 import { configureRecommendationsRuntime } from './recommendations-runtime.js';
 import {
   configureShellChatActionDeps,
@@ -177,7 +174,7 @@ import { switchSettingsAIProvider as switchAIProviderBridge } from './settings-r
 import { configureStartupUIDeps, configureStartupNavigationCompletion } from './startup-ui.js';
 import { configureStartupProfileDeps } from './startup-profile.js';
 import { configureStartupOAuthCallbackDeps } from './startup-oauth-callbacks.js';
-import { configureSyncPull } from './sync-pull.js';
+import { configureSyncPullViewDeps } from './sync-pull-view-runtime.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
 import { configureSupplementsRuntimeDeps } from './supplements-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
@@ -384,7 +381,7 @@ configureStartupNavigationCompletion({
 });
 configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });
-configureSyncPull({ renderProfileButton, reconcilePulledManualWearables });
+configureSyncPullViewDeps({ renderProfileButton, reconcilePulledManualWearables });
 configureSyncPullActiveRefreshDeps({
   buildSidebar,
   ensureActiveThread: ensureActiveThreadIfLoaded,

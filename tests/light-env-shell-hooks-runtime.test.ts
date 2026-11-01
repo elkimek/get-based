@@ -5,7 +5,7 @@ const MOCKED_MODULES = [
   '../js/light-sun-loader.js',
   '../js/modal-lifecycle.js',
   '../js/nav.js',
-  '../js/views-runtime.js',
+  '../js/navigation-views.js',
 ];
 
 afterEach(() => {
@@ -43,7 +43,7 @@ describe('Light environment shell hooks', () => {
         navActions = actions;
       },
     }));
-    vi.doMock('../js/views-runtime.js', () => ({ navigate }));
+    vi.doMock('../js/navigation-views.js', () => ({ navigate }));
 
     await import('../js/light-env-shell-hooks.js');
 

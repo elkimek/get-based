@@ -3,6 +3,7 @@
 import { listAgentExecutionTargets, streamAgentTurn, uploadAgentImage } from './agent-chat-client.js';
 import { connectDetectedAgent, getAgentHostAgent, getAgentHostEffort, getAgentHostEndpoint, getAgentHostTarget, getAgentHostToken } from './agent-chat-settings.js';
 import { AGENT_HOST_CAPABILITIES, AGENT_HOST_MAX_PROMPT_CHARS } from '../shared/agent-host-protocol.js';
+import { getCachedAgentModelCatalog, resolveAgentFeatureEffort, resolveAgentModel } from './agent-model-catalog.js';
 
 export interface CodexFeatureOptions {
   files?: Blob[] | undefined;
@@ -14,6 +15,8 @@ export interface CodexFeatureOptions {
   instructions?: string | undefined;
   consentKind?: string | undefined;
   onStream?: ((text: string) => void) | undefined;
+  requestCurrent?: (() => boolean) | undefined;
+  execution?: { agent: string; target: string; endpoint: string } | undefined;
 }
 
 type JsonSchema = Record<string, unknown>;
@@ -92,13 +95,24 @@ export async function callCodexFeature(options: CodexFeatureOptions) {
   if (options.prompt.trim().length > AGENT_HOST_MAX_PROMPT_CHARS) throw new Error('This AI request exceeds the Companion’s size limit. Split the assessment into smaller groups and retry.');
   const files = Array.isArray(options.files) ? options.files : [];
   if (files.length > 4) throw new Error('The CLI companion can analyze up to 4 images or rendered PDF pages at once. Split this import into smaller files.');
-  const target = getAgentHostTarget();
-  const agent = getAgentHostAgent();
-  const effort = featureReasoningEffort(agent, options.effort ?? getAgentHostEffort());
+  const target = options.execution?.target ?? getAgentHostTarget();
+  const agent = options.execution?.agent ?? getAgentHostAgent();
+  const assertCurrent = () => { options.signal?.throwIfAborted(); if (options.requestCurrent?.() === false) throw new DOMException('The feature request recipient or owner changed.', 'AbortError'); };
+  assertCurrent();
+  const models = getCachedAgentModelCatalog(agent, target);
+  const configured = featureReasoningEffort(agent, getAgentHostEffort()) ?? '';
+  const hint = featureReasoningEffort(agent, options.effort);
+  // Keep native CLI enum normalization when no model metadata is available;
+  // otherwise resolve against this exact agent/target/model's advertised scale.
+  const effort = CLI_EFFORT_AGENTS.has(agent) && !resolveAgentModel(options.model, models)
+    ? hint ?? configured
+    : resolveAgentFeatureEffort(hint, configured, options.model, models);
   const outputSchema = strictOutputSchema(options.outputSchema);
   if (target !== 'local' && files.length) throw new Error('This gateway supports text explanations. Choose Local CLI for image imports.');
-  await connectDetectedAgent(agent, {
+  const connected = await connectDetectedAgent(agent, {
     signal: options.signal,
+    ...(options.execution ? { persistConnection: false, requiredEndpoint: options.execution.endpoint } : {}),
+    isCurrent: options.requestCurrent,
     requiredTextFeatureTarget: target === 'local' ? undefined : target,
     requiredCapabilities: [
       AGENT_HOST_CAPABILITIES.CHAT_STREAM,
@@ -107,8 +121,10 @@ export async function callCodexFeature(options: CodexFeatureOptions) {
       ...(options.outputSchema ? [AGENT_HOST_CAPABILITIES.STRUCTURED_OUTPUT] : []),
     ],
   });
-  const endpoint = getAgentHostEndpoint();
-  const token = getAgentHostToken();
+  assertCurrent();
+  const endpoint = options.execution ? connected.endpoint : getAgentHostEndpoint();
+  const token = options.execution ? connected.token : getAgentHostToken();
+  if (options.execution && endpoint !== options.execution.endpoint) throw new DOMException('The feature connection changed before sending.', 'AbortError');
   if (!token) throw new Error('The selected agent is not connected.');
   if (target !== 'local') {
     const targets = await listAgentExecutionTargets({ endpoint, token, agent, signal: options.signal });
@@ -117,14 +133,17 @@ export async function callCodexFeature(options: CodexFeatureOptions) {
     }
   }
   const { requireAIProcessingApproval } = await import('./cloud-ai-consent.js');
+  assertCurrent();
   await requireAIProcessingApproval(target === 'local' ? 'codex-agent' : 'personal-agent-gateway', { kind: options.consentKind || (files.length ? 'meal-photo' : 'text'), modelId: options.model });
-  const imageUploadIds = await Promise.all(files.map(file => uploadAgentImage({
+  assertCurrent();
+  const imageUploadIds = await Promise.all(files.map(file => { assertCurrent(); return uploadAgentImage({
     endpoint,
     token,
     file,
     signal: options.signal,
-  })));
+  }); }));
 
+  assertCurrent();
   return streamAgentTurn({
     endpoint,
     token,

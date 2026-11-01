@@ -2,7 +2,7 @@ import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {expect, test, type BrowserContext, type CDPSession, type Locator, type Page} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {launchTabZoom} from './browser-tab-zoom.js';
 import {nutritionEditorArtifactPaths} from '../helpers/nutrition-loading-feedback-fixture.js';
 import {seedNutritionMealDetail} from '../helpers/nutrition-meal-detail-fixture.js';

@@ -1,7 +1,7 @@
 import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 test.use({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 }, hasTouch: false });
 

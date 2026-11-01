@@ -31,6 +31,8 @@ function observeOwners(): void {
 }
 export interface ChatLiveMessageHandle {
   element: HTMLElement;
+  getText(): string;
+  setToolActivity(activity: import('../shared/chat-tool-activity.js').ChatToolActivity[]): void;
   restore(container: HTMLElement): void;
   detach(): void;
   dispose(): void;
@@ -48,10 +50,10 @@ export function createChatLiveMessage(container: HTMLElement, identity: ChatAvat
   const component = mount(LiveMessage, { target: host, props: { initial, label } });
   flushSync();
   const element = host.querySelector<HTMLElement>('[data-chat-transcript-message]')!;
-  let disposed = false;
+  let disposed = false, latestText = '';
   const owner: LiveOwner = {
     setText(text) {
-      if (!disposed && current()) flushSync(() => component.setText(text));
+      if (!disposed && current()) { latestText = text; flushSync(() => component.setText(text)); }
     },
     complete(message) {
       if (!disposed && current()) flushSync(() => component.complete(projectChatTranscriptMessage(message, -1)));
@@ -75,6 +77,8 @@ export function createChatLiveMessage(container: HTMLElement, identity: ChatAvat
   container.appendChild(host);
   return {
     element,
+    getText: () => latestText,
+    setToolActivity(activity) { if (!disposed && current()) flushSync(() => component.setToolActivity(activity)); },
     restore(next) {
       if (!disposed && current() && !host.isConnected) next.appendChild(host);
     },

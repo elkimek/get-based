@@ -10,6 +10,7 @@ import {renderCorrelationsPage,renderCorrelationsOptions,renderCorrelationsChips
  renderCorrelationNoResults,renderCorrelationsStatus} from './correlations-selection-presentation.js';
 import type {CorrelationPresetView,CorrelationOptionView,CorrelationChipView} from './correlations-selection-presentation.js';
 import { state } from './state.js';
+import { commitNativeCompareDates } from './compare-date-selection.js';
 import { saveCorrelationWorkspace } from './correlation-workspace-store.js';
 import { getSupplementRecordId } from './supplement-medication-domain.js';
 import { CORRELATION_PRESETS, CHIP_COLORS, MARKER_SCHEMA } from './schema.js';
@@ -207,8 +208,8 @@ export function showCompare(data?: CompareData | null) {
   updateCompare();
 }
 
-export function setCompareDate1(value: unknown) { (state as CompareDateState).compareDate1 = value; updateCompare(); }
-export function setCompareDate2(value: unknown) { (state as CompareDateState).compareDate2 = value; updateCompare(); }
+export function setCompareDate1(value: unknown) { commitNativeCompareDates(value, state.compareDate2); updateCompare(); }
+export function setCompareDate2(value: unknown) { commitNativeCompareDates(state.compareDate1, value); updateCompare(); }
 
 export function updateCompare() {
   const data = getActiveData();
@@ -221,14 +222,15 @@ export function updateCompare() {
 }
 
 export function swapCompareDates() {
-  const tmp = state.compareDate1;
-  state.compareDate1 = state.compareDate2;
-  state.compareDate2 = tmp;
+  commitNativeCompareDates(state.compareDate2, state.compareDate1);
+  syncCompareSelectors(); updateCompare();
+}
+
+function syncCompareSelectors() {
   const s1 = (document.getElementById('compare-select-1') as HTMLSelectElement | null);
   const s2 = (document.getElementById('compare-select-2') as HTMLSelectElement | null);
   if (s1) s1.value = state.compareDate1 || '';
   if (s2) s2.value = state.compareDate2 || '';
-  updateCompare();
 }
 
 function compareRangeContextSignature(context: ReturnType<typeof resolveMarkerRangeContext>) {
@@ -467,7 +469,10 @@ export function filterCorrelationOptions() {
 
 export function toggleCorrelationMarker(key: string) {
   const idx = state.selectedCorrelationMarkers.indexOf(key);
-  if (idx !== -1) state.selectedCorrelationMarkers.splice(idx, 1);
+  if (idx !== -1) {
+    state.selectedCorrelationMarkers.splice(idx, 1);
+    state.correlationView.hidden = (state.correlationView.hidden || []).filter(id => id !== key);
+  }
   else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) {
     state.selectedCorrelationMarkers.push(key);
     state.correlationView.hidden = (state.correlationView.hidden || []).filter(id => id !== key);
@@ -528,7 +533,11 @@ function canRenderCorrelation() {
 
 export function toggleCorrelationTherapy(id: string) {
   const index = state.selectedCorrelationSupplements.indexOf(id);
-  if (index >= 0) state.selectedCorrelationSupplements.splice(index, 1);
+  if (index >= 0) {
+    state.selectedCorrelationSupplements.splice(index, 1);
+    state.correlationView.hidden = (state.correlationView.hidden || []).filter(key => key !== id);
+    if (state.correlationView.ingredients) delete state.correlationView.ingredients[id];
+  }
   else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) {
     state.selectedCorrelationSupplements.push(id);
     state.correlationView.hidden = (state.correlationView.hidden || []).filter(hiddenId => hiddenId !== id);

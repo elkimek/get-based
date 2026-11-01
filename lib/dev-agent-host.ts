@@ -5,6 +5,7 @@ import type { Readable } from 'node:stream';
 import { execFileSync, spawn as spawnChild } from 'node:child_process';
 import { join } from 'node:path';
 import { prepareAgentHostStorage } from './agent-host-storage.js';
+import { AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
 import {
   detectLocalAgents, findBundledOpenClawExecutable, isLocalAgentSpecEnabled, publicAgentDescriptors,
   normalizeAgentVersion, readCommandJson, LOCAL_AGENT_SPECS,
@@ -23,6 +24,7 @@ export interface DevAgentHostOptions {
   platform?: NodeJS.Platform;
 }
 interface DevHostInfo {
+  toolContractVersion?: number;
   protocolVersion?: number;
   capabilities?: readonly string[];
   companionVersion?: string;
@@ -149,6 +151,7 @@ export function startDevAgentHost(options: DevAgentHostOptions): DevAgentHostCon
       if (!listening || Number(listening[2]) < 1 || Number(listening[2]) > 65535) continue;
       endpoint = listening[1]!;
       hostInfo = {
+        toolContractVersion: AGENT_TOOL_CONTRACT_VERSION,
         protocolVersion: AGENT_HOST_PROTOCOL_VERSION,
         capabilities: AGENT_HOST_CAPABILITY_LIST,
         companionVersion: GETBASED_COMPANION_VERSION,

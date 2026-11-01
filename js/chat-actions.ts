@@ -1,3 +1,6 @@
+import { parseAgentDataPatch } from '../shared/agent-data-contract.js';
+import { captureChatControlAuthorization } from './chat-control-settings.js';
+import { releaseKnowledgeImportFiles } from './knowledge-file-inputs.js';
 // chat-actions.js — message action bar rendering and handlers
 
 import { state } from './state.js';
@@ -15,7 +18,11 @@ import {
 import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runtime.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getMessageAttachments } from './chat-images.js';
+import { stopKnowledgeImport, subscribeKnowledgeImports } from './knowledge-import-jobs.js';
+import { normalizeAgentDataProposal } from '../shared/agent-data-contract.js';
+import { chatDataPatchAllowed, CHAT_NATIVE_UI_NOTICE } from '../shared/chat-control-policy.js';
 import { applyAgentDraft } from './agent-drafts.js';
+import { isLegacyAgentDraft, prepareLegacyAgentDraftReview } from './agent-draft-upgrade.js';
 import { claimAgentDraft } from './agent-draft-claims.js';
 import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
@@ -86,6 +93,11 @@ function containChatMessageEvent(event: Event) {
  * @typedef {Array<{ label: unknown, detail?: unknown }>} ChatContextDisplay
  */
 const pendingDraftActions = new WeakSet<object>();
+subscribeKnowledgeImports(() => { (chatMessageActionDeps.renderChatMessages as (...args: unknown[]) => unknown)(); });
+async function checkSavedAgentDraft(_actionEl: HTMLElement) {
+  showNotification(CHAT_NATIVE_UI_NOTICE, 'info');
+  return true;
+}
 
 async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
   const index = readMessageIndex(actionEl);
@@ -93,23 +105,47 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
   const message = index == null ? null : state.chatHistory[index];
   const draft = message?.agentDrafts?.find(item => item.id === draftId);
   if (!draft || draft.status !== 'pending' || pendingDraftActions.has(draft)) return false;
+  if (apply) { try { captureChatControlAuthorization(draft.id).assert(); } catch (error) { showNotification((error as Error).message, 'info'); return true; } }
   pendingDraftActions.add(draft);
   const profile = state.currentProfile;
   const thread = state.currentThreadId;
   const history = state.chatHistory;
-  const isCurrent = () => profile === state.currentProfile && thread === state.currentThreadId && history === state.chatHistory;
+  const isCurrent = () => profile === state.currentProfile && thread === state.currentThreadId && history === state.chatHistory
+    && state.chatThreads.some(item => item.id === thread)
+    && history.includes(message!) && message!.agentDrafts?.some(item => item === draft) === true;
   const refresh = () => { if (isCurrent()) (chatMessageActionDeps.renderChatMessages as (...args: unknown[]) => unknown)(); };
   let claimAttempted = false;
   let mutationStarted = false;
   let mutationCompleted = false;
   try {
+    if (!isCurrent()) return true;
+    const fileProposal=draft.kind==='data'?normalizeAgentDataProposal(draft.payload):null;
+    if (apply && fileProposal && !chatDataPatchAllowed(fileProposal.resource, fileProposal.operation, parseAgentDataPatch(fileProposal.patch))) throw Object.assign(new Error(CHAT_NATIVE_UI_NOTICE), { noChangeApplied: true });
+    if (apply && isLegacyAgentDraft(draft)) {
+      const original = history.slice(0, index!).findLast(item => item.role === 'user' && !item.auto && !item.hidden && !item.discussionPersonaId);
+      const replacements = await prepareLegacyAgentDraftReview(draft, original?.content || '');
+      if (!isCurrent() || draft.status !== 'pending') return true;
+      const previous = message!.agentDrafts!;
+      draft.status = 'superseded'; previous.push(...replacements); refresh();
+      try {
+        if (!await saveChatHistory()) throw new Error('Could not save the refreshed proposal. Nothing was applied.');
+      } catch (error) {
+        const ids = new Set<string>(replacements.map(item => item.id));
+        for (let offset = previous.length - 1; offset >= 0; offset--) if (ids.has(previous[offset]!.id)) previous.splice(offset, 1);
+        draft.status = 'pending'; throw error;
+      }
+      if (isCurrent()) showNotification('Review the refreshed proposal before applying it. Nothing was changed.', 'info');
+      return true;
+    }
     // Save the still-pending proposal before taking an irreversible claim.
     // The in-memory guard rejects duplicate clicks during this preparatory save.
     // A failure or navigation here leaves no persisted in-flight status.
-    if (!apply) draft.status = 'discarded';
+    if (!apply) {draft.status = 'discarded';if(fileProposal?.resource==='knowledgeImports'){try{releaseKnowledgeImportFiles(fileProposal);}catch{/* No selected source belongs to this invalid proposal. */}}}
     refresh();
     if (!await saveChatHistory()) throw new Error('Could not save the proposal status. No change was applied.');
     if (!isCurrent()) return true;
+    // Saving also retires older overlapping proposals, including stale controls.
+    if (apply && ['superseded'].includes(draft.status)) return true;
     if (!apply) {
       showNotification('Proposed change discarded', 'info');
       return true;
@@ -120,7 +156,7 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
     await claimAgentDraft(profile as string, draftId);
     if (!isCurrent()) { draft.status = 'failed'; return true; }
     mutationStarted = true;
-    const notice = await applyAgentDraft({ ...draft, status: 'pending' });
+    const notice = await applyAgentDraft({ ...draft, status: 'pending' }, () => isCurrent() && draft.status === 'applying');
     mutationCompleted = true;
     draft.status = 'applied';
     draft.appliedAt = new Date().toISOString();
@@ -130,11 +166,15 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
     if (!await saveChatHistory()) throw new Error('The change was saved, but its conversation status could not be saved. Check your data before making another proposal.');
     if (isCurrent()) showNotification(notice, 'success');
   } catch (error) {
+    const contextConflict = error instanceof Error && 'noChangeApplied' in error && error.noChangeApplied === true;
     // Mutators can fail after a partial commit. Keep ambiguous outcomes out of
     // the retry path; the durable applying claim provides the same protection.
-    draft.status = mutationCompleted ? 'applied' : claimAttempted ? 'failed' : 'pending';
+    draft.status = error instanceof Error && 'cancelledBeforeSave' in error && error.cancelledBeforeSave === true ? 'discarded' : contextConflict ? 'conflict' : mutationCompleted ? 'applied' : claimAttempted ? 'failed' : 'pending';
+    if (contextConflict && isCurrent()) {
+      try { await saveChatHistory(); } catch { /* The durable claim still prevents another apply. */ }
+    }
     if (isCurrent()) {
-      showNotification(mutationStarted
+      showNotification(mutationStarted && !contextConflict
         ? 'Check your data before trying this change again. The proposal could not be fully confirmed.'
         : error instanceof Error ? error.message : 'The proposal status could not be saved.', 'error');
     }
@@ -155,7 +195,17 @@ function runChatMessageAction(actionEl: HTMLElement, event: Event) {
     return true;
   }
 
-  if (action === 'regenerate-last-message') {
+  if (action === 'apply-app-control' || action === 'discard-app-control' || action === 'undo-app-control') {
+    if (!actionEl.closest('[data-chat-message-actions-view]')) return false;
+    const index = readMessageIndex(actionEl), id = actionEl.dataset.chatControlId;
+    if (index == null || !id) return false;
+    const current = () => isChatMessageActionCurrent(actionEl);
+    void import('./chat-app-controls.js').then(module => {
+      if (!current()) return;
+      return module.handleChatAppControl(index, id, action === 'apply-app-control' ? 'apply' : action === 'undo-app-control' ? 'undo' : 'discard',
+        () => (chatMessageActionDeps.renderChatMessages as () => void)());
+    }).catch(() => showNotification('The app control could not be opened. Check Display settings.', 'error'));
+  } else if (action === 'regenerate-last-message') {
     regenerateLastMessage();
   } else if (action === 'copy-message') {
     const index = readMessageIndex(actionEl);
@@ -195,6 +245,9 @@ function runChatMessageAction(actionEl: HTMLElement, event: Event) {
     (chatMessageActionDeps.openImageLightbox as (...args: unknown[]) => unknown)(src);
   } else if (action === 'open-emf-assessment') {
     void (chatMessageActionDeps.openEMFAssessmentEditor as (...args: unknown[]) => unknown)();
+  } else if (action === 'open-conversation-result') {
+    if (!(actionEl instanceof HTMLAnchorElement) || !actionEl.closest('#chat-messages')) return false;
+    void import('./conversation-search.js').then(owner => owner.openConversationSearchLink(actionEl.getAttribute('href') || '')).catch(() => showNotification('This conversation source could not be opened. Search again.', 'info'));
   } else if (action === 'jump-search-result') {
     const index = readMessageIndex(actionEl);
     const threadId = actionEl.dataset.chatMessageThreadId || '';
@@ -236,6 +289,14 @@ function runChatMessageAction(actionEl: HTMLElement, event: Event) {
     void updateAgentDraft(actionEl, true);
   } else if (action === 'discard-agent-draft') {
     void updateAgentDraft(actionEl, false);
+  } else if(action==='preview-knowledge-files'){
+    showNotification(CHAT_NATIVE_UI_NOTICE, 'info');
+  } else if (action === 'stop-knowledge-import') {
+    const index = readMessageIndex(actionEl), draft = index == null ? null : state.chatHistory[index]?.agentDrafts?.find(item => item.id === actionEl.dataset.chatMessageDraftId);
+    const proposal = draft?.kind === 'data' && ['pending','applying'].includes(String(draft.status)) ? normalizeAgentDataProposal(draft.payload) : null;
+    if (proposal?.resource === 'knowledgeImports') stopKnowledgeImport(proposal);
+  } else if (action === 'check-agent-draft') {
+    void checkSavedAgentDraft(actionEl);
   } else {
     return false;
   }

@@ -14,6 +14,7 @@ export interface MtDnaPreviewView {
   readonly matched: string; readonly total: string; readonly coupling: MtDnaPreviewCouplingView | null;
   readonly mismatch: MtDnaPreviewMismatchView | null;
   readonly cancelAction: 'close-mtdna-preview'; readonly importAction: 'confirm-mtdna-import'; readonly actionHaplogroup: string;
+  readonly restoration: boolean;
 }
 const text = (value: unknown): string => value == null ? '' : String(value);
 function action<Action extends 'close-mtdna-preview' | 'confirm-mtdna-import'>(name: Action): Action {
@@ -23,7 +24,7 @@ function action<Action extends 'close-mtdna-preview' | 'confirm-mtdna-import'>(n
 }
 /** Capture original template reads/coercions once before authored children consume the view. */
 export function projectMtDnaImportPreview(resolved: PendingMtDnaImport['resolved'], coupling: PendingMtDnaImport['coupling'],
-  mutations: readonly MtDnaMutation[], fileName: string, mismatch: Mismatch): MtDnaPreviewView {
+  mutations: readonly MtDnaMutation[], fileName: string, mismatch: Mismatch, restoration = false): MtDnaPreviewView {
   const markerCount = `${mutations.length}`, source = text(fileName), haplogroup = text(resolved.haplogroup);
   const matched = `${resolved.matchedMutations}`, total = `${resolved.totalDiagnostic}`;
   const couplingView = coupling ? {label: text(coupling.label), climate: text(coupling.climate), description: text(coupling.description)} : null;
@@ -38,10 +39,10 @@ export function projectMtDnaImportPreview(resolved: PendingMtDnaImport['resolved
   const cancelAction = action('close-mtdna-preview'), importAction = action('confirm-mtdna-import');
   const actionHaplogroup = text(resolved.haplogroup);
   return {markerCount, fileName: source, haplogroup, matched, total, coupling: couplingView, mismatch: mismatchView,
-    cancelAction, importAction, actionHaplogroup};
+    cancelAction, importAction, actionHaplogroup, restoration};
 }
 /** Stable public synchronous serializer; ordinary UI values remain literal data. */
 export function renderMtDnaImportPreview(resolved: PendingMtDnaImport['resolved'], coupling: PendingMtDnaImport['coupling'],
-  mutations: readonly MtDnaMutation[], fileName: string, mismatch: Mismatch): string {
-  return renderHTML({view: projectMtDnaImportPreview(resolved, coupling, mutations, fileName, mismatch)});
+  mutations: readonly MtDnaMutation[], fileName: string, mismatch: Mismatch, restoration = false): string {
+  return renderHTML({view: projectMtDnaImportPreview(resolved, coupling, mutations, fileName, mismatch, restoration)});
 }

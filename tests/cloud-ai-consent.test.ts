@@ -346,6 +346,20 @@ describe('AI transparency and route-aware approval', () => {
     await pending;
   });
 
+  it('previews another CLI recipient without selecting it and saves approval for that exact adapter', async () => {
+    seedTransparency(); localStorage.setItem('labcharts-agent-host-agent', 'codex');
+    const details = cloudAIConsentDetails('codex-agent', { agentId: 'hermes', modelId: 'target-model' });
+    expect(details.scope).toBe('cli-agent:hermes:target-model');
+    const pending = requestAIProcessingApproval('codex-agent', { kind: 'connection-selection', agentId: 'hermes', modelId: 'target-model' });
+    const { overlay, checkbox, approve } = decisionControls('cloud-ai-consent-overlay');
+    expect(overlay?.textContent).toContain('Selecting a connection sends no conversation content');
+    expect(overlay?.textContent).not.toContain('connection check succeeded');
+    expect(localStorage.getItem('labcharts-agent-host-agent')).toBe('codex');
+    checkbox!.checked = true; checkbox!.dispatchEvent(new Event('change')); approve!.click(); expect(await pending).toBe(true);
+    expect(hasCloudAIConsent('codex-agent', { agentId: 'hermes', modelId: 'target-model' })).toBe(true);
+    expect(hasCloudAIConsent('codex-agent', { agentId: 'codex', modelId: 'target-model' })).toBe(false);
+  });
+
   it('accurately scopes an automatic request and persists provider approval', async () => {
     seedTransparency();
     const pending = requestAIProcessingApproval('ppq', { kind: 'automatic-insight' });

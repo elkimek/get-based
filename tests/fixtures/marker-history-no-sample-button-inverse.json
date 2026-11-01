@@ -1,0 +1,14 @@
+[
+  {
+    "file": "js/marker-detail-modal-impl.ts",
+    "currentSHA256": "f3c2a1cf9e70e21d8d77eef1c70c49dad68e864049dd4bc42cdb0db1d624f42f",
+    "restoredSHA256": "aba4edbcb2a8354622550b3eabf85a71c2976d0ac579a4bc26e03c3650d08cea",
+    "edits": [
+      {
+        "start": 29056,
+        "before": "    historyRows.push({ kind: \"row\", status: `${s}`, deleteButton: deleteBtn, date: `${dates[i]}${point.multipleSamples ? ` \u00b7 Sample ${point.sampleIndex + 1}` : ''}`, dateNote: noteIcon, source: sourceHtml,\n",
+        "after": "    historyRows.push({ kind: \"row\", sampleActions: point.panelId ? projectMarkerDetailAction('edit-lab-sample', { id, panelId: point.panelId }) : null, status: `${s}`, deleteButton: deleteBtn, date: `${dates[i]}${point.multipleSamples ? ` \u00b7 Sample ${point.sampleIndex + 1}` : ''}`, dateNote: noteIcon, source: sourceHtml,\n"
+      }
+    ]
+  }
+]

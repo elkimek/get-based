@@ -10,8 +10,10 @@ import {
   pickTimestamp,
   getAt,
   setAt,
-  mergeLabEntry,
 } from './data-merge.js';
+import { mergeLabDayRow } from './data-merge-lab-entries.js';
+import { expandLabPanelRows, packLabPanelRows } from './lab-panel-identity.js';
+import { filterRemovedLabPanels } from './lab-panel-deletions.js';
 import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';
@@ -63,9 +65,10 @@ export async function mergeArrayRowsIntoImported(
     if (localList) for (const id of localList) if (typeof id === 'string') localTombs.add(id);
   } catch {}
   const locallyRestored = new Set((options.localItems || []).map(itemIdFn).filter(id => id && committedVersions[id]?.hash === null));
-  const liveById = new Map<string, { item: Record<string, unknown>; ts: number; syncedAt: string; row: DeltaItemRow }>(); // itemId -> { item, ts, syncedAt }
+  const liveById = new Map<string, { item: Record<string, unknown>; ts: number; syncedAt: string; row: DeltaItemRow; wireHash: string }>(); // itemId -> { item, ts, syncedAt }
   const represented=new Map<string,Set<string>>();
-  for (const row of arrRows) {
+  const orderedRows = arrayName === 'entries' ? [...arrRows].sort(compareSyncRows) : arrRows;
+  for (const row of orderedRows) {
     if (row.isDeleted) {
       const prev = remoteTombs.get(row.itemId) || 0;
       remoteTombs.set(row.itemId, Math.max(prev, parseRowSyncedAt(row)));
@@ -80,10 +83,19 @@ export async function mergeArrayRowsIntoImported(
         // secondary tiebreak.
         const ts = pickTimestamp(item);
         const sa = String(row.syncedAt || '');
-        const values=represented.get(row.itemId)??new Set<string>();values.add(syncValueKey(item));represented.set(row.itemId,values);
+        const wireHash = _djb2(JSON.stringify(item));
+        const values = represented.get(row.itemId) ?? new Set<string>();
+        values.add(syncValueKey(item));
+        if (arrayName === 'entries') for (const panel of expandLabPanelRows([item])) values.add(syncValueKey(panel));
+        represented.set(row.itemId, values);
         const cur = liveById.get(row.itemId);
-        if (!cur || ts > cur.ts || (ts === cur.ts && compareSyncRows(row,cur.row)>0)) {
-          liveById.set(row.itemId, { item, ts, syncedAt: sa, row });
+        if (arrayName === 'entries' && cur) {
+          const canonicalRow = compareSyncRows(row, cur.row) > 0 ? row : cur.row;
+          liveById.set(row.itemId, { item: mergeLabDayRow(item, cur.item), ts: Math.max(ts, cur.ts), syncedAt: String(canonicalRow.syncedAt || ''), row: canonicalRow, wireHash: canonicalRow === row ? wireHash : cur.wireHash });
+          continue;
+        }
+        if (!cur || ts > cur.ts || (ts === cur.ts && compareSyncRows(row, cur.row) > 0)) {
+          liveById.set(row.itemId, { item, ts, syncedAt: sa, row, wireHash });
         }
       }
     } catch {}
@@ -98,6 +110,10 @@ export async function mergeArrayRowsIntoImported(
     if (locallyRestored.has(itemId) && (tombAt == null || tombAt <= committed!.clock)) return false;
     if (committed?.hash === null && committed.clock >= pickTimestamp(item)) return true;
     if (tombAt == null) return false;
+    // A profile envelope may be echoed before its tombstone row arrives. Its
+    // newer clock cannot restore this exact previously acknowledged value.
+    if (committed?.hash && tombAt >= committed.clock
+        && committed.hash === _djb2(JSON.stringify(item))) return true;
     const canonicalBlobAt = baselineItemIds.has(itemId) ? baselineSyncedAt : 0;
     return tombAt >= Math.max(pickTimestamp(item), canonicalBlobAt);
   };
@@ -114,6 +130,7 @@ export async function mergeArrayRowsIntoImported(
   // Apply tombstones (drop) + live (replace or insert). Both sides key on
   // itemIdFn so changeHistory finds existing entries by synthesized id.
   let nextArr = curArr.filter(it => !tombstoneWinsOverItem(itemIdFn(it), it));
+  if (arrayName === 'entries') nextArr = packLabPanelRows(nextArr);
   // Dedup `nextArr` by itemIdFn before the liveById overlay. Keep the first
   // occurrence; the live overlay below will replace it with relay-authority.
   const seen = new Map<string, number>();
@@ -134,11 +151,19 @@ export async function mergeArrayRowsIntoImported(
   for (const [itemId, entry] of liveById) {
     // Honour blob tombstones seeded above.
     if (tombstoneWinsOverLiveRow(itemId, entry)) continue;
-    const item = entry.item;
+    const item = arrayName === 'entries' ? packLabPanelRows(expandLabPanelRows([entry.item]).filter(panel => !tombstoneWinsOverLiveRow(itemId, { ts: pickTimestamp(panel), syncedAt: entry.syncedAt, row: entry.row })))[0] : entry.item;
+    if (!item) continue;
     const idx = seen.get(itemId);
     if (idx !== undefined) {
+      const receipt = committedVersions[itemId] ?? legacyVersions[itemId];
+      const newerCommitted = receipt?.hash === _djb2(JSON.stringify(nextArr[idx]))
+        && parseRowSyncedAt(entry.row) > receipt.clock;
       if (arrayName === 'entries') {
-        nextArr[idx] = mergeLabEntry(nextArr[idx] as LabEntryDraft, item as LabEntryDraft);
+        const committedLocal = represented.get(itemId)?.has(syncValueKey(nextArr[idx]))
+          || expandLabPanelRows([nextArr[idx]!]).every(panel => represented.get(itemId)?.has(syncValueKey(panel)));
+        nextArr[idx] = committedLocal || newerCommitted
+          ? mergeLabDayRow(item as LabEntryDraft, nextArr[idx] as LabEntryDraft)
+          : mergeLabDayRow(nextArr[idx] as LabEntryDraft, item as LabEntryDraft);
         continue;
       }
       // The blob merge may already contain a fresh local edit that has not
@@ -148,9 +173,6 @@ export async function mergeArrayRowsIntoImported(
         // Preserve an unrepresented local edit while its query catches up.
         // When both conflicting committed values are present, use the same
         // canonical row on every device instead of preserving each local tie.
-        const receipt = committedVersions[itemId] ?? legacyVersions[itemId];
-        const newerCommitted = receipt?.hash === _djb2(JSON.stringify(nextArr[idx]))
-          && parseRowSyncedAt(entry.row) > receipt.clock;
         if (compareRecordFreshness(item, nextArr[idx]) < 0
             || (!represented.get(itemId)?.has(syncValueKey(nextArr[idx])) && !newerCommitted)) continue;
       }
@@ -158,7 +180,7 @@ export async function mergeArrayRowsIntoImported(
     }
     else nextArr.push(item);
   }
-  writeArr(nextArr);
+  writeArr(arrayName === 'entries' ? filterRemovedLabPanels(expandLabPanelRows(nextArr), imported.labPanelTombstones) : nextArr);
   // Re-apply COMPOSITE_KEYED_ARRAYS cap after the per-row overlay. v4 cutover
   // skips the blob merge entirely, so changeHistory needs this cap here.
   const cap = COMPOSITE_KEYED_ARRAYS.find(c => c.path === arrayName)?.cap;
@@ -168,12 +190,13 @@ export async function mergeArrayRowsIntoImported(
     writeArr(trimmed.slice(0, cap));
   }
   const presentIds = new Set<string>();
-  for (const item of readArr()) {
+  const acknowledgedItems = arrayName === 'entries' ? packLabPanelRows(readArr()) : readArr();
+  for (const item of acknowledgedItems) {
     const id = itemIdFn(item), entry = id ? liveById.get(id) : null;
     if (id) presentIds.add(id);
     if (!id || !entry || parseRowSyncedAt(entry.row) <= 0 || tombstoneWinsOverLiveRow(id, entry)) continue;
     const hash = _djb2(JSON.stringify(item));
-    if (hash === _djb2(JSON.stringify(entry.item))) options.onVersion?.(id, {hash, clock: parseRowSyncedAt(entry.row)});
+    if (hash === entry.wireHash) options.onVersion?.(id, {hash, clock: parseRowSyncedAt(entry.row)});
   }
   for (const [id, clock] of remoteTombs) {
     if (!presentIds.has(id) && clock > 0) options.onVersion?.(id, {hash: null, clock});

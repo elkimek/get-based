@@ -8,9 +8,7 @@ import { runPostProfileStartupMaintenance } from './startup-maintenance.js';
 import { installGlobalEventListeners, registerAppRefreshCallback } from './app-event-listeners.js';
 import { showNotification } from './utils.js';
 import { restorePendingImportReviewDraft } from './import-loader.js';
-import { configureSyncLifecycleDeps } from './sync.js';
-import { configureSyncModules } from './sync-configure.js';
-import { disableSync, enableSync, pauseSync } from './sync-lifecycle.js';
+import { configureStartupSync } from './sync-startup.js';
 import { runAppExtensionStartup } from './app-extension-runtime.js';
 
 let appStarted = false;
@@ -51,16 +49,12 @@ function handleStartupSequenceError(error: unknown) {
   showNotification('Startup failed. Try reloading the app.', 'error', 6000);
 }
 
-function configureSyncComposition() {
-  configureSyncLifecycleDeps({ enableSync, disableSync, pauseSync });
-  configureSyncModules({ enableSync });
-}
 
 export function startApp() {
   if (appStarted) return;
   appStarted = true;
 
-  configureSyncComposition();
+  configureStartupSync();
   installGlobalEventListeners();
   registerAppRefreshCallback();
 

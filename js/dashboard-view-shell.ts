@@ -27,11 +27,20 @@ export function createProductionDashboardShell(deps: Parameters<Factory>[0], pub
   } = deps;
   const captured = {navigate, showRecommendations, showEmojiPicker, renderFocusCard, loadFocusCard,
     projectOnboardingBanner, projectAIConnectionReminder};
-  const quickMarkers = createDashboardQuickMarkerCore(() => {
+  const quickMarkerCore = createDashboardQuickMarkerCore(() => {
     if (state.currentView === 'dashboard') navigateViewportRuntime('dashboard');
   });
-  const gate = createOwnedCompositionGate(loadDashboardComposition,
-    module => module.createDashboardViewComposition(captured, {quickMarkers, deferRuntimeWiring: true}), publish);
+  const quickMarkers = { ...quickMarkerCore, toggleDashboardQuickMarkerPin: (id: unknown) => { void quickMarkerCore.toggleDashboardQuickMarkerPinGuarded(id); } };
+  let focusCardPorts: typeof import('./focus-card.js') | undefined;
+  const gate = createOwnedCompositionGate(
+    async () => {
+      const [module, focus] = await Promise.all([loadDashboardComposition(), import('./focus-card.js')]);
+      return {module, focus};
+    },
+    ({module, focus}) => {
+      focusCardPorts = focus;
+      return module.createDashboardViewComposition(captured, {quickMarkers, deferRuntimeWiring: true});
+    }, publish);
   const resident = (): View => {
     const view = gate.getResident();
     if (!view) throw new Error('Dashboard body must be prepared before invoking a body port');
@@ -68,5 +77,5 @@ export function createProductionDashboardShell(deps: Parameters<Factory>[0], pub
     ensureActiveDeviceTicker: ensureLoadedActiveDeviceTicker,
     resumeActiveTickerIfNeeded: resumeLoadedActiveSunTickerIfNeeded,
   });
-  return {...gate, showEmptyDashboard: emptyPage.showDashboard, quickMarkers};
+  return {...gate, getFocusCardPorts: () => focusCardPorts, showEmptyDashboard: emptyPage.showDashboard, quickMarkers};
 }

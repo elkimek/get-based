@@ -72,6 +72,7 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         lightCircadian: { skinType: 'IV olive' },
       };
       data.invalidateActiveDataCache();
+      if (!await data.saveImportedDataForProfile(state.currentProfile, state.importedData, { forceProfileScope: true })) throw new Error('Native Sun fixture seed failed');
 
       store.configureSunSessionsStore({
         commitCurrentSlice: (sess:unknown) => depCalls.push(['commit', (sess as {id?:unknown}).id]),
@@ -156,7 +157,7 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         && resumedState
         && rotatedState
         && spfAfter30 === 30
-        && spfAfterZero === null
+        && spfAfterZero === 0
         && invalidSpf === null
         && covered?.bodyExposure?.regions?.join(',') === 'face,arms-front'
         && depCalls.filter(call => call[0]! === 'commit').length >= 3
@@ -355,6 +356,7 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
         sunSessions: [],
       };
       data.invalidateActiveDataCache();
+      if (!await data.saveImportedDataForProfile(state.currentProfile, state.importedData, { forceProfileScope: true })) throw new Error('Native Sun fixture seed failed');
       store.configureSunSessionsStore({
         commitCurrentSlice: () => {},
         setLiveState: () => {},

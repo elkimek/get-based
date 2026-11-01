@@ -9,6 +9,8 @@ import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';
 import { _readDeltaSnapshot, readArrayVersions } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
+import { packLabPanelRows } from './lab-panel-identity.js';
+import type { LabEntryDraft } from './lab-entry.js';
 
 interface ArrayDeltaOptions { explicitTombstoneIds?: readonly unknown[] | undefined }
 
@@ -20,6 +22,7 @@ export async function _planArrayDelta(
   { explicitTombstoneIds = [] }: ArrayDeltaOptions = {},
 ): Promise<DeltaPlan> {
   const plannedAt = Date.now();
+  if (arrayName === 'entries' && Array.isArray(items)) items = packLabPanelRows(items as LabEntryDraft[]);
   const cfg: Partial<ArrayIdentityConfig> = DELTA_ARRAY_CONFIG[arrayName] || {};
   const itemIdFn: (it: SyncIdentityRecord) => string | null = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
   const prev = { ..._readDeltaSnapshot(profileId, arrayName) };

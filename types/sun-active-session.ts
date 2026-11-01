@@ -1,4 +1,5 @@
 import type { SunSessionRecord } from '../js/sun-sessions-store.js';
+import type { SunSessionWriteGuard } from '../js/sun-sessions-store.js';
 import type * as spectrum from '../js/sun-spectrum.js';
 import type { FetchedAtmosphere } from '../js/sun-uvdata.js';
 import type { sunSessionExposure } from '../js/sun-session-model.js';
@@ -8,7 +9,7 @@ import type { SunStopSummaryOptions } from '../js/sun-active-session-format.js';
 
 // Private views of the original unchecked callback and arithmetic operations.
 // Configuration and persisted inputs are not validated by these annotations.
-export interface SessionOperations extends Pick<SunSessionRecord, 'id' | 'startedAt' | 'endedAt' | 'durationMin' | 'updatedAt' | 'bodyExposure' | 'eyeExposure' | 'posture' | 'surfaceAlbedo' | 'safety' | 'doses' | 'paused' | 'pausedAt' | 'resumedAt' | 'accumulatedPausedMs'> {
+export interface SessionOperations extends Pick<SunSessionRecord, 'id' | 'startedAt' | 'endedAt' | 'durationMin' | 'updatedAt' | 'bodyExposure' | 'eyeExposure' | 'posture' | 'surfaceAlbedo' | 'safety' | 'doses' | 'paused' | 'pausedAt' | 'resumedAt' | 'accumulatedPausedMs' | 'reportedInputsVersion'> {
   location?: {lat?: number | undefined; lon?: number | undefined; altitudeM?: number; source?: unknown} | null;
   atmosphere?: AtmosphereOperations | null; exposureSegments?: unknown[];
 }
@@ -22,7 +23,8 @@ export type ElapsedReader = (session: SessionOperations | null | undefined, ...a
 export type StopSummaryReader = (session: SessionOperations | null | undefined, ...args: [durationMin: number, options?: Omit<SunStopSummaryOptions, 'vitaminDIUPerSession'> & {vitaminDIUPerSession?: SunStopSummaryOptions['vitaminDIUPerSession']}]) => ReturnType<typeof plainStopSummary>;
 export interface ActiveSessionCalls extends Record<string, unknown> {
   getSessions(): SessionOperations[]; getActiveSession(): SessionOperations | null | undefined;
-  startSession(options?: unknown): Promise<unknown>; stopSession(id: unknown): Promise<unknown>;
+  startSession(options?: unknown, guard?: SunSessionWriteGuard): Promise<unknown>; stopSession(id: unknown): Promise<unknown>;
+  canPersistActiveSlice(): boolean; persistActiveSlice(id: unknown): Promise<unknown>;
   hydrateSession(id: unknown, coords?: unknown): Promise<unknown>; getSunCoords(): SessionOperations['location'];
   saveImportedData(): Promise<unknown> | unknown; applyAtmOverrides(atmosphere: AtmosphereOperations | null): AtmosphereOperations | null;
   refreshSurfaces(): unknown; normalizePSMTier(raw: unknown): unknown; photosensitiveMedScale(tier?: unknown): number | null;

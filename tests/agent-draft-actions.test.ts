@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ save: vi.fn(), apply: vi.fn(), notify: vi.fn(), render: vi.fn(), claim: vi.fn() }));
+const mocks = vi.hoisted(() => ({ save: vi.fn(), apply: vi.fn(), notify: vi.fn(), render: vi.fn(), claim: vi.fn(), upgrade: vi.fn() }));
+vi.mock('../js/agent-draft-upgrade.js', () => ({ isLegacyAgentDraft: (draft: {kind?: string}) => ['note', 'meal', 'biometric', 'supplement'].includes(draft.kind || ''), prepareLegacyAgentDraftReview: mocks.upgrade }));
 vi.mock('../js/agent-draft-claims.js', () => ({ claimAgentDraft: mocks.claim }));
 vi.mock('../js/chat-history.js', () => ({ saveChatHistory: mocks.save }));
 vi.mock('../js/agent-drafts.js', () => ({ applyAgentDraft: mocks.apply, renderAgentDraftCards: () => '' }));
-vi.mock('../js/utils.js', () => ({ escapeHTML: (s: unknown) => s, showNotification: mocks.notify }));
+vi.mock('../js/utils.js', async importOriginal => ({ ...await importOriginal<typeof import('../js/utils.js')>(), escapeHTML: (s: unknown) => s, showNotification: mocks.notify }));
 vi.mock('../js/emf-runtime.js', () => ({ openEMFAssessmentEditor: vi.fn() }));
 vi.mock('../js/chat-composer.js', () => ({ setChatInputValue: vi.fn() }));
 vi.mock('../js/chat-images.js', () => ({ restoreMessageAttachments: vi.fn() }));
@@ -13,17 +14,18 @@ import { configureChatMessageActionDeps } from '../js/chat-actions.js';
 import { normalizeChatMessages } from '../js/chat-storage-safety.js';
 let draft: Pick<NonNullable<ReturnType<typeof normalizeChatMessages>[number]['agentDrafts']>[number], 'id' | 'profileId' | 'kind'> & { status: string; payload: Record<string, unknown> };
 const deferred = () => { let resolve: ((value?: unknown) => void) | undefined; const promise = new Promise<unknown>(r => { resolve = r; }); return { promise, resolve }; };
-function click(action = 'apply-agent-draft') {
-  document.body.innerHTML = `<button data-chat-message-action="${action}" data-chat-message-index="0" data-chat-message-draft-id="draft-1">Apply</button>`;
+function click(action = 'apply-agent-draft', index = 0, id = 'draft-1') {
+  document.body.innerHTML = `<button data-chat-message-action="${action}" data-chat-message-index="${index}" data-chat-message-draft-id="${id}">Apply</button>`;
   document.querySelector('button')!.click();
 }
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.resetAllMocks(); localStorage.removeItem('getbased-chat-controls');
   mocks.save.mockResolvedValue(true);
   mocks.apply.mockResolvedValue('Saved');
   configureChatMessageActionDeps({ renderChatMessages: mocks.render });
   state.currentProfile = 'a'; state.currentThreadId = 'thread-a';
-  draft = { id: 'draft-1', profileId: 'a', kind: 'note', status: 'pending', payload: { scope: 'profile', text: 'Note', mode: 'append' } };
+  state.chatThreads = [{ id: 'thread-a', name: 'Source conversation', createdAt: '2026-10-23T00:00:00Z', updatedAt: '2026-10-23T00:00:00Z', messageCount: 1 }];
+  draft = { id: 'draft-1', profileId: 'a', kind: 'data', status: 'pending', payload: { resource: 'profileNotes', operation: 'update', recordId: '', baseline: '""', patch: '{"text":"Note"}', effectiveDate: '2026-10-23', recordedAt: 1, evidence: 'Note', reason: 'Explicit note.' } };
   state.chatHistory = [{ role: 'assistant', content: '', agentDrafts: [draft] }];
 });
 it('persists a claim before applying and rejects duplicate clicks while pending', async () => {
@@ -110,4 +112,51 @@ it('keeps persisted history pending until a durable claim exists', async () => {
   expect(mocks.save).toHaveBeenCalledTimes(1);
   expect(mocks.apply).not.toHaveBeenCalled();
   expect(normalizeChatMessages(persisted)[0]!.agentDrafts![0]!.status).toBe('pending');
+});
+
+it('retains an explicit non-applied conflict result and persists it for reload', async () => {
+  mocks.apply.mockRejectedValue(Object.assign(new Error('This context card changed. No change was applied.'), { noChangeApplied: true }));
+  click();
+  await vi.waitFor(() => expect(draft.status).toBe('conflict'));
+  expect(mocks.notify).toHaveBeenCalledWith('This context card changed. No change was applied.', 'error');
+  expect(mocks.save).toHaveBeenCalledTimes(2);
+  expect(normalizeChatMessages(state.chatHistory)[0]!.agentDrafts![0]!.status).toBe('conflict');
+});
+
+it('does not apply a stale control when the preparatory save retires its proposal', async () => {
+  mocks.save.mockImplementation(async () => { draft.status = 'superseded'; return true; });
+  click();
+  await vi.waitFor(() => expect(draft.status).toBe('superseded'));
+  expect(mocks.claim).not.toHaveBeenCalled();
+  expect(mocks.apply).not.toHaveBeenCalled();
+});
+it('refreshes an old proposal without a claim and requires a second explicit Apply', async () => {
+  draft.kind = 'note'; draft.payload = { scope: 'profile', mode: 'append', text: 'Reported note' };
+  const fresh = { ...draft, id: 'fresh', kind: 'data', payload: { resource: 'profileNotes', operation: 'update', recordId: '', baseline: '""', patch: '{"text":"Reported note"}', effectiveDate: '2026-10-23', recordedAt: 1, reason: 'Report.', evidence: 'Save my note.' } };
+  state.chatHistory.unshift({ role: 'user', content: 'Save my note.' }); mocks.upgrade.mockResolvedValue([fresh]);
+  click('apply-agent-draft', 1); await vi.waitFor(() => expect(draft.status).toBe('superseded'));
+  expect(mocks.upgrade).toHaveBeenCalledWith(draft, 'Save my note.'); expect(mocks.claim).not.toHaveBeenCalled(); expect(mocks.apply).not.toHaveBeenCalled();
+  expect(state.chatHistory[1]!.agentDrafts).toHaveLength(2); expect(fresh.status).toBe('pending');
+  click('apply-agent-draft', 1, 'fresh'); await vi.waitFor(() => expect(fresh.status).toBe('applied')); expect(mocks.claim).toHaveBeenCalledExactlyOnceWith('a', 'fresh'); expect(mocks.apply).toHaveBeenCalledOnce();
+});
+it('rolls a failed refreshed-review save back without claiming or losing the old card', async () => {
+  draft.kind = 'note'; state.chatHistory.unshift({ role: 'user', content: 'Save my note.' }); mocks.upgrade.mockResolvedValue([{ ...draft, id: 'fresh', kind: 'data' }]); mocks.save.mockResolvedValue(false);
+  click('apply-agent-draft', 1); await vi.waitFor(() => expect(mocks.notify).toHaveBeenCalled());
+  expect(draft.status).toBe('pending'); expect(state.chatHistory[1]!.agentDrafts).toEqual([draft]); expect(mocks.claim).not.toHaveBeenCalled(); expect(mocks.apply).not.toHaveBeenCalled();
+});
+it('leaves the origin untouched if navigation occurs during refreshed-review preparation', async () => {
+  draft.kind = 'note'; state.chatHistory.unshift({ role: 'user', content: 'Save my note.' }); const gate = deferred(); mocks.upgrade.mockReturnValue(gate.promise);
+  click('apply-agent-draft', 1); await vi.waitFor(() => expect(mocks.upgrade).toHaveBeenCalled()); state.currentProfile = 'b'; state.chatHistory = [];
+  gate.resolve!([{ ...draft, id: 'fresh', kind: 'data' }]); await new Promise(resolve => setTimeout(resolve, 0)); expect(draft.status).toBe('pending'); expect(mocks.save).not.toHaveBeenCalled(); expect(mocks.claim).not.toHaveBeenCalled();
+});
+
+import { setChatControlsEnabled } from '../js/chat-control-settings.js';
+it('rejects Apply and Refresh while off but keeps Discard available', async () => {
+  await setChatControlsEnabled(false); click();
+  await vi.waitFor(() => expect(mocks.notify).toHaveBeenCalled());
+  expect(draft.status).toBe('pending'); expect(mocks.apply).not.toHaveBeenCalled(); expect(mocks.claim).not.toHaveBeenCalled(); expect(mocks.save).not.toHaveBeenCalled();
+  draft.kind = 'note'; mocks.notify.mockClear(); click();
+  await vi.waitFor(() => expect(mocks.notify).toHaveBeenCalled()); expect(mocks.upgrade).not.toHaveBeenCalled();
+  click('discard-agent-draft'); await vi.waitFor(() => expect(draft.status).toBe('discarded'));
+  expect(mocks.apply).not.toHaveBeenCalled();
 });

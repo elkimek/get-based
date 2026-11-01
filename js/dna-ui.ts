@@ -369,9 +369,11 @@ export function showDNAImportPreview(result: PendingDnaImport) {
   const apoe = dnaUiDeps.resolveAPOE?.(result.matches);
   const rawMatchedCount = Number(result.rawMatchedCount);
   const preservedOverrideCount = Number(result.preservedOverrideCount) || 0;
-  const previewStats = preservedOverrideCount > 0
+  let previewStats = preservedOverrideCount > 0
     ? `${result.totalLines.toLocaleString()} SNPs scanned · ${rawMatchedCount.toLocaleString()} found in file · ${result.coverage.found} available after preserving ${preservedOverrideCount} curated override${preservedOverrideCount === 1 ? '' : 's'}`
     : `${result.totalLines.toLocaleString()} SNPs scanned · ${result.coverage.found} of ${result.coverage.total} health-relevant SNPs found`;
+  if (result.suppressedRemovedCount) previewStats += ` · ${result.suppressedRemovedCount} explicitly removed call${result.suppressedRemovedCount === 1 ? '' : 's'} excluded; restore reported calls separately`;
+  if (result.restoresRemovedGenome) previewStats += ' · RESTORATION: imports the reviewed calls into a new genome. Removed call history and maternal reports are not recovered.';
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
   const risk: PreviewFinding[] = [];
   const protective: PreviewFinding[] = [];

@@ -60,7 +60,7 @@ export async function auditMigrationWitnesses() {
     range: { ranges: [], showScope: false, scope: '' }, layers: null, body: { kind: 'empty-charts' },
   });
   const action = (name: MarkerDetailActionName): MarkerDetailActionView => ({
-    action: name, id: 'audit_marker', date: null, type: null, field: null, value: null,
+    action: name, id: 'audit_marker', date: null, panelId: null, type: null, field: null, value: null,
     dotKey: null, showAllHistory: null, historyLimit: null, scrollToHistory: null,
   });
   const header: MarkerDetailChromeView = {
