@@ -5,6 +5,7 @@ interface RecoveryWindow extends Window { libraryFault: 'before' | 'primary' | '
 test('native library saves recover from a failed request and an accepted backup while retaining documents and opaque metadata', async ({ page, context }, info) => {
   const errors: string[] = [], downloads: string[] = []; page.on('pageerror', error => errors.push(error.message)); page.on('request', request => { if (/huggingface|jsdelivr|\.onnx/.test(request.url())) downloads.push(request.url()); });
   await context.addInitScript(() => {
+    for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed');
     const state = window as unknown as RecoveryWindow; state.libraryFault = null; state.libraryPackets = []; const NativeWorker = window.Worker;
     window.Worker = class extends NativeWorker {
       constructor(input: string | URL, options?: WorkerOptions) {

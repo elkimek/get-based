@@ -2,7 +2,8 @@ import { expect, test } from './coverage-fixture.js';
 import type { Page } from '@playwright/test';
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
 async function seed(page: Page) {
-  await page.goto('/app'); await page.evaluate(async () => {
+  await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor(); await page.evaluate(async () => {
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic native EMF saves', { skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed'); localStorage.setItem(`labcharts-onboard-extras-done-${id}`, '1'); localStorage.setItem(`labcharts-onboard-context-cards-skipped-${id}`, '1'); await profile.switchProfile(id);
     localStorage.setItem('labcharts-show-product-recs', 'false'); const { state } = await import('/js/state.js'); (await import('/js/api.js')).setAIPaused(true);

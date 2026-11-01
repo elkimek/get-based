@@ -2,7 +2,8 @@ import { expect, test } from './coverage-fixture.js';
 
 test('native genome and maternal removals restore only a newly reviewed file and survive reload', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/app');
+  await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic native genome restoration', { sex: 'female', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed');
@@ -38,7 +39,7 @@ test('native genome and maternal removals restore only a newly reviewed file and
   const saved = await receipt(); expect(saved.genetics.mtdnaHistory).toBeUndefined(); expect(saved.genetics.snps).toEqual(restored.genetics.snps);
   expect(saved.genetics.mtdna.maternalGeneration).toBe(saved.geneticsLifecycle.maternal.restoredAt); expect(saved.genetics.mtdna.genomeGeneration).toBe(saved.geneticsLifecycle.genome.restoredAt);
   expect(saved.markerNotes).toEqual(removed.markerNotes);
-  await page.reload(); await page.waitForFunction(async () => (await import('/js/state.js')).state.currentProfile !== null); expect(await receipt()).toEqual(saved);
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor(); await page.waitForFunction(async () => (await import('/js/state.js')).state.currentProfile !== null); expect(await receipt()).toEqual(saved);
   await page.evaluate(async () => { const { state } = await import('/js/state.js'); const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) }); const result = await runtime.execute({ tool: 'getbased_navigate', arguments: { view: 'genome' } }); if (!result.success) throw new Error(result.contentItems[0].text); });
   await expect(page.locator('#main-content [data-widget-id="genome"]')).toContainText('ε3/ε4'); await expect(page.locator('#main-content [data-widget-id="genome"]')).toContainText('mtDNA J'); expect(errors).toEqual([]);
 });
