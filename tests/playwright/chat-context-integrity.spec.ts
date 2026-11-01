@@ -45,8 +45,14 @@ async function currentField(page: Page, card: AgentContextCard, key: string) {
   }, { card, key });
 }
 
-for (const card of AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals')) {
-  test(`every declared ${card} scalar field survives review, Apply, clearing and reload without collateral edits`, async ({ page }, info) => {
+// Each field retains both cold reloads. Independent Diet cases keep its
+// larger catalog within the same per-case timeout and CI resource limits.
+const contextFieldCases = AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals').flatMap(card => {
+  const partitions = card === 'diet' ? 3 : 1;
+  return Array.from({length: partitions}, (_value, partition) => ({card, partition, partitions}));
+});
+for (const {card, partition, partitions} of contextFieldCases) {
+  test(`every declared ${card} scalar field survives review, Apply, clearing and reload without collateral edits${partitions > 1 ? ` (part ${partition + 1}/${partitions})` : ''}`, async ({ page }, info) => {
     test.setTimeout(120_000);
     await page.addInitScript(() => { for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed'); });
     await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
@@ -63,7 +69,8 @@ for (const card of AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals')) {
       if (!await data.saveImportedData({ skipSync: true })) throw new Error('Could not save synthetic profile');
       return agentContextCardModel(card, state.importedData).fields;
     }, card);
-    const scalars = fields.filter(field => field.kind !== 'records');
+    const catalog = fields.filter(field => field.kind !== 'records');
+    const scalars = catalog.filter((_field, index) => index % partitions === partition);
     expect(scalars.length).toBeGreaterThan(0);
     const checked: string[] = [];
     for (const field of scalars) {
@@ -120,7 +127,7 @@ for (const card of AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals')) {
       checked.push(field.key);
     }
     expect(checked).toEqual(scalars.map((field: AgentContextField) => field.key));
-    await info.attach('checked-fields.json', { body: JSON.stringify({ card, checked, recordsCoveredBy: fields.filter(field => field.kind === 'records').map(field => field.key) }), contentType: 'application/json' });
+    await info.attach('checked-fields.json', { body: JSON.stringify({ card, partition, partitions, catalog: catalog.map(field => field.key), checked, recordsCoveredBy: fields.filter(field => field.kind === 'records').map(field => field.key) }), contentType: 'application/json' });
   });
 }
 
