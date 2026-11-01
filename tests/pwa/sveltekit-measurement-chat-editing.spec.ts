@@ -64,6 +64,7 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
     await activate(page, page.locator('[data-nav-action="navigate"][data-nav-route="body"]')); await expect(page.locator('.lens-page-header h2')).toHaveText('Biometrics');
     receipts.before = await profile(page, artifact.state); const initial = receipts.before.stored as ProfileData;
     await openChat(page); await activate(page, page.locator('[data-chat-empty-action="resume-ai"]'));
+    const interpretationStartedAt = await page.evaluate(() => Date.now());
     for (const [index, next] of (['value', 'checkpoint', 'remove', 'removeRoom'] as const).entries()) {
       stage = next; round = 0; await expect(page.locator('#chat-send-btn.streaming')).toHaveCount(0); await page.locator('#chat-input').fill(statements[stage]); await activate(page, page.locator('#chat-send-btn'));
       if (stage === 'checkpoint') {
@@ -88,11 +89,19 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
       await page.screenshot({ path: info.outputPath(`measurement-${stage}-review-mobile.png`), fullPage: true }); await card.getByRole('button', { name: 'Apply', exact: true }).focus(); await page.keyboard.press('Enter'); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(index === 0 ? 1 : index);
       receipts[stage] = await profile(page, artifact.state);
     }
-    if (!receipts.removeRoom) throw new Error('Missing accepted room removal.'); const saved = receipts.removeRoom.stored as ProfileData;
+    if (!receipts.removeRoom) throw new Error('Missing accepted room removal.');
+    // Reopening the native assessment for checkpoint Save enables its derived
+    // interpretation. Wait for the exact empty-room fingerprint before freezing
+    // the complete receipt; every clinical/source field remains asserted below.
+    await expect.poll(async () => ((await profile(page, artifact.state)).stored as ProfileData).lightEnvironment?.burdenAI?.fingerprint).toBe('kyf235');
+    receipts.removeRoom = await profile(page, artifact.state); const saved = receipts.removeRoom.stored as ProfileData;
+    const analysis = saved.lightEnvironment!.burdenAI!;
+    expect(analysis).toEqual({ status: 'ok', dot: 'gray', tip: 'Controlled light interpretation', detail: 'Reported facts and frozen source evidence.', fingerprint: 'kyf235', generatedAt: expect.any(Number) });
+    expect(analysis.generatedAt).toBeGreaterThanOrEqual(interpretationStartedAt); expect(analysis.generatedAt).toBeLessThanOrEqual(await page.evaluate(() => Date.now()));
     expect(saved.lightMeasurements).toEqual([]); expect(saved.lightEnvironment?.rooms).toEqual([]); expect(saved.lightAudits).toHaveLength(2); expect(saved.lightAudits![0]).toEqual(initial.lightAudits![0]);
     const checkpoint = saved.lightAudits!.find(row => row.id === checkpointId); expect(checkpoint.label).toBe('After correction'); expect(checkpoint.measurements[0].value).toBe(250); expect(checkpoint.measurements[0].readingHistory[0].record.value).toBe(100);
     const protectedFields = (value: ProfileData) => Object.fromEntries(Object.entries(value).filter(([key]) => !['lightMeasurements', 'lightAudits', 'lightEnvironment', '_deleted', '_deletedAt', '_deletedClearedAt'].includes(key)));
-    expect(saved.lightEnvironment).toEqual({ ...initial.lightEnvironment, rooms: [] }); expect(protectedFields(saved)).toEqual(protectedFields(initial)); expect(wire).toHaveLength(11); await cacheReceipt(page, artifact);
+    expect(saved.lightEnvironment).toEqual({ ...initial.lightEnvironment, rooms: [], burdenAI: analysis }); expect(protectedFields(saved)).toEqual(protectedFields(initial)); expect(wire).toHaveLength(11); await cacheReceipt(page, artifact);
     await server.close(); stopped = true; await expect(fetch(server.origin + '/app')).rejects.toThrow(); await page.close(); expect(context.pages()).toHaveLength(0);
     page = await context.newPage(); await ready(page, server.origin); await openAssessment(page); receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.removeRoom);
     const block = page.locator('[data-light-env-action="toggle-audits-block"]'); if (await block.getAttribute('aria-expanded') !== 'true') await activate(page, block);

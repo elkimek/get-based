@@ -68,7 +68,7 @@ test('reviewed chat sample cycle edits load offline and preserve independent dra
   ];
   seeded.menstrualCycle = { periods: [{ startDate: '2026-07-20', endDate: '2026-07-24' }] };
   const registry = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-registry.json', import.meta.url), 'utf8')) as Record<string, unknown>[]; registry[0]!.sex = 'female';
-  await installDiscussionFixture(context, { provider: 'openrouter', paused: true }); await installOfflineStartupDiagnostics(context);
+  await installDiscussionFixture(context, { provider: 'openrouter', paused: false }); await installOfflineStartupDiagnostics(context);
   await context.addInitScript(({ seeded, registry }) => {
     if (!['http:', 'https:'].includes(location.protocol) || localStorage.getItem('cycle-sample-seeded')) return;
     localStorage.setItem('cycle-sample-seeded', '1'); localStorage.setItem('labcharts-encryption-enabled', 'false');
@@ -98,16 +98,13 @@ test('reviewed chat sample cycle edits load offline and preserve independent dra
       if (stage === 2) expect(snapshot.current.cycle).toEqual({ cycleDay: 'Legacy day unknown', cyclePhase: 'Late luteal', cyclePhaseDetail: 'Legacy detail', cyclePhaseSource: null });
       call = { id: 'draft-sample', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'labSamples', operation: 'update', snapshotId: snapshot.snapshotId, patch: JSON.stringify(change.patch), evidence: change.evidence, reason: 'Explicit sample fact correction.' }) } };
     }
-    if (round === 2) { const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0].text).review.applied).toBe(false); }
+    if (round === 2) { const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0].text)).toEqual({ draftId: expect.any(String), status: 'pending_user_approval', summary: 'Lab Samples · update' }); }
     round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review this sample correction before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
   });
   async function reviewChange() {
     if (await page.locator('#modal-overlay').isVisible()) await closeMarker(page);
     if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
-    const resume = page.locator('[data-chat-empty-action="resume-ai"]'), input = page.locator('#chat-input');
-    // The fixture resets paused state on each new document, at stages 0 and 1.
-    if (stage < 2) { await expect(resume).toBeVisible(); await activate(page, resume); }
-    await expect(input).toBeVisible();
+    await expect(page.locator('#chat-input')).toBeVisible(); await expect(page.locator('#chat-input')).toBeEnabled();
     const previous = await profile(page, artifact.state); round = 0;
     await page.locator('#chat-input').fill(changes[stage]!.evidence); await activate(page, page.locator('#chat-send-btn'));
     const pending = page.locator('.chat-agent-draft-pending'), consent = page.locator('#cloud-ai-consent-overlay.show'); await expect(pending.or(consent)).toBeVisible();
