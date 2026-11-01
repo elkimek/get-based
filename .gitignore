@@ -1,6 +1,9 @@
 # Local task progress, checkpoints, and audit logs
 /.local-notes/
 
+# Generated legacy specimen fixture migration helper
+/tests/helpers/legacy-lab-profile-fixture.js
+
 # Generated optional auto-import source runtime
 /js/auto-import-feed.js
 /js/auto-import-feed-runtime.js

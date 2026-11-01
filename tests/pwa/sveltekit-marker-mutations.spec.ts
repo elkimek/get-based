@@ -105,8 +105,8 @@ test('reviewed chat sample cycle edits load offline and preserve independent dra
     if (await page.locator('#modal-overlay').isVisible()) await closeMarker(page);
     if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
     const resume = page.locator('[data-chat-empty-action="resume-ai"]'), input = page.locator('#chat-input');
-    await expect.poll(async () => await resume.isVisible() || await input.isVisible()).toBe(true);
-    if (await resume.isVisible()) await activate(page, resume);
+    // The fixture resets paused state on each new document, at stages 0 and 1.
+    if (stage < 2) { await expect(resume).toBeVisible(); await activate(page, resume); }
     await expect(input).toBeVisible();
     const previous = await profile(page, artifact.state); round = 0;
     await page.locator('#chat-input').fill(changes[stage]!.evidence); await activate(page, page.locator('#chat-send-btn'));
@@ -261,8 +261,10 @@ test('static public marker actions persist manual values, custom edits, referenc
     expect(entered.markers).toEqual({'biochemistry.glucose': 5.6, [customKey]: 4.25});
     expect(entered.context).toEqual({sampleTime: '08:15', fasting: true});
     expect(Object.keys(entered.markerSources ?? {}).sort()).toEqual(['biochemistry.glucose', customKey].sort());
-    for (const source of Object.values(entered.markerSources!)) {expect(source.file).toBeNull(); expect(source.at).toBeGreaterThanOrEqual(minimum); expect(source.at).toBeLessThanOrEqual(maximum);}
-    expect(entered.updatedAt).toBeGreaterThanOrEqual(minimum); expect(entered.updatedAt).toBeLessThanOrEqual(maximum);
+    // A frozen wall clock still advances the specimen's logical edit clock for
+    // the added custom value and its correction; assert the exact source clocks.
+    expect(entered.markerSources).toEqual({'biochemistry.glucose': {file: null, at: mutationTime}, [customKey]: {file: null, at: mutationTime + 2}});
+    expect(entered.updatedAt).toBe(mutationTime + 2);
     // Explicit manual entry clears this date's row tombstone for sync peers.
     // The fixed clock qualifies its exact metadata while every other protected
     // field and all other tombstone paths/dates remain checked by full equality.

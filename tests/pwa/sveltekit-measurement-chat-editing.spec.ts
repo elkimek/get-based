@@ -16,6 +16,7 @@ async function openAssessment(page: Page) {
   const menu = page.getByRole('button', { name: 'Menu', exact: true }); if (await menu.isVisible()) await activate(page, menu);
   await activate(page, page.locator('#sidebar-nav').getByRole('button', { name: /^Light assessment/ }));
   await expect(page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true })).toBeVisible();
+  await expect(page.locator('#sidebar-backdrop')).toBeHidden(); await expect(page.locator('#sidebar-nav')).not.toHaveClass(/\bmobile-open\b/);
 }
 async function openChat(page: Page) { const assessment = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true }); if (await assessment.isVisible()) await activate(page, assessment.getByRole('button', { name: 'Close', exact: true })); if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab')); await expect(page.locator('#chat-input')).toBeVisible(); }
 test('static measurement correction, checkpoint and removal preserve frozen source evidence offline across stopped-origin cold launch', async ({ page, context }, info) => {

@@ -93,6 +93,7 @@ function handleNavActionClick(event: Event) {
     if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     openEMFAssessmentFromNavRuntime();
   } else if (action === 'open-light-assessment') {
+    if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     navActionDeps.openLightEnvironmentAssessment();
   } else if (action === 'open-knowledge-base') {
     if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) {

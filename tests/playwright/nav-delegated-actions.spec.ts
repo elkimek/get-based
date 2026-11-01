@@ -39,6 +39,18 @@ test('sidebar Light assessment waits for its lazy UI before opening', async ({ p
   await expect(overlay).toHaveCount(0);
 });
 
+test('mobile sidebar closes its backdrop before opening Light assessment', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 }); await prepareApp(page);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(page.locator('#sidebar-backdrop')).toBeVisible();
+  await page.locator('#sidebar-nav [data-nav-action="open-light-assessment"]').click();
+  const overlay = page.locator('#light-env-assessment-overlay');
+  await expect(overlay).toHaveClass(/\bshow\b/);
+  await expect(page.locator('#sidebar-backdrop')).toBeHidden();
+  await expect(page.locator('#sidebar-nav')).not.toHaveClass(/\bmobile-open\b/);
+  await overlay.locator('.modal-close').click(); await expect(overlay).toHaveCount(0);
+});
+
 test('sidebar nav delegated actions route, filter, and open utilities', async ({ page }) => {
   await prepareApp(page);
 
