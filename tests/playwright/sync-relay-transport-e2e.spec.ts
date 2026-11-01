@@ -37,7 +37,7 @@ function legalAcceptance() {
 }
 
 async function createDevice(browser: Browser, label: string) {
-  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const context = await browser.newContext({ serviceWorkers: 'block', baseURL: String(test.info().project.use.baseURL) });
   if (previousBridge && label.endsWith('device A')) {
     await context.route(url => url.pathname === '/js/sync-evolu8-candidate.js', route => route.fulfill({
       contentType: 'text/javascript', body: previousBridge,
@@ -66,7 +66,30 @@ async function createDevice(browser: Browser, label: string) {
 
   const page = await context.newPage();
   const errors: unknown[] = [];
+  const consoleErrors: string[] = [], syncWarnings: string[] = [];
+  const statusErrors: unknown[] = [];
+  let observedStatusPages = 0;
+  await context.exposeBinding('__testSyncStatus', (_source, event: {ready?: boolean; error?: unknown}) => {
+    if (event.ready) observedStatusPages++; else statusErrors.push(event.error);
+  });
+  await context.addInitScript(() => {
+    if (!/^https?:$/.test(location.protocol)) return;
+    const report = (event: unknown) => (window as unknown as {__testSyncStatus: (event: unknown) => Promise<unknown>}).__testSyncStatus(event);
+    void import('/js/sync-state.js').then(sync => {
+      const inspect: Parameters<typeof sync.subscribeSyncStatus>[0] = status => {
+        if (status.databaseError || status.lastError || status.replication === 'Error') {
+          void report({error: {databaseError: status.databaseError, lastError: status.lastError, replication: status.replication}});
+        }
+      };
+      sync.subscribeSyncStatus(inspect); inspect(sync.getSyncStatus());
+      return report({ready: true});
+    }).catch(error => report({error: {observer: String(error)}}));
+  });
   page.on('pageerror', (error: unknown) => errors.push(`${label}: ${(error as {message: unknown}).message}`));
+  page.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+    if (message.type() === 'warning' && message.text().startsWith('[sync]')) syncWarnings.push(message.text());
+  });
   if (process.env.SYNC_TRANSPORT_DEBUG === '1') {
     page.on('console', message => {
       if (message.text().includes('[sync]')) console.log(`${label}: ${message.text()}`);
@@ -78,7 +101,7 @@ async function createDevice(browser: Browser, label: string) {
     const { state } = await import('/js/state.js');
     return state.currentProfile === 'default' && !!state.importedData;
   }), 20_000);
-  return { context, page, label, errors };
+  return { context, page, label, errors, consoleErrors, syncWarnings, statusErrors, get observedStatusPages() {return observedStatusPages;} };
 }
 
 async function waitForOwner(page: Page, expectedOwnerId: unknown = null) {
@@ -1270,4 +1293,193 @@ for (const legacy of [false, true]) test(`an in-place equal-timestamp array edit
     expect(await rowIds(a.page)).toEqual(originalRows);
     for (const device of devices) expect(device.errors).toEqual([]);
   } finally { for (const device of devices.reverse()) await device.context.close(); }
+});
+
+test('all registered sync surfaces converge bidirectionally with clean console and durable storage', async ({browser, playwright}) => {
+  test.setTimeout(180_000);
+  const peerBrowser = process.env.SYNC_TRANSPORT_PEER_BROWSER === 'firefox'
+    ? await playwright.firefox.launch({executablePath: playwright.firefox.executablePath(), args: [], headless: true, timeout: 30_000}) : null;
+  const a = await createDevice(browser, 'surface device A'), devices = [a];
+  const paths = [
+    'sunSessions', 'lightDevices', 'deviceSessions', 'lightAudits', 'lightMeasurements', 'lightEnvironment.rooms', 'lightEnvironment.screens',
+    'entries', 'notes', 'supplements', 'healthGoals', 'changeHistory', 'chatSummaries', 'importSnapshots', 'nutritionMeals',
+    'markerNotes', 'markerValueNotes', 'customMarkers', 'markerPlacements', 'manualValues', 'manualMetricTombstones', 'manualBodyReadings',
+    'refOverrides', 'categoryLabels', 'categoryIcons', 'markerLabels', 'wearablePrimaryOverride', 'biologyScoreAI', 'genetics.snps', 'lightDailyVerdicts', 'contextSourceSettings',
+    'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'interpretiveLens', 'contextNotes',
+    'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics', 'lightEnvironment.burdenAI', 'agentAccess', 'agentAccessWearableSeriesDays',
+    'sunCorrelations', 'lifelightProfile', 'sunDefaults', 'channelMixAI', 'biologyScoreContextAI', 'wearableSummary', 'wearableCardOrder', 'nutritionContextDays', 'nutritionTargets',
+  ];
+  const snapshot = (page: Page) => page.evaluate(async paths => {
+    const {state} = await import('/js/state.js'), crypto = await import('/js/crypto.js');
+    const stored = JSON.parse((await crypto.encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported')))!) as Record<string, unknown>;
+    const project = (source: unknown) => Object.fromEntries(paths.map(path => [path, path.split('.').reduce<unknown>((value, part) =>
+      value && typeof value === 'object' ? (value as Record<string, unknown>)[part] : undefined, source)]));
+    return {live: project(state.importedData), stored: project(stored)};
+  }, paths);
+  const health = (page: Page) => page.evaluate(async () => {
+    const sync = await import('/js/sync-state.js'), status = sync.getSyncStatus();
+    return {databaseError: status.databaseError, lastError: status.lastError, replication: status.replication,
+      dirty: (await import('/js/sync-dirty-state.js')).getSyncDirtyToken((await import('/js/state.js')).state.currentProfile),
+      errors: sync.getRecentSyncEvents().filter(event => event.kind === 'error')};
+  });
+  try {
+    const registry = await a.page.evaluate(async () => {
+      const {DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS} = await import('/js/sync-delta-surfaces.js');
+      return [...DELTA_ARRAYS, ...DELTA_MAPS, ...DELTA_SCALARS].sort();
+    });
+    expect([...paths].sort()).toEqual(registry);
+    expect(await a.page.evaluate(async () => {
+      const {state} = await import('/js/state.js'), now = Date.now() - 60_000, date = '2026-08-06';
+      const row = (id: string) => ({id, date, updatedAt: now});
+      Object.assign(state.importedData, {
+        sunSessions: [{...row('surface_sun'), minutes: 10}],
+        lightDevices: [{...row('surface_device'), name: 'Synthetic lamp'}],
+        deviceSessions: [{...row('surface_session'), deviceId: 'surface_device', duration: 300}],
+        lightAudits: [{...row('surface_audit'), notes: 'Synthetic audit'}],
+        lightMeasurements: [{...row('surface_measurement'), lux: 100}],
+        lightEnvironment: {rooms: [{...row('surface_room'), name: 'Synthetic room'}], screens: [{...row('surface_screen'), name: 'Synthetic screen'}], burdenAI: {text: 'Synthetic burden', updatedAt: now}},
+        entries: [{date, markers: {'lipids.apoB': .8}, updatedAt: now}],
+        notes: [{date, text: 'Synthetic note', updatedAt: now}],
+        supplements: [{id: 'surface_supplement', name: 'Synthetic supplement', startDate: date, updatedAt: now}],
+        healthGoals: [{text: 'Synthetic goal', severity: 'low', updatedAt: now}],
+        changeHistory: [{field: 'contextNotes', date: date + 'T08:00:00Z', value: 'Synthetic context'}],
+        chatSummaries: [{id: 'surface_summary', threadId: 'surface_thread', title: 'Synthetic summary', updatedAt: now}],
+        importSnapshots: [{...row('surface_import'), fileName: 'synthetic.csv', entries: []}],
+        nutritionMeals: [{id: 'surface_meal', eatenAt: date + 'T12:00:00Z', name: 'Synthetic meal', reviewed: true, nutrients: {protein: 20}, images: []}],
+        markerNotes: {'lipids.apoB': 'Synthetic marker note'},
+        markerValueNotes: {'lipids.apoB:2026-08-06': 'Synthetic value note'},
+        customMarkers: {'synthetic.value': {name: 'Synthetic value', unit: 'u', categoryLabel: 'Synthetic'}},
+        markerPlacements: {'builtin:lipids.apoB': {categoryKey: 'lipids'}},
+        manualValues: {'synthetic.value:2026-08-06': 12},
+        manualMetricTombstones: {'weight.2026-08-06': 0},
+        manualBodyReadings: {'weight.2026-08-06': {value: 80, updatedAt: now}},
+        refOverrides: {'lipids.apoB': {refMin: 0, refMax: 1.2}},
+        categoryLabels: {synthetic: 'Synthetic category'}, categoryIcons: {synthetic: 'science'}, markerLabels: {'lipids.apoB': 'Synthetic ApoB label'},
+        wearablePrimaryOverride: {weight: 'manual'}, biologyScoreAI: {cardiovascular: {text: 'Synthetic interpretation', updatedAt: now}},
+        genetics: {source: 'synthetic', snps: {rs123: {genotype: 'AA'}}},
+        lightDailyVerdicts: {'2026-08-06': {text: 'Synthetic verdict'}}, contextSourceSettings: {'lab-markers': false},
+        diagnoses: {conditions: [{name: 'Synthetic condition'}]}, diet: {type: 'Synthetic diet'}, exercise: {frequency: 'Synthetic frequency'},
+        sleepRest: {quality: 'Synthetic quality'}, lightCircadian: {amLight: 'Synthetic light'}, stress: {level: 'Synthetic stress'},
+        loveLife: {status: 'Synthetic status'}, environment: {setting: 'Synthetic setting'},
+        interpretiveLens: 'Synthetic lens', contextNotes: 'Synthetic context',
+        menstrualCycle: {cycleLength: 28}, emfAssessment: {assessments: []}, biometrics: {weight: [{date, value: 80, unit: 'kg'}]},
+        agentAccess: {version: 1, enabled: false}, agentAccessWearableSeriesDays: 30,
+        sunCorrelations: {enabled: true}, lifelightProfile: {profileId: 'synthetic'}, sunDefaults: {fitzpatrick: 3},
+        channelMixAI: {text: 'Synthetic mix'}, biologyScoreContextAI: {text: 'Synthetic context interpretation', updatedAt: now},
+        wearableSummary: {metrics: {weight: {latest: 80, unit: 'kg', at: now}}}, wearableCardOrder: ['weight', 'sleep'],
+        nutritionContextDays: 30, nutritionTargets: {protein: 100},
+        wearableConnections: {syntheticVendor: {accessToken: 'synthetic-device-local-only'}},
+      });
+      localStorage.setItem('labcharts-default-units', 'EU');
+      localStorage.setItem('labcharts-default-rangeMode', 'both');
+      localStorage.setItem('labcharts-openrouter-model', 'synthetic-sync-model');
+      const crypto = await import('/js/crypto.js');
+      await crypto.encryptedSetItem('labcharts-default-chat-threads', JSON.stringify([{id: 'surface_thread', name: 'Synthetic thread', createdAt: new Date(now).toISOString(), updatedAt: new Date(now).toISOString(), messageCount: 1}]));
+      await crypto.encryptedSetItem('labcharts-default-chat-t_surface_thread', JSON.stringify([{id: 'surface_message', role: 'user', content: 'Synthetic chat message', createdAt: now}]));
+      return (await import('/js/data.js')).saveImportedData();
+    })).toBe(true);
+    const expected = await snapshot(a.page);
+    expect(Object.values(expected.stored)).not.toContain(undefined);
+    const identity = await enableNewIdentity(a.page);
+    const b = await createDevice(peerBrowser ?? browser, 'surface device B'); devices.push(b);
+    await joinIdentity(b.page, identity.mnemonic, identity.ownerId);
+    // Importing manual readings also derives a summary and anomaly history.
+    // First verify every original value; then flush those new derived records
+    // and require exact agreement of the complete live and durable profiles.
+    const original = (value: Awaited<ReturnType<typeof snapshot>>) => Object.fromEntries(
+      Object.entries(value.stored).filter(([path]) => path !== 'wearableSummary' && path !== 'changeHistory'));
+    await expect.poll(async () => original(await snapshot(b.page)), {timeout: 45_000}).toEqual(original(expected));
+    expect((await snapshot(b.page)).stored.changeHistory).toEqual(expect.arrayContaining(expected.stored.changeHistory as unknown[]));
+    expect((await snapshot(b.page)).stored.wearableSummary).toMatchObject({metrics: {weight: {latest: 80}}});
+    expect((await syncNow(b.page))?.ok).toBe(true);
+    await waitForStableRelayStorage(a.page);
+    const settled = await snapshot(b.page);
+    await expect.poll(() => snapshot(a.page), {timeout: 45_000}).toEqual(settled);
+    const settings = (page: Page) => page.evaluate(async () => ({
+      units: localStorage.getItem('labcharts-default-units'), range: localStorage.getItem('labcharts-default-rangeMode'),
+      model: localStorage.getItem('labcharts-openrouter-model'),
+      messages: JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem('labcharts-default-chat-t_surface_thread')) || '[]') as unknown[],
+      connections: (await import('/js/state.js')).state.importedData.wearableConnections,
+    }));
+    await expect.poll(() => settings(b.page)).toMatchObject({units: 'EU', range: 'both', model: 'synthetic-sync-model', messages: [{id: 'surface_message', content: 'Synthetic chat message'}]});
+    expect((await settings(b.page)).connections?.syntheticVendor).toBeUndefined();
+    expect(await b.page.evaluate(async () => {
+      const {state} = await import('/js/state.js'), now = Date.now();
+      state.importedData.contextNotes = 'Synthetic reverse edit';
+      state.importedData.markerNotes['lipids.apoB'] = 'Synthetic reverse marker note';
+      state.importedData.nutritionTargets = {protein: 110};
+      state.importedData.sunSessions![0] = {...state.importedData.sunSessions![0], minutes: 20, updatedAt: now};
+      state.importedData.entries[0]!.markers['lipids.apoB'] = .9;
+      state.importedData.entries[0]!.updatedAt = now;
+      localStorage.setItem('labcharts-default-units', 'US');
+      const crypto = await import('/js/crypto.js'), key = 'labcharts-default-chat-t_surface_thread';
+      const messages = JSON.parse((await crypto.encryptedGetItem(key))!) as unknown[];
+      messages.push({id: 'surface_reply', role: 'assistant', content: 'Synthetic reverse chat message', createdAt: now});
+      await (await import('/js/chat-threads.js')).loadChatThreads();
+      state.currentThreadId = 'surface_thread';
+      state.chatHistory = messages as typeof state.chatHistory;
+      if (!await (await import('/js/chat-history.js')).saveChatHistory({preservePersonality: true})) return false;
+      return (await import('/js/data.js')).saveImportedData();
+    })).toBe(true);
+    expect((await syncNow(b.page))?.ok).toBe(true);
+    const reversed = await snapshot(b.page);
+    await expect.poll(() => snapshot(a.page), {timeout: 45_000}).toEqual(reversed);
+    await expect.poll(async () => (await settings(a.page)).messages).toHaveLength(2);
+    await expect.poll(async () => (await settings(a.page)).units).toBe('US');
+    expect(await a.page.evaluate(async () => {
+      delete (await import('/js/state.js')).state.importedData.markerNotes['lipids.apoB'];
+      return (await import('/js/data.js')).saveImportedData();
+    })).toBe(true);
+    expect((await syncNow(a.page))?.ok).toBe(true);
+    await expect.poll(async () => (await snapshot(b.page)).stored.markerNotes).toEqual({});
+    expect(await b.page.evaluate(async () => {
+      (await import('/js/state.js')).state.importedData.markerNotes['lipids.apoB'] = 'Synthetic reverse marker note';
+      return (await import('/js/data.js')).saveImportedData();
+    })).toBe(true);
+    expect((await syncNow(b.page))?.ok).toBe(true);
+    await expect.poll(() => snapshot(a.page), {timeout: 45_000}).toEqual(reversed);
+    const wire = (page: Page) => page.evaluate(async () => {
+      const runtime = await import('/js/sync-runtime.js'), sdk = runtime.getSyncEvolu()!;
+      await sdk.loadQuery(runtime.getSyncProfileQuery()); await sdk.loadQuery(runtime.getSyncItemRowQuery());
+      const row = sdk.getQueryRows<{dataJson: string}>(runtime.getSyncProfileQuery())![0]!;
+      return {profile: await (await import('/js/sync-payload.js')).parseSyncPayload(row.dataJson),
+        items: sdk.getQueryRows<DeltaItemRow>(runtime.getSyncItemRowQuery())!.map(row => ({id: row.id, surface: row.arrayName, syncedAt: row.syncedAt}))};
+    });
+    const beforeReloads = await waitForStableRelayStorage(a.page);
+    const beforeWire = await wire(a.page);
+    for (const device of devices) {
+      await device.page.reload({waitUntil: 'domcontentloaded'}); await waitForOwner(device.page, identity.ownerId);
+      await expect.poll(() => snapshot(device.page), {timeout: 45_000}).toEqual(reversed);
+      await expect.poll(async () => (await settings(device.page)).messages).toHaveLength(2);
+      await expect.poll(() => health(device.page), {timeout: 30_000}).toMatchObject({databaseError: null, lastError: null, dirty: null, errors: []});
+      // The frozen previous-v8 bridge and v7 predate owner-status telemetry.
+      if (EVOLU_CLIENT === 'v8' || (EVOLU_CLIENT === 'v8-mixed' && device === b)) {
+        await expect.poll(async () => (await health(device.page)).replication, {timeout: 30_000}).toBe('Synced');
+      } else expect((await health(device.page)).replication).toBeUndefined();
+      expect(device.errors).toEqual([]);
+      expect(device.consoleErrors).toEqual([]);
+      expect(device.observedStatusPages).toBeGreaterThanOrEqual(2);
+      expect(device.statusErrors).toEqual([]);
+      expect(device.syncWarnings.filter(message => message !== '[sync] another push is in-flight')).toEqual([]);
+    }
+    const afterReloads = await waitForStableRelayStorage(a.page);
+    if (afterReloads!.messageCount !== beforeReloads!.messageCount) {
+      const afterWire = await wire(a.page);
+      const diffs = (a: unknown, b: unknown, path = ''): string[] => {
+        if (JSON.stringify(a) === JSON.stringify(b)) return [];
+        if (a && b && typeof a === 'object' && typeof b === 'object') return [...new Set([...Object.keys(a), ...Object.keys(b)])]
+          .flatMap(key => diffs((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key], path ? path + '.' + key : key));
+        return [path + ': ' + JSON.stringify(a) + ' -> ' + JSON.stringify(b)];
+      };
+      console.error('Reload wire differences:', JSON.stringify({profile: diffs(beforeWire.profile, afterWire.profile),
+        rows: afterWire.items.filter(row => beforeWire.items.find(old => old.id === row.id)?.syncedAt !== row.syncedAt)}));
+    }
+    expect(afterReloads!.messageCount).toBe(beforeReloads!.messageCount);
+    expect(afterReloads!.storedBytes).toBe(beforeReloads!.storedBytes);
+    console.log('[sync-e2e]', JSON.stringify({surfaces: paths.length, sdk: EVOLU_CLIENT,
+      peer: peerBrowser ? 'firefox' : 'chromium', consoleErrors: 0, uncaughtErrors: 0, syncLogErrors: 0, unexpectedSyncWarnings: 0, reloadStorageGrowth: 0}));
+  } finally {
+    for (const device of devices.reverse()) await device.context.close();
+    await peerBrowser?.close();
+  }
 });

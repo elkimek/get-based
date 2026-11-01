@@ -165,12 +165,17 @@ export function syncPullEncryptionSourceContract(source: string): boolean {
       .filter(ts.isAwaitExpression).map(node=>node.expression).filter(ts.isCallExpression).filter(call=>text(call.expression)==='encryptedSetItem');
     const arrays=persist.statements.filter(ts.isExpressionStatement).map(statement=>statement.expression)
       .filter(ts.isCallExpression).filter(call=>text(call.expression)==='acknowledgePulledArrayVersions');
+    const maps=persist.statements.filter(ts.isExpressionStatement).map(statement=>statement.expression)
+      .filter(ts.isCallExpression).filter(call=>text(call.expression)==='acknowledgePulledMapSnapshots');
     return writes.length===1&&all.filter(call=>text(call.expression)==='encryptedSetItem').length===1
       &&writes[0]!.arguments.length===2&&text(writes[0]!.arguments[0]!)==='localKey'
       &&text(writes[0]!.arguments[1]!)==='JSON.stringify(committed)'&&second.getStart(file)<writes[0]!.getStart(file)
       &&arrays.length===1&&all.filter(call=>text(call.expression)==='acknowledgePulledArrayVersions').length===1
       &&arrays[0]!.arguments.map(text).join(',')==='profileId,committed,baseline?.arrayVersions'
-      &&writes[0]!.getEnd()<arrays[0]!.getStart(file);
+      &&writes[0]!.getEnd()<arrays[0]!.getStart(file)
+      &&maps.length===1&&all.filter(call=>text(call.expression)==='acknowledgePulledMapSnapshots').length===1
+      &&maps[0]!.arguments.map(text).join(',')==='profileId,committed,observedAt,baseline?.mapSnapshots'
+      &&writes[0]!.getEnd()<maps[0]!.getStart(file);
   });
 }
 

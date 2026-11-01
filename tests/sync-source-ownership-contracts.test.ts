@@ -138,3 +138,11 @@ it('requires the actual local-mutation cursor and its cleanup on pull completion
  expect(syncPullEncryptionSourceContract(change(pullMerge,'pullBaselines.get(merged)?.mutations?.release();','pullBaselines.get(merged);'))).toBe(false);
  expect(syncPullEncryptionSourceContract(change(pullMerge,'mutations.release();','mutations;'))).toBe(false);
 });
+
+it('acknowledges received map snapshots only after their rebased profile is durable',()=>{
+ const call='acknowledgePulledMapSnapshots(profileId, committed, observedAt, baseline?.mapSnapshots);';
+ expect(syncPullEncryptionSourceContract(change(pullMerge,call,''))).toBe(false);
+ expect(syncPullEncryptionSourceContract(change(pullMerge,call,'acknowledgePulledMapSnapshots(profileId, merged, observedAt, baseline?.mapSnapshots);'))).toBe(false);
+ const early=change(change(pullMerge,call,''),'await encryptedSetItem(localKey, JSON.stringify(committed));',call+'\n await encryptedSetItem(localKey, JSON.stringify(committed));');
+ expect(syncPullEncryptionSourceContract(early)).toBe(false);
+});

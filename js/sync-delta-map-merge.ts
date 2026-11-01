@@ -6,11 +6,12 @@ import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js'
 import { getAt, setAt, pickTimestamp } from './data-merge.js';
 import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
 import { DELTA_MAP_CONFIG } from './sync-delta-surface-config.js';
-import { _isAllowlistSafeId, _isProtoPollutionKey } from './sync-delta-id.js';
+import { _djb2, _isAllowlistSafeId, _isProtoPollutionKey } from './sync-delta-id.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
 export async function mergeMapRowsIntoImported(
   imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
+  options: {onValue?: (itemId: string, value: {key?: string; hash: string | null}) => void} = {},
 ) {
   // Dotted-path support: same getAt/setAt walk as the array path.
   // Required for entries like `genetics.snps` so per-key CRDT lands
@@ -41,7 +42,7 @@ export async function mergeMapRowsIntoImported(
     if (row.isDeleted) {const prior=tombRows.get(row.itemId);if(!prior||compareSyncRows(row,prior)>0)tombRows.set(row.itemId,row);continue;}
     try {
       const parsed = await decodeRowPayload(row) as Record<string, unknown> | null;
-      if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string') continue;
+      if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string' || !Object.hasOwn(parsed, 'v')) continue;
       // Defence-in-depth: re-derive itemId from the payload's claimed k and
       // verify it matches the row column. Catches a relay swapping payloads
       // between rows even for synth-id maps.
@@ -69,6 +70,10 @@ export async function mergeMapRowsIntoImported(
     if(tomb&&compareSyncRows(tomb,entry.row)>=0)continue;
     if (newerManualField(rawKey, entry.v)) continue;
     curMap![rawKey] = entry.v;
+    if (itemId) options.onValue?.(itemId, {key: rawKey, hash: _djb2(JSON.stringify({k: rawKey, v: entry.v}))});
+  }
+  for (const [id] of tombRows) {
+    if (_isAllowlistSafeId(id) && !Object.keys(curMap!).some(key => keyIdFn(key) === id)) options.onValue?.(id, {hash: null});
   }
   recordPullDeltaSurface(arrayName, { live: liveByRawKey.size, tombstones: tombRows.size });
 }

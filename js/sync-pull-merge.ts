@@ -1,6 +1,7 @@
 import {compareSyncRows} from './sync-conflict-order.js';
 import type {ScalarVersions} from './sync-scalar-snapshot.js';
 import type {PulledArrayVersions} from './sync-delta-snapshot.js';
+import type {PulledMapSnapshots} from './sync-delta-merge.js';
 import type {ProfileMutationCapture} from './profile-data-writes.js';
 import type { ProfileData, NormalizedProfileData } from '../types/app-state.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
@@ -42,7 +43,7 @@ import {
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
-import { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots, acknowledgePulledArrayVersions } from './sync-delta.js';
+import { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots, acknowledgePulledArrayVersions, acknowledgePulledMapSnapshots } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 import { CONTEXT_REVIEW_RANGES } from './biology-score-context-contract.js';
 import { SYNC_PROFILE_FIELDS, selectSyncedProfile, syncedProfileMetadataClock } from './sync-profile-fields.js';
@@ -51,7 +52,7 @@ import { getSyncDirtyToken } from './sync-dirty-state.js';
 import { isSupersededProfileMetadata } from './sync-origin-state.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
-const pullBaselines = new WeakMap<object, { stored: MaybePulledData; live: MaybePulledData; observedAt: number; scalarVersions: ScalarVersions; arrayVersions: PulledArrayVersions; mutations?: ProfileMutationCapture }>();
+const pullBaselines = new WeakMap<object, { stored: MaybePulledData; live: MaybePulledData; observedAt: number; scalarVersions: ScalarVersions; arrayVersions: PulledArrayVersions; mapSnapshots: PulledMapSnapshots; mutations?: ProfileMutationCapture }>();
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -273,13 +274,14 @@ export async function mergePulledImportedData(profileId: string, importedData: P
 
   const scalarVersions: ScalarVersions = Object.create(null);
   const arrayVersions: PulledArrayVersions = Object.create(null);
+  const mapSnapshots: PulledMapSnapshots = Object.create(null);
   // Overlay rows after the blob. A newer canonical blob protects only items
   // it contains; local delete intent and newer row tombstones still win.
   try {
     merged = await _mergeItemRowsIntoImported(profileId, merged, {
       baselineImported: importedData,
       baselineSyncedAt: remoteUpdated,
-      scalarClocks: options.scalarClocks, localImported: localImportedForMerge, scalarVersions, arrayVersions,
+      scalarClocks: options.scalarClocks, localImported: localImportedForMerge, scalarVersions, arrayVersions, mapSnapshots,
     }) || merged;
   } catch (e) {
     console.warn('[sync] per-row overlay merge failed (blob still applied):', getErrorMessage(e, e));
@@ -310,7 +312,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
     && localHasRowsRemoteLacks(importedData, localImportedForMerge);
   const localDataChanged = !importedDataMatches(localImportedBeforeMerge, merged);
 
-  pullBaselines.set(merged, { stored, live, observedAt, scalarVersions, arrayVersions, ...(mutations ? {mutations} : {}) });
+  pullBaselines.set(merged, { stored, live, observedAt, scalarVersions, arrayVersions, mapSnapshots, ...(mutations ? {mutations} : {}) });
   return {
     localKey,
     localImportedForMerge,
@@ -360,6 +362,7 @@ export async function persistPulledImportedData(localKey: string, profileId: str
     }
     await acknowledgePulledScalarSnapshots(profileId, committed, observedAt, baseline?.scalarVersions);
     acknowledgePulledArrayVersions(profileId, committed, baseline?.arrayVersions);
+    acknowledgePulledMapSnapshots(profileId, committed, observedAt, baseline?.mapSnapshots);
     return { needsRebroadcast };
   }).finally(() => { pullBaselines.get(merged)?.mutations?.release(); });
 }

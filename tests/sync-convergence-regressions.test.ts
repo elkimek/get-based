@@ -14,6 +14,20 @@ import type {PulledArrayVersions} from '../js/sync-delta-snapshot.js';
 import type {DeltaItemRow} from '../js/sync-delta-row-codec.js';
 const at='2026-11-01T00:00:00.000Z',later='2026-11-01T00:00:01.000Z',profileId='convergence_test';
 const row=(id:string,payload:unknown,syncedAt=at):DeltaItemRow=>({id,profileId,arrayName:'markerNotes',itemId:'marker_1',payload:JSON.stringify(payload),syncedAt});
+it('acknowledges received map tombstones without suppressing an identical restoration', async()=>{
+ const {acknowledgePulledMapSnapshots}=await import('../js/sync-delta-merge.js');
+ const { _writeDeltaSnapshot }=await import('../js/sync-delta-snapshot.js');
+ const rows=[{...row('physical',{k:'marker_1',v:'same'},later),isDeleted:1}];
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>rows,insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ _writeDeltaSnapshot(profileId,'markerNotes',{marker_1:_djb2(JSON.stringify({k:'marker_1',v:'same'}))},1);
+ const snapshots: import('../js/sync-delta-merge.js').PulledMapSnapshots={};
+ const data={markerNotes:{marker_1:'same'}};await _mergeItemRowsIntoImported(profileId,data,{mapSnapshots:snapshots});
+ expect(data.markerNotes).toEqual({});
+ acknowledgePulledMapSnapshots(profileId,data,2,snapshots);
+ expect(_readDeltaSnapshot(profileId,'markerNotes')).toEqual({});
+ const restored=await _planKeyedMapDelta(profileId,'markerNotes',{marker_1:'same'});
+ expect(restored.ops).toHaveLength(1);expect(restored.ops[0]!.args.isDeleted).toBe(0);
+});
 afterEach(()=>{vi.restoreAllMocks();localStorage.clear();configureSyncDelta({getEvolu:()=>null,getItemRowQuery:()=>null});});
 it('map and scalar duplicate winners do not depend on query order',async()=>{
  const maps=[row('a',{k:'marker_1',v:'alpha'}),row('b',{k:'marker_1',v:'beta'})],scalars=[row('a',{v:'alpha'}),row('b',{v:'beta'})].map(r=>({...r,itemId:'contextNotes'}));

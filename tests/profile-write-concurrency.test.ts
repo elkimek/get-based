@@ -31,6 +31,31 @@ beforeEach(async () => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+for (const edited of [false, true]) it(`acknowledges received map values only after persistence, preserving a newer local edit: ${edited}`, async () => {
+  const {_djb2} = await import('../js/sync-delta-id.js');
+  const {_planKeyedMapDelta} = await import('../js/sync-delta.js');
+  const snapshotKey = `labcharts-${profileId}-delta-markerNotes`;
+  const before = localStorage.getItem(snapshotKey), meta = localStorage.getItem(snapshotKey + '-meta');
+  const oldHash = _djb2(JSON.stringify({k: 'marker_1', v: 'original'}));
+  state.importedData.markerNotes = {marker_1: 'original'}; expect(await saveImportedData()).toBe(true);
+  localStorage.setItem(snapshotKey, JSON.stringify({marker_1: oldHash}));
+  configureSyncDelta({getEvolu: () => ({getQueryRows: () => [{id: 'physical', profileId, arrayName: 'markerNotes', itemId: 'marker_1',
+    payload: JSON.stringify({k: 'marker_1', v: 'received'}), syncedAt: new Date().toISOString()}], insert: () => {}, update: () => {}}), getItemRowQuery: () => 'query'});
+  try {
+    const pull = await mergePulledImportedData(profileId, null);
+    expect(JSON.parse(localStorage.getItem(snapshotKey)!)).toEqual({marker_1: oldHash});
+    if (edited) {state.importedData.markerNotes.marker_1 = 'new local edit'; expect(await saveImportedData()).toBe(true);}
+    await persistPulledImportedData(pull.localKey, profileId, pull.merged, Date.now());
+    const plan = await _planKeyedMapDelta(profileId, 'markerNotes', state.importedData.markerNotes);
+    expect(state.importedData.markerNotes.marker_1).toBe(edited ? 'new local edit' : 'received');
+    expect(plan.ops).toHaveLength(edited ? 1 : 0);
+  } finally {
+    configureSyncDelta({getEvolu: () => null, getItemRowQuery: () => null});
+    if (before === null) localStorage.removeItem(snapshotKey); else localStorage.setItem(snapshotKey, before);
+    if (meta === null) localStorage.removeItem(snapshotKey + '-meta'); else localStorage.setItem(snapshotKey + '-meta', meta);
+  }
+});
+
 it('queues the local intent when a pending pull already persisted the same live edit', async () => {
   const previous = configureSyncSaveHooks({isSyncConfigured: () => true, isSyncEnabled: () => false, getProfiles: () => [{id: profileId}]});
   const dirtyKey = `labcharts-${profileId}-sync-dirty`, before = localStorage.getItem(dirtyKey);

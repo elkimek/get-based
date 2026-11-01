@@ -14,12 +14,13 @@ import {scalarValueHash, readScalarVersion, writeScalarVersion} from './sync-sca
 import type {ScalarVersions} from './sync-scalar-snapshot.js';
 import { _readDeltaSnapshot, _writeDeltaSnapshot, writeArrayVersions } from './sync-delta-snapshot.js';
 import type { PulledArrayVersions } from './sync-delta-snapshot.js';
-import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
+import { DELTA_ARRAY_CONFIG, DELTA_MAP_CONFIG } from './sync-delta-surface-config.js';
 import { mergeArrayRowsIntoImported } from './sync-delta-array-merge.js';
 import { mergeMapRowsIntoImported } from './sync-delta-map-merge.js';
 import { mergeScalarRowsIntoImported } from './sync-delta-scalar-merge.js';
 
 const mergeQueryAccess = createDeltaQueryAccess();
+export type PulledMapSnapshots = Record<string, Record<string, {key?: string; hash: string | null}>>;
 
 export function configureSyncDeltaMerge({ getEvolu, getItemRowQuery }: DeltaQueryOptions = {}) {
   mergeQueryAccess.configure({ getEvolu, getItemRowQuery });
@@ -49,6 +50,24 @@ export function acknowledgePulledArrayVersions(profileId: string, committed: Del
       if (version.hash === null && !presentIds.has(id)) matching[id] = version;
     }
     writeArrayVersions(profileId, arrayName, matching);
+  }
+}
+
+/** Receiving a committed map value must not republish it on the next reload.
+ * Acknowledgement is limited to captured rows that survived persistence. */
+export function acknowledgePulledMapSnapshots(profileId: string, committed: DeltaImportedData, observedAt: number, snapshots: PulledMapSnapshots = {}) {
+  for (const [surface, values] of Object.entries(snapshots)) {
+    if (!DELTA_MAPS.includes(surface)) continue;
+    const map = getAt(committed, surface);
+    if (!map || typeof map !== 'object' || Array.isArray(map)) continue;
+    const previous = _readDeltaSnapshot(profileId, surface), next = {...previous};
+    const keyId = DELTA_MAP_CONFIG[surface]?.keyIdFn ?? ((key: string) => key);
+    for (const [id, value] of Object.entries(values)) {
+      if (value.hash === null) {
+        if (!Object.keys(map).some(key => keyId(key) === id)) delete next[id];
+      } else if (value.key && Object.hasOwn(map, value.key) && value.hash === _djb2(JSON.stringify({k: value.key, v: (map as Record<string, unknown>)[value.key]}))) next[id] = value.hash;
+    }
+    if (!profileDataValuesEqual(previous, next)) _writeDeltaSnapshot(profileId, surface, next, observedAt);
   }
 }
 
@@ -103,7 +122,7 @@ export async function acknowledgePulledScalarSnapshots(profileId: string, commit
 // array tombstones left in an old replica after compaction.
 export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>(
   profileId: unknown, imported: Data,
-  options: { baselineImported?: unknown; baselineSyncedAt?: number | undefined; scalarClocks?: Record<string, number> | undefined; localImported?: unknown; scalarVersions?: ScalarVersions; arrayVersions?: PulledArrayVersions } = {},
+  options: { baselineImported?: unknown; baselineSyncedAt?: number | undefined; scalarClocks?: Record<string, number> | undefined; localImported?: unknown; scalarVersions?: ScalarVersions; arrayVersions?: PulledArrayVersions; mapSnapshots?: PulledMapSnapshots } = {},
 ): Promise<Data> {
   const evolu = _currentEvolu();
   const itemRowQuery = _currentItemRowQuery();
@@ -124,7 +143,9 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
   for (const [arrayName, arrRows] of byArray) {
     if (_DELTA_SCALARS_SET.has(arrayName!) || arrayName === PROFILE_METADATA_SURFACE) continue;
     if (_DELTA_MAPS_SET.has(arrayName!)) {
-      await mergeMapRowsIntoImported(imported, arrayName!, arrRows);
+      await mergeMapRowsIntoImported(imported, arrayName!, arrRows, {onValue: (id, value) => {
+        if (options.mapSnapshots) (options.mapSnapshots[arrayName!] ??= Object.create(null))[id] = value;
+      }});
       continue;
     }
     const baselineItems = options.baselineImported

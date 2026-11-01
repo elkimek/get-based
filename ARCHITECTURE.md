@@ -386,6 +386,10 @@ runtime and legacy recovery assets count against the unchanged offline budget.
 
 The Evolu adapter projects owner replication status from its current runtime and
 keeps it separate from the signed owner-storage confirmation of a pushed profile.
+Automatic quota probes defer while an initial owner handshake or provisional
+device join is pending, then refresh after replication settles. Once the owner
+is registered, later sync activity and offline/error diagnostics do not gate
+quota reads. Replies from a retired owner or self-service endpoint are discarded.
 Device persistence is explicit: unknown evidence never implies durable storage,
 and memory-only storage has a visible notice. Retired runtimes cannot publish
 status or persistence results after an owner change. Database-held, build-conflict
@@ -413,6 +417,10 @@ They advance only after item-row completion or successful pull persistence,
 and only for values that survived persistence rebasing. A later in-place row
 update can replace that committed value even when its embedded timestamp ties;
 an older query result cannot replace a freshly committed local edit.
+Map diff snapshots likewise acknowledge received values and removals only
+after durable profile persistence and only when the captured row still matches
+the committed value or absence. Receiving a map edit must not resend it on
+reload; a concurrent local edit remains eligible for its own push.
 During upgrade, an unchanged last-pushed array value uses its legacy snapshot
 as the merge base, bounded by its planning clock when present. An actual
 per-item receipt takes priority. Changed or unknown local values remain edits;
