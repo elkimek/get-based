@@ -14,6 +14,8 @@ for (const mode of cases) test(`manual selected persona edit: ${mode} preserves 
   const before = await page.evaluate(async () => {
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic selected metadata', { sex: 'female', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed'); localStorage.setItem(`labcharts-onboard-extras-done-${id}`, '1'); localStorage.setItem(`labcharts-onboard-context-cards-skipped-${id}`, '1'); await profile.switchProfile(id);
+    // Seed the explicit conversation outside deferred empty-dashboard onboarding.
+    (await import('/js/views.js')).navigate('labs');
     const api = await import('/js/api.js'); await api.saveCustomApiConnection('https://persona-metadata-provider.example/v1', 'synthetic-metadata-key'); api.setCustomApiModel('synthetic-metadata-model'); api.setAIProvider('custom'); api.setAIPaused(false); (await import('/js/agent-chat-settings.js')).setChatBackend('direct');
     const { state } = await import('/js/state.js'), crypto = await import('/js/crypto.js'), storage = await import('/js/chat-personality-storage.js'); await crypto._setTestSessionKey('synthetic selected metadata'); localStorage.setItem('labcharts-encryption-enabled', 'true');
     state.importedData.contextNotes = 'PRIVATE_RETAINED_HEALTH'; if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic health seed failed'); await (await import('/js/nutrition-store.js')).reconcileNutritionMealsFromProfileData(id); await (await import('/js/chat-loader.js')).openChatPanel();

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';

@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {afterEach, expect, it} from 'vitest';
-import {assertLegacyEvoluEncoding, compactLegacyEvoluAssets} from '../scripts/legacy-evolu-compaction.mjs';
+import {assertLegacyEvoluEncoding, compactLegacyEvoluAssets, verifyLegacyEvoluAsset} from '../scripts/legacy-evolu-compaction.mjs';
 
 const directories: string[] = [];
 const files = ['Db.worker.js', 'evolu-bundle.js'];
@@ -25,6 +25,9 @@ it('compacts the complete frozen graph without changing sources, names, coordina
     const output = await readFile(path.join(directory, 'vendor/evolu', file), 'utf8');
     expect(createHash('sha256').update(output).digest('hex')).toBe(hashes[index]);
     await assertLegacyEvoluEncoding(originals[index]!, output);
+    expect(await verifyLegacyEvoluAsset('vendor/evolu/' + file, originals[index]!, output)).toBe(true);
+    await expect(verifyLegacyEvoluAsset('vendor/evolu/' + file, originals[index]! + '\n', output)).rejects.toThrow('Exact frozen legacy input');
+    await expect(verifyLegacyEvoluAsset('vendor/evolu/' + file, originals[index]!, output + '\n')).rejects.toThrow('Exact qualified legacy encoding');
     expect(await readFile('vendor/evolu/' + file, 'utf8')).toBe(originals[index]);
   }
 });

@@ -17,6 +17,9 @@ const ASSETS = [
 ] as const;
 const digest = (source: string) => createHash('sha256').update(source).digest('hex');
 const legalNotice = (value: string) => /license|copyright|permission|public domain|@preserve|^!/i.test(value);
+// Only the two pinned byte pairs can reuse a successful syntax qualification.
+// Every caller still hashes both supplied bodies before consulting this cache.
+const qualifiedAssets = new Map<string, Promise<void>>();
 
 function syntax(value: unknown, parentType?: string): unknown {
   if (!value || typeof value !== 'object' || value instanceof RegExp) return value;
@@ -58,7 +61,16 @@ export async function verifyLegacyEvoluAsset(file: string, source: string, outpu
   if (!asset) return false;
   assert.equal(digest(source), asset[1], 'Exact frozen legacy input: ' + file);
   assert.equal(digest(output), asset[2], 'Exact qualified legacy encoding: ' + file);
-  await assertLegacyEvoluEncoding(source, output);
+  let qualification = qualifiedAssets.get(file);
+  if (!qualification) {
+    qualification = assertLegacyEvoluEncoding(source, output);
+    qualifiedAssets.set(file, qualification);
+  }
+  try { await qualification; }
+  catch (error) {
+    if (qualifiedAssets.get(file) === qualification) qualifiedAssets.delete(file);
+    throw error;
+  }
   return true;
 }
 export async function compactLegacyEvoluAssets(directory: string) {
