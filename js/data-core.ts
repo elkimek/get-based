@@ -215,10 +215,12 @@ export function createDataCore(ports: DataCorePorts) {
       const base = snapshot.base;
       let persisted;
       let changed;
+      let mutationBefore: string | null = null;
       try {
         if ((0, ports.isProfileReadBlocked)(profileId)) return false;
         const key = (0, ports.profileStorageKey)(profileId, 'imported');
         const previous = await (0, ports.encryptedGetItem)(key, { throwOnDecryptError: true });
+        mutationBefore = previous;
         // Explicit restores must retry if their reviewed snapshot changed.
         if (options.expectedData !== undefined && previous !== options.expectedData) {
           if (options.notifyOnStaleSnapshot === false) return false;
@@ -259,6 +261,12 @@ export function createDataCore(ports: DataCorePorts) {
       } catch (e) {
         return failedProfileSave(e);
       }
+      try {
+        if (changed) (0, ports.noteProfileDataCommit)(profileId, mutationBefore, persisted);
+        else if (base && !(0, ports.profileDataValuesEqual)(base, intent)) {
+          (0, ports.noteProfileDataCommit)(profileId, JSON.stringify(base), intent);
+        }
+      } catch { /* Observation cannot turn a durable save into a failed save. */ }
       // Storage has committed. Adoption and hooks cannot turn it into a failed save.
       try {
         const live = ports.state.currentProfile === profileId ? ports.state.importedData : null;

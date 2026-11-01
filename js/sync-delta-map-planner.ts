@@ -86,7 +86,7 @@ export async function _planKeyedMapDelta(profileId: string, mapName: string, map
     const existing = rowByItemId.get(itemId!);
     const syncedAt = mutationTime;
     // Clear the LWW deletion register when reusing a tombstoned row.
-    const resurrect = existing?.isDeleted ? { isDeleted: null } : {};
+    const resurrect = existing?.isDeleted ? { isDeleted: 0 as const } : {};
     ops.push(createDeltaWrite(existing, { profileId, arrayName: mapName, itemId: itemId!, payload, syncedAt }, resurrect));
   }
 

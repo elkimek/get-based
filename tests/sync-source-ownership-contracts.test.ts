@@ -132,3 +132,9 @@ it('requires owned post-commit telemetry and durable pull receipt ordering',()=>
  expect(syncPullEncryptionSourceContract(early)).toBe(false);
  expect(syncPullEncryptionSourceContract(change(pullMerge,acknowledgement,'acknowledgePulledArrayVersions(profileId, merged, baseline?.arrayVersions);'))).toBe(false);
 });
+
+it('requires the actual local-mutation cursor and its cleanup on pull completion and capture failure',()=>{
+ expect(syncPullEncryptionSourceContract(change(pullMerge,'mutations = captureProfileMutations(profileId)','mutations = unrelatedCapture(profileId)'))).toBe(false);
+ expect(syncPullEncryptionSourceContract(change(pullMerge,'pullBaselines.get(merged)?.mutations?.release();','pullBaselines.get(merged);'))).toBe(false);
+ expect(syncPullEncryptionSourceContract(change(pullMerge,'mutations.release();','mutations;'))).toBe(false);
+});

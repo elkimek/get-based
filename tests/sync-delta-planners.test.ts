@@ -30,7 +30,7 @@ it('plans array inserts, resurrecting updates, tombstones, unsafe-id skips, and 
     expect(plan.ops.find(op => op.kind === 'update')?.args).toMatchObject({
       id: 'row-existing',
       itemId: 'sun-1',
-      isDeleted: null,
+      isDeleted: 0,
     });
     expect(plan.ops.find(op => op.kind === 'insert')?.args).toMatchObject({ itemId: 'sun-2' });
     expect(plan.ops.find(op => op.kind === 'tombstone')?.args).toMatchObject({ id: 'row-gone', isDeleted: 1 });
@@ -103,7 +103,7 @@ it('plans keyed-map sanitized keys, explicit null clears, row-derived SNPs, and 
         id: 'scalar-row-new',
         arrayName: 'menstrualCycle',
         itemId: 'menstrualCycle',
-        isDeleted: null,
+        isDeleted: 0,
       },
     });
     expect(JSON.parse(scalarPlan.ops[0]!.args.payload!)).toEqual({ v: { cycleLength: 28 } });

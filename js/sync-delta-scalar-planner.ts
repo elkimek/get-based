@@ -42,7 +42,7 @@ export async function _planScalarDelta(profileId: string, scalarName: string, sc
       }
       const syncedAt = editTimestamp();
       // Clear the LWW deletion register when reusing a tombstoned row.
-      const resurrect = canonical?.isDeleted ? { isDeleted: null } : {};
+      const resurrect = canonical?.isDeleted ? { isDeleted: 0 as const } : {};
       ops.push(createDeltaWrite(canonical, { profileId, arrayName: scalarName, itemId: scalarName, payload, syncedAt }, resurrect));
     }
   } else if (prev[scalarName] || (options.force && canonical)) {

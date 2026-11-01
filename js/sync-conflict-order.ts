@@ -23,8 +23,8 @@ export function compareSyncRows(a: ConflictRow, b: ConflictRow): number {
 
 /** A new application version must sort after all versions this planner saw,
  * even when the device wall clock moved backwards. */
-export function nextSyncRowTime(rows: readonly {syncedAt?: unknown}[]): string {
-  let clock = Date.now();
+export function nextSyncRowTime(rows: readonly {syncedAt?: unknown}[], committedClock = 0): string {
+  let clock = Math.max(Date.now(), committedClock + 1);
   for (const row of rows) {
     const seen = Date.parse(typeof row.syncedAt === 'string' ? row.syncedAt : '');
     if (Number.isFinite(seen)) clock = Math.max(clock, seen + 1);

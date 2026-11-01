@@ -196,6 +196,17 @@ export function isSyncPulling() {
 export function clearSyncPullTimers() {
   for (const t of _chatPullRetryTimers.values()) clearTimeout(t);
   _chatPullRetryTimers.clear();
+  if (_localWriteRetryTimer !== null) clearTimeout(_localWriteRetryTimer);
+  _localWriteRetryTimer = null;
+}
+
+let _localWriteRetryTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleLocalWritePullRetry() {
+  if (_localWriteRetryTimer !== null) return;
+  _localWriteRetryTimer = setTimeout(() => {
+    _localWriteRetryTimer = null;
+    void forcePull()?.catch(error => dbg('Deferred local-write pull retry failed:', error));
+  }, 100);
 }
 
 export function forcePull() {
@@ -406,6 +417,7 @@ async function receiveSync() {
         // user deleted on another device.
         await _reconcilePulledManualWearables(profileId, merged);
         const committedPull = await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
+        if (committedPull.retry) { scheduleLocalWritePullRetry(); continue; }
         if (restoreJoinApplied) clearRestoreJoinPending();
 
         if (await mergePulledProfile(profileId, profile, metadata.clock)) {
@@ -443,7 +455,11 @@ async function receiveSync() {
       } catch (e) {
         console.error('[sync] Pull failed for row:', e);
       } finally {
-        if (typeof row.profileId === 'string') earlyBaselines.delete(row.profileId);
+        if (typeof row.profileId === 'string') {
+          const baseline = earlyBaselines.get(row.profileId);
+          if (baseline?.ok) baseline.value.mutations?.release();
+          earlyBaselines.delete(row.profileId);
+        }
       }
     }
 
@@ -461,6 +477,7 @@ async function receiveSync() {
       _renderProfileButton();
     }
   } finally {
+    for (const baseline of earlyBaselines.values()) if (baseline.ok) baseline.value.mutations?.release();
     earlyBaselines.clear();
     _pulling = false;
     updateSyncStatus({ pull: 'received', pullReceivedAt: Date.now() });

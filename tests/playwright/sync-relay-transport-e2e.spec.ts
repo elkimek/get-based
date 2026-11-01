@@ -1179,7 +1179,7 @@ test('duplicate logical rows and a later deletion reconcile through real SDK mut
  } finally {for(const device of devices.reverse())await device.context.close();}
 });
 
-test('an in-place equal-timestamp array edit reaches a reloaded receiving device', async ({browser}) => {
+for (const legacy of [false, true]) test(`an in-place equal-timestamp array edit reaches a reloaded receiving device (${legacy ? 'legacy snapshots' : 'current receipts'})`, async ({browser}) => {
   test.setTimeout(120_000);
   const a = await createDevice(browser, 'array receipt device A'), devices = [a];
   const readMinutes = (page: Page) => page.evaluate(async () =>
@@ -1209,9 +1209,60 @@ test('an in-place equal-timestamp array edit reaches a reloaded receiving device
     const originalRows = await rowIds(b.page); expect(originalRows).toHaveLength(1);
     await b.page.reload({waitUntil: 'load'}); await waitForContext(b.page, BASELINE_CONTEXT);
     await expect.poll(() => readMinutes(b.page)).toBe(10);
+    if (legacy) {
+      expect(await b.page.evaluate(async () => (await import('/js/sync.js')).pauseSync())).toBe(true);
+      // Recreate the previous install's receipt format while retaining the
+      // real health data, SQLite rows, SDK transport, and profile persistence.
+      await b.page.evaluate(async () => {
+        const state = (await import('/js/state.js')).state;
+        const version = (await import('/js/sync-delta-snapshot.js')).readArrayVersions(state.currentProfile, 'sunSessions').transport_array;
+        if (!version) throw new Error('Missing initial receipt for migration fixture');
+        const key = `labcharts-${state.currentProfile}-delta-sunSessions`;
+        localStorage.setItem(key, JSON.stringify({transport_array: version.hash}));
+        localStorage.setItem(`${key}-meta`, JSON.stringify({plannedAt: version.clock - 1}));
+        localStorage.removeItem(`${key}-versions`);
+      });
+    }
     await writeMinutes(a.page, 20); expect((await syncNow(a.page))?.ok).toBe(true);
+    if (legacy) {
+      await expect.poll(() => b.page.evaluate(async () => {
+        const runtime = await import('/js/sync-runtime.js'), sdk = runtime.getSyncEvolu()!, query = runtime.getSyncItemRowQuery();
+        await sdk.loadQuery(query);
+        const row = sdk.getQueryRows<DeltaItemRow>(query)!.find(row => row.arrayName === 'sunSessions' && row.itemId === 'transport_array');
+        return row ? (JSON.parse(String(row.payload)) as {minutes?: number}).minutes : null;
+      })).toBe(20);
+      expect(await readMinutes(b.page)).toBe(10);
+      expect(await b.page.evaluate(async () => (await import('/js/sync.js')).enableSync())).toBe(true);
+    }
     await expect.poll(() => readMinutes(b.page), {timeout: 30_000}).toBe(20);
     expect(await rowIds(b.page)).toEqual(originalRows);
+    await writeMinutes(b.page, 10); expect((await syncNow(b.page))?.ok).toBe(true);
+    await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBe(10);
+    await b.page.evaluate(async () => {
+      (await import('/js/state.js')).state.importedData.sunSessions = [];
+      await (await import('/js/data.js')).saveImportedData();
+    });
+    expect((await syncNow(b.page))?.ok).toBe(true);
+    await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBeUndefined();
+    await writeMinutes(b.page, 10); expect((await syncNow(b.page))?.ok).toBe(true);
+    try {
+      await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBe(10);
+    } catch (error) {
+      for (const device of devices) console.error('Array restore diagnostics:', JSON.stringify(await device.page.evaluate(async () => {
+        const runtime = await import('/js/sync-runtime.js'), sdk = runtime.getSyncEvolu()!, query = runtime.getSyncItemRowQuery();
+        await sdk.loadQuery(query);
+        const state = (await import('/js/state.js')).state;
+        return {
+          rows: sdk.getQueryRows<DeltaItemRow>(query)!.filter(row => row.arrayName === 'sunSessions' && row.itemId === 'transport_array'),
+          live: state.importedData.sunSessions,
+          receipt: (await import('/js/sync-delta-snapshot.js')).readArrayVersions(state.currentProfile, 'sunSessions'),
+          dirty: (await import('/js/sync-dirty-state.js')).getSyncDirtyToken(state.currentProfile),
+          events: (await import('/js/sync-state.js')).getRecentSyncEvents(),
+        };
+      })));
+      throw error;
+    }
+    expect(await rowIds(a.page)).toEqual(originalRows);
     for (const device of devices) expect(device.errors).toEqual([]);
   } finally { for (const device of devices.reverse()) await device.context.close(); }
 });

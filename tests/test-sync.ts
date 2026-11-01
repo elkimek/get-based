@@ -1326,7 +1326,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',
-    /_planArrayDelta[\s\S]{0,1800}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1800}prev\[itemId\]\s*===\s*hash/.test(syncDeltaPlannerSearchSrc));
+    syncDeltaArrayPlannerSrc.includes('_readDeltaSnapshot(profileId, arrayName)')
+      && syncDeltaArrayPlannerSrc.includes('readArrayVersions(profileId, arrayName)')
+      && /prev\[itemId\] === hash/.test(syncDeltaArrayPlannerSrc));
   assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
     /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncDeltaIdSrc));
   assert('_planArrayDelta gzip-compresses payloads >256 bytes',
@@ -2671,11 +2673,11 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   // Resurrect-after-tombstone fix
   assert('_planArrayDelta resurrects tombstoned row by clearing isDeleted',
-    /const resurrect = existing\?\.isDeleted \? \{ isDeleted: null \} : \{\};\s*ops.push\(createDeltaWrite\(existing, \{ profileId, arrayName, itemId: itemId, payload, syncedAt \}, resurrect\)\)/.test(syncDeltaArrayPlannerSrc));
+    /const resurrect = existing\?\.isDeleted \|\| versions\[itemId\]\?\.hash === null \? \{ isDeleted: 0 \} : \{\};\s*ops.push\(createDeltaWrite\(existing, \{ profileId, arrayName, itemId: itemId, payload, syncedAt \}, resurrect\)\)/.test(syncDeltaArrayPlannerSrc));
   assert('_planKeyedMapDelta resurrects tombstoned row by clearing isDeleted',
-    /_planKeyedMapDelta[\s\S]{0,4700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
+    /_planKeyedMapDelta[\s\S]{0,4700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*0\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
   assert('_planScalarDelta resurrects tombstoned row by clearing isDeleted',
-    /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
+    /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*0\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
 
   // Phase 2 cutover scope — previously unenumerated importedData fields
   assert('DELTA_MAPS includes refOverrides (Phase 2 scope fix)',

@@ -41,6 +41,25 @@ it('an older query result cannot replace a just-committed array value',async()=>
  writeArrayVersions(profileId,'sunSessions',{sun_1:{hash:_djb2(JSON.stringify(current)),clock:Date.parse(later)}});
  const data={sunSessions:[current]};await _mergeItemRowsIntoImported(profileId,data);expect(data.sunSessions[0]!.minutes).toBe(20);
 });
+it.each([false,true])('legacy committed array values migrate without a new receipt (clock metadata: %s)',async withClock=>{
+ const previous={id:'sun_1',minutes:10,updatedAt:Date.parse(at)},incoming={...previous,minutes:20};
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>[{...row('physical',incoming,later),arrayName:'sunSessions',itemId:'sun_1'}],insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ localStorage.setItem(`labcharts-${profileId}-delta-sunSessions`,JSON.stringify({sun_1:_djb2(JSON.stringify(previous))}));
+ if(withClock)localStorage.setItem(`labcharts-${profileId}-delta-sunSessions-meta`,JSON.stringify({plannedAt:Date.parse(at)}));
+ const current={sunSessions:[previous]};await _mergeItemRowsIntoImported(profileId,current);expect(current.sunSessions[0]!.minutes).toBe(20);
+ const draft={sunSessions:[{...previous,minutes:30}]};await _mergeItemRowsIntoImported(profileId,draft);expect(draft.sunSessions[0]!.minutes).toBe(30);
+ expect(readArrayVersions(profileId,'sunSessions')).toEqual({});
+});
+it('a legacy planning clock bounds older query rows and cannot override an actual receipt',async()=>{
+ const previous={id:'sun_1',minutes:10,updatedAt:Date.parse(at)},incoming={...previous,minutes:20};
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>[{...row('physical',incoming),arrayName:'sunSessions',itemId:'sun_1'}],insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ localStorage.setItem(`labcharts-${profileId}-delta-sunSessions`,JSON.stringify({sun_1:_djb2(JSON.stringify(previous))}));
+ localStorage.setItem(`labcharts-${profileId}-delta-sunSessions-meta`,JSON.stringify({plannedAt:Date.parse(later)}));
+ const current={sunSessions:[previous]};await _mergeItemRowsIntoImported(profileId,current);expect(current.sunSessions[0]!.minutes).toBe(10);
+ localStorage.removeItem(`labcharts-${profileId}-delta-sunSessions-meta`);
+ writeArrayVersions(profileId,'sunSessions',{sun_1:{hash:_djb2(JSON.stringify(incoming)),clock:Date.parse(at)}});
+ await _mergeItemRowsIntoImported(profileId,current);expect(current.sunSessions[0]!.minutes).toBe(10);
+});
 it('pull-only receipts survive reload and never acknowledge a value changed during persistence',async()=>{
  const first={id:'sun_1',minutes:10,updatedAt:Date.parse(at)},second={...first,minutes:20};
  let rows=[{...row('physical',first),arrayName:'sunSessions',itemId:'sun_1'}];
@@ -62,6 +81,38 @@ it('array push receipts wait for their own acknowledgement',async()=>{
  const pending=applyCommittedDeltas(profileId,'blob',[{arrayName:'sunSessions',plan}],1,()=>{});
  expect(readArrayVersions(profileId,'sunSessions')).toEqual({});complete();expect(await pending).toBe(true);
  expect(readArrayVersions(profileId,'sunSessions').sun_1).toEqual({hash:plan.next.sun_1,clock:Date.parse(String(plan.ops[0]!.args.syncedAt))});
+});
+it('an edit back to an older pushed value is planned against the newer received receipt',async()=>{
+ const previous={id:'sun_1',minutes:10},incoming={...previous,minutes:20};
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>[{...row('physical',incoming,later),arrayName:'sunSessions',itemId:'sun_1'}],insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ localStorage.setItem(`labcharts-${profileId}-delta-sunSessions`,JSON.stringify({sun_1:_djb2(JSON.stringify(previous))}));
+ writeArrayVersions(profileId,'sunSessions',{sun_1:{hash:_djb2(JSON.stringify(incoming)),clock:Date.parse(later)}});
+ const plan=await _planArrayDelta(profileId,'sunSessions',[previous]);expect(plan.ops).toHaveLength(1);expect(JSON.parse(plan.ops[0]!.args.payload!)).toEqual(previous);
+});
+it('received membership can be deleted, and its receipt supports restoring an identical value',async()=>{
+ const item={id:'sun_1',minutes:10};let rows=[{...row('physical',item),arrayName:'sunSessions',itemId:'sun_1'}];
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>rows,insert:(_table,_args,options?:{onComplete?:()=>void})=>options?.onComplete?.(),update:(_table,_args,options?:{onComplete?:()=>void})=>options?.onComplete?.()}),getItemRowQuery:()=> 'query'});
+ writeArrayVersions(profileId,'sunSessions',{sun_1:{hash:_djb2(JSON.stringify(item)),clock:Date.parse(at)}});
+ const removed=await _planArrayDelta(profileId,'sunSessions',[]);expect(removed.ops).toHaveLength(1);expect(removed.ops[0]!.itemId).toBe('sun_1');
+ expect(await applyCommittedDeltas(profileId,'blob',[{arrayName:'sunSessions',plan:removed}],1,()=>{})).toBe(true);
+ const receipt=readArrayVersions(profileId,'sunSessions').sun_1!;expect(receipt.hash).toBeNull();
+ const stale={sunSessions:[] as typeof item[]};await _mergeItemRowsIntoImported(profileId,stale);expect(stale.sunSessions).toEqual([]);
+ rows=[{...rows[0]!,isDeleted:1}];
+ const restored=await _planArrayDelta(profileId,'sunSessions',[item]);expect(restored.ops).toHaveLength(1);expect(restored.ops[0]!.args.isDeleted).toBe(0);
+ expect(Date.parse(String(restored.ops[0]!.args.syncedAt))).toBeGreaterThan(receipt.clock);
+});
+it('an unchanged received value cannot resurrect a newly observed remote deletion',async()=>{
+ const item={id:'sun_1',minutes:10};
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>[{...row('physical',item,later),arrayName:'sunSessions',itemId:'sun_1',isDeleted:1}],insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ writeArrayVersions(profileId,'sunSessions',{sun_1:{hash:_djb2(JSON.stringify(item)),clock:Date.parse(at)}});
+ expect((await _planArrayDelta(profileId,'sunSessions',[item])).ops).toEqual([]);
+});
+it('a newer unrelated profile timestamp cannot undo an acknowledged item deletion',async()=>{
+ const item={id:'sun_1',minutes:10,updatedAt:Date.parse(at)};
+ configureSyncDelta({getEvolu:()=>({getQueryRows:()=>[{...row('physical',item,later),arrayName:'sunSessions',itemId:'sun_1',isDeleted:1}],insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
+ writeArrayVersions(profileId,'sunSessions',{sun_1:{hash:null,clock:Date.parse(later)}});
+ const data={sunSessions:[item]};await _mergeItemRowsIntoImported(profileId,data,{baselineImported:structuredClone(data),baselineSyncedAt:Date.parse(later)+1000});
+ expect(data.sunSessions).toEqual([]);
 });
 it.each([false,true])('map deletion is ordered against live duplicates; restore=%s',async restore=>{
  const rows=[row('a',{k:'marker_1',v:'old'}),{...row('b',null,later),isDeleted:1}];
@@ -132,7 +183,7 @@ it('scalar planning reuses the same canonical duplicate in either query order',a
  const rows=[row('z',{v:'old'}),{...row('a',null),isDeleted:1}].map(r=>({...r,arrayName:'contextNotes',itemId:'contextNotes'}));
  for(const input of [rows,[...rows].reverse()]){
   configureSyncDelta({getEvolu:()=>({getQueryRows:()=>input,insert:()=>{},update:()=>{}}),getItemRowQuery:()=> 'query'});
-  const plan=await _planScalarDelta(profileId,'contextNotes','restored');expect(plan.ops[0]!.args).toMatchObject({id:'a',isDeleted:null});
+  const plan=await _planScalarDelta(profileId,'contextNotes','restored');expect(plan.ops[0]!.args).toMatchObject({id:'a',isDeleted:0});
   expect(Date.parse(String(plan.ops[0]!.args.syncedAt))).toBeGreaterThan(Date.parse(at));
  }
 });

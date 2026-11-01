@@ -119,10 +119,18 @@ export function syncPullEncryptionSourceContract(source: string): boolean {
     const named=(name:string)=>file.statements.filter(ts.isFunctionDeclaration).filter(node=>node.name?.text===name);
     const queued=(name:string)=>{
       const functions=named(name),body=functions[0]?.body;
-      if(functions.length!==1||!body||body.statements.length!==1)return undefined;
-      const statement=body.statements[0]!;
+      if(functions.length!==1||!body||body.statements.length!==(name==='captureSyncPullBaseline'?2:1))return undefined;
+      const statement=body.statements.at(-1)!;
       if(!ts.isReturnStatement(statement)||!statement.expression||!ts.isCallExpression(statement.expression))return undefined;
-      const call=statement.expression,callback=call.arguments[1];
+      const completion=statement.expression,method=completion.expression;
+      if(!ts.isPropertyAccessExpression(method)||!ts.isCallExpression(method.expression)||completion.arguments.length!==1)return undefined;
+      if(name==='captureSyncPullBaseline'){
+        if(text(method.name)!=='catch'||text(completion.arguments[0]!)!=='error=>{mutations.release();throwerror;}')return undefined;
+        const first=body.statements[0]!;
+        if(!ts.isVariableStatement(first)||first.declarationList.declarations.length!==1
+          ||text(first.declarationList.declarations[0]!)!=='mutations=captureProfileMutations(profileId)')return undefined;
+      }else if(text(method.name)!=='finally'||text(completion.arguments[0]!)!=='()=>{pullBaselines.get(merged)?.mutations?.release();}')return undefined;
+      const call=method.expression,callback=call.arguments[1];
       return text(call.expression)==='queueProfileDataWrite'&&call.arguments.length===2&&text(call.arguments[0]!)==='profileId'
         &&callback&&ts.isArrowFunction(callback)&&ts.isBlock(callback.body)?callback.body:undefined;
     };
@@ -149,6 +157,7 @@ export function syncPullEncryptionSourceContract(source: string): boolean {
     if(!localKey||!importedKey(localKey))return false;
     const returns=capture.statements.filter(ts.isReturnStatement),returned=returns[0]?.expression;
     if(returns.length!==1||!returned||!ts.isObjectLiteralExpression(returned))return false;
+    if(returned.properties.filter(ts.isShorthandPropertyAssignment).filter(property=>text(property.name)==='mutations').length!==1)return false;
     const stored=returned.properties.filter(ts.isPropertyAssignment).filter(property=>text(property.name)==='stored');
     const latest=variable(persist,'latest')?.initializer;
     if(stored.length!==1||text(stored[0]!.initializer)!=='rawStored?JSON.parse(rawStored):null'||!latest||text(latest)!=='raw?JSON.parse(raw):null')return false;

@@ -384,6 +384,25 @@ They advance only after item-row completion or successful pull persistence,
 and only for values that survived persistence rebasing. A later in-place row
 update can replace that committed value even when its embedded timestamp ties;
 an older query result cannot replace a freshly committed local edit.
+During upgrade, an unchanged last-pushed array value uses its legacy snapshot
+as the merge base, bounded by its planning clock when present. An actual
+per-item receipt takes priority. Changed or unknown local values remain edits;
+only matching durably persisted row values establish the new receipts.
+Array planning uses those received versions for later edits and deletions,
+including edits back to a previously pushed value. Deletion receipts retain a
+clocked absence so stale queries cannot revive a deleted item and an explicit
+restoration can publish the same value again. Tombstone logical IDs stay in
+local plan metadata; SDK mutation arguments retain their existing wire shape.
+Restoring a tombstoned row sends SQLite false (`isDeleted: 0`) for arrays,
+maps, and scalars. Evolu v8 treats null as no deletion-register change; zero
+clears that register in both supported SDK generations.
+A pull also captures a bounded journal of local commits. Persistence replays
+those mutations against the merged view, preserving a deliberate change and
+restoration even when its final value equals the pull's original snapshot.
+The journal stores only changed top-level fields, is released after the pull,
+and defers to a fresh receive after a burst exceeds eight commits. No storage
+lock spans decoding or relay work. A known item deletion also takes priority
+over a newer profile timestamp caused by an unrelated save.
 Lab entries retain their per-marker merge rules. A map tombstone suppresses older
 live duplicates, while a later explicit edit can restore the key. New mutations
 advance past observed row clocks even after a device clock moves backwards.

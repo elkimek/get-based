@@ -3,7 +3,7 @@ import {clearScalarVersion} from './sync-scalar-snapshot.js';
 import {DELTA_ARRAYS, DELTA_SCALARS} from './sync-delta-surfaces.js';
 import {_isAllowlistSafeId} from './sync-delta-id.js';
 
-export interface ArrayItemVersion { hash: string; clock: number }
+export interface ArrayItemVersion { hash: string | null; clock: number }
 export type ArrayItemVersions = Record<string, ArrayItemVersion>;
 export type PulledArrayVersions = Record<string, ArrayItemVersions>;
 
@@ -16,10 +16,26 @@ export function readArrayVersions(profileId: unknown, arrayName: string): ArrayI
     const parsed = JSON.parse(localStorage.getItem(`${_deltaSnapshotKey(profileId, arrayName)}-versions`) || '{}');
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return versions;
     for (const [id, value] of Object.entries(parsed) as [string, Partial<ArrayItemVersion>][]) {
-      if (_isAllowlistSafeId(id) && value && typeof value.hash === 'string'
+      if (_isAllowlistSafeId(id) && value && (typeof value.hash === 'string' || value.hash === null)
           && Number.isSafeInteger(value.clock) && value.clock! > 0) versions[id] = {hash: value.hash, clock: value.clock!};
     }
   } catch { /* Unknown receipts cannot authorize replacing a local edit. */ }
+  return versions;
+}
+
+/** Upgrade merge base for values committed before row-version receipts existed.
+ * The old planning clock is only a lower bound; an actual receipt takes priority. */
+export function readLegacyArrayVersions(profileId: unknown, arrayName: string): ArrayItemVersions {
+  const versions: ArrayItemVersions = Object.create(null);
+  if (typeof profileId !== 'string' || !DELTA_ARRAYS.includes(arrayName)) return versions;
+  let clock = 0;
+  try {
+    const meta = JSON.parse(localStorage.getItem(`${_deltaSnapshotKey(profileId, arrayName)}-meta`) || '{}');
+    if (Number.isSafeInteger(meta?.plannedAt) && meta.plannedAt > 0) clock = meta.plannedAt;
+  } catch { /* Older snapshots may predate planning-clock metadata as well. */ }
+  for (const [id, hash] of Object.entries(_readDeltaSnapshot(profileId, arrayName))) {
+    if (_isAllowlistSafeId(id) && typeof hash === 'string') versions[id] = {hash, clock};
+  }
   return versions;
 }
 

@@ -126,9 +126,10 @@ export async function applyCommittedDeltas(
       if (allOk) {
         if (DELTA_ARRAYS.includes(arrayName)) {
           const versions = Object.fromEntries(plan.ops.flatMap(op => {
-            const itemId = op.args.itemId, hash = typeof itemId === 'string' ? plan.next[itemId] : null;
+            const itemId = op.kind === 'tombstone' ? op.itemId : op.args.itemId;
+            const hash = op.kind === 'tombstone' ? null : typeof itemId === 'string' ? plan.next[itemId] : undefined;
             const clock = Date.parse(String(op.args.syncedAt || ''));
-            return typeof itemId === 'string' && typeof hash === 'string' && clock > 0 ? [[itemId, {hash, clock}]] : [];
+            return typeof itemId === 'string' && (typeof hash === 'string' || hash === null) && clock > 0 ? [[itemId, {hash, clock}]] : [];
           }));
           if (!writeArrayVersions(profileId, arrayName, versions)) { allCommitted = false; continue; }
         }

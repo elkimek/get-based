@@ -210,6 +210,45 @@ it('keeps a save queued behind an in-flight pull and preserves both changes', as
   expect(stored.entries.map(e => e.date)).toEqual(['2026-09-01', '2026-09-02']);
 });
 
+it('preserves a committed change-and-restore while an older scalar pull awaits persistence', async()=>{
+ const remote=structuredClone(state.importedData);remote.contextNotes='remote';remote.entries.push(entry('2026-09-02',{'lipids.apoB':.9}));
+ const pull=await mergePulledImportedData(profileId,remote);
+ state.importedData.contextNotes='intermediate';expect(await saveImportedData()).toBe(true);
+ state.importedData.contextNotes='original';expect(await saveImportedData()).toBe(true);
+ await persistPulledImportedData(key,profileId,pull.merged,Date.now());
+ expect((await read()).contextNotes).toBe('original');expect((await read()).entries).toHaveLength(2);
+});
+
+it('preserves a committed record deletion and restoration against an already prepared pull',async()=>{
+ const original=structuredClone(state.importedData.entries[0]!);
+ const remote=structuredClone(state.importedData);remote.entries.push(entry('2026-09-02',{'lipids.apoB':.9}));
+ const pull=await mergePulledImportedData(profileId,remote);
+ pull.merged.entries=pull.merged.entries.filter(item=>item.date!=='2026-09-01');
+ state.importedData.entries=[];expect(await saveImportedData()).toBe(true);
+ state.importedData.entries=[original];expect(await saveImportedData()).toBe(true);
+ await persistPulledImportedData(key,profileId,pull.merged,Date.now());
+ expect((await read()).entries.map(item=>item.date).sort()).toEqual(['2026-09-01','2026-09-02']);
+});
+
+it('retains a successful restore intent even when another writer already stored the same value',async()=>{
+ const original=structuredClone(state.importedData),remote=structuredClone(original);remote.contextNotes='remote';
+ const pull=await mergePulledImportedData(profileId,remote);
+ state.importedData.contextNotes='intermediate';expect(await saveImportedData()).toBe(true);
+ await crypto.encryptedSetItem(key,JSON.stringify(original));
+ state.importedData.contextNotes='original';expect(await saveImportedData()).toBe(true);
+ await persistPulledImportedData(key,profileId,pull.merged,Date.now());expect((await read()).contextNotes).toBe('original');
+});
+
+it('defers an overflowing local-commit journal without writing stale pull data and allows a fresh attempt',async()=>{
+ const remote=structuredClone(state.importedData);remote.contextNotes='remote';remote.entries.push(entry('2026-09-02',{'lipids.apoB':.9}));
+ const pull=await mergePulledImportedData(profileId,remote);
+ for(let i=0;i<9;i++){state.importedData.contextNotes=`local-${i}`;expect(await saveImportedData()).toBe(true);}
+ expect(await persistPulledImportedData(key,profileId,pull.merged,Date.now())).toMatchObject({retry:true});
+ expect((await read()).contextNotes).toBe('local-8');
+ const retry=await mergePulledImportedData(profileId,remote);state.importedData.contextNotes='after retry';expect(await saveImportedData()).toBe(true);
+ await persistPulledImportedData(key,profileId,retry.merged,Date.now());expect((await read()).contextNotes).toBe('after retry');expect((await read()).entries).toHaveLength(2);
+});
+
 it('reads newer stored fields even when the active tab started from an older baseline', async () => {
   const live = state.importedData; rememberProfileData(live);
   const otherTab = structuredClone(live); otherTab.entries.push(entry('2026-09-03', { 'lipids.apoB': 1.2 }));
@@ -225,6 +264,13 @@ it('reports success after durable persistence even when a post-save sync hook fa
   state.importedData.contextNotes = 'durable edit';
   expect(await saveImportedData()).toBe(true);
   expect((await read()).contextNotes).toBe('durable edit');
+});
+
+it('keeps a durable save successful if local-commit observation fails',async()=>{
+ const writes=await import('../js/profile-data-writes.js');
+ vi.spyOn(writes,'noteProfileDataCommit').mockImplementation(()=>{throw new Error('observation unavailable');});
+ state.importedData.contextNotes='durable observation failure';expect(await saveImportedData()).toBe(true);
+ expect((await read()).contextNotes).toBe('durable observation failure');
 });
 
 it('preserves split same-day panels while merging concurrent lab additions', () => {

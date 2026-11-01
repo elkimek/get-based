@@ -44,6 +44,10 @@ export function acknowledgePulledArrayVersions(profileId: string, committed: Del
       const id = itemIdFn(item), version = id ? candidates[id] : null;
       return id && version?.hash === _djb2(JSON.stringify(item)) ? [[id, version]] : [];
     }));
+    const presentIds = new Set(items.map(itemIdFn));
+    for (const [id, version] of Object.entries(candidates)) {
+      if (version.hash === null && !presentIds.has(id)) matching[id] = version;
+    }
     writeArrayVersions(profileId, arrayName, matching);
   }
 }
