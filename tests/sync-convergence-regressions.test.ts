@@ -304,3 +304,33 @@ it('a committed specimen accepts an in-place equal-clock row update without over
  const draft={entries:[{...first,markers:{'hormones.cortisol':360}}]};
  await mergeArrayRowsIntoImported(draft,'entries',rows,{profileId});expect(draft.entries).toEqual([{...first,markers:{'hormones.cortisol':360}}]);
 });
+
+// The profile envelope can arrive before its item-row tombstone. A receiver
+// may briefly republish that envelope; its clock is not an item restoration.
+it('a later whole-profile echo cannot shield an acknowledged array value from deletion', async () => {
+ const item = {id: 'sun_1', minutes: 10, updatedAt: Date.parse(at)};
+ writeArrayVersions(profileId, 'sunSessions', {sun_1: {hash: _djb2(JSON.stringify(item)), clock: Date.parse(at)}});
+ const tombstone = {...row('physical', item, later), arrayName: 'sunSessions', itemId: 'sun_1', isDeleted: 1};
+ const data = {sunSessions: [item]};
+ const versions: PulledArrayVersions = {};
+ await mergeArrayRowsIntoImported(data, 'sunSessions', [tombstone], {
+  profileId, baselineItems: [item], localItems: [item], baselineSyncedAt: Date.parse(later) + 1000,
+  onVersion: (id, version) => {(versions.sunSessions ??= {})[id] = version;},
+ });
+ expect(data.sunSessions).toEqual([]);
+ acknowledgePulledArrayVersions(profileId, data, versions);
+ expect(readArrayVersions(profileId, 'sunSessions').sun_1).toEqual({hash: null, clock: Date.parse(later)});
+});
+
+it.each(['pending-local', 'newer-row'] as const)('explicit array restoration survives an older tombstone (%s)', async mode => {
+ const item = {id: 'sun_1', minutes: 10, updatedAt: Date.parse(at)};
+ const tombstone = {...row('deleted', item, later), arrayName: 'sunSessions', itemId: 'sun_1', isDeleted: 1};
+ writeArrayVersions(profileId, 'sunSessions', {sun_1: mode === 'pending-local'
+  ? {hash: null, clock: Date.parse(later)} : {hash: _djb2(JSON.stringify(item)), clock: Date.parse(at)}});
+ const restored = {...row('restored', item, new Date(Date.parse(later) + 1000).toISOString()), arrayName: 'sunSessions', itemId: 'sun_1', isDeleted: 0};
+ const data = {sunSessions: [item]};
+ await mergeArrayRowsIntoImported(data, 'sunSessions', mode === 'newer-row' ? [tombstone, restored] : [tombstone], {
+  profileId, baselineItems: [item], localItems: [item], baselineSyncedAt: Date.parse(later) + 2000,
+ });
+ expect(data.sunSessions).toEqual([item]);
+});

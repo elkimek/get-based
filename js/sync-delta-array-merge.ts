@@ -110,6 +110,10 @@ export async function mergeArrayRowsIntoImported(
     if (locallyRestored.has(itemId) && (tombAt == null || tombAt <= committed!.clock)) return false;
     if (committed?.hash === null && committed.clock >= pickTimestamp(item)) return true;
     if (tombAt == null) return false;
+    // A profile envelope may be echoed before its tombstone row arrives. Its
+    // newer clock cannot restore this exact previously acknowledged value.
+    if (committed?.hash && tombAt >= committed.clock
+        && committed.hash === _djb2(JSON.stringify(item))) return true;
     const canonicalBlobAt = baselineItemIds.has(itemId) ? baselineSyncedAt : 0;
     return tombAt >= Math.max(pickTimestamp(item), canonicalBlobAt);
   };

@@ -1344,7 +1344,11 @@ only matching durably persisted row values establish the new receipts.
 Array planning uses those received versions for later edits and deletions,
 including edits back to a previously pushed value. Deletion receipts retain a
 clocked absence so stale queries cannot revive a deleted item and an explicit
-restoration can publish the same value again. Tombstone logical IDs stay in
+restoration can publish the same value again. A row deletion also supersedes
+its exact previously acknowledged live value despite a later profile-envelope
+clock. An envelope echoed before the tombstone arrives is not restoration;
+a locally restored membership or genuinely newer live row retains its own
+restoration authority. Tombstone logical IDs stay in
 local plan metadata; SDK mutation arguments retain their existing wire shape.
 Locally restored membership survives the already acknowledged deletion while
 its new row write is pending; stale live rows cannot acknowledge that restore.
