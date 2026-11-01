@@ -59,6 +59,8 @@ const US_STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|M
 const STREET_SUFFIX = 'Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Court|Ct|Way|Parkway|Pkwy|Place|Pl|Circle|Cir|Highway|Hwy|Terrace|Ter|Trail|Trl|Square|Sq|Loop|Pike|Plaza|Plz';
 const UNIT_KEYWORDS = /\b(mmol|µmol|µkat|umol|ukat|g\/l|mg\/l|ng\/l|µg|ug|mU\/l|pmol|nmol|ml\/s|fL|pg|×10|10\^|u\/l|iu\/l|%|sec|s\/1|mg\/dL|ng\/dL|mIU\/mL|mEq\/L|mcg|cells\/uL|thou\/uL|mill\/uL|x10E\d)\b/i;
 const NEXT_LABEL_RE = /\s{2,}|\t|\s+(?:DOB|D\.O\.B|Date|Sex|Gender|Age|Phone|Tel|Fax|Email|Patient|Account|Acct|Specimen|Accession|Control|MRN|ID|NPI|Address|Physician|Ordering|Referring|Doctor|Provider|Collected|Received|Reported|Pohlav[ií]|V[ěe]k|Datum|Adresa|Rodn[ée]|L[ée]ka[řr])\b[^:\n]{0,20}:/iu;
+const RESULT_FLAG_RE = /^(?:low|high|normal|abnormal|critical|borderline|positive|negative|elevated|decreased)$/i;
+const COLLECTION_LABEL_RE = /(?:collect|odb[ěe]r|received|reported|report\s+date|specimen\s+date|datum|date)/i;
 const MAX_SPANS = 0xF8FF - 0xE100;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -282,7 +284,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   }
 
   // ── Addresses ──
-  const addressLabel = /((?:^|[^\p{L}])(?:address|adresa|bydli[šs]t[ěe]|residence|trval[ée]\s+bydli[šs]t[ěe])\s*:\s*)([^\n]+)/giu;
+  const addressLabel = /((?:^|[^\p{L}])(?:(?:address|residence)\s*:\s*|(?:adresa|bydli[šs]t[ěe]|trval[ée]\s+bydli[šs]t[ěe])(?:\s*:\s*|[ \t]+(?=\p{Lu}))))([^\n]+)/giu;
   text = text.replace(addressLabel, (_match, label: string, rest: string) => {
     const value = segmentValue(rest).trim();
     if (!value || /^\uE000/.test(value)) return label + rest;
@@ -312,11 +314,22 @@ export function redactReportText(input: string, context: RedactionContext): Reda
     });
   }
 
+  // A label-adjacent birth date in a format the date matcher does not know: redact it rather than leak it.
+  text = text.replace(new RegExp(`(${DOB_LABEL_SOURCE}\\s*:?[ \\t]*)([^\\n]+)`, 'gi'), (match: string, label: string, rest: string) => {
+    const value = segmentValue(rest).trim();
+    if (!value || /^\uE000/.test(value) || !/\d/.test(value)) return match;
+    return label + protect(`[DOB-${code('dob', value.toLowerCase().replace(/\s+/g, ' '))}]`) + rest.slice(rest.indexOf(value) + value.length);
+  });
+
   // ── Patient names: removed outright, every written form ──
   const patientForms = [...new Set(patients.flatMap(person => personForms(person, true)))].sort((a, b) => b.length - a.length);
   if (patientForms.length) {
     const re = new RegExp(`${NOT_WORD_BEFORE}(?:${patientForms.join('|')})${NOT_WORD_AFTER}`, 'giu');
-    text = text.replace(re, () => protect(PATIENT_PLACEHOLDER));
+    text = text.replace(re, (match: string, offset: number, whole: string) => {
+      // A surname that doubles as a result flag ("Glucose 60 mg/dL Low") stays in clinical lines.
+      if (RESULT_FLAG_RE.test(match) && /\d/.test(lineAt(whole, offset))) return match;
+      return protect(PATIENT_PLACEHOLDER);
+    });
   }
 
   // ── Physicians: one keyed placeholder per person, every written form ──
@@ -403,6 +416,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   text = text.replace(/\b\d{8,}\b/g, (match: string, offset: number, whole: string) => {
     const line = lineAt(whole, offset);
     if (UNIT_KEYWORDS.test(line) || /===\s*Page/i.test(line)) return match;
+    if (/^\d{8}$/.test(match) && COLLECTION_LABEL_RE.test(line.slice(0, line.indexOf(match)))) return match;
     return protect(formatPreserving('id', match));
   });
 

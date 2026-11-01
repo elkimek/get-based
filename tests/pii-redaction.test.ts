@@ -253,4 +253,14 @@ describe('review findings on PR #1699', () => {
     expect(out).toContain('Ordering Physician');
     expect(out).toContain('Glucose 91 mg/dL');
   });
+  it('keeps flags, collection dates; redacts odd DOB formats and spaced Czech addresses', () => {
+    const o = (t: string) => redactReportText(t, {key: 'k', profileName: 'Demo'}).text;
+    expect(o('DOB: 03/14/99')).not.toContain('03/14/99');
+    expect(o('DOB: 14 March 1999')).not.toContain('March 1999');
+    expect(o('Adresa Hlavní 42, Praha')).not.toContain('Hlavní');
+    const flag = o('Patient: Jane Low\nGlucose 60 mg/dL Low');
+    expect(flag).toContain('60 mg/dL Low');
+    expect(flag).not.toContain('Jane');
+    expect(o('Datum odběru: 20260930')).toContain('20260930');
+  });
 });
