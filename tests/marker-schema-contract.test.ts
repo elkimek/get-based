@@ -20,6 +20,7 @@ const EXPECTED_CATEGORIES = [
   'coagulation',
   'hematology',
   'differential',
+  'lymphocyteSubsets',
   'boneMetabolism',
   'urinalysis',
   'cardiac',
@@ -42,6 +43,7 @@ const CATEGORY_MODULES = {
   coagulation: '../js/marker-schema/coagulation.js',
   hematology: '../js/marker-schema/hematology.js',
   differential: '../js/marker-schema/differential.js',
+  lymphocyteSubsets: '../js/marker-schema/lymphocyte-subsets.js',
   boneMetabolism: '../js/marker-schema/bone-metabolism.js',
   urinalysis: '../js/marker-schema/urinalysis.js',
   cardiac: '../js/marker-schema/cardiac.js',
@@ -93,9 +95,9 @@ describe('marker schema compatibility contract', () => {
       .digest('hex');
 
     expect(Object.keys(facadeMarkerSchema)).toEqual(EXPECTED_CATEGORIES);
-    expect(dotKeys).toHaveLength(198);
+    expect(dotKeys).toHaveLength(210);
     expect(new Set(dotKeys).size).toBe(dotKeys.length);
-    expect(checksum).toBe('411dc2890a8d248a6249dac90e72a323c26ff459cadbed552f8fa5361f7e6017');
+    expect(checksum).toBe('17bf944b04dd456fb97a86038fb999f44ec5fc4b71a3697e39aae042f6b1419f');
   });
 
   it('accounts for reference-range coverage across every built-in marker', () => {
@@ -111,6 +113,16 @@ describe('marker schema compatibility contract', () => {
     expect(contextual).toEqual([
       'biochemistry.egfrCombined',
       'hematology.immatureGranulocytesPct',
+      'lymphocyteSubsets.cd3',
+      'lymphocyteSubsets.cd4',
+      'lymphocyteSubsets.cd8',
+      'lymphocyteSubsets.cd19',
+      'lymphocyteSubsets.nkCells',
+      'lymphocyteSubsets.cd3Pct',
+      'lymphocyteSubsets.cd4Pct',
+      'lymphocyteSubsets.cd8Pct',
+      'lymphocyteSubsets.cd19Pct',
+      'lymphocyteSubsets.nkCellsPct',
       'bodyComposition.leanMass',
       'bodyComposition.fatMass',
       'bodyComposition.androidFatPct',
@@ -118,6 +130,8 @@ describe('marker schema compatibility contract', () => {
       'boneDensity.bmdSpine',
       'boneDensity.bmdFemurTotal',
       'boneDensity.bmdFemurNeck',
+      'calculatedRatios.cd4Cd8Ratio',
+      'calculatedRatios.lmr',
       'calculatedRatios.phenoAge',
       'calculatedRatios.bortzAge',
       'calculatedRatios.biologicalAge',
