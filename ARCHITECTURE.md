@@ -390,6 +390,9 @@ Automatic quota probes defer while an initial owner handshake or provisional
 device join is pending, then refresh after replication settles. Once the owner
 is registered, later sync activity and offline/error diagnostics do not gate
 quota reads. Replies from a retired owner or self-service endpoint are discarded.
+All identity joins suspend retiring-runtime pushes and pulls through the
+controlled reload; rejected joins resume normal sync. Newly joined data must
+not start view loads in a document already scheduled for replacement.
 Device persistence is explicit: unknown evidence never implies durable storage,
 and memory-only storage has a visible notice. Retired runtimes cannot publish
 status or persistence results after an owner change. Database-held, build-conflict
