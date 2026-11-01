@@ -79,6 +79,7 @@ test('a correction retires its older pending card before a stale Apply control c
     const fixture = document.createElement('div'); fixture.id = 'corrected-context-fixture';
     fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black'; document.body.append(fixture);
     const render = () => { fixture.innerHTML = state.chatHistory.map((message, index) => renderAgentDraftCards(message, index)).join(''); };
+    await (await import('/js/chat-loader.js')).loadChatModule();
     configureChatMessageActionDeps({ renderChatMessages: render }); render();
     // The corrected answer arrived, but an older button is still on screen.
     state.chatHistory.push({ role: 'assistant', content: 'Correction', agentDrafts: [proposal('newer-context', 'severe')] });
@@ -126,6 +127,7 @@ for (const decision of ['apply', 'discard', 'conflict'] as const) {
       fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black';
       document.body.append(fixture);
       const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+      await (await import('/js/chat-loader.js')).loadChatModule();
       configureChatMessageActionDeps({ renderChatMessages: render }); render();
       return JSON.stringify(state.importedData.diet);
     });
@@ -234,6 +236,7 @@ test('proposal action persists its result and remains non-actionable after histo
     fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white';
     document.body.append(fixture);
     const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+    await (await import('/js/chat-loader.js')).loadChatModule();
     configureChatMessageActionDeps({ renderChatMessages: render }); render();
   });
   await page.locator('#proposal-fixture [data-chat-message-action="apply-agent-draft"]').click();
@@ -285,6 +288,7 @@ test('two stale tabs can apply a meal proposal only once', async ({ page, contex
       const fixture = document.createElement('div'); fixture.id = 'shared-proposal-fixture';
       fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white'; document.body.append(fixture);
       const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+      await (await import('/js/chat-loader.js')).loadChatModule();
       configureChatMessageActionDeps({ renderChatMessages: render }); render();
       return prepared[0]!.id;
     }, profile));
@@ -396,6 +400,7 @@ for (const scenario of [
       const fixture = document.createElement('div'); fixture.id = 'expanded-context-fixture';
       fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black'; document.body.append(fixture);
       const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+      await (await import('/js/chat-loader.js')).loadChatModule();
       configureChatMessageActionDeps({ renderChatMessages: render }); render();
       return before;
     }, scenario);
@@ -435,6 +440,7 @@ for (const scenario of [
 test('a first approved goal appears in the normal editor and survives reload without pre-seeded profile data', async ({ page }) => {
   await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
+    await (await import('/js/chat-loader.js')).loadChatModule();
     const profile = await import('/js/profile.js');
     const { state } = await import('/js/state.js');
     const { encryptedGetItem } = await import('/js/crypto.js');
@@ -458,6 +464,7 @@ test('a first approved goal appears in the normal editor and survives reload wit
     const fixture = document.createElement('div'); fixture.id = 'first-goal-fixture';
     fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black'; document.body.append(fixture);
     const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+    await (await import('/js/chat-loader.js')).loadChatModule();
     configureChatMessageActionDeps({ renderChatMessages: render }); render();
   });
   const fixture = page.locator('#first-goal-fixture');
@@ -520,6 +527,7 @@ for (const kind of ['context', 'data'] as const) for (const retirement of ['none
       const target = document.getElementById('chat-messages'); if (!target) throw new Error('Native chat missing');
       const drafts = await import('/js/agent-drafts.js');
       const render = () => { target.innerHTML = state.chatHistory.map((message, index) => drafts.renderAgentDraftCards(message, index)).join(''); };
+      await (await import('/js/chat-loader.js')).loadChatModule();
       (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
       const port: ApplyOwnershipPort = { draft: state.chatHistory[1]!.agentDrafts![0]! };
       (globalThis as typeof globalThis & { applyOwnershipTest?: ApplyOwnershipPort }).applyOwnershipTest = port;

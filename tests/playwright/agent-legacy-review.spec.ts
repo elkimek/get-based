@@ -11,6 +11,7 @@ for (const scenario of ['note', 'bp', 'undated'] as const) test(`saved legacy ${
     state.chatHistory = [{ role: 'user', content: scenario === 'bp' ? 'My seated pressure was 122/82 and pulse 62 on 20 October 2026.' : 'Add this reported profile note.' }, { role: 'assistant', content: 'Older proposal.', agentDrafts: [{ id: 'old-card', profileId: state.currentProfile, kind: scenario === 'note' ? 'note' : 'biometric', status: 'pending', payload: scenario === 'note' ? { scope: 'profile', text: 'New note', mode: 'append' } : scenario === 'bp' ? { metric: 'bp', date: '2026-10-20', systolic: 122, diastolic: 82, pulse: 62, note: 'Seated reading' } : { metric: 'weight', value: 81, unit: 'kg' } }] }];
     const fixture = document.createElement('div'); fixture.id = 'legacy-fixture'; fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black;overflow:auto'; document.body.append(fixture);
     const { renderAgentDraftCards } = await import('/js/agent-drafts.js'), render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[1], 1); };
+    await (await import('/js/chat-loader.js')).loadChatModule();
     (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
   }, scenario);
   const fixture = page.locator('#legacy-fixture'); await expect(fixture.getByRole('button', { name: 'Refresh review', exact: true })).toBeVisible();
@@ -33,6 +34,7 @@ for (const scenario of ['note', 'bp', 'undated'] as const) test(`saved legacy ${
     state.currentThreadId = 'legacy-review'; if (!await (await import('/js/chat-history.js')).loadChatHistory()) throw new Error('Saved legacy conversation body was not restored');
     const fixture = document.createElement('div'); fixture.id = 'legacy-fixture'; fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black;overflow:auto'; document.body.append(fixture);
     const { renderAgentDraftCards } = await import('/js/agent-drafts.js'), render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[1], 1); };
+    await (await import('/js/chat-loader.js')).loadChatModule();
     (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
   });
   await expect(fixture.getByRole('button', { name: 'Apply', exact: true })).toHaveCount(1); await fixture.getByRole('button', { name: 'Apply', exact: true }).click(); await expect(fixture.locator('.chat-agent-draft-applied')).toHaveCount(1);

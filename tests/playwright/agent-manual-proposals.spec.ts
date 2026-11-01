@@ -2,7 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 
 for (const scenario of ['weight', 'discard', 'bp', 'waist', 'method', 'date', 'remove', 'depth'] as const) {
   test(`reviewed manual ${scenario} command reaches ordinary history after reload`, async ({ page }) => {
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async scenario => {
       const { state } = await import('/js/state.js'), manual = await import('/js/wearables-manual.js');
       await manual.logManualMetric(state.currentProfile, 'weight', { date: '2026-10-20', value: 80, note: 'Morning measurements' });
@@ -22,12 +22,13 @@ for (const scenario of ['weight', 'discard', 'bp', 'waist', 'method', 'date', 'r
       state.chatHistory = [{ role: 'assistant', content: 'Review the measurement.', agentDrafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: state.currentProfile })) }];
       const fixture = document.createElement('div'); fixture.id = 'manual-proposal-fixture'; fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black;overflow:auto'; document.body.append(fixture);
       const { renderAgentDraftCards } = await import('/js/agent-drafts.js'); const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+      await (await import('/js/chat-loader.js')).loadChatModule();
       (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
     }, scenario);
     const fixture = page.locator('#manual-proposal-fixture'); await expect(fixture).toContainText('Manual Body Readings'); await expect(fixture).toContainText('Current'); await expect(fixture).toContainText('Proposed');
     expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.manualBodyReadings!['weight.2026-10-20']!.value)).toBe(80);
     await fixture.locator(`[data-chat-message-action="${scenario === 'discard' ? 'discard' : 'apply'}-agent-draft"]`).click(); await expect(fixture).toContainText(scenario === 'discard' ? 'Discarded' : 'Applied to getbased');
-    await page.reload();
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor();
     if (scenario === 'waist' || scenario === 'method' || scenario === 'depth') {
       await page.evaluate(async scenario => (await import('/js/body-measurement-modal.js')).openBodyMeasurementEditor(scenario === 'depth' ? 'abdominal_depth' : 'waist'), scenario);
       const editor = page.locator('[data-body-measurement-view]');
@@ -46,12 +47,12 @@ for (const scenario of ['weight', 'discard', 'bp', 'waist', 'method', 'date', 'r
 }
 
 test('two renderers retain independent same-day manual corrections', async ({ page, context }) => {
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const manual = await import('/js/wearables-manual.js'), id = (await import('/js/state.js')).state.currentProfile;
     await manual.logManualMetric(id, 'weight', { date: '2026-10-20', value: 80 }); await manual.logManualBP(id, { date: '2026-10-20', systolic: 120, diastolic: 80 });
   });
-  const peer = await context.newPage(); await peer.goto('/app');
+  const peer = await context.newPage(); await peer.goto('/app'); await peer.locator('html[data-app-ready]').waitFor();
   async function propose(target: typeof page, bp: boolean) { return target.evaluate(async bp => {
     const { state } = await import('/js/state.js'), evidence = 'Correct the manual measurement.';
     const tools = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', userMessage: evidence, ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) });
@@ -63,6 +64,6 @@ test('two renderers retain independent same-day manual corrections', async ({ pa
   }, bp); }
   const [first, second] = await Promise.all([propose(page, false), propose(peer, true)]);
   await Promise.all([page.evaluate(async draft => (await import('/js/agent-drafts.js')).applyAgentDraft(draft), first), peer.evaluate(async draft => (await import('/js/agent-drafts.js')).applyAgentDraft(draft), second)]);
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   expect(await page.evaluate(async () => (await import('/js/wearables-store.js')).getDaily((await import('/js/state.js')).state.currentProfile, 'manual', '2026-10-20'))).toMatchObject({ weight: 81, bp_systolic: 122, bp_diastolic: 80 });
 });

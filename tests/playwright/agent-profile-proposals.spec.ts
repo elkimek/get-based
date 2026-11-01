@@ -2,7 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 
 for (const decision of ['apply', 'discard'] as const) {
   test(`profile proposal ${decision} preserves the reviewed height and ordinary editor after reload`, async ({ page }) => {
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async () => {
       const { state } = await import('/js/state.js');
       const { updateProfileMeta } = await import('/js/profile.js');
@@ -18,6 +18,7 @@ for (const decision of ['apply', 'discard'] as const) {
       state.chatHistory = [{ role: 'assistant', content: 'Review the profile change.', agentDrafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: state.currentProfile })) }];
       const fixture = document.createElement('div'); fixture.id = 'profile-proposal-fixture'; fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black;overflow:auto'; document.body.append(fixture);
       const { renderAgentDraftCards } = await import('/js/agent-drafts.js'); const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+      await (await import('/js/chat-loader.js')).loadChatModule();
       (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
     });
     const fixture = page.locator('#profile-proposal-fixture');
@@ -25,7 +26,7 @@ for (const decision of ['apply', 'discard'] as const) {
     expect(await page.evaluate(async () => (await import('/js/profile.js')).getProfileHeight().height)).toBe(170);
     await fixture.locator(`[data-chat-message-action="${decision}-agent-draft"]`).click();
     await expect(fixture).toContainText(decision === 'apply' ? 'Applied to getbased' : 'Discarded');
-    await page.reload();
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async () => {
       const clients = await import('/js/client-list.js');
       await clients.openClientList(); clients.openClientForm((await import('/js/state.js')).state.currentProfile);
@@ -38,8 +39,8 @@ for (const decision of ['apply', 'discard'] as const) {
 }
 
 test('profile Apply checks another renderer and rereads its saved details after conflict', async ({ page, context }) => {
-  await page.goto('/app');
-  const peer = await context.newPage(); await peer.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
+  const peer = await context.newPage(); await peer.goto('/app'); await peer.locator('html[data-app-ready]').waitFor();
   const draft = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', userMessage: 'Call this profile New name.', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) });
@@ -63,12 +64,12 @@ test('profile Apply checks another renderer and rereads its saved details after 
 });
 
 test('ordinary metadata writers in two renderers retain independent changes', async ({ page, context }) => {
-  await page.goto('/app'); const peer = await context.newPage(); await peer.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor(); const peer = await context.newPage(); await peer.goto('/app'); await peer.locator('html[data-app-ready]').waitFor();
   const id = await page.evaluate(async () => (await import('/js/state.js')).state.currentProfile);
   await Promise.all([
     page.evaluate(async id => { if (!await (await import('/js/profile.js')).updateProfileMeta(id, { name: 'Concurrent name' })) throw new Error('Name save failed'); }, id),
     peer.evaluate(async id => { if (!await (await import('/js/profile.js')).updateProfileMeta(id, { sex: 'female' })) throw new Error('Sex save failed'); }, id),
   ]);
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   expect(await page.evaluate(async id => (await import('/js/profile.js')).getProfiles().find(profile => profile.id === id), id)).toMatchObject({ name: 'Concurrent name', sex: 'female' });
 });

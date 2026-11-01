@@ -2,7 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 
 for (const scenario of ['therapy', 'targets', 'note'] as const) {
   test(`approved ${scenario} record edits appear in the normal editor after reload`, async ({ page }) => {
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async scenario => {
       const { state } = await import('/js/state.js');
       const { saveImportedData } = await import('/js/data.js');
@@ -30,6 +30,7 @@ for (const scenario of ['therapy', 'targets', 'note'] as const) {
       fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black;overflow:auto'; document.body.append(fixture);
       const { renderAgentDraftCards } = await import('/js/agent-drafts.js');
       const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+      await (await import('/js/chat-loader.js')).loadChatModule();
       (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
     }, scenario);
     const fixture = page.locator('#data-proposal-fixture');
@@ -40,7 +41,7 @@ for (const scenario of ['therapy', 'targets', 'note'] as const) {
     expect(before).toEqual({ text: 'Original note', end: undefined, targets: null });
     await fixture.locator('[data-chat-message-action="apply-agent-draft"]').click();
     await expect(fixture).toContainText('Applied to getbased');
-    await page.reload();
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor();
     if (scenario === 'therapy') {
       await page.evaluate(async () => { (await import('/js/supplements.js')).openSupplementsEditor(0); });
       await expect(page.locator('.supp-period-end').first()).toHaveValue('2026-10-23');
@@ -58,10 +59,10 @@ for (const scenario of ['therapy', 'targets', 'note'] as const) {
 }
 
 test('a stale peer edit is rejected inside the save while unrelated therapy additions survive', async ({ page, context }) => {
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   // The unit suite exercises locked peer-write injection. Here use two real renderers
   // sharing durable storage: do not rely on the first tab's in-memory profile cache.
-  const peer = await context.newPage(); await peer.goto('/app');
+  const peer = await context.newPage(); await peer.goto('/app'); await peer.locator('html[data-app-ready]').waitFor();
   const profile = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     state.importedData.supplements = [{ id: 'therapy-a', name: 'Example product', type: 'supplement', startDate: '2026-01-01', periods: [{ start: '2026-01-01', end: null }] }];
@@ -88,6 +89,6 @@ test('a stale peer edit is rejected inside the save while unrelated therapy addi
     catch (error) { return error instanceof Error ? error.message : String(error); }
   }, draft);
   expect(result).toContain('changed');
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements[0]!.note)).toBe('Peer correction');
 });

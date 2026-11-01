@@ -5,7 +5,7 @@ for (const scenario of ['portion', 'discard', 'water', 'checkin', 'checkin-unlin
     test.skip(scenario === 'timezone' && browserName !== 'chromium', 'The timezone handoff case uses Chromium timezone emulation.');
     const emulation = scenario === 'timezone' ? await context.newCDPSession(page) : null;
     await emulation?.send('Emulation.setTimezoneOverride', { timezoneId: 'America/Los_Angeles' });
-    await page.goto('/app');
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async scenario => {
       const { state } = await import('/js/state.js');
       const { saveActiveProfileMeal } = await import('/js/nutrition-store.js');
@@ -30,6 +30,7 @@ for (const scenario of ['portion', 'discard', 'water', 'checkin', 'checkin-unlin
       state.chatHistory = [{ role: 'assistant', content: 'Review the meal change.', agentDrafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: state.currentProfile })) }];
       const fixture = document.createElement('div'); fixture.id = 'meal-proposal-fixture'; fixture.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:white;color:black;overflow:auto'; document.body.append(fixture);
       const { renderAgentDraftCards } = await import('/js/agent-drafts.js'); const render = () => { fixture.innerHTML = renderAgentDraftCards(state.chatHistory[0], 0); };
+      await (await import('/js/chat-loader.js')).loadChatModule();
       (await import('/js/chat-actions.js')).configureChatMessageActionDeps({ renderChatMessages: render }); render();
     }, scenario);
     const fixture = page.locator('#meal-proposal-fixture');
@@ -38,7 +39,7 @@ for (const scenario of ['portion', 'discard', 'water', 'checkin', 'checkin-unlin
     await emulation?.send('Emulation.setTimezoneOverride', { timezoneId: 'Asia/Tokyo' });
     await fixture.locator(`[data-chat-message-action="${scenario === 'discard' ? 'discard' : 'apply'}-agent-draft"]`).click();
     await expect(fixture).toContainText(scenario === 'discard' ? 'Discarded' : 'Applied to getbased');
-    await page.reload();
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor();
     await page.evaluate(async () => { await (await import('/js/nutrition-store.js')).hydrateNutritionSummary(); });
     if (scenario === 'remove') {
       expect(await page.evaluate(async () => (await import('/js/nutrition-store.js')).getActiveProfileMeal('meal-a'))).toBeNull();
@@ -74,13 +75,13 @@ for (const scenario of ['portion', 'discard', 'water', 'checkin', 'checkin-unlin
 }
 
 test('concurrent renderers commit independent meal edits without losing either record', async ({ page, context }) => {
-  await page.goto('/app');
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async () => {
     const { saveActiveProfileMeal } = await import('/js/nutrition-store.js');
     await saveActiveProfileMeal({ id: 'first', name: 'First meal', mealType: 'lunch', eatenAt: '2026-10-20T12:00Z' });
     await saveActiveProfileMeal({ id: 'second', name: 'Second meal', mealType: 'dinner', eatenAt: '2026-10-20T18:00Z' });
   });
-  const peer = await context.newPage(); await peer.goto('/app');
+  const peer = await context.newPage(); await peer.goto('/app'); await peer.locator('html[data-app-ready]').waitFor();
   async function proposal(target: typeof page, recordId: string) { return target.evaluate(async recordId => {
     const { state } = await import('/js/state.js');
     const runtime = (await import('/js/agent-tool-runtime.js')).createAgentToolRuntime({ readContext: () => '', userMessage: 'Correct the meal note.', ...(await import('/js/agent-tool-bindings.js')).createBrowserAgentToolDependencies(state.currentProfile) });
@@ -95,6 +96,6 @@ test('concurrent renderers commit independent meal edits without losing either r
     page.evaluate(async draft => (await import('/js/agent-drafts.js')).applyAgentDraft(draft), first),
     peer.evaluate(async draft => (await import('/js/agent-drafts.js')).applyAgentDraft(draft), second),
   ]);
-  await page.reload();
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
   expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.nutritionMeals)).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'first', note: 'first corrected' }), expect.objectContaining({ id: 'second', note: 'second corrected' })]));
 });

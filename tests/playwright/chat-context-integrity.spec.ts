@@ -11,6 +11,8 @@ async function saved(page: Page) {
 }
 async function prepare(page: Page, card: AgentContextCard, change: AgentContextChange) {
   return page.evaluate(async ({ card, change }) => {
+    // Bind the native composition before installing the isolated review renderer.
+    await (await import('/js/chat-loader.js')).loadChatModule();
     const [{ state }, { createBrowserAgentToolDependencies }, { createAgentToolRuntime }, chat, drafts] = await Promise.all([
       import('/js/state.js'), import('/js/agent-tool-bindings.js'), import('/js/agent-tool-runtime.js'), import('/js/chat-actions.js'), import('/js/agent-drafts.js'),
     ]);
