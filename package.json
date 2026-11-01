@@ -108,14 +108,14 @@
     "@vercel/blob": "2.8.0",
     "ehbp": "0.3.2",
     "tinfoil": "^1.2.1",
-    "undici": "8.11.2"
+    "undici": "8.12.3"
   },
   "overrides": {
     "@phala/dcap-qvl": {
       "elliptic": "$elliptic"
     },
     "@vercel/blob": {
-      "undici": "6.28.1"
+      "undici": "6.29.1"
     },
     "@tailwindcss/cli": {
       "@parcel/watcher": "2.6.0"

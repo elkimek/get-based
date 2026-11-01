@@ -17,7 +17,10 @@ async function transport() {
   const paths: string[] = [];
   const server = createServer((request, response) => {
     paths.push(request.url!);
-    if (request.url === '/redirect') {
+    if (request.url === '/encoding-overflow') {
+      response.writeHead(200, {'content-encoding': 'gzip, gzip, gzip, gzip, gzip, gzip'});
+      response.end();
+    } else if (request.url === '/redirect') {
       response.writeHead(302, {location: 'http://127.0.0.1/private'});
       response.end('redirect blocked by caller policy');
     } else {
@@ -89,4 +92,17 @@ it('destroys the installed dispatcher when an in-flight response is aborted', as
   await vi.waitFor(() => expect(test.destroy).toHaveBeenCalledOnce());
   expect(test.close).not.toHaveBeenCalled();
   expect(test.paths).toEqual(['/stream']);
+});
+
+it('rejects excessive content encodings without crashing the proxy process', async () => {
+  const test = await transport();
+  await expect(fetchWithPinnedProxyDns(test.url + '/encoding-overflow', {}, test))
+    .rejects.toMatchObject({cause: {message: 'too many content-encodings in response: 6, maximum allowed is 5'}});
+  await vi.waitFor(() => expect(test.destroy).toHaveBeenCalledOnce());
+  expect(test.close).not.toHaveBeenCalled();
+
+  const response = await fetchWithPinnedProxyDns(test.url + '/', {}, test);
+  expect(await response.text()).toBe('first second');
+  expect(test.paths).toEqual(['/encoding-overflow', '/']);
+  expect(test.close).toHaveBeenCalledOnce();
 });
