@@ -1650,6 +1650,14 @@ the higher-layer behavior through a narrow runtime seam.
   `handleBatchPDFs`, marking an item done only when the review reports it saved
   or skipped. It claims the shared import lock only after its last await and
   never commits health data itself.
+- Native history reads capture the profile, thread, live message-array identity
+  and its exact value. A delayed read or read failure cannot replace or clear
+  newer replies, reviews, edits or removals in that same conversation. A retired
+  read leaves storage, current messages and write permissions unchanged; an
+  unchanged owner still receives the normal normalized stored history. Profile
+  shell restoration initializes only its original empty, threadless Chat state;
+  a conversation claimed while hydration or module loading waits retains its
+  live messages and reviews while the remaining profile shell still refreshes.
 - Chat review presentation shares a typed lifecycle for data and app controls;
   native domain owners retain Apply validation, private leases and Undo receipts.
   Completion and interrupted-turn recovery use verified review IDs rather than

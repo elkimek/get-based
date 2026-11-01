@@ -53,11 +53,19 @@ export function getChatStorageKey() {
   return `labcharts-${state.currentProfile}-chat`;
 }
 
+function historyReadValue(history: typeof state.chatHistory): string | null {
+  try { const value = JSON.stringify(history); return typeof value === 'string' ? value : null; } catch { return null; }
+}
+
 export async function loadChatHistory() {
   const revision = ++historyLoadRevision;
   const profile = state.currentProfile;
   const threadId = state.currentThreadId;
-  const isCurrent = () => revision === historyLoadRevision && profile === state.currentProfile && threadId === state.currentThreadId;
+  const live = state.chatHistory, observed = historyReadValue(live);
+  // A profile refresh can finish decrypting after a reply/review has arrived.
+  // Same profile and thread do not authorize replacing that newer live owner.
+  const isCurrent = () => revision === historyLoadRevision && profile === state.currentProfile && threadId === state.currentThreadId
+    && state.chatHistory === live && observed !== null && historyReadValue(live) === observed;
   if (!state.currentThreadId) {
     state.chatHistory = [];
     renderChatMessagesRuntime();

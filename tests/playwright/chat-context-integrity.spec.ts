@@ -1,5 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 import type { Page } from '@playwright/test';
+import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import { AGENT_CONTEXT_CARDS, type AgentContextCard, type AgentContextChange } from '../../shared/agent-tool-contract.js';
 import type { AgentContextField } from '../../js/agent-context-records.js';
 
@@ -12,7 +13,7 @@ async function saved(page: Page) {
 async function prepare(page: Page, card: AgentContextCard, change: AgentContextChange) {
   return page.evaluate(async ({ card, change }) => {
     // Bind the native composition before installing the isolated review renderer.
-    await (await import('/js/chat-loader.js')).loadChatModule();
+    const composition = await (await import('/js/chat-loader.js')).loadChatModule();
     const [{ state }, { createBrowserAgentToolDependencies }, { createAgentToolRuntime }, chat, drafts] = await Promise.all([
       import('/js/state.js'), import('/js/agent-tool-bindings.js'), import('/js/agent-tool-runtime.js'), import('/js/chat-actions.js'), import('/js/agent-drafts.js'),
     ]);
@@ -23,6 +24,9 @@ async function prepare(page: Page, card: AgentContextCard, change: AgentContextC
     const snapshot = JSON.parse(read.contentItems[0].text) as { snapshotId: string };
     const result = await runtime.execute({ tool: 'getbased_draft_context', arguments: { card, snapshotId: snapshot.snapshotId, changes: [change], reason: 'Review an explicitly supplied test value.', evidence } });
     if (!result.success) throw new Error(`${card}/${change.field}: ${result.contentItems[0].text}`);
+    // Cancel Welcome's optional open before claiming this isolated review.
+    // Retire an opening already awaiting native styles/history on each reload.
+    composition.closeChatPanel();
     state.currentThreadId = 'context-integrity';
     state.chatThreads = [{ id: state.currentThreadId, name: 'Synthetic field review', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 2 }];
     state.chatHistory = [{ role: 'user', content: evidence }, { role: 'assistant', content: 'Review the supplied change.', agentDrafts: runtime.getDrafts().map(draft => ({ ...draft, profileId: state.currentProfile })) }];
@@ -117,5 +121,106 @@ for (const card of AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals')) {
     }
     expect(checked).toEqual(scalars.map((field: AgentContextField) => field.key));
     await info.attach('checked-fields.json', { body: JSON.stringify({ card, checked, recordsCoveredBy: fields.filter(field => field.kind === 'records').map(field => field.key) }), contentType: 'application/json' });
+  });
+}
+
+
+test('a delayed native history read cannot replace a newer pending review before Apply', async ({page}) => {
+  await page.addInitScript(() => {
+    for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed');
+    localStorage.setItem('labcharts-ai-paused', 'true');
+  });
+  await routeJavaScript(page, '**/js/crypto.js', `export * from '/js/crypto.js?history-read-original'; import {encryptedGetItem as read} from '/js/crypto.js?history-read-original'; export async function encryptedGetItem(key,...args){const value=await read(key,...args);if(globalThis.__holdReviewRead&&String(key).endsWith('-chat-t_context-integrity')){globalThis.__holdReviewRead=false;globalThis.__reviewReadEntered=true;await globalThis.__reviewReadGate;}return value;}`);
+  await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
+  await seedHistoryReview(page);
+  await prepare(page, 'diet', {field: 'bloating', value: 'moderate'});
+  const review = page.locator('#context-integrity-review');
+  await review.locator('[data-chat-message-action="apply-agent-draft"]').click();
+  await expect(review).toContainText('Applied to getbased');
+  const before = await saved(page);
+  await page.evaluate(async () => {
+    const target = window as unknown as {__holdReviewRead: boolean; __reviewReadEntered: boolean; __reviewReadGate: Promise<void>; __releaseReviewRead(): void; __reviewLoading: Promise<boolean>};
+    target.__reviewReadEntered = false; target.__holdReviewRead = true;
+    target.__reviewReadGate = new Promise<void>(resolve => {target.__releaseReviewRead = resolve;});
+    target.__reviewLoading = (await import('/js/chat-history.js')).loadChatHistory();
+  });
+  await page.waitForFunction(() => (window as unknown as {__reviewReadEntered?: boolean}).__reviewReadEntered === true);
+  const pending = await prepare(page, 'diet', {field: 'bloating', value: 'severe'});
+  expect(await saved(page)).toEqual(before);
+  const loaded = await page.evaluate(async () => {
+    const target = window as unknown as {__releaseReviewRead(): void; __reviewLoading: Promise<boolean>};
+    target.__releaseReviewRead(); return target.__reviewLoading;
+  });
+  expect(loaded).toBe(false);
+  expect(await page.evaluate(async () => (await import('/js/state.js')).state.chatHistory.flatMap(message => (message.agentDrafts || []).map(draft => ({id: draft.id, status: draft.status}))))).toEqual([{id: pending[0]!.id, status: 'pending'}]);
+  expect(await saved(page)).toEqual(before);
+  await review.locator('[data-chat-message-action="apply-agent-draft"]').click();
+  await expect(review).toContainText('Applied to getbased');
+  const after = await saved(page);
+  expect(after.diet).toEqual({bloating: 'severe', note: 'Retain dietary source evidence', extension: 'Keep card metadata'});
+  const protectedRoots = (data: Record<string, unknown>) => Object.fromEntries(Object.entries(data).filter(([key]) => !['diet', 'changeHistory'].includes(key)));
+  expect(protectedRoots(after)).toEqual(protectedRoots(before));
+  await page.reload(); await page.locator('html[data-app-ready]').waitFor();
+  expect(await saved(page)).toEqual(after);
+});
+
+async function seedHistoryReview(page: Page) {
+  await page.evaluate(async () => {
+    const [{state}, profile, data, meals] = await Promise.all([import('/js/state.js'), import('/js/profile.js'), import('/js/data.js'), import('/js/nutrition-store.js')]);
+    const id = await profile.createProfile('Synthetic delayed review', {skipInitialSync: true});
+    for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profile.profileStorageKey(id, suffix), 'completed');
+    await profile.switchProfile(id);
+    await meals.hydrateNutritionSummary(id);
+    state.importedData.diet = {bloating: 'none', note: 'Retain dietary source evidence', extension: 'Keep card metadata'};
+    state.importedData.contextNotes = 'Protected unrelated context';
+    if (!await data.saveImportedData({skipSync: true})) throw new Error('Synthetic history-read seed failed');
+    await meals.saveActiveProfileMeal({id: 'retained-meal', name: 'Retain saved lunch', eatenAt: '2026-10-20T12:00:00Z', mealType: 'lunch', nutrients: {energyKcal: 400, proteinG: 15}, note: 'Retain every unrelated record through delayed profile restoration'});
+  });
+}
+
+for (const claim of ['unchanged', 'new-review'] as const) {
+  test(`delayed profile restoration preserves ${claim === 'unchanged' ? 'normal stored history' : 'a newly claimed pending review'}`, async ({page}) => {
+    await page.addInitScript(() => {
+      for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed');
+      localStorage.setItem('labcharts-ai-paused', 'true');
+    });
+    await routeJavaScript(page, '**/js/nutrition-store.js', `export * from '/js/nutrition-store.js?restore-original'; import {hydrateNutritionSummary as hydrate} from '/js/nutrition-store.js?restore-original'; export async function hydrateNutritionSummary(...args){const value=await hydrate(...args);if(globalThis.__holdProfileRestore){globalThis.__holdProfileRestore=false;globalThis.__profileRestoreEntered=true;await globalThis.__profileRestoreGate;}return value;}`);
+    await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
+    await seedHistoryReview(page);
+    const original = await prepare(page, 'diet', {field: 'bloating', value: 'moderate'});
+    const review = page.locator('#context-integrity-review');
+    await review.locator('[data-chat-message-action="apply-agent-draft"]').click();
+    await expect(review).toContainText('Applied to getbased');
+    const before = await saved(page);
+    await page.evaluate(async () => {
+      const {state} = await import('/js/state.js');
+      state.currentThreadId = null; state.chatHistory = [];
+      const target = window as unknown as {__holdProfileRestore: boolean; __profileRestoreEntered: boolean; __profileRestoreGate: Promise<void>; __releaseProfileRestore(): void; __profileRestoreLoading: Promise<void>};
+      target.__profileRestoreEntered = false; target.__holdProfileRestore = true;
+      target.__profileRestoreGate = new Promise<void>(resolve => {target.__releaseProfileRestore = resolve;});
+      target.__profileRestoreLoading = (await import('/js/profile-runtime.js')).reloadProfileRuntimeShell(state.currentProfile);
+    });
+    await page.waitForFunction(() => (window as unknown as {__profileRestoreEntered?: boolean}).__profileRestoreEntered === true);
+    const pending = claim === 'new-review' ? await prepare(page, 'diet', {field: 'bloating', value: 'severe'}) : original;
+    expect(await saved(page)).toEqual(before);
+    await page.evaluate(async () => {
+      const target = window as unknown as {__releaseProfileRestore(): void; __profileRestoreLoading: Promise<void>};
+      target.__releaseProfileRestore(); await target.__profileRestoreLoading;
+    });
+    expect(await page.evaluate(async () => {
+      const {state} = await import('/js/state.js');
+      return {thread: state.currentThreadId, drafts: state.chatHistory.flatMap(message => (message.agentDrafts || []).map(draft => ({id: draft.id, status: draft.status})))};
+    })).toEqual({thread: 'context-integrity', drafts: [{id: pending[0]!.id, status: claim === 'new-review' ? 'pending' : 'applied'}]});
+    expect(await saved(page)).toEqual(before);
+    if (claim === 'new-review') {
+      await review.locator('[data-chat-message-action="apply-agent-draft"]').click();
+      await expect(review).toContainText('Applied to getbased');
+    }
+    const after = await saved(page);
+    expect(after.diet).toEqual({bloating: claim === 'new-review' ? 'severe' : 'moderate', note: 'Retain dietary source evidence', extension: 'Keep card metadata'});
+    const protectedRoots = (data: Record<string, unknown>) => Object.fromEntries(Object.entries(data).filter(([key]) => !['diet', 'changeHistory'].includes(key)));
+    expect(protectedRoots(after)).toEqual(protectedRoots(before));
+    await page.reload(); await page.locator('html[data-app-ready]').waitFor();
+    expect(await saved(page)).toEqual(after);
   });
 }

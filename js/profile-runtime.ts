@@ -39,6 +39,10 @@ export function invalidateProfileContextCache() {
 export async function reloadProfileRuntimeShell(profileId: string) {
   const data = state.importedData;
   const isCurrent = () => state.currentProfile === profileId && state.importedData === data;
+  const history = state.chatHistory;
+  // Profile activation clears Chat before hydration. Once native Chat claims it,
+  // this older initialization must not restore over a new conversation/review.
+  const canRestoreChat = () => isCurrent() && state.currentThreadId === null && state.chatHistory === history && history.length === 0;
   if (!isCurrent()) return;
   try { await (profileRefreshDeps as ProfileRefreshOperations).hydrateNutritionSummary(profileId); }
   catch { if (isCurrent()) state.nutritionSummary = null; }
@@ -46,13 +50,17 @@ export async function reloadProfileRuntimeShell(profileId: string) {
   const chat = isChatModuleLoaded() ? await loadChatModule() : null;
   if (!isCurrent()) return;
 
-  await chat?.loadCustomPersonalities?.();
-  if (!isCurrent()) return;
-  chat?.loadChatPersonality();
-  const threadsLoaded = chat ? await chat.loadChatThreads?.() : false;
-  if (!isCurrent()) return;
-  if (threadsLoaded !== false && state.chatThreads.length > 0) chat?.ensureActiveThread?.();
-  if (threadsLoaded !== false) await chat?.loadChatHistory?.();
+  if (canRestoreChat()) {
+    await chat?.loadCustomPersonalities?.();
+    if (!isCurrent()) return;
+    if (canRestoreChat()) chat?.loadChatPersonality();
+    const threadsLoaded = canRestoreChat() && chat ? await chat.loadChatThreads?.() : false;
+    if (!isCurrent()) return;
+    if (canRestoreChat() && threadsLoaded !== false) {
+      if (state.chatThreads.length > 0) chat?.ensureActiveThread?.();
+      await chat?.loadChatHistory?.();
+    }
+  }
   if (!isCurrent()) return;
 
   chat?.renderThreadList?.();

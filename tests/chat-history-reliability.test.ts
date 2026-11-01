@@ -313,3 +313,50 @@ it('does not regress a future saved body clock on another edited message save', 
   state.chatThreads[0]!.personality = 'default'; state.chatThreads[0]!.messagesUpdatedAt = '2200-01-01'; state.chatThreads[0]!.updatedAt = '2200-01-01';
   expect(await saveChatHistory()).toBe(true); expect(Date.parse(String(state.chatThreads[0]!.messagesUpdatedAt))).toBeGreaterThan(Date.parse('2200-01-01')); expect(state.chatThreads[0]!.updatedAt).toBe(state.chatThreads[0]!.messagesUpdatedAt);
 });
+
+
+it.each(['replace', 'append', 'edit', 'remove'] as const)('a delayed same-thread read preserves newer live history after %s', async mutation => {
+  for (const outcome of ['resolve', 'reject'] as const) {
+    const key = `${state.currentProfile}:thread`; localStorage.setItem(key, 'original stored bytes');
+    state.chatHistory = [{role: 'user', content: 'Original live message'}];
+    const gate = deferred(); m.get.mockReturnValueOnce(gate.promise);
+    const loading = loadChatHistory();
+    if (mutation === 'replace') state.chatHistory = [{role: 'assistant', content: 'New pending review'}];
+    if (mutation === 'append') state.chatHistory.push({role: 'assistant', content: 'New live reply'});
+    if (mutation === 'edit') state.chatHistory[0]!.content = 'Edited live message';
+    if (mutation === 'remove') state.chatHistory.splice(0, 1);
+    const live = state.chatHistory, expected = structuredClone(live);
+    if (outcome === 'resolve') gate.resolve!('[{"role":"assistant","content":"Obsolete stored reply"}]');
+    else gate.reject!(new Error('Obsolete read failure'));
+    expect(await loading).toBe(false);
+    expect(state.chatHistory).toBe(live); expect(state.chatHistory).toEqual(expected);
+    expect(localStorage.getItem(key)).toBe('original stored bytes'); expect(canSaveChatHistory()).toBe(true);
+    expect(m.set).not.toHaveBeenCalled(); expect(m.index).not.toHaveBeenCalled();
+    expect(m.render).not.toHaveBeenCalled(); expect(m.notify).not.toHaveBeenCalled();
+  }
+});
+
+it('an unchanged live owner still accepts its delayed native history read', async () => {
+  const key = `${state.currentProfile}:thread`; localStorage.setItem(key, 'original stored bytes');
+  const gate = deferred(); m.get.mockReturnValueOnce(gate.promise);
+  const loading = loadChatHistory(); gate.resolve!('[{"role":"assistant","content":"Stored reply"}]');
+  expect(await loading).toBe(true); expect(state.chatHistory).toEqual([{role: 'assistant', content: 'Stored reply', joinIcon: '', joinName: '', personalityIcon: '', personalityName: '', modelDisplay: '', modelId: '', provider: '', agentId: '', imageCount: 0, thumbnails: [], hasImages: false}]);
+  expect(m.render).toHaveBeenCalledOnce(); expect(canSaveChatHistory()).toBe(true);
+  expect(localStorage.getItem(key)).toBe('original stored bytes'); expect(m.set).not.toHaveBeenCalled();
+});
+
+
+it('a delayed read cannot revert proposal status changed in the live message object', async () => {
+  const key = `${state.currentProfile}:thread`; localStorage.setItem(key, 'original stored bytes');
+  const profile = state.currentProfile; if (!profile) throw new Error('Missing fixture profile');
+  const review = {role: 'assistant', content: 'Reviewed change', agentDrafts: [{id: 'review', profileId: profile, kind: 'context', status: 'pending',
+    payload: {card: 'diet', baseline: '{"bloating":"none"}', changes: [{field: 'bloating', value: 'moderate'}], reason: 'Reported change', evidence: 'My bloating is moderate.'}}]};
+  state.chatHistory = [review];
+  const old = JSON.stringify(state.chatHistory), gate = deferred(); m.get.mockReturnValueOnce(gate.promise);
+  const loading = loadChatHistory(); review.agentDrafts[0]!.status = 'applied';
+  const live = state.chatHistory, expected = structuredClone(live); gate.resolve!(old);
+  expect(await loading).toBe(false); expect(state.chatHistory).toBe(live); expect(state.chatHistory).toEqual(expected);
+  expect(m.render).not.toHaveBeenCalled(); expect(m.notify).not.toHaveBeenCalled();
+  expect(m.set).not.toHaveBeenCalled(); expect(m.index).not.toHaveBeenCalled();
+  expect(localStorage.getItem(key)).toBe('original stored bytes'); expect(canSaveChatHistory()).toBe(true);
+});
