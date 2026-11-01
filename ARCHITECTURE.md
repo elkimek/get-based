@@ -393,6 +393,8 @@ including edits back to a previously pushed value. Deletion receipts retain a
 clocked absence so stale queries cannot revive a deleted item and an explicit
 restoration can publish the same value again. Tombstone logical IDs stay in
 local plan metadata; SDK mutation arguments retain their existing wire shape.
+Locally restored membership survives the already acknowledged deletion while
+its new row write is pending; stale live rows cannot acknowledge that restore.
 Restoring a tombstoned row sends SQLite false (`isDeleted: 0`) for arrays,
 maps, and scalars. Evolu v8 treats null as no deletion-register change; zero
 clears that register in both supported SDK generations.
@@ -403,6 +405,13 @@ The journal stores only changed top-level fields, is released after the pull,
 and defers to a fresh receive after a burst exceeds eight commits. No storage
 lock spans decoding or relay work. A known item deletion also takes priority
 over a newer profile timestamp caused by an unrelated save.
+Replay also rebases from each observed field's last local value to the latest
+stored value, preserving newer writes from tabs with separate journals. Live
+drafts use their remembered origin so an already saved value is not replayed
+as a new edit over a later peer save.
+A local intent still marks sync dirty when a queued pull already persisted
+the same live value. Only a save unchanged from its remembered origin takes
+the no-op hook path; identical stored bytes alone do not prove relay delivery.
 Lab entries retain their per-marker merge rules. A map tombstone suppresses older
 live duplicates, while a later explicit edit can restore the key. New mutations
 advance past observed row clocks even after a device clock moves backwards.

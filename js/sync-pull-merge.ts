@@ -332,7 +332,7 @@ export async function persistPulledImportedData(localKey: string, profileId: str
     // Rebase edits committed while the row overlay was running, under the same
     // lock as ordinary saves. Local changes since the pull began take priority.
     let committed = baseline ? mergeProfileMutation(baseline.stored || {}, latest || {}, merged) : structuredClone(merged);
-    const replayed = baseline?.mutations?.rebase(committed);
+    const replayed = baseline?.mutations?.rebase(committed, latest);
     if (replayed && !replayed.ok) return {needsRebroadcast: false, retry: true};
     if (replayed?.ok) committed = replayed.data;
     const liveDataBeforeWrite = isActiveProfileDataOwner(profileId, state.importedData) ? state.importedData : null;
@@ -340,7 +340,7 @@ export async function persistPulledImportedData(localKey: string, profileId: str
     // A profile activated after the early snapshot still owns unsaved edits.
     // Compare them with that live object's remembered origin, never with its
     // already-edited value; retain the early stored origin for durable saves.
-    const liveBaseline = baseline && (baseline.live ?? (liveBeforeWrite ? profileDataBaseline(state.importedData) : null));
+    const liveBaseline = baseline && (liveBeforeWrite ? profileDataBaseline(state.importedData) ?? baseline.live : null);
     if (liveBaseline && liveBeforeWrite) committed = mergeProfileMutation(liveBaseline, liveBeforeWrite, committed);
     preserveFreshLocalBiologyScoreAI(committed, latest, null);
     migrateProfileData(committed as ProfileData);

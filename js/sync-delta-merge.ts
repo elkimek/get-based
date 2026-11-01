@@ -130,9 +130,11 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
     const baselineItems = options.baselineImported
       ? getAt(options.baselineImported, arrayName)
       : null;
+    const localItems = getAt(options.localImported, arrayName);
     await mergeArrayRowsIntoImported(imported, arrayName!, arrRows, {
       profileId: typeof profileId === 'string' ? profileId : undefined,
       baselineItems: Array.isArray(baselineItems) ? baselineItems : [],
+      localItems: Array.isArray(localItems) ? localItems : [],
       baselineSyncedAt: options.baselineSyncedAt,
       onVersion: (id, version) => {
         if (options.arrayVersions) (options.arrayVersions[arrayName!] ??= Object.create(null))[id] = version;

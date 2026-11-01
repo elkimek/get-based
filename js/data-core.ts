@@ -288,7 +288,9 @@ export function createDataCore(ports: DataCorePorts) {
       } catch (e) {
         if ((0, ports.isDebugMode)()) console.warn('Live profile refresh failed after data was persisted:', e);
       }
-      if (!changed && options.activeSave) return true;
+      // A pull may have persisted this live intent while the save waited for
+      // its lock. It still needs an upload marker even without another write.
+      if (!changed && options.activeSave && (!base || (0, ports.profileDataValuesEqual)(base, intent))) return true;
       try {
         (0, ports.broadcastDataChanged)(profileId);
         (0, ports.scheduleAutoBackup)();

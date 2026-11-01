@@ -11,7 +11,7 @@ interface MutationProjection { before: Record<string, unknown>; after: Record<st
 interface MutationJournal { changes: MutationProjection[]; overflowed: boolean }
 const mutationJournals = new Map<string, Set<WeakRef<MutationJournal>>>();
 export interface ProfileMutationCapture {
-  rebase<T>(data: T): {ok: true; data: T} | {ok: false};
+  rebase<T>(data: T, latest: unknown): {ok: true; data: T} | {ok: false};
   release(): void;
 }
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -30,11 +30,21 @@ export function captureProfileMutations(profileId: string): ProfileMutationCaptu
   const observers = mutationJournals.get(profileId) ?? new Set<WeakRef<MutationJournal>>();
   observers.add(reference); mutationJournals.set(profileId, observers);
   return {
-    rebase<T>(data: T) {
+    rebase<T>(data: T, latest: unknown) {
       if (journal.overflowed) return {ok: false};
+      const tip: Record<string, unknown> = {}, current: Record<string, unknown> = {};
       // These projections came from successful writes to this same profile;
       // replay preserves the target shape while changing its recorded fields.
-      for (const change of journal.changes) data = mergeProfileMutation(change.before, change.after, data) as T;
+      for (const change of journal.changes) {
+        data = mergeProfileMutation(change.before, change.after, data) as T;
+        for (const key of new Set([...Object.keys(change.before), ...Object.keys(change.after)])) {
+          if (Object.hasOwn(change.after, key)) tip[key] = change.after[key]; else delete tip[key];
+          if (object(latest) && Object.hasOwn(latest, key)) current[key] = latest[key]; else delete current[key];
+        }
+      }
+      // Another tab does not share this journal. Its later stored changes
+      // must win over the last locally observed commit, including deletions.
+      data = mergeProfileMutation(tip, current, data) as T;
       return {ok: true, data};
     },
     release() {

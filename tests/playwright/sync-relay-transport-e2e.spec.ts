@@ -1244,7 +1244,12 @@ for (const legacy of [false, true]) test(`an in-place equal-timestamp array edit
     });
     expect((await syncNow(b.page))?.ok).toBe(true);
     await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBeUndefined();
-    await writeMinutes(b.page, 10); expect((await syncNow(b.page))?.ok).toBe(true);
+    await writeMinutes(b.page, 10);
+    // An incoming pull can start after the local restoration was saved but
+    // before its row write is queued. Its old deletion must not erase it.
+    await b.page.evaluate(async () => (await import('/js/sync-pull.js')).forcePull());
+    expect(await readMinutes(b.page)).toBe(10);
+    expect((await syncNow(b.page))?.ok).toBe(true);
     try {
       await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBe(10);
     } catch (error) {

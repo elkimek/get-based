@@ -27,7 +27,8 @@ function parseRowSyncedAt(row: DeltaItemRow | null | undefined) {
 export async function mergeArrayRowsIntoImported(
   imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
   options: { baselineItems?: readonly unknown[] | undefined; baselineSyncedAt?: number | undefined;
-    profileId?: string | undefined; onVersion?: (itemId: string, version: ArrayItemVersion) => void } = {},
+    profileId?: string | undefined; localItems?: readonly unknown[] | undefined;
+    onVersion?: (itemId: string, version: ArrayItemVersion) => void } = {},
 ) {
   const committedVersions = readArrayVersions(options.profileId, arrayName);
   const legacyVersions = readLegacyArrayVersions(options.profileId, arrayName);
@@ -61,6 +62,7 @@ export async function mergeArrayRowsIntoImported(
     const localList = localDel && Array.isArray(localDel[arrayName]) ? localDel[arrayName] : null;
     if (localList) for (const id of localList) if (typeof id === 'string') localTombs.add(id);
   } catch {}
+  const locallyRestored = new Set((options.localItems || []).map(itemIdFn).filter(id => id && committedVersions[id]?.hash === null));
   const liveById = new Map<string, { item: Record<string, unknown>; ts: number; syncedAt: string; row: DeltaItemRow }>(); // itemId -> { item, ts, syncedAt }
   const represented=new Map<string,Set<string>>();
   for (const row of arrRows) {
@@ -89,11 +91,12 @@ export async function mergeArrayRowsIntoImported(
   const tombstoneWinsOverItem = (itemId: string | null, item: unknown) => {
     if (!itemId) return false;
     if (localTombs.has(itemId)) return true;
+    const tombAt = remoteTombs.get(itemId);
     // A later profile timestamp can come from an unrelated save. It cannot
     // undo this item's acknowledged deletion before a live row restores it.
     const committed = committedVersions[itemId];
+    if (locallyRestored.has(itemId) && (tombAt == null || tombAt <= committed!.clock)) return false;
     if (committed?.hash === null && committed.clock >= pickTimestamp(item)) return true;
-    const tombAt = remoteTombs.get(itemId);
     if (tombAt == null) return false;
     const canonicalBlobAt = baselineItemIds.has(itemId) ? baselineSyncedAt : 0;
     return tombAt >= Math.max(pickTimestamp(item), canonicalBlobAt);
@@ -168,7 +171,7 @@ export async function mergeArrayRowsIntoImported(
   for (const item of readArr()) {
     const id = itemIdFn(item), entry = id ? liveById.get(id) : null;
     if (id) presentIds.add(id);
-    if (!id || !entry || parseRowSyncedAt(entry.row) <= 0) continue;
+    if (!id || !entry || parseRowSyncedAt(entry.row) <= 0 || tombstoneWinsOverLiveRow(id, entry)) continue;
     const hash = _djb2(JSON.stringify(item));
     if (hash === _djb2(JSON.stringify(entry.item))) options.onVersion?.(id, {hash, clock: parseRowSyncedAt(entry.row)});
   }

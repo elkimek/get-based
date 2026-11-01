@@ -3,7 +3,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { mergeProfileMutation, rememberProfileData, adoptProfileData } from '../js/profile-data-writes.js';
 import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged, configureDataContextDependencies } from '../js/data.js';
-import { profileStorageKey, loadProfile, configureProfileRuntimeDeps } from '../js/profile.js';
+import { profileStorageKey, loadProfile, configureProfileRuntimeDeps, createDefaultProfileData } from '../js/profile.js';
 import * as crypto from '../js/crypto.js';
 import * as sync from '../js/sync.js';
 import { mergePulledImportedData, persistPulledImportedData } from '../js/sync-pull-merge.js';
@@ -30,6 +30,65 @@ beforeEach(async () => {
   expect(await saveImportedData()).toBe(true);
 });
 afterEach(() => vi.restoreAllMocks());
+
+it('queues the local intent when a pending pull already persisted the same live edit', async () => {
+  const previous = configureSyncSaveHooks({isSyncConfigured: () => true, isSyncEnabled: () => false, getProfiles: () => [{id: profileId}]});
+  const dirtyKey = `labcharts-${profileId}-sync-dirty`, before = localStorage.getItem(dirtyKey);
+  localStorage.removeItem(dirtyKey);
+  try {
+    const pull = await mergePulledImportedData(profileId, {contextNotes: 'old relay value'});
+    state.importedData.contextNotes = 'new local intent';
+    const pulling = persistPulledImportedData(pull.localKey, profileId, pull.merged, Date.now());
+    const saving = saveImportedData();
+    await pulling; expect(await saving).toBe(true);
+    expect((await read()).contextNotes).toBe('new local intent');
+    expect(getSyncDirtyToken(profileId)).not.toBeNull();
+    localStorage.removeItem(dirtyKey);
+    // Once the remembered origin has adopted that intent, an unchanged save
+    // must retain the no-op path and cannot start another upload loop.
+    expect(await saveImportedData()).toBe(true);
+    expect(getSyncDirtyToken(profileId)).toBeNull();
+  } finally {
+    clearSyncSaveTimers(); configureSyncSaveHooks(previous);
+    if (before === null) localStorage.removeItem(dirtyKey); else localStorage.setItem(dirtyKey, before);
+  }
+});
+
+for (const active of [true, false]) it(`a later save from another tab wins over this pull's earlier journal (active: ${active})`, async () => {
+  const original = state.importedData;
+  const pull = await mergePulledImportedData(profileId, {contextNotes: 'incoming', entries: [entry('2026-09-02', {'lipids.apoB': .9})]});
+  original.contextNotes = 'this tab saved B';
+  expect(await saveImportedData()).toBe(true);
+  // A different JS realm shares encrypted storage and Web Locks, not this
+  // module's journal or the active profile object.
+  const peer = await read(); peer.contextNotes = 'other tab later saved C';
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  try {
+    if (!active) { state.currentProfile = 'other-profile'; state.importedData = createDefaultProfileData(); }
+    await persistPulledImportedData(pull.localKey, profileId, pull.merged, Date.now());
+    expect((await read()).contextNotes).toBe('other tab later saved C');
+    expect((await read()).entries.some(item => item.date === '2026-09-02')).toBe(true);
+    if (active) expect(state.importedData.contextNotes).toBe('other tab later saved C');
+  } finally { state.currentProfile = profileId; state.importedData = original; }
+});
+
+for (const deleted of [false, true]) it(`a saved historical restoration survives a pull before its row acknowledgement (query tombstone: ${deleted})`, async () => {
+  const item = {id: 'pending-restore', date: '2026-08-06', minutes: 10, updatedAt: Date.parse('2026-08-06T08:00:00Z')};
+  const clock = Date.now() - 1000;
+  (await import('../js/sync-delta-snapshot.js')).writeArrayVersions(profileId, 'sunSessions', {[item.id]: {hash: null, clock}});
+  state.importedData.sunSessions = [item];
+  expect(await saveImportedData()).toBe(true);
+  configureSyncDelta({getEvolu: () => ({getQueryRows: () => [{id: 'physical', profileId, arrayName: 'sunSessions', itemId: item.id,
+    payload: JSON.stringify(item), syncedAt: new Date(clock).toISOString(), isDeleted: deleted ? 1 : 0}], insert: () => {}, update: () => {}}), getItemRowQuery: () => 'query'});
+  try {
+    const pull = await mergePulledImportedData(profileId, null);
+    await persistPulledImportedData(pull.localKey, profileId, pull.merged, clock);
+    const stored = JSON.parse((await crypto.encryptedGetItem(key))!) as {sunSessions: unknown[]};
+    expect(stored.sunSessions).toEqual([item]);
+    expect(state.importedData.sunSessions).toEqual([item]);
+    expect((await import('../js/sync-delta-snapshot.js')).readArrayVersions(profileId, 'sunSessions')[item.id]?.hash).toBeNull();
+  } finally { configureSyncDelta({getEvolu: () => null, getItemRowQuery: () => null}); }
+});
 
 for (const failWrite of [0, 1, 2]) it(`keeps rapid queued note edits and deletion ordered when write ${failWrite} fails`, async () => {
   const originalWrite = crypto.encryptedSetItem;
