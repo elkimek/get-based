@@ -1,3 +1,4 @@
+import { compareSyncRows, nextSyncRowTime } from './sync-conflict-order.js';
 import { createDeltaWrite } from './sync-delta-row-codec.js';
 import type { ArrayIdentityConfig, SyncIdentityRecord } from './sync-delta-surface-config.js';
 import type { DeltaPlan, DeltaPlannedOperation } from './sync-delta-row-codec.js';
@@ -6,7 +7,7 @@ import type { DeltaPlan, DeltaPlannedOperation } from './sync-delta-row-codec.js
 import { _bytesToBase64, _gzipString } from './sync-payload-codec.js';
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';
-import { _readDeltaSnapshot } from './sync-delta-snapshot.js';
+import { _readDeltaSnapshot, readArrayVersions } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
 
 interface ArrayDeltaOptions { explicitTombstoneIds?: readonly unknown[] | undefined }
@@ -21,14 +22,28 @@ export async function _planArrayDelta(
   const plannedAt = Date.now();
   const cfg: Partial<ArrayIdentityConfig> = DELTA_ARRAY_CONFIG[arrayName] || {};
   const itemIdFn: (it: SyncIdentityRecord) => string | null = typeof cfg.itemIdFn === 'function' ? cfg.itemIdFn : (it => (it && typeof it.id === 'string' ? it.id : null));
-  const prev = _readDeltaSnapshot(profileId, arrayName);
-  const next: DeltaPlan['next'] = {};
+  const prev = { ..._readDeltaSnapshot(profileId, arrayName) };
+  const versions = readArrayVersions(profileId, arrayName);
+  let committedClock = 0;
+  for (const [id, version] of Object.entries(versions)) {
+    if (version.hash === null) delete prev[id]; else prev[id] = version.hash;
+    committedClock = Math.max(committedClock, version.clock);
+  }
+  if (items === undefined && explicitTombstoneIds.length === 0) return {ops: [], next: prev, plannedAt};
+  // An omitted surface carries only explicit delete intent, never an implicit
+  // request to clear its other members.
+  const next: DeltaPlan['next'] = items === undefined ? { ...prev } : {};
   const ops: DeltaPlannedOperation[] = []; // collected pending evolu mutations
 
   // Index existing itemRow rows for this (profile, array) so we can
   // reuse their `id` on update instead of creating phantom duplicates.
   const matching = getPlannerItemRows(profileId, arrayName);
-  const rowByItemId = new Map(matching.map(r => [r.itemId, r]));
+  const rowByItemId = new Map<string, typeof matching[number]>();
+  for (const row of matching) {
+    const prior = rowByItemId.get(row.itemId);
+    if (!prior || compareSyncRows(row, prior) > 0) rowByItemId.set(row.itemId, row);
+  }
+  const mutationTime = nextSyncRowTime(matching, committedClock);
   // Some capped surfaces suppress snapshot-inferred tombstones because a
   // local window eviction is maintenance rather than user intent. Explicit
   // `_deleted[path]` ids are different: they represent a durable privacy
@@ -37,6 +52,7 @@ export async function _planArrayDelta(
     (Array.isArray(explicitTombstoneIds) ? explicitTombstoneIds : [])
       .filter((id): id is string => _isAllowlistSafeId(id)),
   );
+  for (const itemId of explicitTombstones) delete next[itemId];
 
   // Build [item, itemId] tuples, dropping anything whose derived itemId
   // fails _isAllowlistSafeId (covers regex + proto-pollution rejection).
@@ -48,6 +64,7 @@ export async function _planArrayDelta(
     const json = JSON.stringify(item);
     const hash = _djb2(json);
     next[itemId] = hash;
+    const existing = rowByItemId.get(itemId);
     if (prev[itemId] === hash) continue; // unchanged - skip push
 
     // Match the blob wire codec; compression failure retains plain JSON.
@@ -55,10 +72,9 @@ export async function _planArrayDelta(
     if (typeof CompressionStream !== 'undefined' && json.length > 256) {
       try { payload = `GZ|v1|${_bytesToBase64(await _gzipString(json))}`; } catch {}
     }
-    const existing = rowByItemId.get(itemId);
-    const syncedAt = new Date().toISOString();
+    const syncedAt = mutationTime;
     // Clear the LWW deletion register when reusing a tombstoned row.
-    const resurrect = existing?.isDeleted ? { isDeleted: null } : {};
+    const resurrect = existing?.isDeleted || versions[itemId]?.hash === null ? { isDeleted: 0 as const } : {};
     ops.push(createDeltaWrite(existing, { profileId, arrayName, itemId: itemId, payload, syncedAt }, resurrect));
   }
 
@@ -70,7 +86,7 @@ export async function _planArrayDelta(
     if (queuedTombstones.has(itemId)) return;
     const row = rowByItemId.get(itemId);
     if (!row || row.isDeleted) return;
-    ops.push({ kind: 'tombstone', args: { id: row.id, isDeleted: 1, syncedAt: new Date().toISOString() } });
+    ops.push({ kind: 'tombstone', itemId, args: { id: row.id, isDeleted: 1, syncedAt: mutationTime } });
     queuedTombstones.add(itemId);
   };
 

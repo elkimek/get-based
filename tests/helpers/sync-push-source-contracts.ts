@@ -119,10 +119,18 @@ export function syncPullEncryptionSourceContract(source: string): boolean {
     const named=(name:string)=>file.statements.filter(ts.isFunctionDeclaration).filter(node=>node.name?.text===name);
     const queued=(name:string)=>{
       const functions=named(name),body=functions[0]?.body;
-      if(functions.length!==1||!body||body.statements.length!==1)return undefined;
-      const statement=body.statements[0]!;
+      if(functions.length!==1||!body||body.statements.length!==(name==='captureSyncPullBaseline'?2:1))return undefined;
+      const statement=body.statements.at(-1)!;
       if(!ts.isReturnStatement(statement)||!statement.expression||!ts.isCallExpression(statement.expression))return undefined;
-      const call=statement.expression,callback=call.arguments[1];
+      const completion=statement.expression,method=completion.expression;
+      if(!ts.isPropertyAccessExpression(method)||!ts.isCallExpression(method.expression)||completion.arguments.length!==1)return undefined;
+      if(name==='captureSyncPullBaseline'){
+        if(text(method.name)!=='catch'||text(completion.arguments[0]!)!=='error=>{mutations.release();throwerror;}')return undefined;
+        const first=body.statements[0]!;
+        if(!ts.isVariableStatement(first)||first.declarationList.declarations.length!==1
+          ||text(first.declarationList.declarations[0]!)!=='mutations=captureProfileMutations(profileId)')return undefined;
+      }else if(text(method.name)!=='finally'||text(completion.arguments[0]!)!=='()=>{pullBaselines.get(merged)?.mutations?.release();}')return undefined;
+      const call=method.expression,callback=call.arguments[1];
       return text(call.expression)==='queueProfileDataWrite'&&call.arguments.length===2&&text(call.arguments[0]!)==='profileId'
         &&callback&&ts.isArrowFunction(callback)&&ts.isBlock(callback.body)?callback.body:undefined;
     };
@@ -149,14 +157,25 @@ export function syncPullEncryptionSourceContract(source: string): boolean {
     if(!localKey||!importedKey(localKey))return false;
     const returns=capture.statements.filter(ts.isReturnStatement),returned=returns[0]?.expression;
     if(returns.length!==1||!returned||!ts.isObjectLiteralExpression(returned))return false;
+    if(returned.properties.filter(ts.isShorthandPropertyAssignment).filter(property=>text(property.name)==='mutations').length!==1)return false;
     const stored=returned.properties.filter(ts.isPropertyAssignment).filter(property=>text(property.name)==='stored');
     const latest=variable(persist,'latest')?.initializer;
     if(stored.length!==1||text(stored[0]!.initializer)!=='rawStored?JSON.parse(rawStored):null'||!latest||text(latest)!=='raw?JSON.parse(raw):null')return false;
     const writes=persist.statements.filter(ts.isExpressionStatement).map(statement=>statement.expression)
       .filter(ts.isAwaitExpression).map(node=>node.expression).filter(ts.isCallExpression).filter(call=>text(call.expression)==='encryptedSetItem');
+    const arrays=persist.statements.filter(ts.isExpressionStatement).map(statement=>statement.expression)
+      .filter(ts.isCallExpression).filter(call=>text(call.expression)==='acknowledgePulledArrayVersions');
+    const maps=persist.statements.filter(ts.isExpressionStatement).map(statement=>statement.expression)
+      .filter(ts.isCallExpression).filter(call=>text(call.expression)==='acknowledgePulledMapSnapshots');
     return writes.length===1&&all.filter(call=>text(call.expression)==='encryptedSetItem').length===1
       &&writes[0]!.arguments.length===2&&text(writes[0]!.arguments[0]!)==='localKey'
-      &&text(writes[0]!.arguments[1]!)==='JSON.stringify(committed)'&&second.getStart(file)<writes[0]!.getStart(file);
+      &&text(writes[0]!.arguments[1]!)==='JSON.stringify(committed)'&&second.getStart(file)<writes[0]!.getStart(file)
+      &&arrays.length===1&&all.filter(call=>text(call.expression)==='acknowledgePulledArrayVersions').length===1
+      &&arrays[0]!.arguments.map(text).join(',')==='profileId,committed,baseline?.arrayVersions'
+      &&writes[0]!.getEnd()<arrays[0]!.getStart(file)
+      &&maps.length===1&&all.filter(call=>text(call.expression)==='acknowledgePulledMapSnapshots').length===1
+      &&maps[0]!.arguments.map(text).join(',')==='profileId,committed,observedAt,baseline?.mapSnapshots'
+      &&writes[0]!.getEnd()<maps[0]!.getStart(file);
   });
 }
 
@@ -164,13 +183,19 @@ export function syncPullEncryptionSourceContract(source: string): boolean {
 export function syncCommittedDeltaSourceContracts(source: string) {
  return withParsedSource(source, 'sync-push-deltas.js', file => {
   const fn = file.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'applyCommittedDeltas');
-  if (!fn) return {snapshotsGuarded: false};
+  if (!fn) return {snapshotsGuarded: false, telemetryOwned: false};
   const text = (node: ts.Node) => node.getText(file).replace(/\s/g, '');
   const snapshots = descendants(file, ts.isCallExpression).filter(call => text(call.expression) === '_writeDeltaSnapshot');
-  const applies = descendants(fn, ts.isVariableDeclaration).filter(node => text(node.name) === 'allOk' && node.initializer && text(node.initializer) === '_applyArrayDelta(arrayName,plan)');
+  const applies = descendants(fn, ts.isVariableDeclaration).filter(node => text(node.name) === 'allOk' && node.initializer && text(node.initializer) === 'awaitapplyAcknowledgedDelta(arrayName,plan,options.signal)');
+  const acknowledgement = file.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='applyAcknowledgedDelta');
+  const nativeApply=acknowledgement?descendants(acknowledgement,ts.isCallExpression).filter(call=>text(call.expression)==='_applyArrayDelta'&&call.arguments.map(text).join(',')==='arrayName,plan,finish'):[];
   const guards = descendants(fn, ts.isIfStatement).filter(node => text(node.expression) === 'allOk');
   const write = snapshots[0], apply = applies[0], guard = guards[0];
-  return {snapshotsGuarded: snapshots.length === 1 && applies.length === 1 && guards.length === 1 && !!write && !!apply && !!guard
+  const telemetry = ts.isFunctionDeclaration(fn) ? fn.body?.statements.filter(ts.isExpressionStatement)
+    .map(statement=>statement.expression).filter(ts.isCallExpression).filter(call=>text(call.expression)==='_recordPushTelemetry') || [] : [];
+  const telemetryOwned = telemetry.length===1 && descendants(file,ts.isCallExpression).filter(call=>text(call.expression)==='_recordPushTelemetry').length===1
+    && telemetry[0]!.arguments.map(text).join(',')==="profileId,(dataJson||'').length,deltaPlans" && !!write && write.getEnd()<telemetry[0]!.getStart(file);
+  return {telemetryOwned, snapshotsGuarded: nativeApply.length===1 && snapshots.length === 1 && applies.length === 1 && guards.length === 1 && !!write && !!apply && !!guard
    && apply.getStart(file) < guard.getStart(file) && guard.thenStatement.getStart(file) < write.getStart(file) && write.getEnd() < guard.thenStatement.getEnd()
    && write.arguments.map(text).join(',') === 'profileId,arrayName,plan.next,plan.plannedAt'};
  });

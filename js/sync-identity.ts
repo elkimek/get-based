@@ -206,8 +206,10 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
   let recovery: BackupRestoreStage | void = undefined;
   let ownerRestored = false;
   const shouldStageRecovery = !!options?.seedLocal || getPendingBackupRestoreProfileIds().length > 0;
+  // Ordinary joins also retire this runtime. Receiving the new owner's data
+  // before the controlled reload can start views which navigation will abort.
+  if (setSyncPublishingSuspended(true)) return false;
   if (shouldStageRecovery) {
-    if (setSyncPublishingSuspended(true)) return false;
     try {
       // Confirm durable recovery before resetting the owner or its database.
       const ownerFingerprint = await fingerprintBackupRestoreOwner(normalizedMnemonic);
@@ -292,7 +294,7 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
       showNotification('Sync identity startup did not finish. Your local data is retained. Reload to finish recovery.', 'error');
       return false;
     }
-    if (shouldStageRecovery) setSyncPublishingSuspended(false);
+    setSyncPublishingSuspended(false);
     clearRestoreNotice();
     console.error('[sync] Restore failed: invalid or unavailable identity');
     showNotification('Invalid mnemonic', 'error');

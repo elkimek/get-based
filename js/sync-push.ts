@@ -29,6 +29,7 @@ import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 import { equivalentSyncPayload, scalarPayloadClocks, commitScalarPayloadClocks } from './sync-scalar-snapshot.js';
 
 type SyncPushClient = Pick<SyncRuntimeClient, 'insert' | 'update'> & {
+  readonly name?: unknown;
   getQueryRows(query: unknown): readonly SyncProfileRow[] | null | undefined;
 };
 
@@ -130,7 +131,9 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
   _syncing = true;
   _syncingSince = Date.now();
   const dirtyToken = getSyncDirtyToken(profileId);
-  const isCurrentGeneration = () => profilePushGenerations.get(profileId) === generation;
+  const runtimeName = evolu.name;
+  const isCurrentGeneration = () => profilePushGenerations.get(profileId) === generation
+    && _getEvolu() === evolu && evolu.name === runtimeName && _isSyncEnabled();
   const isCurrentSnapshot = () => isCurrentGeneration() && getSyncDirtyToken(profileId) === dirtyToken;
   const releasePush = () => {
     if (profilePushGenerations.get(profileId) === generation) profilePushGenerations.delete(profileId);
@@ -253,57 +256,70 @@ export async function pushProfile(profileId: unknown, importedData: unknown, opt
     updateCurrentStatus({ push: 'pending', pushStartedAt: queuedAt });
 
     return await new Promise<SyncPushResult>((resolve) => {
-      let completed = false;
+      let completed = false, completing = false;
+      const deltaAbort = new AbortController();
       let watchdogId: ReturnType<typeof setTimeout> | null = null;
       const finish = (result: SyncPushResult) => {
         completed = true;
+        deltaAbort.abort();
         releasePush();
         if (watchdogId !== null) { clearTimeout(watchdogId); watchdogId = null; }
         resolve(result);
       };
       const onComplete = async () => {
-        if (completed) return;
-        completed = true;
-        if (!isCurrentGeneration()) { finish(superseded()); return; }
-        if (!applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug)
-            || !commitScalarPayloadClocks(profileId, outboundData, scalarClocks)
-            || !await commitProfileMetadataClock(profileId, metadataSource, metadata.profile)) {
-          updateCurrentStatus({ push: 'error', pushStartedAt: null, lastError: { type: 'DeltaCommitError', message: 'Sync could not commit a complete update. Your local changes are still queued.', at: Date.now() } });
-          finish({ ok: false, reason: 'delta-commit-failed' });
-          return;
+        if (completed || completing) return;
+        completing = true;
+        try {
+          if (!isCurrentGeneration()) { finish(superseded()); return; }
+          const deltasCommitted=await applyCommittedDeltas(profileId,dataJson,deltaPlans,deltaOpCount,_debug,{signal:deltaAbort.signal,isCurrent:isCurrentGeneration});
+          if (completed) return;
+          if (!isCurrentGeneration()) { finish(superseded()); return; }
+          if (!deltasCommitted
+              || !commitScalarPayloadClocks(profileId, outboundData, scalarClocks)
+              || !await commitProfileMetadataClock(profileId, metadataSource, metadata.profile)) {
+            if (completed) return;
+            updateCurrentStatus({ push: 'error', pushStartedAt: null, lastError: { type: 'DeltaCommitError', message: 'Sync could not commit a complete update. Your local changes are still queued.', at: Date.now() } });
+            finish({ ok: false, reason: 'delta-commit-failed' });
+            return;
+          }
+          if (!isCurrentGeneration()) { finish(superseded()); return; }
+          if (completed) return;
+          const elapsed = Date.now() - queuedAt;
+          updateCurrentStatus({
+            push: 'confirmed', pushStartedAt: null, pushConfirmedAt: Date.now(), lastError: null,
+          });
+          const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
+          _debug(okMsg);
+          logSyncEvent('push', okMsg);
+          // Mark the moment a push committed locally so the relay-health
+          // verifier (verifyPushLanded) can distinguish "no push happened
+          // yet" from "push happened but relay didn't advance" (silent
+          // reject).
+          notePushCommitted();
+          // Only advance the local-sync-ts watermark when the push actually
+          // landed. The previous (synchronous) bump after evolu.update meant
+          // a wedged push set the watermark anyway → subsequent pulls saw
+          // `remote.syncedAt < local-sync-ts` and skipped, leaving the local
+          // Evolu row stuck at older state with no auto-recovery. Now the
+          // watermark only moves on real success.
+          // Use syncedAt (same value stored in Evolu) so pulls see exact
+          // equality and don't skip the row from 1ms clock drift.
+          const syncedAtMs = new Date(syncedAt).getTime();
+          localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(syncedAtMs));
+          noteLocalSyncCommit(profileId, syncedAtMs);
+          noteSupersededProfileMetadata(profileId, supersededMetadata);
+          // Track bytes immediately for the relay-storage estimate, then replace
+          // it with authoritative storedBytes + configured quota via the
+          // debounced self-service probe below.
+          trackPushBytes((dataJson || '').length);
+          scheduleOwnerStorageRefresh();
+          clearSyncProfileDirty(profileId, dirtyToken);
+          finish({ ok: true });
+        } catch (error) {
+          if (completed) return;
+          updateCurrentStatus({push:'error',lastError:{type:'DeltaCommitError',message:getErrorMessage(error),at:Date.now()}});
+          finish({ok:false,error});
         }
-        if (!isCurrentGeneration()) { finish(superseded()); return; }
-        const elapsed = Date.now() - queuedAt;
-        updateCurrentStatus({
-          push: 'confirmed', pushStartedAt: null, pushConfirmedAt: Date.now(), lastError: null,
-        });
-        const okMsg = `Push committed ${profileId.slice(0,8)} (${elapsed}ms) — sun=${sunCount} dev=${devCount}`;
-        _debug(okMsg);
-        logSyncEvent('push', okMsg);
-        // Mark the moment a push committed locally so the relay-health
-        // verifier (verifyPushLanded) can distinguish "no push happened
-        // yet" from "push happened but relay didn't advance" (silent
-        // reject).
-        notePushCommitted();
-        // Only advance the local-sync-ts watermark when the push actually
-        // landed. The previous (synchronous) bump after evolu.update meant
-        // a wedged push set the watermark anyway → subsequent pulls saw
-        // `remote.syncedAt < local-sync-ts` and skipped, leaving the local
-        // Evolu row stuck at older state with no auto-recovery. Now the
-        // watermark only moves on real success.
-        // Use syncedAt (same value stored in Evolu) so pulls see exact
-        // equality and don't skip the row from 1ms clock drift.
-        const syncedAtMs = new Date(syncedAt).getTime();
-        localStorage.setItem(`labcharts-${profileId}-sync-ts`, String(syncedAtMs));
-        noteLocalSyncCommit(profileId, syncedAtMs);
-        noteSupersededProfileMetadata(profileId, supersededMetadata);
-        // Track bytes immediately for the relay-storage estimate, then replace
-        // it with authoritative storedBytes + configured quota via the
-        // debounced self-service probe below.
-        trackPushBytes((dataJson || '').length);
-        scheduleOwnerStorageRefresh();
-        clearSyncProfileDirty(profileId, dirtyToken);
-        finish({ ok: true });
       };
       // Watchdog: if Evolu never calls onComplete within 30s, the worker is
       // wedged (broken WS, OPFS lock, dead replication). Log explicitly so

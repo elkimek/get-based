@@ -386,6 +386,13 @@ runtime and legacy recovery assets count against the unchanged offline budget.
 
 The Evolu adapter projects owner replication status from its current runtime and
 keeps it separate from the signed owner-storage confirmation of a pushed profile.
+Automatic quota probes defer while an initial owner handshake or provisional
+device join is pending, then refresh after replication settles. Once the owner
+is registered, later sync activity and offline/error diagnostics do not gate
+quota reads. Replies from a retired owner or self-service endpoint are discarded.
+All identity joins suspend retiring-runtime pushes and pulls through the
+controlled reload; rejected joins resume normal sync. Newly joined data must
+not start view loads in a document already scheduled for replacement.
 Device persistence is explicit: unknown evidence never implies durable storage,
 and memory-only storage has a visible notice. Retired runtimes cannot publish
 status or persistence results after an owner change. Database-held, build-conflict
@@ -403,6 +410,65 @@ acknowledge a newer dirty marker or release another push's in-flight guard. A
 superseded plan settles its status before releasing ownership and cannot hide
 another profile's pending send. Manual sync retries the current snapshot within
 its existing deadline.
+
+Duplicate physical sync rows use one deterministic order: application edit time,
+deletion on a tied clock, physical row ID, then canonical payload bytes. Query
+order is never a version. Array overlays retain embedded record freshness and
+unpublished local edits; committed duplicate values use the canonical row.
+Per-item array receipts retain the exact committed value hash and row clock.
+They advance only after item-row completion or successful pull persistence,
+and only for values that survived persistence rebasing. A later in-place row
+update can replace that committed value even when its embedded timestamp ties;
+an older query result cannot replace a freshly committed local edit.
+Map diff snapshots likewise acknowledge received values and removals only
+after durable profile persistence and only when the captured row still matches
+the committed value or absence. Receiving a map edit must not resend it on
+reload; a concurrent local edit remains eligible for its own push.
+During upgrade, an unchanged last-pushed array value uses its legacy snapshot
+as the merge base, bounded by its planning clock when present. An actual
+per-item receipt takes priority. Changed or unknown local values remain edits;
+only matching durably persisted row values establish the new receipts.
+Array planning uses those received versions for later edits and deletions,
+including edits back to a previously pushed value. Deletion receipts retain a
+clocked absence so stale queries cannot revive a deleted item and an explicit
+restoration can publish the same value again. Tombstone logical IDs stay in
+local plan metadata; SDK mutation arguments retain their existing wire shape.
+Locally restored membership survives the already acknowledged deletion while
+its new row write is pending; stale live rows cannot acknowledge that restore.
+Restoring a tombstoned row sends SQLite false (`isDeleted: 0`) for arrays,
+maps, and scalars. Evolu v8 treats null as no deletion-register change; zero
+clears that register in both supported SDK generations.
+A pull also captures a bounded journal of local commits. Persistence replays
+those mutations against the merged view, preserving a deliberate change and
+restoration even when its final value equals the pull's original snapshot.
+The journal stores only changed top-level fields, is released after the pull,
+and defers to a fresh receive after a burst exceeds eight commits. No storage
+lock spans decoding or relay work. A known item deletion also takes priority
+over a newer profile timestamp caused by an unrelated save.
+Replay also rebases from each observed field's last local value to the latest
+stored value, preserving newer writes from tabs with separate journals. Live
+drafts use their remembered origin so an already saved value is not replayed
+as a new edit over a later peer save.
+A local intent still marks sync dirty when a queued pull already persisted
+the same live value. Only a save unchanged from its remembered origin takes
+the no-op hook path; identical stored bytes alone do not prove relay delivery.
+Lab entries retain their per-marker merge rules. A map tombstone suppresses older
+live duplicates, while a later explicit edit can restore the key. New mutations
+advance past observed row clocks even after a device clock moves backwards.
+Profile pulls select among decodable payloads so a newer incomplete duplicate
+cannot hide a usable profile. These rules preserve the existing wire schema and
+legacy-client paths.
+
+An SDK mutation being queued is not its persistence acknowledgement. Push waits
+for each item-row mutation's own completion before advancing that surface's
+snapshot or scalar receipt. The existing push deadline also covers this wait;
+failure, timeout, pause, and runtime replacement retain retry state and prevent
+late completions from acknowledging retired work. An omitted array or map is
+unknown membership, not a clear request. Explicit empty collections and recorded
+delete intent retain their existing behavior and safeguards. Separate query
+notifications and a quiet interval do not prove that every peer row has arrived.
+This overlay protection does not establish atomic multi-row delivery or replace
+the existing Phase 2 readiness contract.
 
 V3 profile snapshots retain scalar values with per-field edit clocks, so an
 unrelated save cannot give an unchanged scalar a newer clock. Full snapshots
