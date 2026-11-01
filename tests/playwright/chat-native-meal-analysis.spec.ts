@@ -3,7 +3,7 @@ import { stoppedChatCompletion } from '../helpers/http-responses.js';
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZcL8AAAAASUVORK5CYII=';
 for (const edit of [false, true]) test(`a native meal ${edit ? 'reanalysis' : 'analysis'} handoff runs one requested inference and requires native Save`, async ({ page, context }) => {
   await context.route('https://**/*', route => route.abort());
-  await page.addInitScript(() => { localStorage.setItem('labcharts-default-lastViewV1', 'labs'); localStorage.setItem('labcharts-ai-paused', 'true'); localStorage.setItem('labcharts-analytics-disabled', 'true'); for (const suffix of ['tour', 'emptyTour']) localStorage.setItem('labcharts-default-' + suffix, 'completed'); });
+  await page.addInitScript(() => { localStorage.setItem('labcharts-default-lastViewV1', 'labs'); localStorage.setItem('labcharts-ai-paused', 'true'); localStorage.setItem('labcharts-analytics-disabled', 'true'); localStorage.setItem('labcharts-analytics-consent-seen', '1'); for (const suffix of ['tour', 'emptyTour']) localStorage.setItem('labcharts-default-' + suffix, 'completed'); });
   await page.goto('/app');
   const before = await page.evaluate(async ({ edit, png }) => {
     const profile = await import('/js/profile.js'), id = await profile.createProfile('Synthetic native vision handoff', { sex: 'female', skipInitialSync: true }); if (!id) throw new Error('Synthetic profile missing');

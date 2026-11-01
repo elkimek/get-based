@@ -1,5 +1,9 @@
 import { expect, test } from './coverage-fixture.js';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('labcharts-analytics-consent-seen', '1'));
+});
+
 test('custom markers: real native form durably creates without inventing a result', async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem('labcharts-ai-paused', 'true'); localStorage.setItem('labcharts-analytics-disabled', 'true'); for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
   await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
