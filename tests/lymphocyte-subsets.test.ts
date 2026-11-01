@@ -73,6 +73,9 @@ describe('lymphocyte subset schema and import', () => {
 
   it.each([
     ['CD4 (% of CD3+)', 'lymphocyteSubsets.cd4Pct'],
+    ['CD4 (% CD3+)', 'lymphocyteSubsets.cd4Pct'],
+    ['CD8 (percentage CD3+)', 'lymphocyteSubsets.cd8Pct'],
+    ['CD4 (% T cells)', 'lymphocyteSubsets.cd4Pct'],
     ['CD8 (% of T cells)', 'lymphocyteSubsets.cd8Pct'],
     ['CD4 (% of WBC)', 'lymphocyteSubsets.cd4Pct'],
     ['CD3+CD16+CD56+', 'lymphocyteSubsets.nkCellsPct'],
@@ -80,6 +83,19 @@ describe('lymphocyte subset schema and import', () => {
     ['NK activity', 'lymphocyteSubsets.nkCellsPct'],
   ])('does not merge %s into a different denominator or assay', (name, key) => {
     expect(mapped(name, '%', key)).toMatchObject({ mappedKey: null, matched: false, suggestedKey: null });
+  });
+
+  it.each([
+    ['CD3− CD16/CD56+', 'nkCells'],
+    ['NK cells (CD3− CD16/CD56+) %', 'nkCells'],
+    ['% CD3− CD16/CD56+', 'nkCells'],
+    ['% CD3 (T cells)', 'cd3'],
+    ['B % CD4', 'cd4'],
+    ['CD4 (% lymphocytes)', 'cd4'],
+  ])('preserves valid numerator and cell-group labels in %s', (name, key) => {
+    expect(mapped(name, '%', `lymphocyteSubsets.${key}Pct`)).toMatchObject({
+      mappedKey: `lymphocyteSubsets.${key}Pct`, matched: true,
+    });
   });
 
   it.each([['CD4/CD8 ratio', 'cd4Cd8Ratio'], ['Helper/suppressor ratio', 'cd4Cd8Ratio'], ['LMR', 'lmr']])(
