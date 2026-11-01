@@ -18,7 +18,7 @@ const PRODUCTION_RAW_MODULE_ROOTS = new Set([
   '/js/voice-local-stt-worker.js',
   '/js/voice-local-tts-worker.js',
 ]);
-const sourceModuleURL = (url: string) => /^\/(?:js|shared)\/.*\.js$/.test(url);
+export const sourceModuleURL = (url: string) => /^\/(?:js|shared)\/.*\.js$/.test(url);
 const FATAL_BUILD_WARNINGS = new Set(['INEFFECTIVE_DYNAMIC_IMPORT']);
 
 /** Online compatibility and license files are published without precaching a
@@ -99,6 +99,10 @@ export function pruneSourceModuleAppShell(source: string, rawAssets: ReadonlySet
 
 /** Remove JSON whitespace only outside literals. Numeric spellings, duplicate
  * keys, field order and every byte inside strings stay unchanged. */
+export function compactStaticJsonBody(source: string): string {
+  JSON.parse(source);
+  return source.replace(/"(?:\\.|[^"\\])*"|[ \t\r\n]+/g, token => token.startsWith('"') ? token : '');
+}
 export async function compactStaticJson(directory: string, urls: readonly string[]) {
   let before = 0, after = 0;
   const dataRoot = path.resolve(directory, 'data') + path.sep;
@@ -107,8 +111,7 @@ export async function compactStaticJson(directory: string, urls: readonly string
     const file = path.resolve(directory, '.' + url);
     if (!file.startsWith(dataRoot)) throw new Error('JSON leaves copied data directory');
     const source = await fs.readFile(file, 'utf8');
-    JSON.parse(source);
-    const output = source.replace(/"(?:\\.|[^"\\])*"|[ \t\r\n]+/g, token => token.startsWith('"') ? token : '');
+    const output = compactStaticJsonBody(source);
     before += Buffer.byteLength(source); after += Buffer.byteLength(output);
     await fs.writeFile(file, output);
   }

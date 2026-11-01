@@ -4099,3 +4099,5 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 
 /scripts/legacy-evolu-compaction.mjs
 /tests/legacy-evolu-compaction.test.js
+/tests/chat-discussion-end-persistence.test.js
+/tests/chat-runtime-resume.test.js

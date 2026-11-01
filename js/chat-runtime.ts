@@ -79,8 +79,11 @@ export function notifyChatSavedRuntime(profileId?: string | null, customPersonal
   chatRuntimeCallbacks.onChatSaved?.({ customPersonality, ...(profileId !== undefined ? {profileId} : {}) });
 }
 
-export function resumeChatAIRuntime() {
-  return callChatRuntimeCallback('resumeAI');
+export async function resumeChatAIRuntime() {
+  const callback = chatRuntimeCallbacks.resumeAI;
+  if (typeof callback !== 'function') return false;
+  await callback();
+  return true;
 }
 
 export function refreshChatWebSearchToggleRuntime() {

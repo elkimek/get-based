@@ -102,8 +102,9 @@ async function metadata(artifact: string): Promise<Pick<ArtifactManifest, 'revis
 async function currentSources(root: string, artifact: string, manifest: Pick<ArtifactManifest, 'revision' | 'verificationDigest' | 'sourceInputCount'>): Promise<void> {
   // These emitted dependencies are deliberately loaded only AFTER installation.
   // restore needs only Node builtins and works in a pristine checkout.
-  const [{createStaticBuildFingerprint}, {inlineServiceWorkerAssets}, {parseAppShellEntries}] = await Promise.all([
+  const [{createStaticBuildFingerprint}, {inlineServiceWorkerAssets}, {parseAppShellEntries}, {sourceModuleURL, compactStaticJsonBody}, {verifyLegacyEvoluAsset}] = await Promise.all([
     import('./static-build-inputs.mjs'), import('./service-worker-source.js'), import('./app-shell-budget.mjs'),
+    import('./static-build-assets.mjs'), import('./legacy-evolu-compaction.mjs'),
   ]);
   const inventory = execFileSync('git', ['--no-optional-locks', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], {cwd: root, encoding: 'utf8'}).split('\0');
   const current = await createStaticBuildFingerprint(root, manifest.revision, '', inventory);
@@ -115,9 +116,13 @@ async function currentSources(root: string, artifact: string, manifest: Pick<Art
   const shipping = new Set(parseAppShellEntries((await regular(path.join(artifact, 'service-worker.js'))).toString()));
   const assembled = new Set(['/app', '/index.html', '/version.js', '/service-worker-assets.js', '/getbased-companion.mjs']);
   for (const url of parseAppShellEntries(nativeWorker)) {
-    if (assembled.has(url) || (url.startsWith('/js/') && !shipping.has(url))) continue;
+    if (assembled.has(url) || (sourceModuleURL(url) && !shipping.has(url))) continue;
     assert(url.startsWith('/'), 'Absolute app shell URL'); portable(url.slice(1));
-    assert.deepEqual(await regular(path.join(artifact, url.slice(1))), await regular(path.join(root, url.slice(1))), 'Exact copied public body: ' + url);
+    const supplied = await regular(path.join(artifact, url.slice(1))), canonical = await regular(path.join(root, url.slice(1)));
+    if (url.startsWith('/vendor/evolu/') && url.endsWith('.js')
+      && await verifyLegacyEvoluAsset(url.slice(1), canonical.toString(), supplied.toString())) continue;
+    const expected = url.startsWith('/data/') && url.endsWith('.json') ? Buffer.from(compactStaticJsonBody(canonical.toString())) : canonical;
+    assert.deepEqual(supplied, expected, 'Exact copied public body: ' + url);
   }
 }
 async function readTransport(options: CIArtifactOptions) {
@@ -136,7 +141,8 @@ export async function sealCIArtifact(options: CIArtifactOptions): Promise<Artifa
   const metrics = await metadata(artifact); assert.equal(metrics.revision, revision(root), 'Produced revision matches checkout');
   await currentSources(root, artifact, metrics);
   const catalog = await fs.readFile(path.join(root, 'data/recommendations.json'));
-  assert.deepEqual(await regular(path.join(artifact, 'data/recommendations.json')), catalog, 'Produced catalog matches current source');
+  const {compactStaticJsonBody} = await import('./static-build-assets.mjs');
+  assert.deepEqual(await regular(path.join(artifact, 'data/recommendations.json')), Buffer.from(compactStaticJsonBody(catalog.toString())), 'Produced catalog matches current source encoding');
   JSON.parse(catalog.toString());
   producerRoot(root);
   const manifest: ArtifactManifest = {schemaVersion: 1, producerRoot: root, ...metrics, catalog: {bytes: catalog.length, sha256: hash(catalog)}, files: await inventoryCIArtifact(artifact)};
@@ -171,7 +177,8 @@ export async function restoreCIArtifactCatalog(options: CIArtifactOptions): Prom
 export async function verifyCIArtifact(options: CIArtifactOptions): Promise<ArtifactManifest> {
   const {root, artifact, catalog, manifest} = await readTransport(options);
   assert.deepEqual(await regular(path.join(root, 'data/recommendations.json')), catalog, 'Restored source catalog remains exact');
-  assert.deepEqual(await regular(path.join(artifact, 'data/recommendations.json')), catalog, 'Artifact catalog remains exact');
+  const {compactStaticJsonBody} = await import('./static-build-assets.mjs');
+  assert.deepEqual(await regular(path.join(artifact, 'data/recommendations.json')), Buffer.from(compactStaticJsonBody(catalog.toString())), 'Artifact catalog encoding remains exact');
   await currentSources(root, artifact, manifest);
   return manifest;
 }

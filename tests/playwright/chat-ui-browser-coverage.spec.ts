@@ -854,7 +854,7 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
 
       localStorage.setItem('labcharts-ai-paused', 'true');
       await chatLoader.loadChatModule();
-      chatRuntime.resumeChatAIRuntime();
+      await chatRuntime.resumeChatAIRuntime();
       outcomes.resumeBindingUnpausesAndKeepsChatImageHelpersModuleOnly = localStorage.getItem('labcharts-ai-paused') === 'false'
         && !('_resumeAI' in window)
         && !('summarizeThread' in window)

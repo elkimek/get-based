@@ -598,6 +598,11 @@ evidence. Empty review outcomes are reported from local receipts, while genuine
 clarification after a read remains visible. Normal and discussion senders publish the
 same draft and context receipts for direct and local-agent routes. `chat-turn-scope.ts`
 captures their common conversation/root/disclosure owner independently of cancellation.
+Ending a discussion retains its controls until the native thread-index save
+commits. A failed save restores only that action's unchanged local metadata;
+retired profile/thread callbacks cannot clear a replacement conversation.
+The native resume-AI runtime port exposes completion of its locked preference
+write so callers can await the durable result.
 The native runtime records actual review IDs and navigation effects in
 `chat-turn-outcome.ts`; a live, owner-checked recovery attachment retains pending
 reviews after API or CLI interruption. Normal and discussion senders publish that
@@ -1128,6 +1133,11 @@ writes `dist/`; `production:check` validates a disposable distribution. Vercel
 publishes that same output. `tooling/svelte` isolates Kit's TypeScript 6 peer;
 application sources still compile with TypeScript 7. The native compatibility
 builder remains available for existing module, coverage and budget contracts.
+Portable CI artifact sealing verifies the exact shipping encodings, including
+pruned bundled shared modules, literal-preserving public JSON and the two pinned
+legacy Evolu JavaScript bodies. Catalog transport retains the original source
+bytes for restoration before dependency installation. Artifact inventory hashes,
+source fingerprints and all other copied public bodies remain exact.
 
 The Kit route prerenders and hydrates shared authored components. Native
 compatibility entrypoints use deterministic snapshots from those same owners,

@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {inventoryCIArtifact, restoreCIArtifactCatalog, sealCIArtifact, verifyCIArtifact} from '../scripts/ci-artifact.mjs';
 import {createStaticBuildFingerprint} from '../scripts/static-build-inputs.mjs';
+import {compactLegacyEvoluAssets} from '../scripts/legacy-evolu-compaction.mjs';
 
 const cleanup: string[] = [];
 afterEach(async () => {vi.restoreAllMocks(); for (const directory of cleanup.splice(0)) await fs.rm(directory, {recursive: true, force: true});});
@@ -29,12 +30,66 @@ async function fixture() {
   await write('dist/version.js', `self.APP_BUILD_ID = '${buildId}';\n`);
   await write('dist/service-worker.js', `const BUILD_ID = '${buildId}';\n` + shell);
   for (const file of ['data/recommendations.json', 'css/source.css', 'js/raw.js']) await write('dist/' + file, await fs.readFile(path.join(root, file), 'utf8'));
+  await write('dist/data/recommendations.json', '{"slots":{},"products":{}}');
   const source = await createStaticBuildFingerprint(root, revision, '', []);
   await write('dist/build-metrics.json', JSON.stringify({framework: 'SvelteKit 3 / Svelte 5', static: true, revision, buildId, verificationDigest: source.verificationDigest, sourceInputCount: source.sourceFiles.length}));
   return {root, options, write, revision, buildId};
 }
 
 describe('exact CI artifact transport', () => {
+  it('omits bundled shared source URLs while retaining exact raw shared dependencies', async () => {
+    const sample = await fixture();
+    await sample.write('shared/bundled.js', 'export const bundled=1;');
+    await sample.write('shared/raw.js', 'export const raw=2;'); await sample.write('dist/shared/raw.js', 'export const raw=2;');
+    const worker = await fs.readFile(path.join(sample.root, 'service-worker-assets.js'), 'utf8');
+    await sample.write('service-worker-assets.js', worker.replace("'/app'", "'/shared/bundled.js', '/shared/raw.js', '/app'"));
+    const shipping = await fs.readFile(path.join(sample.root, 'dist/service-worker.js'), 'utf8');
+    await sample.write('dist/service-worker.js', shipping.replace("'/app'", "'/shared/raw.js', '/app'"));
+    const manifest = await sealCIArtifact(sample.options); expect(await verifyCIArtifact(sample.options)).toEqual(manifest);
+    await sample.write('shared/raw.js', 'export const raw=3;');
+    await expect(verifyCIArtifact(sample.options)).rejects.toThrow('Exact copied public body: /shared/raw.js');
+  });
+
+  it('restores the exact original catalog while sealing only its lossless public JSON encoding', async () => {
+    const sample = await fixture();
+    const original = '{\n "slots": {}, "products": {}, "number": 9007199254740993, "number": 1.2300e+4, "text": "two  spaces"\n}\n';
+    const encoded = '{"slots":{},"products":{},"number":9007199254740993,"number":1.2300e+4,"text":"two  spaces"}';
+    await sample.write('data/recommendations.json', original); await sample.write('dist/data/recommendations.json', encoded);
+    const source = await createStaticBuildFingerprint(sample.root, sample.revision, '', []);
+    const metrics = JSON.parse(await fs.readFile(path.join(sample.root, 'dist/build-metrics.json'), 'utf8'));
+    await sample.write('dist/build-metrics.json', JSON.stringify({...metrics, verificationDigest: source.verificationDigest, sourceInputCount: source.sourceFiles.length}));
+    const manifest = await sealCIArtifact(sample.options);
+    await fs.unlink(path.join(sample.root, 'data/recommendations.json')); await restoreCIArtifactCatalog(sample.options);
+    expect(await fs.readFile(path.join(sample.root, 'data/recommendations.json'), 'utf8')).toBe(original);
+    expect(await fs.readFile(path.join(sample.root, 'dist/data/recommendations.json'), 'utf8')).toBe(encoded);
+    expect(await verifyCIArtifact(sample.options)).toEqual(manifest);
+    await sample.write('dist/data/recommendations.json', encoded.replace('9007199254740993', '9007199254740992'));
+    manifest.files = await inventoryCIArtifact(path.join(sample.root, 'dist'));
+    await sample.write(sample.options.transport + '/manifest.json', JSON.stringify(manifest));
+    await expect(verifyCIArtifact(sample.options)).rejects.toThrow('Artifact catalog encoding remains exact');
+  });
+
+  it.each(['input', 'output'])('seals the complete pinned legacy encoding and rejects a changed %s even after resealing the tree inventory', async mutation => {
+    const sample = await fixture();
+    const urls = [];
+    for (const name of ['Db.worker.js', 'evolu-bundle.js']) {
+      const file = 'vendor/evolu/' + name, body = await fs.readFile(file, 'utf8');
+      await sample.write(file, body); await sample.write('dist/' + file, body); urls.push('/' + file);
+    }
+    await compactLegacyEvoluAssets(path.join(sample.root, 'dist'));
+    for (const file of ['service-worker-assets.js', 'dist/service-worker.js']) {
+      const body = await fs.readFile(path.join(sample.root, file), 'utf8');
+      await sample.write(file, body.replace("'/app'", urls.map(url => JSON.stringify(url)).join(', ') + ", '/app'"));
+    }
+    const manifest = await sealCIArtifact(sample.options); expect(await verifyCIArtifact(sample.options)).toEqual(manifest);
+    await fs.appendFile(path.join(sample.root, (mutation === 'output' ? 'dist/' : '') + 'vendor/evolu/Db.worker.js'), '\n');
+    if (mutation === 'output') {
+      manifest.files = await inventoryCIArtifact(path.join(sample.root, 'dist'));
+      await sample.write(sample.options.transport + '/manifest.json', JSON.stringify(manifest));
+    }
+    await expect(verifyCIArtifact(sample.options)).rejects.toThrow(mutation === 'input' ? 'Exact frozen legacy input' : 'Exact qualified legacy encoding');
+  });
+
   it('seals once, restores the exact catalog before install, then verifies source, identity and every artifact file', async () => {
     const sample = await fixture();
     const manifest = await sealCIArtifact(sample.options);

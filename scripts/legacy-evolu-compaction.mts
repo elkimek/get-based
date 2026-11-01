@@ -52,6 +52,15 @@ export async function assertLegacyEvoluEncoding(source: string, output: string):
   assert.deepEqual(notices(after.comments), notices(before.comments), 'Every legacy legal notice remains verbatim and ordered');
 }
 
+/** A closed encoding contract shared by the producer and portable CI seal. */
+export async function verifyLegacyEvoluAsset(file: string, source: string, output: string): Promise<boolean> {
+  const asset = ASSETS.find(([name]) => name === file);
+  if (!asset) return false;
+  assert.equal(digest(source), asset[1], 'Exact frozen legacy input: ' + file);
+  assert.equal(digest(output), asset[2], 'Exact qualified legacy encoding: ' + file);
+  await assertLegacyEvoluEncoding(source, output);
+  return true;
+}
 export async function compactLegacyEvoluAssets(directory: string) {
   const prepared = [];
   for (const [file, originalHash, outputHash] of ASSETS) {
@@ -67,7 +76,7 @@ export async function compactLegacyEvoluAssets(directory: string) {
       .map(comment => source.slice(comment.start, comment.end));
     const code = output.code + '\n' + notices.join('\n') + '\n';
     assert.equal(digest(code), outputHash, 'Exact qualified legacy encoding: ' + file);
-    await assertLegacyEvoluEncoding(source, code);
+    await verifyLegacyEvoluAsset(file, source, code);
     prepared.push({file, source, output: code});
   }
   // Qualify the entire closed set before replacing either copied file.
