@@ -1431,7 +1431,25 @@ test('all registered sync surfaces converge bidirectionally with clean console a
       return (await import('/js/data.js')).saveImportedData();
     })).toBe(true);
     expect((await syncNow(a.page))?.ok).toBe(true);
-    await expect.poll(async () => (await snapshot(b.page)).stored.markerNotes).toEqual({});
+    const deletionStarted = Date.now();
+    const deletionDiagnostics = async () => Promise.all(devices.map(async device => ({device: device.label,
+      data: await device.page.evaluate(async () => {
+        const runtime = await import('/js/sync-runtime.js'), sdk = runtime.getSyncEvolu()!;
+        return {live: (await import('/js/state.js')).state.importedData.markerNotes,
+          rows: sdk.getQueryRows<DeltaItemRow>(runtime.getSyncItemRowQuery())!.filter(row => row.arrayName === 'markerNotes'),
+          status: (await import('/js/sync-state.js')).getSyncStatus(),
+          events: (await import('/js/sync-state.js')).getRecentSyncEvents()};
+      })})));
+    let slowDeletionReported = false;
+    await expect.poll(async () => {
+      const notes = (await snapshot(b.page)).stored.markerNotes;
+      if (!slowDeletionReported && Date.now() - deletionStarted > 5000 && Object.keys(notes as object).length) {
+        slowDeletionReported = true;
+        console.log('[sync-e2e-map-deletion-pending]', JSON.stringify(await deletionDiagnostics()));
+      }
+      return notes;
+    }, {timeout: 30_000}).toEqual({});
+    const mapDeletionMs = Date.now() - deletionStarted;
     expect(await b.page.evaluate(async () => {
       (await import('/js/state.js')).state.importedData.markerNotes['lipids.apoB'] = 'Synthetic reverse marker note';
       return (await import('/js/data.js')).saveImportedData();
@@ -1477,7 +1495,7 @@ test('all registered sync surfaces converge bidirectionally with clean console a
     expect(afterReloads!.messageCount).toBe(beforeReloads!.messageCount);
     expect(afterReloads!.storedBytes).toBe(beforeReloads!.storedBytes);
     console.log('[sync-e2e]', JSON.stringify({surfaces: paths.length, sdk: EVOLU_CLIENT,
-      peer: peerBrowser ? 'firefox' : 'chromium', consoleErrors: 0, uncaughtErrors: 0, syncLogErrors: 0, unexpectedSyncWarnings: 0, reloadStorageGrowth: 0}));
+      peer: peerBrowser ? 'firefox' : 'chromium', consoleErrors: 0, uncaughtErrors: 0, syncLogErrors: 0, unexpectedSyncWarnings: 0, reloadStorageGrowth: 0, mapDeletionMs}));
   } finally {
     for (const device of devices.reverse()) await device.context.close();
     await peerBrowser?.close();
