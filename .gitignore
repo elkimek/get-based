@@ -3686,3 +3686,5 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 # Explicit external catalog input for Light acceptance
 /tests/helpers/light-device-catalog-fixture.js
 /tests/helpers/light-device-catalog-fixture.js.map
+
+/js/marker-baseline.js

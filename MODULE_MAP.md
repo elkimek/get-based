@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1867 |
-| Internal import edges | 5717 |
+| Modules | 1868 |
+| Internal import edges | 5720 |
 | Dynamic internal edges | 139 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -822,7 +822,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>charts</code> family — 2 modules</summary>
 
 - [`js/charts-runtime.ts`](js/charts-runtime.ts) → no in-scope imports
-- [`js/charts.ts`](js/charts.ts) → [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/lab-date-range.ts`](js/lab-date-range.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/charts.ts`](js/charts.ts) → [`js/charts-runtime.ts`](js/charts-runtime.ts), [`js/lab-date-range.ts`](js/lab-date-range.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -1939,7 +1939,7 @@ Native browser modules shipped with the static application.
 
 - [`js/data-calculated-markers.ts`](js/data-calculated-markers.ts) → [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts)
 - [`js/data-core-types.ts`](js/data-core-types.ts) → no in-scope imports
-- [`js/data-core.ts`](js/data-core.ts) → no in-scope imports
+- [`js/data-core.ts`](js/data-core.ts) → [`js/marker-baseline.ts`](js/marker-baseline.ts)
 - [`js/data-custom-markers.ts`](js/data-custom-markers.ts) → no in-scope imports
 - [`js/data-merge-lab-entries.ts`](js/data-merge-lab-entries.ts) → [`js/lab-entry.ts`](js/lab-entry.ts)
 - [`js/data-merge.ts`](js/data-merge.ts) → [`js/data-merge-lab-entries.ts`](js/data-merge-lab-entries.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts)
@@ -3457,9 +3457,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>marker</code> family — 24 modules</summary>
+<details><summary><code>marker</code> family — 25 modules</summary>
 
-- [`js/marker-analysis.ts`](js/marker-analysis.ts) → [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-analysis.ts`](js/marker-analysis.ts) → [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/marker-baseline.ts`](js/marker-baseline.ts) → no in-scope imports
 - [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts) → no in-scope imports
 - [`js/marker-detail-actions.ts`](js/marker-detail-actions.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/marker-detail-complete-presentation.ts`](js/marker-detail-complete-presentation.ts) → [`js/components/MarkerDetailBioAge.svelte`](js/components/MarkerDetailBioAge.svelte), [`js/components/MarkerDetailChrome.svelte`](js/components/MarkerDetailChrome.svelte), [`js/components/MarkerDetailNotes.svelte`](js/components/MarkerDetailNotes.svelte)

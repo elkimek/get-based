@@ -35,6 +35,7 @@ interface DrawingChart {
     plugins: {
       refBand?: { refMin?: number | null; refMax?: number | null } | false;
       optimalBand?: { optimalMin?: number | null; optimalMax?: number | null } | false;
+      personalBaseline?: { median: number } | false;
       noteAnnotations?: { notes?: ProfileNote[]; chartDates?: string[] } | false;
       supplementBars?: SupplementBarOptions | false;
       phaseBands?: PhaseBandOptions | false;
@@ -55,6 +56,7 @@ import { getStatus, formatValue, loadScriptOnce } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getContextOptimalEnvelope, getContextRefEnvelope, getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getPhaseRefEnvelope } from './marker-analysis.js';
 import { getLabDateRangeBounds } from './lab-date-range.js';
+import { baselineForDate, projectMarkerBaseline } from './marker-baseline.js';
 import { getSupplementsOverlappingRange, localDateKey } from './supplement-medication-domain.js';
 import {
   createChartRuntime,
@@ -178,6 +180,38 @@ export const optimalBandPlugin = {
       borderColor: "rgba(52, 211, 153, 0.3)",
     }));
   }
+};
+
+/** Dotted neutral guide, distinct from dashed range boundaries; no healthy-band fill. */
+export const personalBaselinePlugin = {
+  id: 'personalBaseline',
+  beforeDatasetsDraw(chart: DrawingChart) {
+    const baseline = chart.options.plugins.personalBaseline;
+    const yScale = chart.scales.y;
+    if (!baseline || !Number.isFinite(baseline.median) || !chart.chartArea || !yScale) return;
+    const { left, right, top, bottom } = chart.chartArea;
+    const y = yScale.getPixelForValue(baseline.median);
+    if (!Number.isFinite(y) || y < top || y > bottom) return;
+    const { ctx } = chart;
+    const colors = getChartColors();
+    ctx.save();
+    ctx.strokeStyle = colors.tickColor;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.setLineDash([1, 5]);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const label = `◆ Baseline ${formatValue(baseline.median)}`;
+    const width = ctx.measureText(label).width + 8;
+    const labelY = Math.max(top + 10, Math.min(bottom - 10, y - 10));
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || colors.tooltipBg;
+    ctx.fillRect(Math.max(left, right - width), labelY - 8, Math.min(width, right - left), 16);
+    ctx.fillStyle = colors.tickColor;
+    ctx.fillText(label, right - 3, labelY);
+    ctx.restore();
+  },
 };
 
 export const noteAnnotationPlugin = {
@@ -515,6 +549,8 @@ export function createLineChart(id: string, marker: ActiveMarker, dateLabels: st
   let values = marker.values;
   let valid = values.filter(v => v !== null && v !== undefined);
   if (valid.length === 0) return;
+  const latestIndex = marker.values.findLastIndex(value => typeof value === 'number' && Number.isFinite(value));
+  const baseline = marker.singlePoint ? null : baselineForDate(marker, latestIndex, chartDates?.[latestIndex]);
   const timelineBounds = marker.singlePoint
     ? null
     : getLabDateRangeBounds(chartDates, state.dateRangeFilter);
@@ -556,7 +592,7 @@ export function createLineChart(id: string, marker: ActiveMarker, dateLabels: st
       return age > 0 ? Math.round(age * 10) / 10 : null;
     });
   }
-  const allValid = chronoAgeValues ? [...valid, ...chronoAgeValues.filter(v => v !== null)] : valid;
+  const allValid = [...valid, ...(chronoAgeValues?.filter(v => v !== null) || []), ...(baseline ? [baseline.median] : [])];
   const envelope = getPhaseRefEnvelope(marker) || getContextRefEnvelope(marker);
   const optimalEnvelope = getContextOptimalEnvelope(marker);
   const refMinSafe = envelope ? Math.min(marker.refMin != null ? marker.refMin : Infinity, envelope.min) : (marker.refMin != null ? marker.refMin : Infinity);
@@ -620,7 +656,8 @@ export function createLineChart(id: string, marker: ActiveMarker, dateLabels: st
     options: { responsive:true, maintainAspectRatio:false,
       plugins: { legend:{ display: isPhenoAge && chronoAgeValues ? true : false, labels: { color: tc.legendColor, font: { size: 11 }, boxWidth: 20, padding: 10 } },
         tooltip:{ backgroundColor:tc.tooltipBg, titleColor:tc.tooltipTitle, bodyColor:tc.tooltipBody, borderColor:tc.tooltipBorder, borderWidth:1,
-          callbacks:{ label:(c: TooltipPoint)=>`${c.dataset.label ? c.dataset.label + ': ' : ''}${formatValue(c.parsed.y)} ${marker.unit}`, afterLabel:(c: TooltipPoint)=> { if (c.datasetIndex !== 0) return ''; const di = c.dataIndex; const oi = di + trimOffset; const pr = getEffectiveRangeForDate(marker, oi); const phaseLabel = marker.phaseDisplayLabels?.[oi] || phaseMetadata.displayLabels?.[di] || marker.phaseLabels?.[oi] || phaseLabels?.[di]; const cycleDay = marker.phaseCycleDays?.[oi] ?? phaseMetadata.cycleDays?.[di]; const phaseSource = marker.phaseSources?.[oi] || phaseMetadata.sources?.[di]; const rangeLabel = getEffectiveRangeLabelForDate(marker, oi); const lines: string[] = []; if (phaseLabel) { const dayText = Number.isInteger(Number(cycleDay)) && Number(cycleDay) > 0 ? ` · cycle day ${cycleDay}` : ''; const sourceText = phaseSource === 'recorded' ? ' (recorded)' : phaseSource === 'predicted' ? ' (predicted)' : ''; lines.push(`Draw phase: ${phaseLabel}${dayText}${sourceText}`); } if (pr.min != null || pr.max != null) { const rMin = pr.min != null ? formatValue(pr.min) : '–'; const rMax = pr.max != null ? formatValue(pr.max) : '–'; lines.push(`${rangeLabel}: ${rMin} \u2013 ${rMax}`); } else if (marker.contextRefRanges?.[oi] || marker.contextOptimalRanges?.[oi]) { lines.push(`${rangeLabel}: not set`); } return lines.join('\n'); } }},
+          callbacks:{ label:(c: TooltipPoint)=>`${c.dataset.label ? c.dataset.label + ': ' : ''}${formatValue(c.parsed.y)} ${marker.unit}`, afterLabel:(c: TooltipPoint)=> { if (c.datasetIndex !== 0) return ''; const di = c.dataIndex; const oi = di + trimOffset; const pr = getEffectiveRangeForDate(marker, oi); const phaseLabel = marker.phaseDisplayLabels?.[oi] || phaseMetadata.displayLabels?.[di] || marker.phaseLabels?.[oi] || phaseLabels?.[di]; const cycleDay = marker.phaseCycleDays?.[oi] ?? phaseMetadata.cycleDays?.[di]; const phaseSource = marker.phaseSources?.[oi] || phaseMetadata.sources?.[di]; const rangeLabel = getEffectiveRangeLabelForDate(marker, oi); const lines: string[] = []; if (phaseLabel) { const dayText = Number.isInteger(Number(cycleDay)) && Number(cycleDay) > 0 ? ` · cycle day ${cycleDay}` : ''; const sourceText = phaseSource === 'recorded' ? ' (recorded)' : phaseSource === 'predicted' ? ' (predicted)' : ''; lines.push(`Draw phase: ${phaseLabel}${dayText}${sourceText}`); } if (pr.min != null || pr.max != null) { const rMin = pr.min != null ? formatValue(pr.min) : '–'; const rMax = pr.max != null ? formatValue(pr.max) : '–'; lines.push(`${rangeLabel}: ${rMin} \u2013 ${rMax}`); } else if (marker.contextRefRanges?.[oi] || marker.contextOptimalRanges?.[oi]) { lines.push(`${rangeLabel}: not set`); } const historicalBaseline = projectMarkerBaseline(baselineForDate(marker, oi, rawDates[di]), marker.unit || '', formatValue); if (historicalBaseline) { lines.push(`Personal baseline: ${historicalBaseline.value}`); lines.push(historicalBaseline.comparison.replace('Latest', 'This result')); } return lines.join('\n'); } }},
+        personalBaseline: baseline ? { median: baseline.median } : false,
         refBand: (() => {
           const refEnv = getPhaseRefEnvelope(marker) || getContextRefEnvelope(marker);
           const optEnv = getContextOptimalEnvelope(marker);
@@ -643,7 +680,7 @@ export function createLineChart(id: string, marker: ActiveMarker, dateLabels: st
       scales: { x: xScale,
         y:{min:axisMin, max:maxV+pad, ticks:{color:tc.tickColor,font:{size:10},callback:formatChartTickValue}, grid:{color:tc.gridColor}}}
     },
-    plugins: [phaseBandPlugin, refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin]
+    plugins: [phaseBandPlugin, refBandPlugin, optimalBandPlugin, personalBaselinePlugin, noteAnnotationPlugin, supplementBarPlugin]
   });
 }
 
