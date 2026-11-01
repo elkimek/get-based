@@ -156,9 +156,9 @@ historical cards are read-only; they cannot apply or undo ordering changes.
 `record-revision.ts` shares the existing stable digest without storage/UI imports.
 `lab-overlay-preferences.ts` owns native profile chart-layer switches. Writes
 share a Web Lock, roll back failed storage before publishing cached modes and
-preserve health data. Legacy `lab-overlay-controls.ts` snapshots and receipt
-helpers remain decodable, but chat discovery and execution cannot reach them.
-Historical overlay cards cannot apply or undo a switch.
+preserve health data. Overlay management stays in the native UI; chat discovery
+and execution cannot reach it. Historical overlay cards remain read-only and
+cannot apply or undo a switch.
 `context-preference-state.ts` projects source/group flags and native lookback
 windows without reading health content or data availability. The registry accepts
 explicit profile/data reads while retaining its existing active-profile defaults.

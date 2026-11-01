@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2089 |
-| Internal import edges | 7030 |
-| Dynamic internal edges | 217 |
+| Modules | 2084 |
+| Internal import edges | 7005 |
+| Dynamic internal edges | 216 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -65,17 +65,17 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/state.ts`](js/state.ts) | 343 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 81 |
+| [`js/state.ts`](js/state.ts) | 340 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 81 |
 | [`js/utils.ts`](js/utils.ts) | 271 | [`js/agent-data-bindings.ts`](js/agent-data-bindings.ts) | 45 |
 | [`js/data.ts`](js/data.ts) | 97 | [`js/chat-send.ts`](js/chat-send.ts) | 41 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 96 | [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 86 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
-| [`js/profile.ts`](js/profile.ts) | 72 | [`js/settings.ts`](js/settings.ts) | 35 |
+| [`js/profile.ts`](js/profile.ts) | 71 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 66 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
-| [`js/profile-data-writes.ts`](js/profile-data-writes.ts) | 64 | [`js/pdf-import.ts`](js/pdf-import.ts) | 31 |
+| [`js/profile-data-writes.ts`](js/profile-data-writes.ts) | 63 | [`js/pdf-import.ts`](js/pdf-import.ts) | 31 |
 | [`shared/agent-data-contract.ts`](shared/agent-data-contract.ts) | 63 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 30 |
 | [`js/api.ts`](js/api.ts) | 58 | [`js/sync-configure.ts`](js/sync-configure.ts) | 30 |
-| [`js/crypto.ts`](js/crypto.ts) | 50 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
+| [`js/crypto.ts`](js/crypto.ts) | 48 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
 | [`js/schema.ts`](js/schema.ts) | 44 | [`js/agent-data-apply.ts`](js/agent-data-apply.ts) | 27 |
 | [`js/data-merge.ts`](js/data-merge.ts) | 43 | [`js/export.ts`](js/export.ts) | 27 |
 | [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 39 | [`js/chat-empty-state.ts`](js/chat-empty-state.ts) | 26 |
@@ -2676,7 +2676,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>lab</code> family — 58 modules</summary>
+<details><summary><code>lab</code> family — 55 modules</summary>
 
 - [`js/lab-context-assembly.ts`](js/lab-context-assembly.ts) → [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/cycle-summary.ts`](js/cycle-summary.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/lab-context-cache.ts`](js/lab-context-cache.ts), [`js/lab-context-change-timeline.ts`](js/lab-context-change-timeline.ts), [`js/lab-context-collection.ts`](js/lab-context-collection.ts), [`js/lab-context-disclosure.ts`](js/lab-context-disclosure.ts), [`js/lab-context-runtime.ts`](js/lab-context-runtime.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile.ts`](js/profile.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-context.ts`](js/supplement-context.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/supplement-warnings.ts`](js/supplement-warnings.ts), [`js/theme.ts`](js/theme.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
 - [`js/lab-context-cache.ts`](js/lab-context-cache.ts) → [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/utils.ts`](js/utils.ts)
@@ -2712,11 +2712,8 @@ Native browser modules shipped with the static application.
 - [`js/lab-ordering-sidebar.ts`](js/lab-ordering-sidebar.ts) → [`js/lab-ordering-view.ts`](js/lab-ordering-view.ts)
 - [`js/lab-ordering-store.ts`](js/lab-ordering-store.ts) → [`js/agent-profile-record-store.ts`](js/agent-profile-record-store.ts), [`js/custom-marker-store.ts`](js/custom-marker-store.ts), [`js/data.ts`](js/data.ts), [`js/lab-ordering-native.ts`](js/lab-ordering-native.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts)
 - [`js/lab-ordering-view.ts`](js/lab-ordering-view.ts) → [`js/lab-ordering-core.ts`](js/lab-ordering-core.ts), [`js/marker-placement.ts`](js/marker-placement.ts)
-- [`js/lab-overlay-controls.ts`](js/lab-overlay-controls.ts) → [`js/lab-overlay-policy.ts`](js/lab-overlay-policy.ts), [`js/lab-overlay-preferences.ts`](js/lab-overlay-preferences.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`shared/lab-overlay-contract.ts`](shared/lab-overlay-contract.ts)
-- [`js/lab-overlay-execution.ts`](js/lab-overlay-execution.ts) → [`js/agent-draft-claims.ts`](js/agent-draft-claims.ts), [`js/data-view-controls.ts`](js/data-view-controls.ts) *(dynamic)*, [`js/lab-overlay-controls.ts`](js/lab-overlay-controls.ts), [`js/lab-overlay-policy.ts`](js/lab-overlay-policy.ts), [`js/lab-overlay-preferences.ts`](js/lab-overlay-preferences.ts), [`js/lab-overlay-receipts.ts`](js/lab-overlay-receipts.ts), [`js/state.ts`](js/state.ts)
 - [`js/lab-overlay-policy.ts`](js/lab-overlay-policy.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/state.ts`](js/state.ts)
 - [`js/lab-overlay-preferences.ts`](js/lab-overlay-preferences.ts) → [`js/native-command-locks.ts`](js/native-command-locks.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/state.ts`](js/state.ts), [`shared/lab-overlay-contract.ts`](shared/lab-overlay-contract.ts)
-- [`js/lab-overlay-receipts.ts`](js/lab-overlay-receipts.ts) → [`js/crypto.ts`](js/crypto.ts), [`js/lab-overlay-policy.ts`](js/lab-overlay-policy.ts), [`js/lab-overlay-preferences.ts`](js/lab-overlay-preferences.ts), [`shared/lab-overlay-contract.ts`](shared/lab-overlay-contract.ts)
 - [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts) → [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts)
 - [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts) → no in-scope imports
 - [`js/lab-panel-mutations.ts`](js/lab-panel-mutations.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts)
@@ -4253,13 +4250,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>profile</code> family — 24 modules</summary>
+<details><summary><code>profile</code> family — 22 modules</summary>
 
 - [`js/profile-button-presentation.ts`](js/profile-button-presentation.ts) → no in-scope imports
 - [`js/profile-button-rendering.ts`](js/profile-button-rendering.ts) → [`js/components/ProfileButtonPresentation.svelte`](js/components/ProfileButtonPresentation.svelte)
 - [`js/profile-chat-state.ts`](js/profile-chat-state.ts) → no in-scope imports
 - [`js/profile-context.ts`](js/profile-context.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
-- [`js/profile-control-receipts.ts`](js/profile-control-receipts.ts) → [`js/crypto.ts`](js/crypto.ts)
 - [`js/profile-data-migrations.ts`](js/profile-data-migrations.ts) → [`js/context-card-legacy.ts`](js/context-card-legacy.ts), [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/custom-marker-lifecycle.ts`](js/custom-marker-lifecycle.ts), [`js/genetics-snp-lifecycle.ts`](js/genetics-snp-lifecycle.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-import-provenance.ts`](js/profile-import-provenance.ts), [`js/profile-marker-migrations.ts`](js/profile-marker-migrations.ts), [`js/schema.ts`](js/schema.ts), [`js/specialty-marker-catalog.ts`](js/specialty-marker-catalog.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
 - [`js/profile-data-writes.ts`](js/profile-data-writes.ts) → [`js/custom-marker-lifecycle.ts`](js/custom-marker-lifecycle.ts), [`js/genetics-lifecycle.ts`](js/genetics-lifecycle.ts), [`js/genetics-snp-lifecycle.ts`](js/genetics-snp-lifecycle.ts), [`js/lab-ordering-core.ts`](js/lab-ordering-core.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts)
 - [`js/profile-fatty-acid-migrations.ts`](js/profile-fatty-acid-migrations.ts) → [`js/specialty-marker-catalog.ts`](js/specialty-marker-catalog.ts)
@@ -4271,7 +4267,6 @@ Native browser modules shipped with the static application.
 - [`js/profile-record-commands.ts`](js/profile-record-commands.ts) → [`shared/agent-data-contract.ts`](shared/agent-data-contract.ts)
 - [`js/profile-runtime.ts`](js/profile-runtime.ts) → [`js/chat-loader.ts`](js/chat-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts) *(dynamic)*, [`js/wearables-manual-sync.ts`](js/wearables-manual-sync.ts) *(dynamic)*, [`js/wearables-manual.ts`](js/wearables-manual.ts)
 - [`js/profile-selection-runtime.ts`](js/profile-selection-runtime.ts) → no in-scope imports
-- [`js/profile-selection.ts`](js/profile-selection.ts) → [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/native-command-locks.ts`](js/native-command-locks.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile-selection-runtime.ts`](js/profile-selection-runtime.ts), [`js/state.ts`](js/state.ts), [`shared/agent-control-contract.ts`](shared/agent-control-contract.ts)
 - [`js/profile-share-loader.ts`](js/profile-share-loader.ts) → [`js/profile-share.ts`](js/profile-share.ts) *(dynamic)*, [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/profile-share-presentation.ts`](js/profile-share-presentation.ts) → [`js/components/ProfileShareActive.svelte`](js/components/ProfileShareActive.svelte), [`js/components/ProfileShareCreate.svelte`](js/components/ProfileShareCreate.svelte), [`js/components/ProfileShareLoad.svelte`](js/components/ProfileShareLoad.svelte), [`js/components/ProfileShareResult.svelte`](js/components/ProfileShareResult.svelte), [`js/components/ProfileShareShell.svelte`](js/components/ProfileShareShell.svelte)
 - [`js/profile-share.ts`](js/profile-share.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/export.ts`](js/export.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-share-presentation.ts`](js/profile-share-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
