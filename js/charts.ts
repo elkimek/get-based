@@ -85,9 +85,15 @@ export function formatChartTickValue(value: unknown) {
   if (!Number.isFinite(numeric)) return String(value ?? '');
   const magnitude = Math.abs(numeric);
   const maxFractionDigits = magnitude >= 10 ? 1 : magnitude >= 1 ? 2 : 3;
-  const rounded = magnitude > 0 && magnitude < 0.1
-    ? Number(numeric.toPrecision(3)) : Number(numeric.toFixed(maxFractionDigits));
+  const rounded = Number(numeric.toFixed(maxFractionDigits));
   return String(Object.is(rounded, -0) ? 0 : rounded);
+}
+
+/** Marker charts need distinct small-fraction ticks when their axis focuses. */
+export function formatMarkerChartTickValue(value: unknown) {
+  const numeric = Number(value), magnitude = Math.abs(numeric);
+  return Number.isFinite(numeric) && magnitude > 0 && magnitude < 0.1
+    ? String(Number(numeric.toPrecision(3))) : formatChartTickValue(value);
 }
 
 export function isChartDateAdapterReady() {
@@ -690,7 +696,7 @@ export function createLineChart(id: string, marker: ActiveMarker, dateLabels: st
         phaseBands: (phaseLabels && phaseLabels.some(p => p) && state.phaseOverlayMode === 'on') ? { phases: phaseLabels, chartDates: rawDates, observed: values.map(v => v != null), cycleDays: phaseMetadata.cycleDays, sources: phaseMetadata.sources } : false},
       layout: { padding: { top: (chartSupps.length ? chartSupps.length * 14 + 6 : 0) + ((phaseLabels?.some(p => p) && state.phaseOverlayMode === 'on') ? 20 : 0), bottom: baseline || axis.focused ? 26 : 0 } },
       scales: { x: xScale,
-        y:{min:axis.min, max:axis.max, ticks:{color:tc.tickColor,font:{size:10},callback:formatChartTickValue}, grid:{color:tc.gridColor}}}
+        y:{min:axis.min, max:axis.max, ticks:{color:tc.tickColor,font:{size:10},callback:formatMarkerChartTickValue}, grid:{color:tc.gridColor}}}
     },
     plugins: [phaseBandPlugin, refBandPlugin, optimalBandPlugin, personalBaselinePlugin, noteAnnotationPlugin, supplementBarPlugin]
   });

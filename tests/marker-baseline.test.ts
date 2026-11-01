@@ -53,6 +53,16 @@ describe('descriptive marker baseline', () => {
     expect(projectMarkerBaseline(null,'u',String)).toBeNull();
   });
 
+  it('keeps baseline metadata absent until a recorded result has enough prior history', () => {
+    for (const count of [1,3,4]) {
+      Object.assign(state,{unitSystem:'EU',dateRangeFilter:'all', importedData:{entries:dates.slice(0,count).map(date=>({date,markers:{'biochemistry.glucose':5}}))}});
+      invalidateActiveDataCache();
+      const marker = getActiveData().categories.biochemistry!.markers.glucose!;
+      if (count < 4) expect(Object.hasOwn(marker,'personalBaselines')).toBe(false);
+      else expect(marker.personalBaselines?.[3]).toMatchObject({median:5,count:3});
+    }
+  });
+
   it('projects the same baseline through unit conversion, chart date filtering and chat', () => {
     Object.assign(state,{unitSystem:'US',dateRangeFilter:'all', importedData:{entries:dates.map((date,index)=>({date,markers:{'biochemistry.glucose':[5,5.2,4.8,9,10][index]}}))}});
     invalidateActiveDataCache();

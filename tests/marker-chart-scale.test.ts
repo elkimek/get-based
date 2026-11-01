@@ -1,13 +1,14 @@
 import {describe, expect, it} from 'vitest';
 import {resolveMarkerChartScale} from '../js/marker-chart-scale.js';
-import {formatChartTickValue} from '../js/charts.js';
+import {formatChartTickValue, formatMarkerChartTickValue} from '../js/charts.js';
 
 describe('marker chart framing', () => {
   it('distinguishes fractional tick labels instead of rounding neighbouring ticks together', () => {
-    expect([0.005,0.0055,0.006,0.0065,0.007].map(formatChartTickValue))
+    expect([0.005,0.0055,0.006,0.0065,0.007].map(formatMarkerChartTickValue))
       .toEqual(['0.005','0.0055','0.006','0.0065','0.007']);
-    expect(formatChartTickValue(0.000000125)).toBe('1.25e-7');
-    expect(formatChartTickValue(12.345)).toBe('12.3');
+    expect(formatMarkerChartTickValue(0.000000125)).toBe('1.25e-7');
+    expect(formatMarkerChartTickValue(12.345)).toBe('12.3');
+    expect(formatChartTickValue(0.000000125)).toBe('0'); // Shared wearable formatting stays unchanged.
   });
   it('makes the screenshot readings visible without rescaling their values or ranges', () => {
     const values = [0.020,0.021,0.022,0.024,0.027,0.031], bounds = [0,5];
@@ -26,6 +27,7 @@ describe('marker chart framing', () => {
     expect(resolveMarkerChartScale([4.8,5,5.1,5.3,5.5,9],[4,10,5,7]))
       .toEqual({min:3.1,max:10.9,focused:false});
     expect(resolveMarkerChartScale([5,5,5],[4,6]).focused).toBe(false);
+    expect(resolveMarkerChartScale([2],[])).toEqual({min:1,max:3,focused:false});
   });
 
   it('keeps a magnitude-based frame for nearly flat focused readings', () => {

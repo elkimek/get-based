@@ -606,7 +606,9 @@ export function createDataCore(ports: DataCorePorts) {
     for (const category of Object.values(data.categories)) {
       for (const marker of Object.values(category.markers)) {
         if (!marker.singlePoint && !category.singlePoint) {
-          marker.personalBaselines = buildMarkerBaselines(marker.values, data.dates);
+          const baselines = buildMarkerBaselines(marker.values, data.dates);
+          if (baselines.some(Boolean)) marker.personalBaselines = baselines;
+          else delete marker.personalBaselines;
         }
       }
     }
