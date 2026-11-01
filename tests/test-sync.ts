@@ -1642,11 +1642,13 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     syncActionsSrc.includes('createDefaultProfileData()')
       && /pushAllProfiles[\s\S]{0,1200}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
       && /pushAllProfiles[\s\S]{0,1200}if \(!dataJson\)/.test(syncActionsSrc));
-  const sourceRestoreStart = syncIdentitySrc.indexOf('if (shouldStageRecovery)');
+  const sourceRestoreStart = syncIdentitySrc.indexOf('export async function restoreFromMnemonic');
   const sourceRestoreBranch = syncIdentitySrc.slice(sourceRestoreStart, syncIdentitySrc.indexOf('await evolu.restoreAppOwner', sourceRestoreStart));
   assert('restore-as-source confirms recovery with retiring runtime suspended before changing owner',
     /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
+      && sourceRestoreStart >= 0
       && sourceRestoreBranch.includes('setSyncPublishingSuspended(true)')
+      && sourceRestoreBranch.indexOf('setSyncPublishingSuspended(true)') < sourceRestoreBranch.indexOf('if (shouldStageRecovery)')
       && sourceRestoreBranch.indexOf('setSyncPublishingSuspended(true)') < sourceRestoreBranch.indexOf('await _seedLocalProfiles({ ownerFingerprint })')
       && sourceRestoreBranch.includes('await _seedLocalProfiles({ ownerFingerprint })')
       && sourceRestoreBranch.includes('await fingerprintBackupRestoreOwner(normalizedMnemonic)')
