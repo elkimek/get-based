@@ -10,6 +10,11 @@ const CONTEXT_AREA_LABELS: Readonly<Record<string, unknown>> = {
 };
 
 function sectionDetail(name: string, content: string) {
+  if (name === 'supplements') {
+    const counts = content.match(/^Therapy records in this prompt: (\d+) of (\d+) with dose detail/m);
+    if (!counts) return '';
+    return counts[1] === counts[2] ? `${counts[2]} records` : `${counts[1]} of ${counts[2]} records detailed · rest by name and dates`;
+  }
   if (name === 'labSampleResults') return `${(content.match(/^\s*- /gm) || []).length} separate samples`;
   if (name === 'wearables') return content.match(/^## Wearables \(([^)]+)\)/m)?.[1] || '';
   if (name === 'nutrition') {

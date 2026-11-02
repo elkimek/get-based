@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getContextSummary } from '../js/chat-context-summary.js';
 import {
   buildCompactSupplementContextRecords,
   buildSupplementAIContext,
@@ -94,7 +95,7 @@ describe('token-bounded supplement AI context', () => {
       inventorySupplements: [current, ended],
     });
 
-    expect(context).toContain('Other stored therapy records (summary only): Past course [ended]');
+    expect(context).toContain('Other stored therapy records (not detailed in this prompt; name, type, status and dates only): Past course [supplement; ended; 2025-01-01→2025-02-01]');
     expect(context.match(/Past course/gu)).toHaveLength(1);
   });
 
@@ -276,7 +277,8 @@ describe('complete therapy facts and conservative exposure', () => {
     records[29]!.qualityTests = [{ category: 'contaminant', analyte: 'PrivateAnalyte', resultText: 'PrivateResult', includeInAIContext: false }];
     const detail = buildSupplementAIContext(records, { mode: 'detail', queryText: 'Tell me about Zebra medicine' });
     expect(detail.indexOf('Zebra medicine')).toBeLessThan(detail.indexOf('Product 0'));
-    expect(detail).toContain('truncated');
+    expect(detail).toMatch(/Therapy records in this prompt: \d+ of 30 with dose detail; \d+ listed below by name and dates only/u);
+    expect(detail).toContain('Product 28 [medication;');
     expect(detail).not.toContain('PrivateAnalyte');
     expect(JSON.stringify(buildCompactSupplementContextRecords([records[29]!]))).not.toContain('PrivateResult');
   });
@@ -298,4 +300,71 @@ it('retains a legacy undated dose without inventing historical amounts', () => {
     expect(context).toContain('25 mg/dose');
     expect(context).toContain('dose not recorded');
   }
+});
+
+describe('therapy selection never hides a dated medication course', () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-02T12:00:00Z')); });
+  afterEach(() => vi.useRealTimers());
+  // Fictional medication; one record per dose change, as users commonly log titrations.
+  const course = (dose: string, start: string, end: string | null, note = ''): SupplementRecord => ({
+    name: `Zentarol ${dose}`, type: 'medication', genericName: 'zentarolum', note,
+    periods: [{ start, end, dose: `${dose}/day` }],
+  });
+  const inventory = (): SupplementRecord[] => [
+    ...Array.from({ length: 12 }, (_, i): SupplementRecord => ({
+      name: `Daily supplement ${i + 1}`, type: 'supplement', periods: [{ start: '2025-07-01', end: null }],
+      ingredients: [{ name: `Nutrient ${i + 1}`, amount: '100 mg' }],
+    })),
+    course('10 mg', '2026-01-10', '2026-03-31'),
+    course('20 mg', '2026-04-01', '2026-04-30'),
+    course('30 mg', '2026-06-01', '2026-07-31', 'restarted after a planned pause'),
+    course('40 mg', '2026-08-01', null),
+    ...Array.from({ length: 4 }, (_, i): SupplementRecord => ({ name: `Old course ${i + 1}`, type: 'supplement', periods: [{ start: '2024-01-01', end: '2024-06-01' }] })),
+  ];
+  const historyRange = { start: '2025-10-01', end: '2026-10-15' };
+
+  it.each([
+    'What could explain my recent blood results?',
+    'najprv si precitaj kompletnu evidenciu brania zentarolu s poznamkami',
+    'zentarol 30 bol od 1.6.2026',
+  ])('keeps every course of a titrated medication with its dates for: %s', queryText => {
+    const records = inventory();
+    const mode = resolveSupplementContextMode(queryText, records);
+    const context = buildSupplementAIContext(records, { mode, queryText, inventorySupplements: records, historyRange });
+    for (const dates of ['2026-01-10→2026-03-31', '2026-04-01→2026-04-30', '2026-06-01→2026-07-31', '2026-08-01→ongoing']) {
+      expect(context).toContain(dates);
+    }
+    for (const dose of ['10 mg/day', '20 mg/day', '30 mg/day', '40 mg/day']) expect(context).toContain(dose);
+    expect(context).toContain('Never fill a gap in a therapy timeline by assumption');
+    expect(context).not.toContain('outside this prompt projection');
+  });
+
+  it('opens detail for inflected, diacritic-free and Slovak therapy questions', () => {
+    const records = inventory();
+    for (const query of ['kompletnu evidenciu brania zentarolu', 'zentarol 30 bol od 1.6.2026', 'zentarolum', 'aké lieky a doplnky beriem?', 'dávkovanie tabliet']) {
+      expect(resolveSupplementContextMode(query, records)).toBe('detail');
+    }
+    expect(resolveSupplementContextMode('How was my sleep last week?', records)).toBe('compact');
+    expect(resolveSupplementContextMode('Ako som spal minulý týždeň?', records)).toBe('compact');
+  });
+
+  it('includes medication notes in detail and lists every omitted record by name and dates', () => {
+    const records = inventory();
+    const detail = buildSupplementAIContext(records, { mode: 'detail', queryText: 'zentarolu', inventorySupplements: records, historyRange });
+    expect(detail).toContain('restarted after a planned pause');
+    const tight = buildSupplementAIContext(records, { mode: 'compact', maxChars: 2200, inventorySupplements: records, historyRange });
+    expect(tight.length).toBeLessThanOrEqual(2200);
+    expect(tight).toMatch(/Therapy records in this prompt: \d+ of 20 with dose detail; \d+ listed below by name and dates only/u);
+    expect(tight).toContain('Zentarol 30 mg');
+    expect(tight).toContain('2026-06-01→2026-07-31');
+  });
+
+  it('discloses partial therapy coverage in the response receipt', () => {
+    const records = inventory();
+    const tight = buildSupplementAIContext(records, { mode: 'compact', maxChars: 2200, inventorySupplements: records, historyRange });
+    const full = buildSupplementAIContext(records, { mode: 'compact', maxChars: 20000, inventorySupplements: records, historyRange });
+    const receipt = (ctx: string) => getContextSummary(`[section:supplements]\n## Supplements & Medications\n${ctx}[/section:supplements]\n`)[0];
+    expect(receipt(tight)).toMatchObject({ label: 'Supplements & Medications', detail: expect.stringMatching(/^\d+ of 20 records detailed/u) });
+    expect(receipt(full)).toEqual({ label: 'Supplements & Medications', detail: '20 records' });
+  });
 });
