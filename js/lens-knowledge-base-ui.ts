@@ -25,6 +25,7 @@ import {
 import type { LensLibraryDeps } from './lens-library.js';
 import type { StatsReply } from './lens-local-protocol.js';
 import type { LensInputFile } from './lens-local-ingest.js';
+import type { KnowledgeLibraryUiState } from './knowledge-library-metadata.js';
 export interface LensUiConfig { backend: string; name: string; url: string; enabled: boolean; topK: number; testProbe: string; multiQuery: boolean }
 interface LensStatus { state: string; lastChunkCount: number; lastError: string | null; sourceName: string }
 type LensConnectionResult = { ok: true; chunkCount: number } | { ok: false; error: string };
@@ -56,6 +57,8 @@ function renderLensStatus(
 }
 
 export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
+  let localStatsGeneration = 0, localStatsPending = 0;
+  let pendingFileInput: HTMLInputElement | null = null;
   const {
     defaultTestProbe,
     getLensConfig,
@@ -157,6 +160,7 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
   }
 
   function closeKnowledgeBaseModal() {
+    pendingFileInput = null;
     closeModalOverlay('kb-modal-overlay');
     document.removeEventListener('keydown', _kbModalKeydown);
   }
@@ -190,7 +194,20 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     chip.innerHTML = renderKnowledgeBaseStatus(statusView);
   }
 
+  function refreshConfigControls(accepted: readonly string[] = ['enabled', 'topK', 'multiQuery']) {
+    const cfg = getLensConfig();
+    for (const [field, id] of [['enabled', 'lens-enabled-toggle'], ['topK', 'lens-topk-input'], ['multiQuery', 'lens-multi-query-checkbox']] as const) {
+      if (!accepted.includes(field)) continue;
+      const control = document.getElementById(id); if (!(control instanceof HTMLInputElement)) continue;
+      if (field === 'topK') { const clean = control.value === control.defaultValue; control.defaultValue = String(cfg.topK); if (clean) control.value = String(cfg.topK); }
+      else { const clean = control.checked === control.defaultChecked; control.defaultChecked = cfg[field]; if (clean) control.checked = cfg[field]; }
+    }
+    _updateLensStatusChip();
+  }
+
   async function handleSaveLensConfig() {
+    let saved = false;
+    try {
     const topKInput = (document.getElementById('lens-topk-input') as HTMLInputElement | null);
     const enabledToggle = (document.getElementById('lens-enabled-toggle') as HTMLInputElement | null);
     const multiQueryCheckbox = (document.getElementById('lens-multi-query-checkbox') as HTMLInputElement | null);
@@ -205,7 +222,8 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
       // On-device: display name is auto-derived from active library, not
       // a user-facing field anymore. Preserve whatever _loadLibraryPicker
       // last synced.
-      saveLensConfig({ enabled, topK, backend, multiQuery });
+      await saveLensConfig({ enabled, topK, backend, multiQuery });
+      saved = true;
       _rerenderLensSection();
       _loadLocalLensStats();
       showNotification('Saved. Indexing and search stay on this device.', 'success');
@@ -229,7 +247,8 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     const key = (keyRaw === '••••••••') ? getLensKey() : keyRaw.trim();
     if (!key) { showNotification('Please enter an API key', 'error'); return; }
 
-    saveLensConfig({ name, url, enabled, topK, testProbe, backend, multiQuery });
+    await saveLensConfig({ name, url, enabled, topK, testProbe, backend, multiQuery });
+    saved = true;
     if (keyRaw !== '••••••••') await saveLensKey(key);
 
     const result = await testLensConnection();
@@ -243,16 +262,21 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     } else {
       showNotification(`Connection failed: ${(result as Extract<LensConnectionResult, { ok: false }>).error}`, 'error');
     }
+    } catch (error) { showNotification(error instanceof Error && 'requiresReview' in error && error.requiresReview === true ? error.message : saved ? 'Knowledge Base preferences were saved, but connection setup or display could not finish. Reopen the settings to review them.' : 'Could not save Knowledge Base settings. Your inputs are still here; try Save again.', 'error'); }
   }
 
   /// Backend radio handler — saves the choice immediately (so a reload
   /// keeps the selection). Re-renders the whole panel since the per-backend
   /// sections have structurally different layouts.
-  function handleLensBackendChange(backend: string) {
-    saveLensConfig({ backend });
-    _rerenderLensSection();
-    if (backend === 'in-browser') _loadLocalLensStats();
-    _updateLensStatusChip();
+  async function handleLensBackendChange(backend: string) {
+    let saved = false;
+    try {
+      await saveLensConfig({ backend });
+      saved = true;
+      _rerenderLensSection();
+      if (backend === 'in-browser') _loadLocalLensStats();
+      _updateLensStatusChip();
+    } catch (error) { showNotification(error instanceof Error && 'requiresReview' in error && error.requiresReview === true ? error.message : saved ? 'The Knowledge Base backend was saved. Reopen settings to refresh its display.' : 'Could not save the Knowledge Base backend. Try again.', 'error'); }
   }
 
   /// Populate the local-corpus stats line + doc list + wire the drop handler.
@@ -268,6 +292,7 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
   }
 
   async function _loadLocalLensStats() {
+    const generation = ++localStatsGeneration; localStatsPending++;
     const stats = document.getElementById('lens-local-stats');
     const list = document.getElementById('lens-local-doc-list');
     // Even when no Settings panel is open we still want the cache hot for
@@ -275,6 +300,7 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     try {
       const lens = await _getLocalLens();
       const s = await lens.getStats();
+      if (generation !== localStatsGeneration) return;
       recordLocalLensStats(s);
       // Notify dashboard listeners that summary numbers may have changed.
       updateLensStatus({});
@@ -310,11 +336,12 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
       if (list) list.innerHTML = _renderLocalDocList(s.documents);
       _attachLocalLensDropHandlers();
     } catch (e) {
+      if (generation !== localStatsGeneration) return;
       if (stats) stats.innerHTML = renderKnowledgeBaseStats({
         part: 'error',
         message: getErrorMessage(e, String(e)),
       });
-    }
+    } finally { localStatsPending--; }
   }
 
   function _renderLocalDocList(docs: StatsReply['documents'] | null | undefined) {
@@ -333,9 +360,10 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     drop.addEventListener('dragleave', () => { drop.classList.remove('is-dragging'); });
     drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('is-dragging'); _handleLocalLensIngest(e.dataTransfer?.files); });
     drop.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.click(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLocalFilePicker(); }
     });
-    picker.addEventListener('change', () => { _handleLocalLensIngest(picker.files); picker.value = ''; });
+    picker.addEventListener('cancel', () => { if (pendingFileInput === picker) pendingFileInput = null; delete picker.dataset.libraryId; });
+    picker.addEventListener('change', () => { const expected = picker.dataset.libraryId || (document.getElementById('lens-library-select') as HTMLSelectElement | null)?.value || ''; if (pendingFileInput === picker) pendingFileInput = null; delete picker.dataset.libraryId; _handleLocalLensIngest(picker.files, expected); picker.value = ''; });
   }
 
   // Fixed-position progress pill that lives outside any modal. Ingest can
@@ -377,7 +405,7 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     if (pill) pill.remove();
   }
 
-  async function _handleLocalLensIngest(fileList: FileList | null | undefined) {
+  async function _handleLocalLensIngest(fileList: FileList | null | undefined, expectedLibraryId = (document.getElementById('lens-library-select') as HTMLSelectElement | null)?.value || '') {
     // Snapshot IMMEDIATELY — FileList from an <input type=file>.files is a
     // LIVE reference, and the picker's change handler clears input.value
     // right after calling us. Awaiting the dynamic import below would give
@@ -385,6 +413,7 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     // the File handles off the live list; each File itself stays valid.
     const incoming = fileList ? Array.from(fileList) : [];
     if (incoming.length === 0) return;
+    if (!expectedLibraryId) { showNotification('Wait for the selected library before adding files.', 'info'); return; }
     if (lensWindow._lensIngestRunning) {
       showNotification('Finish or stop the current indexing job before adding more files.', 'info');
       return;
@@ -494,7 +523,7 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
       });
 
       updateProgressUi('Preparing documents…');
-      const stats = await lens.ingest(files);
+      const stats = await lens.ingest(files, { expectedLibraryId });
       const dur = ((performance.now() - t0) / 1000).toFixed(1);
       const skippedCount = Array.isArray(stats.skipped) ? stats.skipped.length : 0;
       let doneMsg;
@@ -535,10 +564,12 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
 
   async function handleLocalLensDeleteDoc(source: string) {
     if (!source) return;
+    const expectedLibraryId = (document.getElementById('lens-library-select') as HTMLSelectElement | null)?.value;
+    if (!expectedLibraryId) return;
     if (await showConfirmDialog(`Remove "${source}" from your knowledge base?`)) {
       try {
         const lens = await _getLocalLens();
-        const deleted = await lens.deleteDocument(source);
+        const deleted = await lens.deleteDocument(source, { expectedLibraryId });
         clearLensCache();
         showNotification(`Removed ${deleted} excerpt${deleted !== 1 ? 's' : ''}.`, 'success');
         await _loadLocalLensStats();
@@ -549,10 +580,12 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
   }
 
   async function handleLocalLensClear() {
+    const expectedLibraryId = (document.getElementById('lens-library-select') as HTMLSelectElement | null)?.value;
+    if (!expectedLibraryId) return;
     if (await showConfirmDialog('Clear every document from your knowledge base? This can\'t be undone.')) {
       try {
         const lens = await _getLocalLens();
-        await lens.clear();
+        await lens.clear({ expectedLibraryId });
         clearLensCache();
         showNotification('Knowledge base cleared.', 'success');
         await _loadLocalLensStats();
@@ -576,9 +609,36 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
   const handleLibraryRename = lensLibraryHandlers.handleLibraryRename;
   const handleLibraryDelete = lensLibraryHandlers.handleLibraryDelete;
 
-  function handleToggleLens(checked: boolean) {
-    saveLensConfig({ enabled: checked });
-    _updateLensStatusChip();
+  function openLocalFilePicker() {
+    const picker = document.getElementById('lens-local-filepick');
+    const selected = (document.getElementById('lens-library-select') as HTMLSelectElement | null)?.value;
+    if (!(picker instanceof HTMLInputElement) || !selected) return;
+    picker.dataset.libraryId = selected; pendingFileInput = picker; picker.click();
+  }
+  function hasLibraryDraftOrBusy() {
+    const select = document.getElementById('lens-library-select') as HTMLSelectElement | null;
+    const original = select?.querySelector<HTMLOptionElement>('option[selected]')?.value;
+    return pendingFileInput !== null || localStatsPending > 0 || !!lensWindow._lensIngestRunning
+      || !!document.querySelector('#lens-library-create-overlay.show, #prompt-dialog-overlay.show, #confirm-dialog-overlay.show, .confirm-overlay.show, [data-lens-action="new-library"]:disabled')
+      || !!(select?.value && original && select.value !== original);
+  }
+  function refreshLibraryControls(metadata: KnowledgeLibraryUiState) {
+    if (hasLibraryDraftOrBusy()) return false;
+    localStatsGeneration++;
+    lensLibraryHandlers.refreshFromMetadata({ libraries: metadata.libraries, activeId: metadata.activeId });
+    const stats = document.getElementById('lens-local-stats'), list = document.getElementById('lens-local-doc-list');
+    if (stats) {
+      if (!metadata.stats.total_chunks) stats.textContent = 'No documents indexed yet. Add a file to start this library.';
+      else stats.innerHTML = renderKnowledgeBaseStats(projectKnowledgeBaseStats({ totalChunks: metadata.stats.total_chunks, documentCount: metadata.stats.documents.length, model: metadata.stats.model, modelLabel: metadata.modelLabel, backendLabel: 'Model loads when needed', speed: '' }));
+    }
+    if (list) list.innerHTML = _renderLocalDocList(metadata.stats.documents);
+    _attachLocalLensDropHandlers(); _updateLensStatusChip(); return true;
+  }
+
+  async function handleToggleLens(checked: boolean) {
+    try { await saveLensConfig({ enabled: checked }); }
+    catch (error) { showNotification(error instanceof Error && 'requiresReview' in error && error.requiresReview === true ? error.message : 'Could not save the Knowledge Base preference. Try Save again.', 'error'); return; }
+    try { refreshConfigControls(['enabled']); } catch { showNotification('The Knowledge Base preference was saved. Reopen settings to refresh its display.', 'error'); }
   }
 
   function handleClearLensCache() {
@@ -593,7 +653,7 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
       ? 'Remove Knowledge Source? This also deletes every document you indexed in the browser. This can\'t be undone.'
       : 'Remove Knowledge Source? Your server URL and API key will be deleted.';
     if (await showConfirmDialog(prompt)) {
-      await removeLens();
+      try { await removeLens(); } catch (error) { showNotification(getErrorMessage(error, 'Could not finish removing the Knowledge Source. Reopen settings to review it.'), 'error'); return; }
       if (isBrowser) {
         try {
           const lens = await _getLocalLens();
@@ -615,10 +675,12 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
     closeKnowledgeBaseModal, handleClearLensCache, handleLensBackendChange,
     handleLibraryActivate, handleLibraryDelete, handleLibraryNew, handleLibraryRename,
     handleLocalLensClear, handleLocalLensDeleteDoc, handleRemoveLens, handleSaveLensConfig,
-    handleToggleLens, openLocalFilePicker: () => document.getElementById('lens-local-filepick')?.click(),
+    handleToggleLens, openLocalFilePicker,
   });
 
   return {
+    hasLibraryDraftOrBusy, refreshLibraryControls,
+    refreshConfigControls,
     closeKnowledgeBaseModal,
     handleClearLensCache,
     handleLensBackendChange,

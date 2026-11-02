@@ -1,7 +1,7 @@
 import {openStaticSettings, awaitStaticThemeReady} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 test.use({ actionTimeout: 15_000 });
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page: Page) {

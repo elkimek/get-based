@@ -717,6 +717,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
       import('/js/pdf-import-commit.js'),
     ]);
     const { state } = await import('/js/state.js');
+    const { saveImportedData } = await import('/js/data.js');
     const outcomes:Record<string,unknown> = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
@@ -745,6 +746,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         manualValues: {},
         refOverrides: {},
       };
+      if (!await saveImportedData()) throw new Error('Could not save synthetic import fixture');
       review.showImportPreview({
         date: '2026-06-07',
         sampleTime: '07:45',
@@ -802,6 +804,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && Number.isFinite(snapshot.benchmarkAt)
         && snapshot.adoptReferenceRanges === true;
 
+      if (!await saveImportedData()) throw new Error('Could not save synthetic import fixture');
       review.showImportPreview({
         date: '2026-06-07',
         sampleTime: '09:10',
@@ -816,6 +819,8 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
           mappedKey: 'electrolytes.sodium',
         }],
       });
+      const destination = document.querySelector<HTMLSelectElement>('#import-sample-destination')!;
+      destination.value = (state.importedData.entries[0]!.panelId as string); destination.dispatchEvent(new Event('change', { bubbles: true }));
       await pdfImport.confirmImport();
       const laterContextSnapshot = (state.importedData as unknown as PdfFixtureDataReader).importSnapshots
         ?.find(snap => snap.fileName === 'same-date-context.pdf');
@@ -826,6 +831,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && imported!.collectionContextSources?.sampleTime === snapshot?.id
         && imported!.collectionContextSources?.fasting === snapshot?.id;
 
+      if (!await saveImportedData()) throw new Error('Could not save synthetic source fixture');
       (pdfImport.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof pdfImport.openImportReviewFromSnapshot>)(snapshot?.id);
       review.applyManualImportCollectionContext({ sampleTime: null, fasting: null });
       await pdfImport.confirmImport();
@@ -847,6 +853,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         refMax: 5.2,
         refSource: 'manual',
       };
+      if (!await saveImportedData()) throw new Error('Could not save synthetic import fixture');
       review.showImportPreview({
         date: '2026-06-08',
         fileName: 'manual-range-guard.pdf',
@@ -871,6 +878,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && guardedRange.labRefMax === 6.0
         && guardedRange.labRefDate === '2026-06-08';
 
+      if (!await saveImportedData()) throw new Error('Could not save synthetic import fixture');
       review.showImportPreview({
         date: '2026-06-01',
         fileName: 'uploaded-later-but-collected-earlier.pdf',
@@ -900,6 +908,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-07'
         && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefSnapshotId === snapshot?.id;
 
+      if (!await saveImportedData()) throw new Error('Could not save synthetic import fixture');
       review.showImportPreview({
         date: '2026-06-09',
         fileName: 'declined-range.pdf',
@@ -919,6 +928,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
       await pdfImport.confirmImport();
       const declinedRangeSnapshot = (state.importedData as unknown as PdfFixtureDataReader).importSnapshots
         ?.find(snap => snap.fileName === 'declined-range.pdf');
+      if (!await saveImportedData()) throw new Error('Could not save synthetic source fixture');
       (pdfImport.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof pdfImport.openImportReviewFromSnapshot>)(declinedRangeSnapshot?.id);
       outcomes.declinedRangeStaysInactiveAndUncheckedOnReview =
         declinedRangeSnapshot?.adoptReferenceRanges === false
@@ -963,6 +973,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
           ],
         }],
       };
+      if (!await saveImportedData()) throw new Error('Could not save synthetic source fixture');
       (pdfImport.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof pdfImport.openImportReviewFromSnapshot>)('snap-spadia-re-review');
       await pdfImport.confirmImport();
       const restoredSpadia = (state.importedData as unknown as PdfFixtureDataReader).entries.find(entry => entry.date === '2024-07-04');
@@ -1013,6 +1024,7 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
       import('/js/pdf-import-review-runtime.js'),
     ]);
     const { state } = await import('/js/state.js');
+    const { saveImportedData } = await import('/js/data.js');
     const outcomes:Record<string,unknown> = {};
     const original = {
       importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify((state.importedData as unknown as PdfFixtureDataReader) || {})),
@@ -1048,6 +1060,8 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
       state.currentView = 'labs';
       state.profileSex = 'male';
       const failingData = emptyImportedData();
+      (state as unknown as {importedData:unknown}).importedData = failingData;
+      if (!await saveImportedData()) throw new Error('Could not save synthetic failure fixture');
       const { encryptedGetItem } = await import('/js/crypto.js');
       const storageKey = `labcharts-${state.currentProfile}-imported`;
       const durableBeforeFailure = await encryptedGetItem(storageKey);
@@ -1138,6 +1152,7 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
           }],
         }],
       };
+      if (!await saveImportedData()) throw new Error('Could not save synthetic source fixture');
       (commit.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof commit.openImportReviewFromSnapshot>)('snap-re-review-cleanup');
       await commit.confirmImport();
       const reReviewedEntry = (state.importedData as unknown as PdfFixtureDataReader).entries.find(entry => entry.date === '2026-07-19');
@@ -1145,13 +1160,14 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
         (state.importedData as unknown as PdfFixtureDataReader).entries.length === 1
         && reReviewedEntry?.markers?.['biochemistry.glucose'] === 5.4
         && reReviewedEntry?.markerSources?.['biochemistry.glucose']?.snapshotId === 'snap-re-review-cleanup'
-        && !Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).manualValues, 'biochemistry.glucose:2026-07-19')
+        && (state.importedData as unknown as PdfFixtureDataReader).manualValues['biochemistry.glucose:2026-07-19'] === null
         && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots[0]?.markers?.[0]?.value === 5.4
         && Number.isFinite((state.importedData as unknown as PdfFixtureDataReader).importSnapshots[0]?.importedAt);
 
       clearNotifications();
       (state as unknown as {importedData:unknown}).importedData = emptyImportedData();
       state.currentProfile = 'pdf-import-current-profile';
+      if (!await saveImportedData()) throw new Error('Could not save synthetic import fixture');
       review.showImportPreview({
         _importProfileId: 'pdf-import-previous-profile',
         date: '2026-07-21',
@@ -1171,6 +1187,7 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
           .some(toast => toast.textContent.includes('Profile changed during import'));
 
       clearNotifications();
+      if (!await saveImportedData()) throw new Error('Could not save synthetic import fixture');
       review.showImportPreview({
         _importProfileId: state.currentProfile,
         date: '2026-07-21',
@@ -1220,6 +1237,7 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
       import('/js/pdf-import-review-runtime.js'),
     ]);
     const { state } = await import('/js/state.js');
+    const { saveImportedData } = await import('/js/data.js');
     const outcomes:Record<string,unknown> = {};
     const original = {
       importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify((state.importedData as unknown as PdfFixtureDataReader) || {})),
@@ -1289,6 +1307,7 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
         ],
       };
 
+      if (!await saveImportedData()) throw new Error('Could not save synthetic deletion fixture');
       outcomes.missingSnapshotIsRejected = await (commit.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof commit.deleteImportSnapshot>)('missing-snapshot') === false
         && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Import snapshot not found'));
@@ -1301,13 +1320,14 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
         && restoredEntry?.markerSources?.['biochemistry.glucose']?.snapshotId === 'snap-old'
         && restoredEntry?.markerSources?.['biochemistry.glucose']?.file === 'old.csv'
         && !Object.hasOwn(restoredEntry?.markers || {}, 'iron.ferritin')
-        && !Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).manualValues, 'biochemistry.glucose:2026-07-18')
-        && !Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).manualValues, 'iron.ferritin:2026-07-18')
+        && (state.importedData as unknown as PdfFixtureDataReader).manualValues['biochemistry.glucose:2026-07-18'] === null
+        && (state.importedData as unknown as PdfFixtureDataReader).manualValues['iron.ferritin:2026-07-18'] === null
         && Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).manualValues, 'vitamins.vitaminD:2026-07-18')
         && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.map(snapshot => snapshot.id).join(',') === 'snap-older,snap-old'
         && (state.importedData as unknown as PdfFixtureDataReader)._deleted?.importSnapshots?.includes('snap-new') === true
         && refreshCalls.includes('navigate:labs');
 
+      if (!await saveImportedData()) throw new Error('Could not save synthetic source fixture');
       (commit.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof commit.openImportReviewFromSnapshot>)('snap-old');
       const pendingReview = review.getPendingImport();
       outcomes.restoredSnapshotCanBeReviewedFromClonedData = pendingReview?._reReviewSnapshotId === 'snap-old'
@@ -1332,9 +1352,11 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
           markers: [{ mappedKey: 'proteins.hsCRP', value: 0.8, unit: 'mg/L' }],
         }],
       };
+      if (!await saveImportedData()) throw new Error('Could not save synthetic deletion fixture');
       outcomes.lastMarkerDeletionRemovesAndTombstonesEntry = await (commit.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof commit.deleteImportSnapshot>)('snap-only') === true
         && (state.importedData as unknown as PdfFixtureDataReader).entries.length === 0
-        && (state.importedData as unknown as PdfFixtureDataReader)._deleted?.entries?.includes('2026-07-19') === true
+        && Object.values(state.importedData.labPanelTombstones || {}).some(clock => clock.deletedAt > clock.restoredAt)
+        && !(state.importedData as unknown as PdfFixtureDataReader)._deleted?.entries?.includes('2026-07-19')
         && (state.importedData as unknown as PdfFixtureDataReader)._deleted?.importSnapshots?.includes('snap-only') === true;
 
       const failingData = {
@@ -1353,6 +1375,8 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
           markers: [{ mappedKey: 'iron.ferritin', value: 88, unit: 'µg/L' }],
         }],
       };
+      (state as unknown as {importedData:unknown}).importedData = failingData;
+      if (!await saveImportedData()) throw new Error('Could not save synthetic failure fixture');
       const { encryptedGetItem } = await import('/js/crypto.js');
       const storageKey = `labcharts-${state.currentProfile}-imported`;
       const durableBeforeFailure = await encryptedGetItem(storageKey);
@@ -1384,8 +1408,10 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
         && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.length === 0;
 
       clearNotifications();
+      if (!await saveImportedData()) throw new Error('Could not save synthetic source fixture');
       (commit.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof commit.openImportReviewFromSnapshot>)('missing-review');
       (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.push({ id: 'empty-review', date: '2026-07-16', markers: [] });
+      if (!await saveImportedData()) throw new Error('Could not save synthetic source fixture');
       (commit.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof commit.openImportReviewFromSnapshot>)('empty-review');
       const errors = Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error')).map(toast => toast.textContent);
       outcomes.reviewErrorsAreActionable = errors.some(text => text.includes('Import snapshot not found'))

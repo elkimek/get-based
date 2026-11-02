@@ -1,3 +1,4 @@
+import { createWearableFetchScope } from './wearable-fetch-scope.js';
 import { createBasicWearableRow } from './wearable-daily-row.js';
 import type { BasicWearableDailyRow, WearableErrorBody, WearableRequestError, WearableQuery, WearableQueryConstructor } from './wearable-data-types.js';
 
@@ -73,6 +74,7 @@ export async function fetchUltrahumanPersonalInfo(accessToken: string) {
 // loop. If a given day returns a partial payload (no CGM subscription, no
 // ring worn) we still keep the row with nulls for the missing metrics.
 export async function fetchUltrahumanDailyRange(accessToken: string, startDate: string, endDate: string) {
+  const requests = createWearableFetchScope();
   const start = new Date(startDate + 'T00:00:00Z');
   const end   = new Date(endDate   + 'T00:00:00Z');
   const byDate = new Map<string, UltrahumanDailyRow>();
@@ -80,10 +82,12 @@ export async function fetchUltrahumanDailyRange(accessToken: string, startDate: 
     const day = d.toISOString().slice(0, 10);
     let payload;
     try { payload = await uhGET<UltrahumanPayload>('api/partners/v1/user_data/metrics', accessToken, { date: day }); }
-    catch (e) { logDebug('metrics', e); continue; }
+    catch (e) { requests.failure(e); logDebug('metrics', e); continue; }
+    requests.success();
     const row = canonicalizeDay(day, payload);
     if (row) byDate.set(day, row);
   }
+  requests.assertSuccessful();
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 

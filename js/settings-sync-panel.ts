@@ -4,10 +4,10 @@ import { createRetryingModuleLoader, invokeCachedModule } from './retrying-modul
 import {
   applyPendingTombstone,
   listPendingTombstones,
-  pushContextToGateway,
   rejectPendingTombstone,
-  updateSyncIndicator,
-} from './sync.js';
+} from './sync-tombstones.js';
+import { pushContextToGateway } from './sync-messenger.js';
+import { updateSyncIndicator } from './sync-ui.js';
 import { showNotification } from './utils.js';
 
 type SettingsSyncPanelModule = typeof import('./settings-sync-panel-impl.js');

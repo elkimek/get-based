@@ -1,7 +1,7 @@
 // sun-channel-metrics.js - channel unit formatting and vitamin-D rollups.
 
 import { state } from './state.js';
-import { BODY_REGIONS } from './sun-body-silhouette.js';
+import { BODY_REGIONS } from './sun-body-regions.js';
 import { liveDosesFor as _liveDosesFor } from './sun-active-session.js';
 import { getSessions } from './sun-sessions-store.js';
 import { ingredientDailyTotal } from './supplement-impact.js';

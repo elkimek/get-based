@@ -32,6 +32,7 @@ import {
   _formatElapsed,
   liveDosesFor as _liveDosesFor,
   commitSunLiveSlice as _commitCurrentSlice,
+  stageSunLiveSlice,
   setSunLiveState as _setLiveState,
   clearSunLiveState as _clearLiveState,
   resumeActiveTickerIfNeeded as _resumeActiveTickerIfNeeded,
@@ -109,6 +110,8 @@ import { configureProfileContextLightDeps } from './profile-context.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 import { reopenSunSetup } from './sun-defaults.js';
 import type { SunSessionRecord } from './sun-sessions-store.js';
+import { persistActiveSunSlice } from './sun-sessions-store.js';
+import { hasPendingSunSessionWrites } from './sun-session-record-store.js';
 
 // Private views for original unchecked reads; stored/live producer leaves
 // remain opaque at public aggregate boundaries.
@@ -170,22 +173,8 @@ export {
 // the picker (where it informs the choice) but jarring on a static
 // summary line. Row meta now shows just "Eyes uncovered ⚠" so the
 // safety state is conveyed by the icon, not a redundant warning string.
-export const EYE_MODES = [
-  { key: 'direct',         label: 'Eyes uncovered',     pickerLabel: 'Eyes uncovered (never stare at sun)', warn: true },
-  { key: 'sunglasses',     label: 'UV-blocking sunglasses', pickerLabel: 'UV-blocking sunglasses' },
-  { key: 'clear-glasses',  label: 'Clear UV-blocking lenses', pickerLabel: 'Clear UV-blocking lenses' },
-  { key: 'closed-eyes',    label: 'Closed eyes',        pickerLabel: 'Closed eyes' },
-  { key: 'glass-window',   label: 'Through window glass', pickerLabel: 'Through window glass' },
-  { key: 'indoor',         label: 'Not eye-exposed',    pickerLabel: 'Not eye-exposed' },
-];
-
-export const LENS_TINTS = [
-  { key: 'clear',         label: 'Clear (no tint)' },
-  { key: 'polarized',     label: 'Polarized' },
-  { key: 'photochromic',  label: 'Photochromic' },
-  { key: 'blue-blocker',  label: 'Blue blocker' },
-  { key: 'amber',         label: 'Amber / red' },
-];
+export { EYE_MODES, LENS_TINTS } from './sun-session-model.js';
+import { EYE_MODES, LENS_TINTS } from './sun-session-model.js';
 
 // ─── Channel display metadata ─────────────────────────────────────────
 // `dailyTarget` is retained as a legacy internal normalization anchor for
@@ -629,7 +618,7 @@ function _summarizeBodyExposure(sess: Pick<SunSessionRecord, 'bodyExposure'> | n
 }
 
 (configureSunSessionsStore as (deps: Omit<NonNullable<Parameters<typeof configureSunSessionsStore>[0]>, 'fetchAtmosphere'> & { fetchAtmosphere: typeof fetchAtmosphere }) => ReturnType<typeof configureSunSessionsStore>)({
-  commitCurrentSlice: _commitCurrentSlice,
+  commitCurrentSlice: session => stageSunLiveSlice(session)?.publish,
   setLiveState: _setLiveState,
   clearLiveState: _clearLiveState,
   formatElapsed: _formatElapsed,
@@ -643,6 +632,7 @@ function _summarizeBodyExposure(sess: Pick<SunSessionRecord, 'bodyExposure'> | n
 });
 
 configureSunActiveSession({
+  canPersistActiveSlice: () => !hasPendingSunSessionWrites(), persistActiveSlice: persistActiveSunSlice,
   getSessions,
   getActiveSession,
   startSession,

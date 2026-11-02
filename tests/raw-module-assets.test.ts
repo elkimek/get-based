@@ -150,17 +150,22 @@ const previouslyQuoteRetained = [
   '/js/components/CategoryFattyAcids.svelte.html.js',
 ];
 
-it('keeps precisely the genuine raw graph and public files while pruning the 22 accidental entries', async () => {
+it('keeps precisely the genuine raw graph and public files while pruning bundled source entries', async () => {
   const raw = await productionRawModuleAssets();
   expect([...raw].sort()).toEqual([
     '/js/analytics-bootstrap.js', '/js/caught-error.js',
     '/js/components/VersionUpdateBody.svelte.html.js', '/js/components/VersionUpdateCopy.svelte.html.js',
-    '/js/extra-theme-bootstrap.js', '/js/legal-consent-bootstrap.js',
+    '/js/extra-theme-bootstrap.js',
+    '/js/knowledge-change-authorization.js', '/js/knowledge-document-commit.js', '/js/knowledge-document-model.js', '/js/knowledge-document-source.js',
+    '/js/knowledge-file-descriptor.js', '/js/knowledge-import-commit.js', '/js/knowledge-import-model.js', '/js/knowledge-import-source.js',
+    '/js/knowledge-library-commit.js', '/js/knowledge-library-proposals.js', '/js/knowledge-library-source.js', '/js/knowledge-reviewed-changes.js',
+    '/js/legal-consent-bootstrap.js',
     '/js/lens-local-embedder-config.js', '/js/lens-local-ingest.js', '/js/lens-local-library-registry.js',
-    '/js/lens-local-store.js', '/js/lens-local-utils.js', '/js/lens-local-worker.js',
+    '/js/lens-local-lock.js', '/js/lens-local-store.js', '/js/lens-local-utils.js', '/js/lens-local-worker-dispatch.js', '/js/lens-local-worker.js',
     '/js/service-worker-update.js', '/js/theme-bootstrap.js', '/js/unique-id.js',
     '/js/version-update-rendering.js', '/js/voice-local-stt-worker.js',
     '/js/voice-local-tts-worker.js', '/js/voice-model-catalog.js',
+    '/shared/agent-data-contract.js', '/vendor/sha256.js',
   ]);
   expect(previouslyQuoteRetained).toHaveLength(22);
   const beforeFiles = await Promise.all(previouslyQuoteRetained.map(url => fs.readFile(url.slice(1))));
@@ -171,9 +176,14 @@ it('keeps precisely the genuine raw graph and public files while pruning the 22 
     expect(raw.has(url)).toBe(false);
   }
   const pruned = parseAppShellEntries(pruneSourceModuleAppShell(source, raw));
-  expect(pruned.filter(url => url.startsWith('/js/') && url.endsWith('.js')).sort()).toEqual([...raw].sort());
-  expect(pruned.filter(url => !url.startsWith('/js/') || !url.endsWith('.js')))
-    .toEqual(original.filter(url => !url.startsWith('/js/') || !url.endsWith('.js')));
+  expect(pruned.filter(url => url.startsWith('/js/') && url.endsWith('.js')).sort()).toEqual([...raw].filter(url => url.startsWith('/js/')).sort());
+  const bundledShared = ['/shared/agent-host-protocol.js', '/shared/agent-tool-contract.js', '/shared/persona-control-contract.js', '/shared/ai-tool-protocol.js', '/shared/chat-tool-instructions.js', '/shared/chat-review-contract.js', '/shared/chat-turn-outcome.js', '/shared/chat-tool-activity.js', '/shared/agent-control-contract.js', '/shared/app-navigation-contract.js', '/shared/chat-control-policy.js', '/shared/comparison-view-contract.js', '/shared/context-preference-contract.js', '/shared/conversation-search-contract.js', '/shared/correlation-view-contract.js', '/shared/dashboard-control-contract.js', '/shared/history-view-contract.js', '/shared/lab-ordering-control-contract.js', '/shared/lab-overlay-contract.js', '/shared/meal-route-control-contract.js'];
+  expect(original.filter(url => url.startsWith('/shared/'))).toEqual([bundledShared[0], bundledShared[1], '/shared/agent-data-contract.js', ...bundledShared.slice(2)]);
+  expect(pruned.filter(url => url.startsWith('/shared/'))).toEqual(['/shared/agent-data-contract.js']);
+  expect(pruned).toContain('/vendor/sha256.js');
+  expect(pruned.filter(url => !/^\/(?:js|shared)\/.*\.js$/.test(url)))
+    .toEqual(original.filter(url => !/^\/(?:js|shared)\/.*\.js$/.test(url)));
+  for (const url of bundledShared) expect(raw.has(url)).toBe(false);
   for (const url of previouslyQuoteRetained) expect(pruned).not.toContain(url);
   const afterFiles = await Promise.all(previouslyQuoteRetained.map(url => fs.readFile(url.slice(1))));
   assert.deepEqual(afterFiles, beforeFiles);
@@ -192,4 +202,10 @@ it.each([
   expect(pruneSourceModuleAppShell(beforeRetained, keep)).toBe(expectedBeforeRetained);
   expect(parseAppShellEntries(expectedBeforeComma)).toEqual(['/js/keep.js']);
   expect(parseAppShellEntries(expectedBeforeRetained)).toEqual(['/js/keep.js']);
+});
+
+it('retains transitive raw shared modules while pruning bundled shared siblings', () => {
+  const input = 'const APP_SHELL = ["/js/worker.js", "/shared/needed.js", "/shared/bundled.js", "/shared/readme.txt", "/css/app.css"];';
+  const output = pruneSourceModuleAppShell(input, new Set(['/js/worker.js', '/shared/needed.js']));
+  expect(parseAppShellEntries(output)).toEqual(['/js/worker.js', '/shared/needed.js', '/shared/readme.txt', '/css/app.css']);
 });

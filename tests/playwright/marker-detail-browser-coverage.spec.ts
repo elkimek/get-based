@@ -650,6 +650,7 @@ test('marker detail editing covers manual values notes delete and revert workflo
         manualValues: {},
         refOverrides: {},
       };
+      if (!await data.saveImportedData()) throw new Error('Could not persist marker-editing fixture');
       data.invalidateActiveDataCache();
       const active = data.getActiveData();
       state.markerRegistry = {
@@ -1217,6 +1218,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         refOverrides: {},
         genetics: { snps: [] },
       };
+      if (!await data.saveImportedData()) throw new Error('Could not persist marker-modal fixture');
       data.invalidateActiveDataCache();
       state.markerRegistry = {};
 

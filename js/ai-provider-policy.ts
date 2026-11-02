@@ -21,6 +21,8 @@ interface ProviderPolicy {
 export interface AIProcessingOptions {
   endpoint?: string | undefined;
   modelId?: unknown;
+  /** Previewing a destination must not temporarily select its CLI adapter. */
+  agentId?: string | undefined;
 }
 export interface AIProcessingDestination {
   provider: string;
@@ -156,8 +158,8 @@ function scopeFor(provider: string, boundary: AIProcessingDestination['boundary'
   return `${provider || 'unknown'}:${origin || 'unconfigured'}`;
 }
 
-export function getAIProcessingDestination(provider: string, { endpoint = '', modelId = '' }: AIProcessingOptions = {}): AIProcessingDestination {
-  const agent = provider === 'codex-agent' ? getAgentHostAgent() : '';
+export function getAIProcessingDestination(provider: string, { endpoint = '', modelId = '', agentId }: AIProcessingOptions = {}): AIProcessingDestination {
+  const agent = provider === 'codex-agent' ? agentId ?? getAgentHostAgent() : '';
   if (agent && agent !== 'codex') {
     const model = modelId || getAgentHostModel() || 'default';
     return {

@@ -1,6 +1,6 @@
 // Settings Display adapter: services own state, Svelte owns panel contents.
 import { state } from './state.js';
-import { isProductRecsEnabled } from './recommendations.js';
+import { isProductRecsEnabled } from './recommendation-preferences.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 import { getTimeFormat } from './theme.js';
 import { isDebugMode } from './utils.js';

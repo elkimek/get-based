@@ -469,13 +469,13 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
       document.body.classList.remove('chat-open', 'chat-fullscreen', 'chat-autostart-reserved');
       fab?.classList.remove('hidden');
 
-      chatPanel.setChatWebSearchEnabled(true);
+      await chatPanel.setChatWebSearchEnabled(true);
       outcomes.webSearchTogglePersistsOnAndShowsForProvider =
         chatPanel.getChatWebSearchEnabled() === true
         && localStorage.getItem('labcharts-chat-websearch') === 'on'
         && label?.hidden === false;
 
-      chatPanel.setChatWebSearchEnabled(false);
+      await chatPanel.setChatWebSearchEnabled(false);
       outcomes.webSearchTogglePersistsOff =
         chatPanel.getChatWebSearchEnabled() === false
         && localStorage.getItem('labcharts-chat-websearch') === 'off';
@@ -854,7 +854,7 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
 
       localStorage.setItem('labcharts-ai-paused', 'true');
       await chatLoader.loadChatModule();
-      chatRuntime.resumeChatAIRuntime();
+      await chatRuntime.resumeChatAIRuntime();
       outcomes.resumeBindingUnpausesAndKeepsChatImageHelpersModuleOnly = localStorage.getItem('labcharts-ai-paused') === 'false'
         && !('_resumeAI' in window)
         && !('summarizeThread' in window)

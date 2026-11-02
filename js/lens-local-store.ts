@@ -9,10 +9,10 @@ export interface OpfsSyncHandle {
 export interface OpfsDirectory {
   getFileHandle(name: string, options?: { create?: boolean }): Promise<{ createSyncAccessHandle(): Promise<OpfsSyncHandle> }>;
 }
-export interface LibraryRecord { id: string; name: string; createdAt: number; model: string | undefined }
+export interface LibraryRecord extends Record<string, unknown> { id: string; name: string; createdAt: number; model: string | undefined }
 interface LibraryRecordView { id?: unknown; name?: unknown; createdAt?: unknown; model?: unknown }
 interface RegistryView { libraries?: unknown; activeId?: unknown; revision?: unknown; updatedAt?: unknown }
-export interface LibraryRegistry { activeId: string; libraries: LibraryRecord[]; revision: number; updatedAt: number }
+export interface LibraryRegistry extends Record<string, unknown> { activeId: string; libraries: LibraryRecord[]; revision: number; updatedAt: number }
 export interface CorpusDocument { source: string; chunks: number; hash?: string; [key: string]: unknown }
 export interface CorpusChunk { source: string; text: string; [key: string]: unknown }
 export interface CorpusManifest extends Record<string, unknown> {
@@ -21,7 +21,7 @@ export interface CorpusManifest extends Record<string, unknown> {
 }
 export interface CorpusState { manifest: CorpusManifest; vectors: Float32Array; chunks: CorpusChunk[] }
 export type CorpusSlot = 'a' | 'b';
-type CorpusSnapshot = { slot: CorpusSlot | null; revision: number; state: CorpusState; legacy: boolean };
+export type CorpusSnapshot = { slot: CorpusSlot | null; revision: number; state: CorpusState; legacy: boolean };
 
 export const OPFS_SUBDIR = 'lens-local';
 export const FILE_MANIFEST = 'manifest.json';
@@ -55,6 +55,7 @@ export function normaliseLibraryRegistry(registry: RegistryView | null | undefin
   const revisionNumber = Number(registry.revision);
   const updatedAtNumber = Number(registry.updatedAt);
   return {
+    ...registry,
     activeId,
     libraries,
     revision: Number.isFinite(revisionNumber) && revisionNumber > 0 ? revisionNumber : 0,
@@ -64,9 +65,7 @@ export function normaliseLibraryRegistry(registry: RegistryView | null | undefin
 
 export function sameLibraryRegistry(a: LibraryRegistry | null | undefined, b: LibraryRegistry | null | undefined) {
   if (!a || !b) return false;
-  return a.revision === b.revision
-    && a.activeId === b.activeId
-    && JSON.stringify(a.libraries) === JSON.stringify(b.libraries);
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 export function normaliseLibraryRecord(raw: LibraryRecordView | null | undefined, fallbackId = '') {
@@ -78,7 +77,7 @@ export function normaliseLibraryRecord(raw: LibraryRecordView | null | undefined
     ? createdAtNumber
     : Date.now();
   const model = typeof raw?.model === 'string' ? raw.model : undefined;
-  return { id, name, createdAt, model };
+  return { ...raw, id, name, createdAt, model };
 }
 
 export function isSafeLibraryId(id: unknown) {
@@ -114,13 +113,18 @@ export async function readOpfsFileFrom(dir: OpfsDirectory, name: string) {
 /// view backed by a scratch Uint8Array; we copy into a fresh buffer so the
 /// caller can safely use .buffer without worrying about byteOffset on a
 /// subarray view.
-export async function readBinaryFrom(dir: OpfsDirectory, name: string) {
+export async function readBinaryFrom(dir: OpfsDirectory, name: string, maximumBytes = Number.MAX_SAFE_INTEGER) {
   const handle = await dir.getFileHandle(name);
   const sync = await handle.createSyncAccessHandle();
   try {
     const size = sync.getSize();
+    if (!Number.isSafeInteger(size) || size < 0 || size > maximumBytes) throw new Error('Invalid OPFS file size');
     const buf = new Uint8Array(size);
-    sync.read(buf, { at: 0 });
+    for (let at = 0; at < size;) {
+      const count = sync.read(buf.subarray(at), { at });
+      if (!Number.isSafeInteger(count) || count <= 0 || count > size - at) throw new Error('OPFS read did not complete');
+      at += count;
+    }
     const copy = new Uint8Array(buf.byteLength);
     copy.set(buf);
     return copy.buffer;
@@ -132,12 +136,17 @@ export async function readBinaryFrom(dir: OpfsDirectory, name: string) {
 /// Write and flush one file in a specific directory. This operation alone is
 /// not a multi-file transaction; writeCorpusSnapshot provides that guarantee
 /// by writing an inactive generation and committing its manifest last.
-export async function writeBinaryTo(dir: OpfsDirectory, name: string, bytes: Uint8Array<ArrayBufferLike>) {
+export async function writeBinaryTo(dir: OpfsDirectory, name: string, bytes: Uint8Array<ArrayBufferLike>, beforeWrite?: () => Promise<void>) {
   const handle = await dir.getFileHandle(name, { create: true });
   const sync = await handle.createSyncAccessHandle();
   try {
+    await beforeWrite?.();
     sync.truncate(0);
-    sync.write(bytes, { at: 0 });
+    for (let at = 0; at < bytes.byteLength;) {
+      const count = sync.write(bytes.subarray(at), { at });
+      if (!Number.isSafeInteger(count) || count <= 0 || count > bytes.byteLength - at) throw new Error('OPFS write did not complete');
+      at += count;
+    }
     sync.flush();
   } finally {
     sync.close();
@@ -244,7 +253,7 @@ export async function readLatestCorpusSnapshot(dir: OpfsDirectory, expected: { d
  * state becomes canonical only after the manifest commit record is flushed.
  *
  */
-export async function writeCorpusSnapshot(dir: OpfsDirectory, state: CorpusState, options: { activeSlot?: string | null; revision?: number; writeBytes?: typeof writeBinaryTo } = {}) {
+export async function writeCorpusSnapshot(dir: OpfsDirectory, state: CorpusState, options: { activeSlot?: string | null; revision?: number; writeBytes?: typeof writeBinaryTo; validateWrites?: (files: ReadonlyMap<string, Uint8Array>) => void | Promise<void> } = {}) {
   const slot: CorpusSlot = options.activeSlot === 'a' ? 'b' : 'a';
   const files = corpusSlotFiles(slot);
   const revision = Math.max(0, Number(options.revision) || 0) + 1;
@@ -264,8 +273,8 @@ export async function writeCorpusSnapshot(dir: OpfsDirectory, state: CorpusState
   // Manifest-last is the commit boundary. If either data write or the final
   // manifest write is interrupted, startup rejects this slot and uses the
   // untouched previous generation.
-  await writeBytes(dir, files.vectors, vectorBytes);
-  await writeBytes(dir, files.chunks, chunkBytes);
-  await writeBytes(dir, files.manifest, new TextEncoder().encode(JSON.stringify(manifest)));
+  const writes=new Map([[files.vectors,vectorBytes],[files.chunks,chunkBytes],[files.manifest,new TextEncoder().encode(JSON.stringify(manifest))]]);
+  await options.validateWrites?.(writes);
+  for(const [name,bytes] of writes)await writeBytes(dir,name,bytes);
   return { slot, revision, state: { ...state, manifest } };
 }

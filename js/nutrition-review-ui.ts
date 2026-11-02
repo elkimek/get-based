@@ -464,7 +464,7 @@ export function applyAnalysis(result: unknown, { quiet = false } = {}) {
   const corrected = !!(result as ReviewResultReader).source?.correction;
   const scannedLabel = (result as ReviewResultReader).source?.kind === 'ai-label-scan';
   if (!quiet) setStatus(warningCount
-    ? `${corrected ? 'Recalculated estimate' : scannedLabel ? 'Label scan ready' : 'Estimate ready'} · ${warningCount} uncertainty note${warningCount === 1 ? '' : 's'} included in the saved record.`
+    ? `${corrected ? 'Recalculated estimate' : scannedLabel ? 'Label scan ready' : 'Estimate ready'} · ${warningCount} uncertainty note${warningCount === 1 ? '' : 's'}. Review the values and notes, then save.`
     : `${corrected ? 'Recalculated from your correction' : scannedLabel ? 'Label scan ready' : 'Estimate ready'}. Review the values, then save.`, 'success');
   updateCorrectionState();
 }

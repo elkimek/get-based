@@ -30,7 +30,6 @@ import {
   isGeneticsInventoryInAIContext,
   isGeneticsPriorityInAIContext,
   isGeneticsSummaryInAIContext,
-  isGroupInAIContext,
   isInsightContextCardsEnabled,
   isLabMarkersContextEnabled,
   isLightSunContextEnabled,
@@ -40,7 +39,8 @@ import {
 import { getOrBuildLabContext } from './lab-context-cache.js';
 import { buildContextChangeTimeline } from './lab-context-change-timeline.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
-import { buildLabCollectionContextSection } from './lab-context-collection.js';
+import { buildLabCollectionContextSection, buildLabSampleResultsSection } from './lab-context-collection.js';
+import { createLabContextDisclosure } from './lab-context-disclosure.js';
 import { labContextDeps } from './lab-context-runtime.js';
 import { weightToKilograms } from './wearables-formatters.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
@@ -90,7 +90,8 @@ export function buildLabContext({ skipGroupFilter, ignoreContextToggles, queryTe
 }
 
 function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritionHistoryLabel, supplementContextMode = 'compact', queryText }: LabContextOptions = {}) {
-  const data = getActiveData();
+  const disclosure = createLabContextDisclosure({ skipGroupFilter, ignoreContextToggles });
+  const data = disclosure.project(getActiveData());
   const includeLabMarkers = ignoreContextToggles || isLabMarkersContextEnabled();
   const hasImportedLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
   const hasLabData = includeLabMarkers && hasImportedLabData;
@@ -117,13 +118,13 @@ function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritio
       ? ` IMPORTANT: ${missingDemo.join(' and ')} not set — urge the user to set ${missingDemo.length > 1 ? 'these' : 'this'} in Settings first, as it directly affects which tests to recommend and how to interpret results.`
       : '';
     ctx = includeInsightCards ? `[section:profile]\nProfile context (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, today: ${today}):\n` : '';
-    if (hasImportedLabData && !includeLabMarkers) {
+    if (!includeLabMarkers) {
       ctx += `Lab marker context is turned off by the user. Do not infer from imported blood-marker values unless the user explicitly provides them in the conversation.\n${includeInsightCards ? '[/section:profile]\n\n' : '\n'}`;
     } else {
       const insightHint = includeInsightCards
         ? ' The more Insight Context Cards the user fills out, the more context is available for general-information tips — mention relevant cards without presenting the tips as medical instructions.'
         : ' Insight Context Cards are turned off by the user; do not infer from profile/lifestyle cards unless the user explicitly provides that context in the conversation.';
-      ctx += `No lab data has been imported yet.\nNOTE: The user has not imported any lab results. Use the enabled context below to recommend which blood panels and specific tests would be most valuable for them, and explain why each is relevant to their situation.${insightHint}${demoWarning}\n${includeInsightCards ? '[/section:profile]\n\n' : '\n'}`;
+      ctx += `No lab result values are available in the enabled context. Do not assume that unavailable results have never been imported. Use the enabled context below to discuss which blood panels and specific tests might be useful, explaining their relevance.${insightHint}${demoWarning}\n${includeInsightCards ? '[/section:profile]\n\n' : '\n'}`;
     }
   }
 
@@ -159,7 +160,9 @@ function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritio
   }
 
   if (hasLabData) {
-    ctx += buildLabCollectionContextSection(state.importedData.entries || []);
+    const entries = disclosure.entries(state.importedData.entries || []);
+    ctx += buildLabCollectionContextSection(entries);
+    if (entries.length > 1) ctx += buildLabSampleResultsSection(entries, data, state.unitSystem);
   }
 
   // ── 3. Lab values by category ("what do the numbers say?") ──
@@ -167,7 +170,6 @@ function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritio
     // Build index of active lab categories
     const _activeCatKeys: string[] = [];
     for (const [_ck, _ct] of Object.entries(data.categories)) {
-      if (!skipGroupFilter && !ignoreContextToggles && _ct.group && !isGroupInAIContext(_ct.group)) continue;
       if (Object.entries(_ct.markers).some(([_, m]) => m.values.some(v => v !== null))) _activeCatKeys.push(_ck);
     }
     if (_activeCatKeys.length > 0) {
@@ -177,7 +179,6 @@ function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritio
     ctx += 'Ranges: r=lab/reference; o=getbased optimal; t=target/decision. app/app-context=getbased; in/below/above=comparisons, not diagnoses. Earlier ranges only when context changes.\n\n';
     ctx += labContextDeps.buildBiologyScoresAIContext?.(data, { limit: 7, ignoreContextToggles }) || '';
     for (const [catKey, cat] of Object.entries(data.categories)) {
-      if (!skipGroupFilter && !ignoreContextToggles && cat.group && !isGroupInAIContext(cat.group)) continue;
       const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null));
       if (markersWithData.length === 0) continue;
       const _catDate = cat.singleDate || (() => { for (let i = data.dates.length - 1; i >= 0; i--) { if (markersWithData.some(([_, m]) => m.values[i] !== null)) return data.dates[i]; } return null; })();
@@ -252,7 +253,7 @@ function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritio
 
   // ── 5b. Marker Notes ──
   const markerNotes = state.importedData.markerNotes || {};
-  const mnKeys = Object.keys(markerNotes);
+  const mnKeys = Object.keys(markerNotes).filter(key => disclosure.allows(key) && typeof markerNotes[key] === 'string' && markerNotes[key]!.trim());
   if (includeLabMarkers && mnKeys.length > 0) {
     ctx += `[section:markerNotes]\n## Marker Notes\n`;
     for (const key of mnKeys) {
@@ -266,16 +267,19 @@ function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritio
   const mvNotes = state.importedData.markerValueNotes || {};
   const mvKeys = Object.keys(mvNotes);
   if (includeLabMarkers && mvKeys.length > 0) {
-    const byMarker = new Map<string, { date: string; note: string | undefined }[]>();
+    const byMarker = new Map<string, { date: string; note: string }[]>();
     for (const key of mvKeys) {
+      const text = mvNotes[key];
+      if (typeof text !== 'string' || !text.trim()) continue;
       const colonIdx = key.lastIndexOf(':');
       if (colonIdx === -1) continue;
       const dotKey = key.slice(0, colonIdx);
       const date = key.slice(colonIdx + 1);
+      if (!disclosure.allows(dotKey, date)) continue;
       if (!byMarker.has(dotKey)) byMarker.set(dotKey, []);
-      byMarker.get(dotKey)!.push({ date, note: mvNotes[key] });
+      byMarker.get(dotKey)!.push({ date, note: text });
     }
-    ctx += `[section:markerValueNotes]\n## Per-Value Notes (context tied to specific readings)\n`;
+    if (byMarker.size) ctx += `[section:markerValueNotes]\n## Per-Value Notes (context tied to specific readings)\n`;
     for (const [dotKey, entries] of byMarker) {
       const mName = markerNameForStorageDotKey(data, dotKey);
       entries.sort((a, b) => a.date.localeCompare(b.date));
@@ -283,7 +287,7 @@ function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritio
         ctx += `- ${mName} on ${e.date}: ${e.note}\n`;
       }
     }
-    ctx += `[/section:markerValueNotes]\n\n`;
+    if (byMarker.size) ctx += `[/section:markerValueNotes]\n\n`;
   }
 
   // ── 6. Medical History ("what medical context applies?") ──
@@ -461,7 +465,7 @@ function _buildLabContextInner({ skipGroupFilter, ignoreContextToggles, nutritio
     if (periods.length > 0) {
       const fmtD = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       ctx += `Recent periods: ${periods.map(p => {
-        let desc = `${fmtD(p.startDate)}-${fmtD(p.endDate)} (${p.flow})`;
+        let desc = `${fmtD(p.startDate)}-${p.endDateKnown === false ? 'end not reported' : fmtD(p.endDate)} (${p.flowKnown === false ? 'flow not reported' : p.flow})`;
         if (p.symptoms?.length) desc += ` [${p.symptoms.join(', ')}]`;
         if (p.source && p.source !== 'manual') desc += ` source:${p.source}`;
         return desc;

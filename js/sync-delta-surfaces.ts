@@ -45,7 +45,10 @@ export const DELTA_MAPS = [
   'markerValueNotes',
   'customMarkers',
   'markerPlacements',
+  'labOrdering',
   'manualValues',
+  // Monotonic per-panel removals/restores survive without dropping sibling samples.
+  'labPanelTombstones',
   // Durable privacy deletions for device-local manual wearable rows. Raw
   // wearable rows stay per-device, so these per-metric/date markers are what
   // stop another device (or a legacy biometrics migration) resurrecting a
@@ -63,6 +66,10 @@ export const DELTA_MAPS = [
   // Keep SNPs per-key so independent raw DNA imports compose across devices.
   // The rest of `genetics` remains a scalar.
   'genetics.snps',
+  // Explicit per-SNP removals/restores cannot be inferred from an empty call map.
+  'geneticsSnpTombstones',
+  // Whole-genome and maternal deletions retain independent restoration generations.
+  'geneticsLifecycle',
   // Singleton-per-day AI verdicts keyed by ISO date.
   'lightDailyVerdicts',
   // Profile-scoped Context source preferences keyed by source slug. These

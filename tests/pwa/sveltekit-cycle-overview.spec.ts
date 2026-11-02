@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import {expect, test, type Locator, type Page} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
 import {createCyclePeriod, upgradeMenstrualCycleProfile} from '../../js/cycle-summary.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';

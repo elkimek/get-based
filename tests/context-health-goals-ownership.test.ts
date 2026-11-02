@@ -83,3 +83,31 @@ it('explicitly re-adds a deleted goal and survives merging an older deletion', a
   const saved = await stored(); expect(saved.healthGoals).toEqual([expect.objectContaining({ text: 'Return to exercise', severity: 'major' })]);
   expect(mergeImportedData(saved, deleted).healthGoals).toEqual(saved.healthGoals);
 });
+it('changes a saved priority without changing identity, extension metadata or unrelated drafts', async () => {
+  state.importedData.healthGoals = [{ text: 'Sleep', severity: 'mild', updatedAt: Date.now() + 10000, extra: { retained: true } }, { text: 'Training', severity: 'minor' }];
+  expect(await saveImportedData()).toBe(true);
+  const original = await stored(), id = getConfiguredArrayItemId('healthGoals', original.healthGoals[0]);
+  const peer = structuredClone(original); peer.contextNotes = 'Peer notes'; await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  state.importedData.stress = { note: 'Unsubmitted' };
+  expect(await createHealthGoalsSession().mutate({ kind: 'priority', index: 0, severity: 'major' }, original.healthGoals)).toBe('saved');
+  const saved = await stored();
+  expect(saved.healthGoals[0]).toEqual({ ...original.healthGoals[0], severity: 'major', updatedAt: expect.any(Number) });
+  expect(saved.healthGoals[0].updatedAt).toBeGreaterThan(original.healthGoals[0].updatedAt);
+  expect(getConfiguredArrayItemId('healthGoals', saved.healthGoals[0])).toBe(id);
+  expect(mergeImportedData(original, saved).healthGoals).toEqual(saved.healthGoals);
+  expect(saved.healthGoals[1]).toEqual(original.healthGoals[1]); expect(saved._deleted?.healthGoals || []).toEqual([]);
+  expect(saved.changeHistory.find((entry: { field: string }) => entry.field === 'healthGoals').snapshot).toEqual(saved.healthGoals);
+  expect(saved.contextNotes).toBe('Peer notes'); expect(saved.stress).toBeNull(); expect(state.importedData.stress).toEqual({ note: 'Unsubmitted' });
+});
+it('keeps old priority on storage failure and rejects stale, invalid or unchanged priority actions', async () => {
+  state.importedData.healthGoals = [{ text: 'Sleep', severity: 'mild', extra: 'keep' }]; expect(await saveImportedData()).toBe(true);
+  const original = await stored(), session = createHealthGoalsSession(), mutation = { kind: 'priority', index: 0, severity: 'major' } as const;
+  const write = vi.spyOn(crypto, 'encryptedSetItem').mockRejectedValueOnce(new Error('Storage failure'));
+  expect(await session.mutate(mutation, original.healthGoals)).toBe('failed');
+  expect(state.importedData.healthGoals).toEqual(original.healthGoals); expect(await stored()).toEqual(original); write.mockRestore();
+  expect(await session.mutate({ ...mutation, severity: 'mild' }, original.healthGoals)).toBe('unchanged');
+  expect(await session.mutate({ ...mutation, severity: 'critical' }, original.healthGoals)).toBe('empty');
+  expect(await session.mutate({ ...mutation, index: -1 }, original.healthGoals)).toBe('empty'); expect(await stored()).toEqual(original);
+  const peer = structuredClone(original); peer.healthGoals[0].severity = 'minor'; await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  expect(await session.mutate(mutation, original.healthGoals)).toBe('conflict'); expect(await stored()).toEqual(peer);
+});

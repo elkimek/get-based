@@ -1,0 +1,59 @@
+[
+  {
+    "file": "js/marker-detail-editing.ts",
+    "currentSHA256": "380e796f56833ce98b7a94314fd12c2459f102ad58e6b08708d8f82d4ecfda49",
+    "restoredSHA256": "70c6de306310c693732f24ff31b0e8fcb3b84a375735102e9866a4aeda516605",
+    "edits": [
+      {
+        "start": 368,
+        "before": ".js';\nimport { validateMarkerRange } from './marker-range-core.js';\nimport { profileDataValuesEqual } from './profile-data-writes",
+        "after": ""
+      },
+      {
+        "start": 13458,
+        "before": "const rangeEditOwners = new WeakMap<Element, { profile: string; root: typeof state.importedData; key: string; units: string; override: unknown }>();\n",
+        "after": ""
+      },
+      {
+        "start": 14237,
+        "before": ";\n  const key = storageDotKeyForId(id);\n  if (!key) return;\n  rangeEditOwners.set(form, { profile: state.currentProfile, root: state.importedData, key, units: state.unitSystem, override: structuredClone(state.importedData.refOverrides?.[key] ?? null) })",
+        "after": ""
+      },
+      {
+        "start": 15647,
+        "before": "const form = minEl.closest('.ref-edit-form'), owner = form ? rangeEditOwners.get(form) : undefined;\n  if (owner && (state.currentProfile !== owner.profile || state.importedData !== owner.root || dotKey !== owner.key || state.unitSystem !== owner.units || !profileDataValuesEqual(owner.override, state.importedData.refOverrides?.[dotKey] ?? null))) {\n    showNotification('The profile, units or range changed while editing. Reopen the range editor; your current values have been kept.', 'error'); return;\n  }\n  ",
+        "after": ""
+      },
+      {
+        "start": 16198,
+        "before": "Numb",
+        "after": "pars"
+      },
+      {
+        "start": 16203,
+        "before": "r",
+        "after": "Float"
+      },
+      {
+        "start": 16269,
+        "before": "Numb",
+        "after": "pars"
+      },
+      {
+        "start": 16274,
+        "before": "r",
+        "after": "Float"
+      },
+      {
+        "start": 16290,
+        "before": "",
+        "after": " null;\n  // Treat NaN as null (open-ended)\n  if (newMin != null && isNaN(newMin)) newMin = null;\n  if (newMax != null && isNaN(newMax)) newMax ="
+      },
+      {
+        "start": 16537,
+        "before": "\n  try { validateMarkerRange(newMin, newMax); }\n  catch (error) { showNotification(error instanceof Error ? error.message : 'Review the range bounds.', 'error'); return; }",
+        "after": ""
+      }
+    ]
+  }
+]

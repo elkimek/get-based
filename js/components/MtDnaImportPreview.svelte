@@ -6,6 +6,7 @@
     <div class="dna-preview-stats">{view.markerCount} mtDNA markers read from {view.fileName}</div>
   </div>
   <div class="dna-preview-body">
+    {#if view.restoration}<div class="dna-preview-disclaimer" role="status">Restores maternal data from this file. Previously removed reports, mutation history and other genome data are not recovered.</div>{/if}
     <div class="mtdna-preview-haplogroup">
       <div class="mtdna-hg-label">Haplogroup</div>
       <div class="mtdna-hg-value">{view.haplogroup}</div>

@@ -8,7 +8,7 @@ import {staticKitOutputDirectory,copyStaticPublicMetadata} from './static-build-
 import {createStaticBuildFingerprint} from './static-build-inputs.mjs';
 import { buildStaticKit } from '../tooling/svelte/build-static.mjs';
 import { buildCompanionBundle } from './build-companion-bundle.mjs';
-import { ONLINE_EVOLU_ASSETS, pruneSourceModuleAppShell, productionRawModuleAssets } from './static-build-assets.mjs';
+import { ONLINE_EVOLU_ASSETS, pruneSourceModuleAppShell, productionRawModuleAssets, compactStaticJson } from './static-build-assets.mjs';
 import { inlineServiceWorkerAssets } from './service-worker-source.js';
 import { parseAppShellEntries, summarizeAppShell } from './app-shell-budget.mjs';
 import { staticKitTemplate, externalizeKitBootstrap } from './sveltekit-contracts.mjs';
@@ -16,6 +16,7 @@ import {planPrecacheFontAssets} from './font-assets.mjs';
 import {qualifyBrowserVendorAssets} from './browser-vendor-contracts.mjs';
 import {applySqliteAssetPrecache} from './sqlite-assets.mjs';
 import {measureSvelteKitResources,enforceSvelteKitResourceBudget} from './sveltekit-resource-budget.mjs';
+import {compactLegacyEvoluAssets} from './legacy-evolu-compaction.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUTPUT = path.join(ROOT, '.local-notes/sveltekit-build');
@@ -54,6 +55,8 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
       await fs.mkdir(path.dirname(destination), { recursive: true });
       if (relative !== 'getbased-companion.mjs') await fs.copyFile(path.join(ROOT, relative), destination);
     }
+    const staticJson = await compactStaticJson(staticRoot, rawUrls);
+    const legacyEvoluEncoding = await compactLegacyEvoluAssets(staticRoot);
     await vendors.assertCopiedAssets(staticRoot);
     // Keep all authored/build inputs and public assets in atomic cache identity.
     // Revision is separate provenance; test exclusion needs a complete asset graph.
@@ -63,7 +66,7 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     for (const file of await filesIn(staticRoot)) fingerprint.update(path.relative(staticRoot, file)).update(await fs.readFile(file));
     const buildId = fingerprint.digest('hex');
     await fs.writeFile(path.join(temporary, 'app.html'), staticKitTemplate(index));
-    await buildStaticKit({ root: ROOT, temporary, version: buildId });
+    const retryChunks = await buildStaticKit({ root: ROOT, temporary, version: buildId });
     const site = path.join(temporary, 'site');
     await vendors.assertCopiedAssets(site);
     const rendered = externalizeKitBootstrap(await fs.readFile(path.join(site, 'app.html'), 'utf8'));
@@ -80,7 +83,10 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     const urls = [...new Set([...precacheUrls, ...bundleUrls])].sort();
     const fontAliasMarker = 'const FONT_ALIASES = {};';
     if (baseWorker.split(fontAliasMarker).length !== 2) throw new Error('Missing unique worker font-alias injection point');
+    const retryAliasMarker = 'const RETRY_CHUNK_ALIASES = {};';
+    if (baseWorker.split(retryAliasMarker).length !== 2) throw new Error('Missing unique worker retry-proof injection point');
     const fontWorker = baseWorker.replace(fontAliasMarker, `const FONT_ALIASES = ${JSON.stringify(fontAliases)};`)
+      .replace(retryAliasMarker, `const RETRY_CHUNK_ALIASES = ${JSON.stringify(retryChunks.canonicalBodyHashes)};`)
       .replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${buildId}';`)
       .replace(/const APP_SHELL = \[[\s\S]*?\];/, `const APP_SHELL = ${JSON.stringify(urls, null, 2)};`);
     const builtWorker = await applySqliteAssetPrecache(fontWorker, {sourceRoot: ROOT, assetRoot: site});
@@ -100,6 +106,7 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     const summary = { revision, buildId, sourceInputCount: sourceFiles.length, verificationDigest, framework: 'SvelteKit 3 / Svelte 5', static: true, javascriptFiles: jsFiles.length,
       javascriptDecodedBytes: bytes, appShellResources: shell.resources, appShellDecodedBytes: shell.decodedBytes,
       resourceBudget,
+      retryChunks, staticJson, legacyEvoluEncoding,
       legacyAppShellLimits: previousLimits.maximums,
       legacyLimitDelta: { resources: shell.resources - previousLimits.maximums.resources,
         decodedBytes: shell.decodedBytes - previousLimits.maximums.decodedBytes },

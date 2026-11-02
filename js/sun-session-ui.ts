@@ -135,7 +135,7 @@ export function renderSessionsList() {
 }
 
 // ─── UI: per-session detail modal ──────────────────────────────────────
-export function openSunSessionDetail(id: unknown) {
+export function openSunSessionDetail(id: unknown): HTMLElement | undefined {
   const sess = uiDeps.getSessions().find(s => s.id === id);
   if (!sess) return;
   const start = new Date(sess.startedAt as number);
@@ -164,7 +164,7 @@ export function openSunSessionDetail(id: unknown) {
   const regionLabels = regions.length
     ? regions.map(k => BODY_REGIONS.find(r => r.key === k)?.label || k).join(', ')
     : (sess.bodyExposure?.preset === 'covered' ? 'No skin exposed' : (presetLabels[sess.bodyExposure?.preset as string] || 'Body unset'));
-  const fractionPct = Math.round(((sess.bodyExposure?.fraction || 0) as number) * 100);
+  const fractionPct = typeof sess.bodyExposure?.fraction === 'number' && Number.isFinite(sess.bodyExposure.fraction) ? Math.round(sess.bodyExposure.fraction * 100) : null;
 
   // Burn-risk
   const med = sess.safety?.medFraction as number | null | undefined;
@@ -305,7 +305,7 @@ export function openSunSessionDetail(id: unknown) {
   }
   overlay.innerHTML = renderHTML({ kind: 'detail', ai: ai || null, view: {
     kind: 'sun', id: String(sess.id ?? ''), title: `Sun session · ${fmtTitleDate(start)}`, summary,
-    setup: [detailField(`Skin · ${fractionPct}%`, regionLabels), detailField('Eyes', eyeMode + lensTintStr),
+    setup: [detailField(fractionPct === null ? 'Skin · Not recorded' : `Skin · ${fractionPct}%`, regionLabels), detailField('Eyes', eyeMode + lensTintStr),
       ...(modifierBits.length ? [detailField('Modifiers', modifierBits.join(' · '))] : [])],
     notices: [], calculation: sessionCalculationNotice(sess.calculationStatus), channels: channelRows,
     channelsEmpty: 'No channel doses computed for this session yet.',
@@ -324,6 +324,7 @@ export function openSunSessionDetail(id: unknown) {
     opener: openSunSessionDetail,
     exists: sessionId => uiDeps.getSessions().some(s => s.id === sessionId),
   });
+  return overlay;
 }
 
 // Per-channel chip value — small inline real-unit number rendered on

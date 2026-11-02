@@ -104,3 +104,19 @@ export function mealFromFluidDraft(draft: FluidDraft) {
     reviewed: true,
   };
 }
+
+/** Only an explicit native time edit replaces stored timestamp/zone evidence. */
+export function buildMealEntryTiming(localDateTime: string, unchangedLocalDateTime: string | null = null) {
+  const date = new Date(localDateTime);
+  if (!Number.isFinite(date.getTime())) throw new Error('Choose a valid meal date and time.');
+  if (localDateTime === unchangedLocalDateTime) return {};
+  const [, timePart = '00:00'] = localDateTime.split('T');
+  const [hour, minute] = timePart.split(':').map(Number);
+  let timeZone = '';
+  try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
+  return {
+    eatenAt: date.toISOString(), localDate: localDateTime.slice(0, 10),
+    localTimeMinutes: Number.isFinite(hour) && Number.isFinite(minute) ? hour! * 60 + minute! : null,
+    timezoneOffsetMinutes: date.getTimezoneOffset(), timeZone,
+  };
+}

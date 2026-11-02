@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { test } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { checkNutritionFeedback, installNutritionFeedbackFixture, nutritionEditorArtifactPaths } from '../helpers/nutrition-loading-feedback-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 

@@ -171,6 +171,7 @@ test('category customization covers rename icon and emoji picker browser paths',
       };
       state.currentView = 'dashboard';
 
+      if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic native label fixture could not be saved');
       promptValue = '  Fallback Lipids  ';
       await category.renameCategory('lipids');
       outcomes.renameCategoryKeepsSidebarFallback = (state.importedData as unknown as ContextFixtureRead).categoryLabels?.lipids === 'Fallback Lipids'
@@ -184,7 +185,7 @@ test('category customization covers rename icon and emoji picker browser paths',
       promptValue = '  Better Lipids  ';
       await category.renameCategory('lipids');
       outcomes.renameCategoryStoresTrimmedLabel = (state.importedData as unknown as ContextFixtureRead).categoryLabels?.lipids === 'Better Lipids';
-      outcomes.renameCategoryUpdatesCustomMarkerLabel = ((state.importedData as unknown as ContextFixtureRead).customMarkers)!['lipids.contextCustom']?.categoryLabel === 'Better Lipids';
+      outcomes.renameCategoryKeepsSavedDefinitionLabel = ((state.importedData as unknown as ContextFixtureRead).customMarkers)!['lipids.contextCustom']?.categoryLabel === 'Lipids' && (await import('/js/data.js')).getActiveData().categories.lipids!.label === 'Better Lipids';
       outcomes.renameCategoryRefreshesSidebarThroughConfiguredCallback = calls.some(call => call[0] === 'sidebar' && call[1] === true);
       outcomes.renameCategoryRefreshesForcedRoute = calls.some(call => call[0] === 'navigate' && call[1] === 'lipids' && call[2] === true);
       outcomes.categoryCustomizationDoesNotUseWindowBuildSidebar = categorySrc.includes("typeof deps.buildSidebar === 'function'")
@@ -195,14 +196,14 @@ test('category customization covers rename icon and emoji picker browser paths',
         && categorySrc.includes('buildSidebar?.(data)')
         && !categoryRuntimeSrc.includes('getViewRuntimeFunction')
         && !/\bwindow(?:\.|\s*\[)/.test(categorySrc);
-      outcomes.renameMissingCategoryNoops = await category.renameCategory('missing-category') === undefined;
+      outcomes.renameMissingCategoryNoops = await category.renameCategory('missing-category') === false;
 
       promptValue = '  ApoB Better Name  ';
       await category.renameMarker('lipids_apoB');
       outcomes.renameMarkerStoresDotKeyLabel = (state.importedData as unknown as ContextFixtureRead).markerLabels?.['lipids.apoB'] === 'ApoB Better Name';
-      category.revertMarkerName('lipids_apoB');
+      await category.revertMarkerName('lipids_apoB');
       outcomes.revertMarkerNameDeletesOverride = !(state.importedData as unknown as ContextFixtureRead).markerLabels?.['lipids.apoB'];
-      category.revertMarkerName('lipids_missing');
+      await category.revertMarkerName('lipids_missing');
       outcomes.revertMissingMarkerNoops = !(state.importedData as unknown as ContextFixtureRead).markerLabels?.['lipids.missing'];
 
       const anchor = document.createElement('button');

@@ -27,11 +27,13 @@ interface OllamaEventView {
   prompt_eval_count?: unknown; eval_count?: unknown; eval_duration?: unknown; load_duration?: unknown;
   prompt_eval_duration?: unknown; thinking_count?: unknown;
 }
-interface LocalAiMessage { role?: unknown; content?: unknown }
+type LocalAiMessage = import('../shared/ai-tool-protocol.js').AIChatMessage;
 interface LocalAiMessageBlock {
   type?: unknown; text?: unknown; source?: { data?: unknown } | null; image_url?: { url?: string } | null;
 }
 export interface OllamaInferenceOptions {
+  tools?: import('../shared/ai-tool-protocol.js').AIFunctionTool[] | undefined;
+  requestCurrent?: (() => boolean) | undefined;
   maxTokens?: number | undefined;
   preferNativeContext?: boolean;
   jsonMode?: boolean | undefined;
@@ -242,6 +244,8 @@ function ollamaReasoningControlRejected(response: Response, errorText: string) {
 }
 
 async function requestOllamaChat(config: OllamaInferenceContext['config'], opts: OllamaInferenceOptions, body: Record<string, unknown>) {
+  opts.signal?.throwIfAborted();
+  if (opts.requestCurrent?.() === false) throw new DOMException('The AI request recipient or owner changed.', 'AbortError');
   const requestInit = {
     method: 'POST',
     headers: createLocalAiHeaders(config.apiKey, { json: true }),
@@ -252,6 +256,7 @@ async function requestOllamaChat(config: OllamaInferenceContext['config'], opts:
   try {
     return await fetch(`${String(config.url || '').replace(/\/+$/, '')}/api/chat`, timeoutState.fetchOptions);
   } catch (error) {
+    if (opts.signal?.aborted) throw opts.signal.reason instanceof Error ? opts.signal.reason : new DOMException('The response was cancelled.', 'AbortError');
     const corsError = localAiCorsError(error);
     if (corsError) throw corsError;
     throw new Error(`Cannot reach Ollama. Check that it is running. (${redactApiSecretText(getErrorMessage(error, error), [config.apiKey])})`);

@@ -90,7 +90,7 @@ test('Knowledge Base UI stays cold, single-flights, and enriches the core summar
       warmChunkCount: warmSummary.chunkCount,
       hydratedMarkup: section.textContent,
       markup: facade.renderCustomLensSection(),
-      opened: facade.openKnowledgeBaseModal(),
+      opened: await facade.openKnowledgeBaseModal(),
       closed: facade.closeKnowledgeBaseModal(),
       saved: facade.handleSaveLensConfig(),
       backend: facade.handleLensBackendChange('external-server'),

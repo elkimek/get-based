@@ -54,3 +54,12 @@ export function captureChatAttachmentOwner(): () => boolean {
   const owner = active;
   return () => active === owner && (!owner || current(owner.root));
 }
+
+/** Open the existing human file-selection handoff without invoking a picker. */
+export function openOwnedHealthImport(): boolean {
+  if (!active || !current(active.root)) return false;
+  const menu = active.root.querySelector<HTMLDetailsElement>('#chat-context-menu');
+  const button = menu?.querySelector<HTMLButtonElement>('[data-chat-action="import-health-file"]');
+  if (!menu || !button || button.disabled) return false;
+  menu.open = true; button.focus(); return menu.open;
+}

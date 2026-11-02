@@ -18,6 +18,7 @@ import {
 import { getBiologyScoreWidgetDefinitions } from './biology-score-compute.js';
 
 import type {DashboardRendererOperations, DashboardWidgetContext, DashboardWidgetOptionsReader, DashboardWidgetOperationReader, DashboardPreferenceReader, DashboardVisibleOptionsReader, DashboardWidgetFilterOperations, DashboardWidgetProjector} from '../types/dashboard-widgets.js';
+import { readDashboardPreferenceRaw, writeDashboardPreferenceRaw } from './dashboard-preference-store.js';
 
 const DASHBOARD_WIDGETS_VERSION = 13;
 
@@ -130,7 +131,7 @@ export function createDashboardWidgetRegistry(renderers: unknown, opts: unknown 
   function getDashboardWidgetPrefs() {
     const fallback = getDashboardDefaultWidgetPrefs();
     try {
-      const stored = localStorage.getItem(dashboardWidgetStorageKey());
+      const stored = readDashboardPreferenceRaw('widgets');
       if (!stored) return fallback;
       const raw = JSON.parse(stored) as {order?: unknown; hidden?: unknown} | null;
       if (!raw || !Array.isArray(raw.order) || !Array.isArray(raw.hidden)) return fallback;
@@ -157,11 +158,11 @@ export function createDashboardWidgetRegistry(renderers: unknown, opts: unknown 
     const order = (((prefs as DashboardPreferenceReader).order || []) as {filter(callback:(id:unknown)=>unknown):unknown[]}).filter(isKnownDashboardWidgetId);
     for (const id of fixedIds) if (!order.includes(id)) order.push(id);
     const hidden = [...new Set(((prefs as DashboardPreferenceReader).hidden || []) as Iterable<unknown>)].filter(id => (fixedIds as readonly unknown[]).includes(id) || isDashboardMarkerWidgetId(id));
-    localStorage.setItem(dashboardWidgetStorageKey(), JSON.stringify({ order, hidden }));
+    writeDashboardPreferenceRaw('widgets', JSON.stringify({ order, hidden }));
   }
 
   function resetDashboardWidgetPrefs() {
-    localStorage.removeItem(dashboardWidgetStorageKey());
+    writeDashboardPreferenceRaw('widgets', null);
   }
 
   function getDashboardWidgetDefinition(id: unknown, ctx: unknown = null) {

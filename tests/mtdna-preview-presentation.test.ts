@@ -17,6 +17,7 @@ vi.mock('../js/components/MtDnaImportPreview.svelte.html.js',async importOrigina
 vi.mock('../js/utils.js',()=>({escapeHTML,escapeAttr:escapeHTML,showNotification:ports.notification}));
 vi.mock('../js/dna-runtime.js',()=>({
   loadGeneticsStylesheetForAction:ports.css, captureDnaImportOrigin:()=>({current:()=>true}),
+  captureDnaReviewOrigin:()=>({data:{genetics:null},current:()=>true}),
   setPendingMtDnaImport:ports.pending, ensureDnaModalOverlay:ports.ensure, getDnaProfileLatitudeBand:()=>null,
   cacheDnaHaplogroupTable:vi.fn(),clearPendingMtDnaImport:vi.fn(),isPendingDnaImportCurrent:vi.fn(),
   getPendingMtDnaImport:vi.fn(),logDnaDebugError:vi.fn(),refreshDnaShell:vi.fn(),
@@ -135,4 +136,15 @@ describe('real exported mtDNA file controller with owned dependency ports',()=>{
     expect(await dna.handleMtDNAFile({name:'livingdna.txt',text:async()=> '263G\n750G'})).toBe(true);
     expect(trace).toEqual(['pending','ensure','open']);expect(ports.open).toHaveBeenCalledTimes(1);expect(ports.open.mock.calls[0]![0]).toBe(overlay);expect(overlay.querySelector('.mtdna-hg-value')!.textContent).toBe('J');expect(ports.pending.mock.calls[0]![0].source).toBe('mtDNA (Living DNA)');
   });
+});
+
+it('qualifies the complete explicit restoration notice without changing any original preview value or control',()=>{
+ const ordinary=expectedMtDnaPreviewHTML(original(resolved,coupling,null));
+ const anchor='<div class="dna-preview-body">\n    <!--[-1--><!--]-->';
+ expect(ordinary.split(anchor)).toHaveLength(2);
+ const notice='<div class="dna-preview-disclaimer" role="status">Restores maternal data from this file. Previously removed reports, mutation history and other genome data are not recovered.</div>';
+ const expected=ordinary.replace(anchor,'<div class="dna-preview-body">\n    <!--[0-->'+notice+'<!--]-->');
+ const rendered=renderMtDnaImportPreview(resolved,coupling,mutations,'file.txt',null,true);
+ expect(rendered).toBe(expected);expect(native(rendered).querySelectorAll('[role="status"]')).toHaveLength(1);
+ expect(renderMtDnaImportPreview(resolved,coupling,mutations,'file.txt',null,false)).toBe(ordinary);
 });

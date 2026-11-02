@@ -97,7 +97,8 @@ function _showEmptyRegionError(updateAreaHint: (selected: Set<string>) => void, 
   setTimeout(() => hintEl?.classList.remove('sun-silhouette-hint-error'), 2500);
 }
 
-export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSessionDialogDeps = {}) {
+export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSessionDialogDeps = {}, options: { isCurrent?: () => boolean; hydrate?: boolean } = {}) {
+  if (options.isCurrent?.() === false) return false;
   const resolvedDeps = _resolveSessionDialogDeps(deps);
   const {
     hydrateDevicesFromPresets,
@@ -126,7 +127,8 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
 
   // Lazy hydrate covers page-opened-mid-init / cold preset cache cases so
   // the dialog renders with the latest mode/coupling schema.
-  await hydrateDevicesFromPresets?.().catch(() => {});
+  if (options.hydrate !== false) await hydrateDevicesFromPresets?.().catch(() => {});
+  if (options.isCurrent?.() === false) return false;
   const device = getDevices?.()?.find(d => d.id === deviceId);
   if (!device) return false;
 

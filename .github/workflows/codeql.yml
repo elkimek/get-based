@@ -93,6 +93,7 @@ jobs:
               - vendor/fonts/jetbrains-mono-*.woff2
               - vendor/fonts/vt323-*.woff2
               - vendor/routstr-crypto.js
+              - vendor/sha256.js
               - node_modules/**
               - brands/**
               # Test fixtures intentionally exercise unsafe patterns

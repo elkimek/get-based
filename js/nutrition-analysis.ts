@@ -7,6 +7,7 @@ import {
   isValidImageType, resizeImageVariants,
 } from './image-utils.js';
 import { getMealAISelection, getMealAISelectionForRoute } from './nutrition-ai-settings.js';
+import { captureMealAnalysisRequest } from './nutrition-analysis-request.js';
 import { NUTRITION_KEYS, normalizeNutritionTotals } from './nutrition-summary.js';
 import { normalizeNutritionComponent, sumComponentNutrients } from './nutrition-food-data.js';
 import { calculateCost, formatCost, getModelPricing, trackUsage } from './schema.js';
@@ -42,6 +43,7 @@ export interface AnalyzeMealPhotoOptions extends MealAnalysisPromptOptions {
   preparedPhotos?: PreparedMealPhoto[] | undefined;
   includeImages?: boolean | undefined;
   signal?: AbortSignal | undefined;
+  isCurrent?: (() => boolean) | undefined;
 }
 type AnalysisComponentInput = Pick<MealComponent, 'name'> & {
   quantityG: number | null;
@@ -573,11 +575,15 @@ export async function analyzeMealPhoto(file: File | File[], options: AnalyzeMeal
   if (!availability.available) {
     throw new Error('The meal-photo model is not connected or is not marked as vision-capable. Choose another model in AI Settings or enter the meal manually.');
   }
+  const request = captureMealAnalysisRequest(availability, options);
+  try {
   onProgress(1, analysisKind === 'nutrition-label' ? 'Preparing label photo…' : 'Preparing photo…');
   const prepared = options.preparedPhotos?.length
     ? options.preparedPhotos.slice(0, 4)
     : await prepareMealPhotos(file);
+  request.assertCurrent();
   onProgress(2, `${correctedMealName ? 'Recalculating with' : analysisKind === 'nutrition-label' ? 'Reading label with' : 'Waiting for'} ${availability.modelDisplay}…`);
+  request.assertCurrent();
   const prompt = buildMealAnalysisPrompt({ correctedMealName, previousMealName, analysisKind, consumedAmount, consumedUnit, userContext: options.userContext });
   const jsonSchema = analysisKind === 'nutrition-label' ? MEAL_ANALYSIS_SCHEMA : MEAL_PHOTO_ANALYSIS_SCHEMA;
   const result = (availability.adapter === 'codex'
@@ -586,7 +592,9 @@ export async function analyzeMealPhoto(file: File | File[], options: AnalyzeMeal
       prompt,
       model: availability.model,
       outputSchema: jsonSchema,
-      signal: options.signal,
+      signal: request.signal,
+      requestCurrent: request.current,
+      execution: request.execution,
     })
     : await callClaudeAPI({
       messages: [{ role: 'user', content: buildVisionContent(mealAnalysisImageBlocks(prepared, availability.provider), prompt, availability.provider) }],
@@ -600,13 +608,16 @@ export async function analyzeMealPhoto(file: File | File[], options: AnalyzeMeal
       minOutputTokens: analysisKind === 'nutrition-label' ? 1536 : 1024,
       preferNativeContext: true,
       temperature: 0,
-      signal: options.signal,
+      signal: request.signal,
+      requestCurrent: request.current,
       consentKind: 'meal-photo',
       modelOverride: availability.model,
     }, availability.provider)) as MealAIResponse | null | undefined;
+  request.assertCurrent();
   const usage = normalizeNutritionAIUsage(result?.usage);
   if (usage && availability.adapter !== 'codex') trackUsage(availability.provider, availability.model, usage.inputTokens, usage.outputTokens);
   onProgress(3, 'Checking foods, portions, and nutrients…');
+  request.assertCurrent();
   if (result?.truncated) {
     throw new Error('The vision model cut off the meal data before it was complete. Try again or choose a faster meal-photo model.');
   }
@@ -630,6 +641,7 @@ export async function analyzeMealPhoto(file: File | File[], options: AnalyzeMeal
     };
   }
   onProgress(4, 'Building editable review…');
+  request.assertCurrent();
   const analyzedAt = new Date().toISOString();
   const images = options.includeImages === false ? [] : mealImagesFromPreparedPhotos(prepared);
   const aiEstimatedNutrientKeys = analysisKind === 'meal-photo'
@@ -663,4 +675,5 @@ export async function analyzeMealPhoto(file: File | File[], options: AnalyzeMeal
       } : {}),
     },
   };
+  } finally { request.dispose(); }
 }

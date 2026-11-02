@@ -5,13 +5,19 @@ import {stripTypeScriptTypes} from 'node:module';
 import {JSDOM} from 'jsdom';
 import {expect,it} from 'vitest';
 import {renderEMFPhoto} from '../js/emf-photo-presentation.js';
+import {withParsedSource} from '../scripts/native-typescript-ast.js';
+import * as ts from 'typescript/unstable/ast';
 import {escapeHTML} from '../js/utils.js';
 
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/emf-photo-original.json',import.meta.url),'utf8')) as {source:string};
 expect(createHash('sha256').update(fs.readFileSync(new URL('./fixtures/emf-photo-original.json',import.meta.url))).digest('hex')).toBe('0de264517b84bd4a292ccc72bd42b6b555a52dd29936f8b61cd84727ac9c93c0');
 const native = stripTypeScriptTypes(fixture.source).replace('export ','');
 const emitted = fs.readFileSync(new URL('../js/emf.js',import.meta.url),'utf8');
-const current = emitted.slice(emitted.indexOf('export function viewEMFPhoto('),emitted.indexOf('export function saveEMFExplicit(')).replace('export ','');
+const current = withParsedSource(emitted, 'js/emf.js', file => {
+ const matches = file.statements.filter((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === 'viewEMFPhoto');
+ expect(matches).toHaveLength(1); expect(matches[0]!.parameters).toHaveLength(3);
+ return emitted.slice(matches[0]!.getStart(file), matches[0]!.end).replace(/^export /, '');
+});
 function run(source:string,values:Record<string,unknown>,failAt=Infinity) {
  const dom=new JSDOM('<body></body>'),trace:string[]=[],document=dom.window.document;
  const read=(label:string)=>{trace.push(label);if(trace.length===failAt)throw new Error('fault:'+label);};

@@ -8,6 +8,7 @@ export interface NutritionAISettingsSnapshot {
   automaticLabel: string;
   automaticDisabled: boolean;
   providerDisplay: string;
+  notice?: string;
   groups: readonly {
     label: string;
     options: readonly NutritionAIOption[];

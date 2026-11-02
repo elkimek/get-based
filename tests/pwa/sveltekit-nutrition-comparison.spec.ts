@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { createDefaultProfileData } from '../../js/profile.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { seedNutritionMealDetail } from '../helpers/nutrition-meal-detail-fixture.js';
 import { encryptedComparisonFixture, nutritionComparisonFixture, openNutritionBenchmarkFromInsight, readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';

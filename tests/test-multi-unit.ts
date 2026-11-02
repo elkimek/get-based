@@ -234,7 +234,7 @@ console.log('\n-- source-shape pins (UI wiring) --');
   const unitButtons = displayButtons.filter(button => /\bdata-unit=/.test(button));
   const altButtons = displayButtons.filter(button => /\bdata-alt-units=/.test(button));
   const data = fs.readFileSync(new URL('../js/data.js', import.meta.url), 'utf8');
-  const dataViewControls = fs.readFileSync(new URL('../js/data-view-controls.js', import.meta.url), 'utf8');
+  const dataViewControls = fs.readFileSync(new URL('../js/data-view-controls.ts', import.meta.url), 'utf8');
   const state = fs.readFileSync(new URL('../js/state.js', import.meta.url), 'utf8');
   const profile = fs.readFileSync(new URL('../js/profile.js', import.meta.url), 'utf8');
   const profileStorageCleanup = fs.readFileSync(
@@ -264,28 +264,28 @@ console.log('\n-- source-shape pins (UI wiring) --');
     /export function closeModal\(\)[\s\S]{0,1600}state\._activeDetailMarkerId = null/.test(markerDetail));
 
   // Svelte owns Display markup and per-button state; the settings delegate
-  // and synchronous adapter still own mutations and state refresh.
+  // and asynchronous command owner still own mutations and state refresh.
   assert('Display Svelte renders Alternate Units row in Display tab',
     /id="display-alt-label"[^>]*>Alternate Units</.test(display)
       && /role="group" aria-labelledby="display-alt-label"/.test(display));
   assert('Display Off button maps to delegated toggleAltUnits(false)',
     /data-alt-units="off"[^>]*data-settings-action="toggle-alt-units"[^>]*>Off</.test(display)
-      && /action === 'toggle-alt-units'[\s\S]{0,200}toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\);\s+updateSettingsUI\(\)/.test(settings));
+      && /action === 'toggle-alt-units'[\s\S]{0,200}await commitDisplaySettingFromUI\(\(\) => toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\)\)/.test(settings));
   assert('Display Show-both button maps to delegated toggleAltUnits(true)',
     /data-alt-units="on"[^>]*data-settings-action="toggle-alt-units"[^>]*>Show both</.test(display)
-      && /action === 'toggle-alt-units'[\s\S]{0,200}toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\);\s+updateSettingsUI\(\)/.test(settings));
+      && /action === 'toggle-alt-units'[\s\S]{0,200}await commitDisplaySettingFromUI\(\(\) => toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\)\)/.test(settings));
   assert('settings.js updateSettingsUI refreshes Display alt-units active state',
     /export function updateSettingsUI\(\)\s*{\s*updateDisplaySettingsPanel\(\);/.test(settings)
       && /showAltUnits: !!state\.showAltUnits/.test(displayPanel)
       && /flushSync\(\(\) => mounted!\.refresh\(snapshot\(\)\)\)/.test(displayPanel)
       && /export function refresh\(next: DisplayPreferences\): void { preferences = next; }/.test(display)
-      && /class="unit-toggle-btn\{!preferences\.showAltUnits \? ' active' : ''\}[^>]*aria-pressed="\{!preferences\.showAltUnits\}"[^>]*data-alt-units="off"/.test(display)
-      && /class="unit-toggle-btn\{preferences\.showAltUnits \? ' active' : ''\}[^>]*aria-pressed="\{!!preferences\.showAltUnits\}"[^>]*data-alt-units="on"/.test(display));
+      && /class="unit-toggle-btn\{!preferences\.showAltUnits \? ' active' : ''\}[^>]*aria-pressed=\{!preferences\.showAltUnits\}[^>]*data-alt-units="off"/.test(display)
+      && /class="unit-toggle-btn\{preferences\.showAltUnits \? ' active' : ''\}[^>]*aria-pressed=\{!!preferences\.showAltUnits\}[^>]*data-alt-units="on"/.test(display));
   assert('Display unit-system bindings cannot deactivate alternate-unit buttons',
     unitButtons.length === 3 && altButtons.length === 2
       && ['EU', 'ANZ', 'US'].every(unit => unitButtons.some(button =>
         button.includes(`preferences.unitSystem === '${unit}' ? ' active' : ''`)
-          && button.includes(`aria-pressed="{preferences.unitSystem === '${unit}'}"`)
+          && button.includes(`aria-pressed={preferences.unitSystem === '${unit}'}`)
           && button.includes(`data-unit="${unit}" data-settings-action="switch-unit"`)
           && !button.includes('preferences.showAltUnits')))
       && altButtons.every(button => button.includes('preferences.showAltUnits')
@@ -293,13 +293,13 @@ console.log('\n-- source-shape pins (UI wiring) --');
       && !/querySelectorAll\([^)]*\.unit-toggle-btn/.test(settings + displayPanel));
   assert('Display Svelte exposes the Australia / New Zealand unit profile',
     /data-unit="ANZ"[^>]*data-settings-action="switch-unit"[^>]*>Australia \/ NZ</.test(display)
-      && /action === 'switch-unit'[\s\S]{0,180}switchUnitSystem\(actionEl\.dataset\.unit \|\| 'EU'\);\s+updateSettingsUI\(\)/.test(settings));
+      && /action === 'switch-unit'[\s\S]{0,180}await commitDisplaySettingFromUI\(\(\) => switchUnitSystem\(actionEl\.dataset\.unit \|\| 'EU'\)\)/.test(settings));
 
   // Data view controls: toggleAltUnits accepts force arg, persists, refreshes detail modal
   assert('data view controls toggleAltUnits accepts force arg',
-    /export function toggleAltUnits\(force\)/.test(dataViewControls));
-  assert('data view controls toggleAltUnits persists to localStorage',
-    /localStorage\.setItem\(profileStorageKey\(state\.currentProfile, 'showAltUnits'\)/.test(dataViewControls));
+    /export async function toggleAltUnits\(force\?\: unknown/.test(dataViewControls));
+  assert('data view controls toggleAltUnits uses the shared atomic preference owner',
+    /toggleAltUnits[\s\S]{0,240}await commitDisplayPreferences/.test(dataViewControls));
   assert('data view controls toggleAltUnits refreshes open detail modal via state._activeDetailMarkerId',
     /state\._activeDetailMarkerId[\s\S]{0,200}dataRuntimeDeps\.showDetailModal\?\.\(openId\)/.test(dataViewControls));
   assert('data.js keeps toggleAltUnits module-only',

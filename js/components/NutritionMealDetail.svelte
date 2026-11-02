@@ -29,7 +29,8 @@
       {#if view.overview.length}<div class="nutrition-detail-summary gb:nutrition:grid gb:nutrition:grid-cols-4 gb:nutrition:overflow-hidden gb:nutrition:rounded-xl gb:nutrition:border gb:nutrition:border-line gb:nutrition:bg-surface gb:nutrition:max-[600px]:grid-cols-2">
         {#each view.overview as item, index}<div class="gb:nutrition:grid gb:nutrition:min-w-0 gb:nutrition:grid-cols-[auto_1fr] gb:nutrition:gap-x-1 gb:nutrition:border-r gb:nutrition:border-line gb:nutrition:px-3 gb:nutrition:py-2.5 gb:nutrition:last:border-r-0 {index < 2 ? 'gb:nutrition:max-[600px]:border-b' : ''} {index === 1 ? 'gb:nutrition:max-[600px]:border-r-0' : ''}"><span class="gb:nutrition:col-span-full gb:nutrition:text-[11px] gb:nutrition:font-bold gb:nutrition:uppercase gb:nutrition:tracking-wide gb:nutrition:text-secondary">{item.label}</span><strong class="gb:nutrition:text-xl gb:nutrition:leading-tight gb:nutrition:tabular-nums">{item.value}</strong><small class="gb:nutrition:self-end gb:nutrition:text-[11px] gb:nutrition:text-secondary">{item.unit}</small></div>{/each}
       </div>{/if}
-      {#if view.fuel}<Fuel view={view.fuel}/><Response bind:this={response} {view} {actions}/>{/if}
+      {#if view.fuel}<Fuel view={view.fuel}/>{/if}
+      {#if view.fuel || view.checkedIn}<Response bind:this={response} {view} {actions}/>{/if}
       <div class="nutrition-detail-evidence gb:nutrition:grid gb:nutrition:grid-cols-2 gb:nutrition:gap-2 gb:nutrition:max-[600px]:grid-cols-1 gb:nutrition:[&>:only-child]:col-span-full">
         {#if view.usage}<div class="nutrition-review-evidence {evidence}"><strong class="gb:nutrition:text-[13px]">AI request usage</strong><span class="nutrition-analysis-usage {copy} gb:nutrition:tabular-nums">{view.usage}</span></div>{/if}
         {#if view.review}<div class="nutrition-review-evidence {evidence}"><strong class="gb:nutrition:text-[13px]">User review</strong><span class={copy}>{view.review}</span></div>{/if}

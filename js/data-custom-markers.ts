@@ -6,8 +6,8 @@ export function mergeCustomMarkerDefinitions(data: MarkerViewData, custom: Recor
   // Merge custom markers into categories
   for (const [fullKey, def] of Object.entries(custom)) {
     const [catKey, markerKey] = fullKey.split('.') as [string, string?];
-    if (!markerKey) continue;
-    if (!data.categories[catKey]) {
+    if (!markerKey || fullKey.split('.').length !== 2 || [catKey, markerKey].some(key => ['__proto__', 'constructor', 'prototype'].includes(key)) || !def || typeof def !== 'object' || Array.isArray(def)) continue;
+    if (!Object.hasOwn(data.categories, catKey)) {
       // Create new category — infer icon from label/key
       const _label = (def.categoryLabel || catKey).toLowerCase();
       const _inferIcon = (l: string) => {
@@ -38,11 +38,12 @@ export function mergeCustomMarkerDefinitions(data: MarkerViewData, custom: Recor
         icon: def.icon || _inferIcon(_label) || '\uD83D\uDD16',
         singlePoint: !!def.singlePoint,
         group: def.group || null,
+        contextGroup: def.contextGroup || def.group || def.categoryLabel || catKey.charAt(0).toUpperCase() + catKey.slice(1),
         markers: {}
       };
     }
     // Add marker if not already in schema
-    if (!data.categories[catKey]!.markers[markerKey]) {
+    if (!Object.hasOwn(data.categories[catKey]!.markers, markerKey)) {
       data.categories[catKey]!.markers[markerKey] = {
         name: def.name,
         unit: def.unit || '',

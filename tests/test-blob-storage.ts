@@ -23,6 +23,7 @@ console.log('1. shouldUseBlob');
 assert('routes labcharts-foo-imported', shouldUseBlob('labcharts-foo-imported'));
 assert('routes labcharts-default-imported', shouldUseBlob('labcharts-default-imported'));
 assert('routes labcharts-default-imported-corrupt', shouldUseBlob('labcharts-default-imported-corrupt'));
+assert('routes profile proposal claims for cross-tab coordination', shouldUseBlob('labcharts-default-agent-draft-claims'));
 assert('does NOT route -chat', !shouldUseBlob('labcharts-foo-chat'));
 assert('does NOT route -threads', !shouldUseBlob('labcharts-foo-chat-threads'));
 assert('does NOT route api keys', !shouldUseBlob('labcharts-api-key'));

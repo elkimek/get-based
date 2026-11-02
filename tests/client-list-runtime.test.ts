@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
+import { encryptedSetItem, encryptedRemoveItem } from '../js/crypto.js';
 import { configureClientListRuntimeDeps } from '../js/client-list-runtime.js';
 import { closeModalOverlay } from '../js/modal-lifecycle.js';
 
@@ -72,7 +73,8 @@ beforeEach(() => {
   ];
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await encryptedRemoveItem('labcharts-profiles');
   closeModalOverlay('client-list-overlay');
   vi.restoreAllMocks();
   document.querySelectorAll(
@@ -231,6 +233,7 @@ describe('client list runtime behavior', () => {
   });
 
   it('drives list filters, row menus, and edit form through delegated handlers', async () => {
+    await encryptedSetItem('labcharts-profiles', JSON.stringify(state.profiles));
     const clientList = await loadClientList();
     const renderProfileButtonSpy = vi.fn();
     const showNotificationSpy = vi.fn();

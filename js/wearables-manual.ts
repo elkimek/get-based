@@ -37,6 +37,9 @@ import { isoDay } from './wearable-adapters.js';
 import { weightToKilograms } from './wearables-formatters.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { queueManualRowWrite } from './wearables-manual-lock.js';
+import { queueManualOperation } from './manual-operation-lock.js';
+import { MANUAL_METRICS, MANUAL_TAGS, MANUAL_HISTORY_START, MANUAL_HISTORY_END, MANUAL_MIRROR_FIELDS, manualReadingDeletionClock } from './manual-reading-fields.js';
+export { MANUAL_METRICS, MANUAL_TAGS, MANUAL_HISTORY_START, MANUAL_HISTORY_END, MANUAL_MIRROR_FIELDS } from './manual-reading-fields.js';
 import { BODY_MEASUREMENT_FIELDS, bodyMeasurementRecords, measurementPatch, validMeasurementDate, type BodyMeasurementDraft } from './body-measurement-model.js';
 
 // Merge helper — read the existing manual row for `date` (if any), shallow-merge
@@ -65,7 +68,7 @@ async function _mergeManualRow(profileId: string, date: string, patch: Record<st
 
 // Numeric manual fields. Waist/hip/SAD fields encode their measurement method;
 // their overview cards project the explicit mirror without pooling methods.
-export const MANUAL_METRICS = ['weight', 'bp_systolic', 'bp_diastolic', 'rhr', ...BODY_MEASUREMENT_FIELDS];
+
 
 // Optional context tags a user can attach to a reading. Sensors can't infer
 // these — a BP of 140/90 means wildly different things "resting first thing
@@ -74,16 +77,15 @@ export const MANUAL_METRICS = ['weight', 'bp_systolic', 'bp_diastolic', 'rhr', .
 // Tags are strictly informational for display + AI context; they don't gate
 // any storage or summary logic. Persisted per-row as an array so multiple
 // tags on one reading are supported (e.g. post-workout + stress).
-export const MANUAL_TAGS = ['resting', 'morning-fasted', 'post-workout', 'stress'];
+
 
 // One-time migration flag key in the wearables meta store.
 const MIGRATION_FLAG = 'biometrics-migrated-v1';
 const MANUAL_TOMBSTONE_FIELD = 'manualMetricTombstones';
-export const MANUAL_HISTORY_START = '1970-01-01';
-export const MANUAL_HISTORY_END = '9999-12-31';
+
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const MANUAL_MIRROR_FIELD = 'manualBodyReadings';
-export const MANUAL_MIRROR_FIELDS = [...MANUAL_METRICS, 'tags', 'note'];
+
 export const manualMirrorKey = (field: string, date: string) => `${field}.${date}`;
 export function manualMirror(imported: ManualProfile): Record<string, ManualBodyReading> {
   const mirror = imported.manualBodyReadings;
@@ -149,12 +151,7 @@ export function manualMetricDeletionClock(metric: unknown, date: unknown, import
   if (!key) return 0;
   const tombstones = imported?.[MANUAL_TOMBSTONE_FIELD];
   if (!tombstones || typeof tombstones !== 'object') return 0;
-  // An exact zero is an intentional re-add and wins over an earlier
-  // delete-all marker. Otherwise the metric-wide marker protects dates this
-  // device never had locally and therefore could not enumerate at deletion.
-  const allKey = manualMetricTombstoneKey(metric, 'all');
-  const value = Number(Object.hasOwn(tombstones, key) ? tombstones[key] : allKey ? tombstones[allKey] : 0);
-  return Number.isFinite(value) && value > 0 ? value : 0;
+  return manualReadingDeletionClock(String(metric), String(date), tombstones);
 }
 export function isManualMetricTombstoned(metric: unknown, date: unknown, imported: ManualProfile | null | undefined = state.importedData) {
   return manualMetricDeletionClock(metric, date, imported) > 0;
@@ -349,7 +346,7 @@ export async function ensureManualConnection({ coverageDays = 0 } = {}) {
  * Rows are upserted on the [source, date] compound key. Logging weight
  * twice on the same day overwrites — same behaviour as a wearable sync.
  */
-export async function logManualMetric(profileId: string, metric: string, { date, value, unit = 'kg', tags, note }: ManualMetricReading) {
+async function logManualMetricUnlocked(profileId: string, metric: string, { date, value, unit = 'kg', tags, note }: ManualMetricReading) {
   if (!MANUAL_METRICS.includes(metric as string)) {
     throw new Error(`logManualMetric: unknown metric "${metric}"`);
   }
@@ -370,7 +367,7 @@ export async function logManualMetric(profileId: string, metric: string, { date,
 }
 
 /** Waist and optional hips commit together; each posture/site keeps its own clock. */
-export async function logBodyMeasurement(profileId: string, draft: BodyMeasurementDraft) {
+async function logBodyMeasurementUnlocked(profileId: string, draft: BodyMeasurementDraft) {
   const patch = measurementPatch(draft);
   if (draft.date > isoDay()) throw new Error('Choose today or an earlier date.');
   const original = draft.original;
@@ -396,7 +393,7 @@ export async function logBodyMeasurement(profileId: string, draft: BodyMeasureme
  * Log BP as a pair — matches how home cuffs report systolic + diastolic
  * (+ optional pulse) in a single reading. One row per date.
  */
-export async function logManualBP(profileId: string, { date, systolic, diastolic, pulse, tags, note }: ManualBloodPressure) {
+async function logManualBPUnlocked(profileId: string, { date, systolic, diastolic, pulse, tags, note }: ManualBloodPressure) {
   const { imported, baseData } = captureManualMutation(profileId);
   const d = date || isoDay();
   const row: StoredWearableRow = { source: 'manual', date: d };
@@ -536,7 +533,7 @@ export async function migrateBiometricsToManual(profileId: string, biometrics: B
  * the summary doesn't count it as coverage. Used by the Edit Client modal
  * when a user deletes a biometric entry so the wearable strip stays in sync.
  */
-export async function deleteManualMetric(profileId: string, metric: string, date: string) {
+async function deleteManualMetricUnlocked(profileId: string, metric: string, date: string) {
   if (!MANUAL_METRICS.includes(metric as string)) {
     throw new Error(`deleteManualMetric: unknown metric "${metric}"`);
   }
@@ -593,7 +590,7 @@ async function eraseBodyMeasurementRowFields(profileId: string, field: string, d
   });
 }
 /** Delete a method-specific waist/hip pair with one portable deletion commit. */
-export async function deleteBodyMeasurement(profileId: string, field: string, date: string) {
+async function deleteBodyMeasurementUnlocked(profileId: string, field: string, date: string) {
   if (!validMeasurementDate(date)) throw new Error('Choose a valid measurement date.');
   const {imported, baseData} = captureManualMutation(profileId);
   await stageBodyMeasurementDeletion(imported, profileId, field, date);
@@ -605,7 +602,7 @@ export async function deleteBodyMeasurement(profileId: string, field: string, da
  * Remove every device-local manual reading and record per-field tombstones,
  * including legacy biometrics dates that may not exist in this device's IDB.
  */
-export async function deleteAllManualMetrics(profileId: string) {
+async function deleteAllManualMetricsUnlocked(profileId: string) {
   if (!profileId || state.currentProfile !== profileId) return { skipped: 'inactive-profile' as const };
   const { imported, baseData } = captureManualMutation(profileId);
   const deletedAt = Date.now();
@@ -677,3 +674,11 @@ export async function hasManualData(profileId: string) {
     return false;
   }
 }
+
+// Keep each canonical/cache mutation in the same command order.
+export function logManualMetric(profileId: string, metric: string, reading: ManualMetricReading) { return queueManualOperation(profileId, () => logManualMetricUnlocked(profileId, metric, reading)); }
+export function logManualBP(profileId: string, reading: ManualBloodPressure) { return queueManualOperation(profileId, () => logManualBPUnlocked(profileId, reading)); }
+export function logBodyMeasurement(profileId: string, draft: BodyMeasurementDraft) { return queueManualOperation(profileId, () => logBodyMeasurementUnlocked(profileId, draft)); }
+export function deleteManualMetric(profileId: string, metric: string, date: string) { return queueManualOperation(profileId, () => deleteManualMetricUnlocked(profileId, metric, date)); }
+export function deleteBodyMeasurement(profileId: string, field: string, date: string) { return queueManualOperation(profileId, () => deleteBodyMeasurementUnlocked(profileId, field, date)); }
+export function deleteAllManualMetrics(profileId: string) { return queueManualOperation(profileId, () => deleteAllManualMetricsUnlocked(profileId)); }

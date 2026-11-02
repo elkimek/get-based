@@ -43,7 +43,7 @@ function getEffectiveRangeLabel(marker: ActiveMarker, dateIndex: number) {
 }
 
 export function getMarkerHit(data: ScoringData | null | undefined, paths: MarkerPaths, options: MarkerHitOptions = {}): MarkerHit | null {
-  const candidates = Array.isArray(paths) ? paths : [paths];
+  const candidates = (Array.isArray(paths) ? paths : [paths]).filter(path => !data?.contextExcludedMarkers?.includes(path));
   const hits: MarkerHit[] = [];
   for (const path of candidates) {
     const [catKey, markerKey] = parsePath(path);

@@ -28,10 +28,11 @@
       </optgroup>
     {/each}
   </select>
+  {#if snapshot.notice}<p class={MEAL_MODEL_COPY} role="status">{snapshot.notice}</p>{/if}
   <details class="nutrition-ai-model-details gb:group gb:meal-model:mt-2" bind:open={detailsOpen}>
     <summary class={MEAL_MODEL_SUMMARY}><span class="gb:meal-model:group-open:rotate-90" aria-hidden="true">▸</span> About this list</summary>
     <div class={MEAL_MODEL_COPY}>
-      Only models with confirmed image input are shown. CLI models use their existing account or configured provider; API and Local models use the configured {snapshot.providerDisplay} route.
+      Only models with confirmed image input are shown. CLI models use their existing account or configured provider; API and Local models use their named configured connection. Current API/Local connection: {snapshot.providerDisplay}. This choice changes meal photos and labels without changing the chat model.
       Evidence informs ordering only and does not prove accuracy.
       <a class={MEAL_MODEL_LINK} href="https://doi.org/10.3390/nu18122017" target="_blank" rel="noopener noreferrer">Claude study ↗</a>
       · <a class={MEAL_MODEL_LINK} href="https://doi.org/10.64898/2026.07.26.740845" target="_blank" rel="noopener noreferrer">Gemini preprint ↗</a>

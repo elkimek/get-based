@@ -42,10 +42,11 @@ export function loadLightDeviceSetupModule() {
   return setupModuleLoader.load();
 }
 
-export async function openAddDeviceDialog() {
+export async function openAddDeviceDialog(options: { isCurrent?: () => boolean } = {}) {
   try {
     const module = setupModuleLoader.module || await loadLightDeviceSetupModule();
-    return await module.openAddDeviceDialog();
+    if (options.isCurrent?.() === false) return false;
+    return await module.openAddDeviceDialog(options);
   } catch (error) {
     console.error('[light-devices] Could not open device setup:', error);
     showNotification('Light device setup could not be loaded. Try again.', 'error');
@@ -76,10 +77,11 @@ export function loadLightDeviceSessionModule() {
   return sessionModuleLoader.load();
 }
 
-export async function openDeviceSessionDialog(deviceId?: string | null) {
+export async function openDeviceSessionDialog(deviceId?: string | null, options: { isCurrent?: () => boolean; hydrate?: boolean } = {}) {
   try {
     const module = sessionModuleLoader.module || await loadLightDeviceSessionModule();
-    return await module.openDeviceSessionDialog(deviceId as string, sessionDeps);
+    if (options.isCurrent?.() === false) return false;
+    return await module.openDeviceSessionDialog(deviceId as string, sessionDeps, options);
   } catch (error) {
     console.error('[light-devices] Could not open session dialog:', error);
     showNotification('Light device session tools could not be loaded. Try again.', 'error');

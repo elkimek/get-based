@@ -15,10 +15,11 @@ import {
 } from '../shared/agent-host-protocol.js';
 import { startExternalAgentTurn } from './agent-host-external-turn.js';
 import { createCompanionManagement } from './companion-management.js';
+import { AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
 import {
   AGENT_BASE_INSTRUCTIONS, DEFAULT_TOOL_TIMEOUT_MS, DISCOVERY_SESSION_TTL_MS,
   IMAGE_EXTENSIONS, MAX_DISCOVERY_SESSIONS, MAX_IMAGE_BYTES, MAX_IMAGES_PER_TURN,
-  MAX_MCP_SESSIONS, MAX_REQUESTED_INSTRUCTIONS_CHARS, PERSONAL_AGENT_BASE_INSTRUCTIONS,
+  MAX_MCP_SESSIONS, MAX_REQUESTED_INSTRUCTIONS_CHARS, MAX_APPLICATION_CONTEXT_CHARS, formatAgentApplicationContext, PERSONAL_AGENT_BASE_INSTRUCTIONS,
   UPLOAD_TTL_MS, cleanError, codexTurnErrorMessage, corsHeaders, createThreadHandle, declinedResult,
   hasImageSignature, isAllowedAgentHostOrigin, isAllowedAgentTool, isLoopbackOrigin, isRecord,
   jsonResponse, readJson, readThreadHandle, sanitizeDynamicTools, sanitizeHistory,
@@ -49,6 +50,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
   const startingOrActiveTurns = new Set<string>();
   const mcpSessions = new Map<string, McpSession>();
   const sessionMcp = new Map<string, McpContext>();
+  const codexToolScopes = new Map<string, string>();
 
   const publicRoute = (route: HostRoute) => ({
     id: String(route.id || '').slice(0, 80),
@@ -239,6 +241,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     state: paused ? 'paused' : 'running',
     paused,
     protocolVersion: AGENT_HOST_PROTOCOL_VERSION,
+    toolContractVersion: AGENT_TOOL_CONTRACT_VERSION,
     capabilities: AGENT_HOST_CAPABILITY_LIST,
     instanceId,
     startedAt,
@@ -296,6 +299,10 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         return jsonResponse({ tools: session.tools.map(spec => ({
           name: spec.name, description: spec.description, inputSchema: spec.inputSchema,
         })) });
+      }
+      if (url.pathname === '/internal/mcp/ready' && request.method === 'POST') {
+        session.markCatalogDelivered?.();
+        return jsonResponse({ ok: true });
       }
       if (url.pathname === '/internal/mcp/call' && request.method === 'POST') {
         let body;
@@ -456,6 +463,8 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     const requestedInstructions = typeof body.instructions === 'string'
       ? body.instructions.trim().slice(0, MAX_REQUESTED_INSTRUCTIONS_CHARS)
       : '';
+    if (body.applicationContext !== undefined && (typeof body.applicationContext !== 'string' || body.applicationContext.length > MAX_APPLICATION_CONTEXT_CHARS)) return jsonResponse({ error: 'invalid_application_context' }, 400, cors);
+    const applicationContext = typeof body.applicationContext === 'string' ? body.applicationContext : '';
     const requestedThreadHandle = typeof body.threadId === 'string' ? body.threadId.trim() : '';
     const requestedSession = requestedThreadHandle ? readThreadHandle(requestedThreadHandle, token, instanceId) : null;
     if (requestedThreadHandle && !requestedSession) {
@@ -483,8 +492,11 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
       return jsonResponse({ error: 'thread_turn_already_active' }, 409, cors);
     }
     const dynamicTools = sanitizeDynamicTools(body.tools);
+    const toolScope = dynamicTools.map(tool => tool.name).sort().join(',');
     const purpose = body.purpose === 'feature' ? 'feature' : 'chat';
-    if (purpose === 'chat' && dynamicTools.length === 0) return jsonResponse({ error: 'no_allowed_tools' }, 400, cors);
+    if (purpose === 'chat' && body.chatControlsEnabled === false && dynamicTools.length) return jsonResponse({ error: 'chat_controls_disabled' }, 400, cors);
+    if (purpose === 'chat' && dynamicTools.length === 0 && body.chatControlsEnabled !== false) return jsonResponse({ error: 'no_allowed_tools' }, 400, cors);
+    if (purpose === 'chat' && requestedSession && (requestedSession.chatControlsEnabled !== false) !== (dynamicTools.length > 0)) return jsonResponse({ error: 'invalid_thread_session' }, 400, cors);
     if (purpose === 'feature' && routedAgent.target?.supportsFeatureJobs === false
       && !(routedAgent.target?.supportsTextFeatureJobs === true && !(body.imageUploadIds as { length?: unknown } | null | undefined)?.length && dynamicTools.length === 0)) {
       return jsonResponse({ error: 'This gateway supports text explanations only. Choose Local CLI for image imports or tool-enabled feature jobs.' }, 400, cors);
@@ -549,8 +561,8 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         activeTurns, pendingTools, turnUploads, cleanup: cleanupTurnUploads,
         origin: url.origin, bridgePath: options.bundlePath || process.argv[1],
         baseInstructions: routedAgent.target?.kind === 'gateway' ? PERSONAL_AGENT_BASE_INSTRUCTIONS : AGENT_BASE_INSTRUCTIONS,
-        requestedInstructions, history, outputSchema, prompt, model, effort, send, close, cleanError,
-        createHandle: sessionId => createThreadHandle(sessionId, token, agentId, instanceId, targetId),
+        requestedInstructions, applicationContext, history, outputSchema, prompt, model, effort, send, close, cleanError,
+        createHandle: sessionId => createThreadHandle(sessionId, token, agentId, instanceId, targetId, dynamicTools.length > 0),
       });
       handleStreamCancel = abort;
       if (request.signal.aborted) abort();
@@ -583,7 +595,9 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         if (closed) return;
         let threadResult;
         let resumed = false;
-        if (requestedThreadId) {
+        // Codex fixes dynamic tools when a thread starts. Never resume a
+        // different (or unknown) capability scope; replay visible history instead.
+        if (requestedThreadId && codexToolScopes.get(requestedThreadId) === toolScope) {
           try {
             threadResult = await appServer!.request<CodexThreadResult | null>('thread/resume', {
               threadId: requestedThreadId,
@@ -610,6 +624,8 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         if (closed) return;
         threadId = String(threadResult?.thread?.id || '');
         if (!threadId) throw new Error('Codex did not return a thread ID.');
+        codexToolScopes.delete(threadId); codexToolScopes.set(threadId, toolScope);
+        if (codexToolScopes.size > 128) codexToolScopes.delete(codexToolScopes.keys().next().value!);
         if (!resumed && history.length) {
           await appServer!.request('thread/inject_items', {
             threadId,
@@ -625,6 +641,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
           threadId,
           input: [
             ...turnUploads.map(upload => ({ type: 'localImage', path: upload.path })),
+            ...(applicationContext ? [{ type: 'text', text: formatAgentApplicationContext(applicationContext) }] : []),
             { type: 'text', text: prompt },
           ],
           environments: [],
@@ -645,7 +662,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
         activeTurns.set(threadId, { agentId: 'codex', threadId, turnId, send, cleanup: cleanupTurnUploads });
         send({
           type: 'session',
-          threadId: createThreadHandle(threadId, token),
+          threadId: createThreadHandle(threadId, token, 'codex', instanceId, 'local', dynamicTools.length > 0),
           turnId,
           model: String(threadResult?.model || model || 'Codex'),
           resumed,

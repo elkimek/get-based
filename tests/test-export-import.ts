@@ -523,12 +523,18 @@ return (async function() {
     exportImportSrc.includes('saveImportedDataForProfile(existing.id, current, {') &&
     exportImportSrc.includes('forceProfileScope: true'));
   assert('Bundle import merges markers within a matching date',
-    /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*mergeRestoredLabEntry\(entries\[idx\], entry\)\)/.test(exportImportSrc));
+    /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*mergeRestoredLabEntry\(entries\[idx\], entry, markerRestore\.at\)\)/.test(exportImportSrc));
   assert('Bundle import deduplicates notes', exportImportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));
   assert('Bundle import deduplicates supplements', exportImportSrc.includes('supplements.some(x => x.name === s.name && x.startDate === s.startDate)'));
   assert('Bundle import merges health goals', exportImportSrc.includes('healthGoals.some(x => x.text === g.text)'));
-  assert('Bundle import merges custom markers', /for \(const field of \[\'customMarkers\', \'refOverrides\',[\s\S]{0,350}if \(!current\[field\]\[k\]\)/.test(exportImportSrc));
-  assert('Bundle import merges ref overrides', /for \(const field of \[\'customMarkers\', \'refOverrides\',[\s\S]{0,350}current\[field\]\[k\] = v/.test(exportImportSrc));
+  const metadataOwner = await import('/js/lab-display-import.js');
+  const currentMetadata = { customMarkers: { retained: { name: 'Original', unit: 'AU' } }, refOverrides: { retained: { refMin: 0 } } };
+  const incomingMetadata = { customMarkers: { retained: { name: 'Must not overwrite', unit: 'other' }, added: { name: 'Added', unit: 'AU' } }, refOverrides: { retained: { refMin: 99 }, added: { refMin: 1 } } };
+  metadataOwner.mergeRestoredDisplayMetadata(currentMetadata, incomingMetadata);
+  const usesMetadataOwner = exportImportSrc.includes("import { mergeRestoredDisplayMetadata } from './lab-display-import.js';") && exportImportSrc.includes('mergeRestoredDisplayMetadata(current, importData);');
+  assert('Bundle import merges custom markers', usesMetadataOwner && JSON.stringify(currentMetadata.customMarkers) === JSON.stringify({ retained: { name: 'Original', unit: 'AU' }, added: { name: 'Added', unit: 'AU' } }));
+  assert('Bundle import merges ref overrides', usesMetadataOwner && JSON.stringify(currentMetadata.refOverrides) === JSON.stringify({ retained: { refMin: 0 }, added: { refMin: 1 } }));
+  assert('Bundle import reconciles marker removal history after metadata merge', /mergeRestoredDisplayMetadata\(current, importData\);\s*current\.customMarkerLifecycle = markerRestore\.lifecycle;\s*reconcileCustomMarkerLifecycle\(current\);/.test(exportImportSrc));
   assert('Bundle import replaces context fields', exportImportSrc.includes("for (const field of ['diagnoses', 'diet', 'exercise'"));
   assert('Bundle import caps changeHistory at 200', exportImportSrc.includes("trimImportedArray(current, 'changeHistory', 200)"));
   assert('Bundle import merges chat summaries', exportImportSrc.includes('chatSummaries.findIndex'));

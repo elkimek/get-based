@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildLocalAgentEnvironment, findBundledOpenClawExecutable, normalizeAgentVersion, readCommandJson,
-  resolveAgentLaunch, resolveWindowsNodeShim,
+  resolveAgentLaunch, resolveWindowsNodeShim, localAgentArguments, usesOpenCodeV2Configuration,
 } from '../lib/local-agent-registry.js';
 
 describe('local CLI process resolution', () => {
@@ -73,4 +73,23 @@ describe('local CLI process resolution', () => {
       existsSyncImpl: path => path === 'D:\\Apps\\OpenClaw\\bin\\openclaw.cmd',
     })).toBe('D:\\Apps\\OpenClaw\\bin\\openclaw.cmd');
   });
+});
+
+
+it('keeps legacy OpenCode pure mode and uses supported arguments for 2.1 and later', () => {
+ const spec={id:'opencode',args:['acp','--pure']};
+ expect(localAgentArguments(spec,'1.18.23')).toEqual(['acp','--pure']);
+ expect(localAgentArguments(spec,'opencode v2.0.27')).toEqual(['acp','--pure']);
+ expect(localAgentArguments(spec,'opencode v2.1.4')).toEqual(['acp']);
+ expect(localAgentArguments(spec,'opencode v3.0.0')).toEqual(['acp']);
+ expect(usesOpenCodeV2Configuration({id:'hermes',version:'2.1.4'})).toBe(false);
+ expect(localAgentArguments(spec,'unknown')).toEqual(['acp','--pure']);
+});
+it('isolates modern OpenCode plugins and native tools without forwarding config overrides or credentials', () => {
+ const source={HOME:'/synthetic/home',OPENCODE_CONFIG_CONTENT:'private-config',OPENAI_API_KEY:'private-key'},agent={id:'opencode',version:'opencode v2.1.4'};
+ const env=buildLocalAgentEnvironment(source,agent),config=JSON.parse(env.OPENCODE_CONFIG_CONTENT!);
+ expect(env.HOME).toBe('/synthetic/home');expect(env.OPENCODE_DISABLE_PROJECT_CONFIG).toBe('1');
+ expect(config.plugins).toEqual(['-*','opencode.*']);expect(config.permissions).toEqual([{action:'*',resource:'*',effect:'deny'},{action:'getbased_*',resource:'*',effect:'allow'}]);
+ expect(JSON.stringify(env)).not.toContain('private-');expect(source.OPENCODE_CONFIG_CONTENT).toBe('private-config');
+ expect(buildLocalAgentEnvironment(source,{id:'opencode',version:'1.18.23'})).not.toHaveProperty('OPENCODE_CONFIG_CONTENT');
 });

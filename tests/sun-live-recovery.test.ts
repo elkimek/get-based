@@ -9,7 +9,7 @@ vi.mock('../js/sun-body-silhouette.js', () => ({ BODY_REGIONS: [], renderBodySil
 import { state } from '../js/state.js';
 import * as active from '../js/sun-active-session.js';
 const deferred = () => { let resolve: ((value?: unknown) => void) | undefined, reject: ((reason?: unknown) => void) | undefined; const promise = new Promise<unknown>((yes, no) => { resolve = yes as (value?: unknown) => void; reject = no; }); return { promise, resolve, reject }; };
-type LiveSessionFixture = {id: string; startedAt: number; location: {lat: number; lon: number} | null; bodyExposure: {fraction: number}; endedAt?: unknown; paused?: boolean; pausedAt?: number; resumedAt?: number; accumulatedPausedMs?: number; exposureSegments?: unknown[]; updatedAt?: unknown};
+type LiveSessionFixture = {id: string; startedAt: number; location: {lat: number; lon: number} | null; bodyExposure: {fraction: number; regions?: string[]}; endedAt?: unknown; paused?: boolean; pausedAt?: number; resumedAt?: number; accumulatedPausedMs?: number; exposureSegments?: unknown[]; reportedInputsVersion?: number; updatedAt?: unknown};
 type LiveDepsFixture = {getSessions: () => LiveSessionFixture[]; getActiveSession: () => LiveSessionFixture | undefined; getSunCoords: () => unknown; fetchAtmosphere: Mock<() => Promise<unknown>>; applyAtmOverrides: (a: unknown) => unknown; reconstructSpectrum: Mock<() => object>; computeChannelDoses: Mock<() => {vitamin_d: number}>; erythemalSED: () => number; fractionOfMED: () => number; solarZenithAngle: () => number; ocularActinicUVdose: () => number; saveImportedData: Mock<() => Promise<unknown>>; hydrateSession: Mock<() => Promise<unknown>>; renderLightChannelsLive: Mock<() => void>};
 let session: LiveSessionFixture, sessions: LiveSessionFixture[], deps: LiveDepsFixture;
 beforeEach(() => {
@@ -20,6 +20,15 @@ beforeEach(() => {
   deps = { getSessions: () => sessions, getActiveSession: () => sessions.find(s => !s.endedAt), getSunCoords: () => null,
     fetchAtmosphere: vi.fn(async () => ({ uvIndex: 3 })), applyAtmOverrides: a => a, reconstructSpectrum: vi.fn(() => ({})), computeChannelDoses: vi.fn(() => ({ vitamin_d: 2 })), erythemalSED: () => 1, fractionOfMED: () => 0.1, solarZenithAngle: () => 40, ocularActinicUVdose: () => 1, saveImportedData: vi.fn(async () => {}), hydrateSession: vi.fn(async () => {}), renderLightChannelsLive: vi.fn() };
   active.configureSunActiveSession(deps);
+  active.configureSunActiveSession({ canPersistActiveSlice: () => true, persistActiveSlice: async () => null });
+});
+it('uses the durable slice owner and avoids appending another ticker slice during its pending write', async () => {
+  const wait = deferred(); let pending = false;
+  const saveSlice = vi.fn(async () => { pending = true; await wait.promise; pending = false; });
+  active.configureSunActiveSession({ canPersistActiveSlice: () => !pending, persistActiveSlice: saveSlice });
+  active.ensureActiveTicker(); await vi.advanceTimersByTimeAsync(0);
+  vi.setSystemTime(1310000); await vi.advanceTimersByTimeAsync(1000); expect(saveSlice).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(2000); expect(saveSlice).toHaveBeenCalledOnce(); expect(session.exposureSegments).toBeUndefined(); wait.resolve!();
 });
 afterEach(() => { active.resetSunActiveSessionState(); vi.restoreAllMocks(); vi.useRealTimers(); });
 const changes: Record<string, () => unknown> = {
@@ -76,6 +85,12 @@ it('weather failure is retried on the next live tick', async () => {
   deps.fetchAtmosphere.mockRejectedValueOnce(Error('offline'));
   active.ensureActiveTicker(); await vi.advanceTimersByTimeAsync(1000);
   expect(deps.fetchAtmosphere).toHaveBeenCalledTimes(2); expect(active.liveDosesFor(session)).not.toBeNull();
+});
+it('a live control waits for the native snapshot already requested by the ticker', async () => {
+  const wait = deferred(); deps.fetchAtmosphere.mockReturnValue(wait.promise); active.ensureActiveTicker();
+  let ready = false; const pending = active.prepareSunLiveAction(session.id).then(() => { ready = true; }); await vi.advanceTimersByTimeAsync(1);
+  expect(ready).toBe(false); expect(deps.fetchAtmosphere).toHaveBeenCalledOnce(); wait.resolve!({ uvIndex: 3 }); await pending;
+  expect(active.liveDosesFor(session)).not.toBeNull(); expect(deps.fetchAtmosphere).toHaveBeenCalledOnce();
 });
 it('repeated ticker installation does not duplicate a pending request or timer', async () => {
   const wait = deferred(); deps.fetchAtmosphere.mockReturnValue(wait.promise);
@@ -142,4 +157,24 @@ it('avoids inventing a resume boundary for legacy records with only accumulated 
   expect(active.commitSunLiveSlice(session)).toBeNull();
   await vi.advanceTimersByTimeAsync(1000);
   expect(active.commitSunLiveSlice(session)).toMatchObject({ startedAt: 1000000, endedAt: 1001000 });
+});
+
+it('does not fetch or display a live estimate for reported intervals whose exposure inputs are unknown', async () => {
+  session.reportedInputsVersion = 1; active.setSunLiveState(session.id, { ratePerMin: { vitamin_d: 10 }, snapshotAt: Date.now() - 1000 });
+  active.ensureActiveTicker(); await vi.advanceTimersByTimeAsync(1000);
+  expect(deps.fetchAtmosphere).not.toHaveBeenCalled(); expect(active.liveDosesFor(session)).toBeNull();
+});
+it('withholds full live totals when an earlier saved interval remains uncalculated', async () => {
+  session.exposureSegments = [{ durationMin: 1, doses: null, calculationStatus: 'pending' }];
+  active.ensureActiveTicker(); await vi.advanceTimersByTimeAsync(1000);
+  expect(deps.fetchAtmosphere).toHaveBeenCalled(); expect(active.liveDosesFor(session)).toBeNull();
+});
+
+it('an open native start dialog cannot start a timer in a profile selected after the dialog opened', async () => {
+  (state as { importedData: unknown }).importedData = { sunDefaults: { fitzpatrick: 'III' } };
+  session.endedAt = 999999; session.bodyExposure.regions = ['face'];
+  const start = vi.fn(async () => 'new-timer'); active.configureSunActiveSession({ startSession: start, getSunCoords: () => ({ lat: 50, lon: 14, source: 'profile-precise' }) });
+  expect(await active.openStartSunSessionDialog()).toBe(true); state.currentProfile = 'other';
+  (document.querySelector('#start-confirm') as HTMLButtonElement).click(); await vi.advanceTimersByTimeAsync(1);
+  expect(start).not.toHaveBeenCalled(); expect(document.querySelector('#start-confirm')).toBeNull();
 });

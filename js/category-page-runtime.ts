@@ -1,4 +1,12 @@
+import {configureValidRuntimeCallbacks} from './runtime-callbacks.js';
 import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
+import { LAB_CATEGORY_LAYOUTS } from '../shared/app-navigation-contract.js';
+import { state } from './state.js';
+/** Session presentation state shared by native tabs and semantic navigation. */
+export function setCategoryViewMode(view: string) {
+  if (!LAB_CATEGORY_LAYOUTS.includes(view as typeof LAB_CATEGORY_LAYOUTS[number])) return false;
+  state.categoryView = view; return true;
+}
 // category-page-runtime.js - Browser runtime adapters for category page hooks.
 
 import {
@@ -55,3 +63,17 @@ export function primeCategoryPageCatalogCache() {
     return catalog;
   });
 }
+
+const categoryPageViewDeps: {renameCategory: ((categoryKey: string) => unknown) | null} = {renameCategory: null};
+export function configureCategoryPageViewDeps(deps: unknown = {}) {
+  return (configureValidRuntimeCallbacks as (current: unknown, updates: unknown, fields: readonly string[]) => {renameCategory: unknown})(categoryPageViewDeps, deps, ['renameCategory']);
+}
+export function renameCategoryFromCategoryPageRuntime(categoryKey: string) {
+  return categoryPageViewDeps.renameCategory?.(categoryKey);
+}
+
+// A direct compatibility import can prepare the body before the route loader.
+type CategoryPageBody = Pick<typeof import('./category-page-view.js'), 'showCategory'>;
+let categoryPageBody: CategoryPageBody | null = null;
+export function registerCategoryPageBody(body: CategoryPageBody): void { categoryPageBody = body; }
+export function getLoadedCategoryPageBody(): CategoryPageBody | null { return categoryPageBody; }

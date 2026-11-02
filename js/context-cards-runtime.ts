@@ -25,7 +25,7 @@ interface ContextHistoryEntry { field?: unknown; date?: unknown; snapshot?: unkn
  * Cycle imports and Chat onboarding both persist through this cold-safe path.
  *
  */
-export function recordContextCardChange(field: string, data = state.importedData) {
+export function recordContextCardChange(field: string, data: import('../types/app-state.js').ProfileData = state.importedData) {
   const today = new Date().toISOString().slice(0, 10);
   const current: unknown = data[field];
   const snapshot: unknown = current != null ? JSON.parse(JSON.stringify(current)) : null;

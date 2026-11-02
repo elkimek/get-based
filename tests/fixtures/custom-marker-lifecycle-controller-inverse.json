@@ -1,0 +1,1151 @@
+[
+  {
+    "file": "js/marker-detail-modal-impl.ts",
+    "currentSHA256": "aba4edbcb2a8354622550b3eabf85a71c2976d0ac579a4bc26e03c3650d08cea",
+    "restoredSHA256": "14e440794acc2bafbfc860995fc61e0adccccdd0b437bbae212480b24e2eaf97",
+    "edits": [
+      {
+        "start": 735,
+        "before": "e.js';\nimport { isBuiltinMarkerKey } from './custom-marker-lifecycl",
+        "after": ""
+      },
+      {
+        "start": 43553,
+        "before": " && !isBuiltinMarkerKey(dotKey)",
+        "after": ""
+      }
+    ]
+  },
+  {
+    "file": "js/marker-detail-custom-markers.ts",
+    "currentSHA256": "7d3df50546e26988d06c5c51ec9c1fde93470c7d902e14dea569f1d48d0861f1",
+    "restoredSHA256": "3d9b13da5e178a066541d23d27b0a3aacd9e3a019387376e1246e2ed29cfdd4b",
+    "edits": [
+      {
+        "start": 0,
+        "before": "import { commitNativeCustomMarkerCreation, readNativeCustomMarker, commitNativeCustomMarkerRemoval } from './custom-marker-store.js';\nimport type { CustomMarkerInput } from './custom-marker-core.js';\n",
+        "after": ""
+      },
+      {
+        "start": 325,
+        "before": "",
+        "after": "createCustomMarkerId } from './custom-marker-identity.js';\nimport { showConfirmDialog, "
+      },
+      {
+        "start": 387,
+        "before": "",
+        "after": "saveImportedData, "
+      },
+      {
+        "start": 419,
+        "before": "",
+        "after": ".js';\nimport { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations"
+      },
+      {
+        "start": 1088,
+        "before": "",
+        "after": "interfa"
+      },
+      {
+        "start": 1089,
+        "before": "",
+        "after": "e DeletedMarkerReader { markerId?: unkn"
+      },
+      {
+        "start": 1090,
+        "before": "",
+        "after": "w"
+      },
+      {
+        "start": 1091,
+        "before": "st",
+        "after": "; name?: unknown;"
+      },
+      {
+        "start": 1095,
+        "before": "re",
+        "after": ""
+      },
+      {
+        "start": 1100,
+        "before": "O",
+        "after": "goryLabel?: unkno"
+      },
+      {
+        "start": 1103,
+        "before": "ers = new WeakMap<HTMLElement, { profileId: string; root: typeof state.importedData",
+        "after": ""
+      },
+      {
+        "start": 1188,
+        "before": ">();",
+        "after": ""
+      },
+      {
+        "start": 1975,
+        "before": "createOwners.set(modal, { profileId: state.currentProfile, root: state.importedData });\n  ",
+        "after": ""
+      },
+      {
+        "start": 2367,
+        "before": "const formIds = ['cm-category', 'cm-new-cat', 'cm-name', 'cm-unit', 'cm-ref-min', 'cm-ref-max', 'cm-opt-min', 'cm-opt-max'];\nfunction formSignature(modal: HTMLElement) {\n  return JSON.stringify([...formIds.map(id => (modal.querySelector('#' + id) as HTMLInputElement | null)?.value ?? null), modal.querySelector('#cm-new-cat-icon')?.textContent, (modal.querySelector('#cm-new-cat-icon') as HTMLElement | null)?.dataset.custom]);\n}\n",
+        "after": ""
+      },
+      {
+        "start": 2804,
+        "before": " async",
+        "after": ""
+      },
+      {
+        "start": 2849,
+        "before": "m",
+        "after": "categ"
+      },
+      {
+        "start": 2851,
+        "before": "da",
+        "after": "rySe"
+      },
+      {
+        "start": 2854,
+        "before": "",
+        "after": "ect"
+      },
+      {
+        "start": 2857,
+        "before": "",
+        "after": "("
+      },
+      {
+        "start": 2882,
+        "before": "detail",
+        "after": "cm"
+      },
+      {
+        "start": 2889,
+        "before": "modal'), owner = modal ? ",
+        "after": ""
+      },
+      {
+        "start": 2915,
+        "before": "re",
+        "after": ""
+      },
+      {
+        "start": 2920,
+        "before": "Owne",
+        "after": "go"
+      },
+      {
+        "start": 2925,
+        "before": "s.get(modal",
+        "after": "y'"
+      },
+      {
+        "start": 2938,
+        "before": ":",
+        "after": "as HTMLSelectElement |"
+      },
+      {
+        "start": 2944,
+        "before": ";\n  if (!modal || !owner",
+        "after": ""
+      },
+      {
+        "start": 2969,
+        "before": " return false",
+        "after": ""
+      },
+      {
+        "start": 2992,
+        "before": "c",
+        "after": "newCategoryInp"
+      },
+      {
+        "start": 2994,
+        "before": "rren",
+        "after": ""
+      },
+      {
+        "start": 3003,
+        "before": ") => state.currentProfile === owner.profileId && state.importedData === owner.root && modal.isConnected && ",
+        "after": ""
+      },
+      {
+        "start": 3135,
+        "before": "d",
+        "after": "cm-n"
+      },
+      {
+        "start": 3137,
+        "before": "",
+        "after": "w-ca"
+      },
+      {
+        "start": 3138,
+        "before": "ail-modal",
+        "after": ""
+      },
+      {
+        "start": 3148,
+        "before": ") === modal;\n  const value = (id: string) => (modal.querySelector('#' + id",
+        "after": ""
+      },
+      {
+        "start": 3251,
+        "before": "",
+        "after": ";\n  const nameInput = (document.getElementById('cm-name') as HTMLInputElement | null);\n  const unitInput = (document.getElementById('cm-unit') as HTMLInputElement | null);\n  const refMinInput = (document.getElementById('cm-ref-min') as HTMLInputElement | null);\n  const refMaxInput = (document.getElementById('cm-ref-max') as HTMLInputElement | null);\n  if (!categorySelect) return;\n  if (!nameInput"
+      },
+      {
+        "start": 3265,
+        "before": "",
+        "after": ")"
+      },
+      {
+        "start": 3266,
+        "before": "|| '';",
+        "after": "{"
+      },
+      {
+        "start": 3275,
+        "before": "if",
+        "after": ""
+      },
+      {
+        "start": 3278,
+        "before": "(!value('cm-name')) {",
+        "after": ""
+      },
+      {
+        "start": 3356,
+        "before": "",
+        "after": "\n   "
+      },
+      {
+        "start": 3363,
+        "before": "",
+        "after": ";\n"
+      },
+      {
+        "start": 3364,
+        "before": "false;",
+        "after": ""
+      },
+      {
+        "start": 3375,
+        "before": "if",
+        "after": "const"
+      },
+      {
+        "start": 3378,
+        "before": "(",
+        "after": "name = nameInput."
+      },
+      {
+        "start": 3384,
+        "before": "",
+        "after": ".trim"
+      },
+      {
+        "start": 3385,
+        "before": "'cm-",
+        "after": ");\n\n  let "
+      },
+      {
+        "start": 3397,
+        "before": "')",
+        "after": "Key: string;\n  let categoryLabel: string;\n  let newCategoryIcon: string | null = null;\n  if (categorySelect.value"
+      },
+      {
+        "start": 3413,
+        "before": "",
+        "after": ")"
+      },
+      {
+        "start": 3414,
+        "before": "&&",
+        "after": "{\n"
+      },
+      {
+        "start": 3417,
+        "before": "!",
+        "after": "   categoryLabel = (newCategoryInput?."
+      },
+      {
+        "start": 3423,
+        "before": "",
+        "after": " || '').trim"
+      },
+      {
+        "start": 3424,
+        "before": "'cm-new-",
+        "after": ");\n    if (!"
+      },
+      {
+        "start": 3435,
+        "before": "')",
+        "after": "egoryLabel"
+      },
+      {
+        "start": 3440,
+        "before": "",
+        "after": "\n     "
+      },
+      {
+        "start": 3499,
+        "before": " return false; }\n  const signature = formSignature(modal), sameInput = () => current() && formSignature(modal) === signature;\n  try {\n    const number = (id: string) => value(id) ? Number(value(id)) : null;\n    const input: CustomMarkerInput = { name: value('cm-name'), unit: value('cm-unit'),\n      ...(value('cm-category') === '__new__' ? { newCategory: value('cm-new-cat') } : { category: value('cm-category') }),",
+        "after": ""
+      },
+      {
+        "start": 3924,
+        "before": "fMi",
+        "after": "tur"
+      },
+      {
+        "start": 3928,
+        "before": ": number('cm-ref-min'), refMax: number('cm-ref-max'),",
+        "after": ";"
+      },
+      {
+        "start": 3986,
+        "before": "  ...(value('cm-opt-min') || value('cm-opt-max') ? { optimalMin: number('cm-opt-min'), optimalMax: number('cm-opt-max') ",
+        "after": ""
+      },
+      {
+        "start": 4107,
+        "before": " : {}) };",
+        "after": ""
+      },
+      {
+        "start": 4141,
+        "before": "",
+        "after": "(docu"
+      },
+      {
+        "start": 4142,
+        "before": "odal",
+        "after": "ent"
+      },
+      {
+        "start": 4147,
+        "before": "qu",
+        "after": "g"
+      },
+      {
+        "start": 4150,
+        "before": "rySelec",
+        "after": ""
+      },
+      {
+        "start": 4158,
+        "before": "or<HTML",
+        "after": ""
+      },
+      {
+        "start": 4172,
+        "before": ">",
+        "after": "ById"
+      },
+      {
+        "start": 4175,
+        "before": "#",
+        "after": ""
+      },
+      {
+        "start": 4193,
+        "before": ",",
+        "after": ""
+      },
+      {
+        "start": 4195,
+        "before": "i",
+        "after": "as HTMLElement | null);\n    newCategoryI"
+      },
+      {
+        "start": 4263,
+        "before": "?",
+        "after": "!"
+      },
+      {
+        "start": 4274,
+        "before": "",
+        "after": "n"
+      },
+      {
+        "start": 4275,
+        "before": "ndefined",
+        "after": "ll"
+      },
+      {
+        "start": 4287,
+        "before": "",
+        "after": "  categoryKey = categoryLabel.replace(/[^a-zA-Z0-9\\s]/g, '').split(/\\s+/)\n      .map((word, index) => index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())\n      .join('');\n    if (!categoryKey || /^\\d/.test(categoryKey)) {\n      categoryKey = 'custom' + categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);\n    }\n  } else {\n    categoryKey = categorySelect.value;\n    categoryLabel = categorySelect.options[categorySelect.selectedIndex]!.text;\n  }\n\n"
+      },
+      {
+        "start": 4295,
+        "before": "",
+        "after": "markerKey = name\n    .re"
+      },
+      {
+        "start": 4298,
+        "before": "",
+        "after": "ce(/[^a-zA-Z0-9\\s]/g, '')\n    .split(/\\s+/)\n    .map((word, index) => index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())\n    .join('');\n  if (!markerKey) {\n    showNotification('Could not generate a valid key from marker name', 'error');\n    return;\n  }\n  const fullKey = categoryKey + '.' + markerKey;\n  const data = getActiveData();\n  const existingCategory = data.categories[categoryKey];\n  if (existingCategory?.markers[markerKey]) {\n    showNotification('A marker with this name already exists in that category', 'error');\n    return;\n  }\n\n  const refMi"
+      },
+      {
+        "start": 4302,
+        "before": "",
+        "after": "refMinInput?.v"
+      },
+      {
+        "start": 4303,
+        "before": "w",
+        "after": "lue ? p"
+      },
+      {
+        "start": 4305,
+        "before": "",
+        "after": "rseFloat(refM"
+      },
+      {
+        "start": 4306,
+        "before": "",
+        "after": "nInpu"
+      },
+      {
+        "start": 4307,
+        "before": "",
+        "after": ".value) : null;\n "
+      },
+      {
+        "start": 4310,
+        "before": "",
+        "after": "nst refMax = refMaxInput?.value ? parseFloat(refMaxInput.value) : null;\n  const validRefMin = refMin != null && !Nu"
+      },
+      {
+        "start": 4311,
+        "before": "",
+        "after": "ber.isNaN(refMin) ? refMin : null;\n  const validRefMax = refMax != null && !Number.isNaN(refMax) ? refMax : null;\n  const optMinInput = (document.getElementById('cm-opt-"
+      },
+      {
+        "start": 4313,
+        "before": "",
+        "after": "n') as HTMLInpu"
+      },
+      {
+        "start": 4314,
+        "before": "N",
+        "after": "Element | null);\n  const optMaxInput = (document.getElementById('cm-opt-max') as HTMLInputElement | null);\n  const optMin = optMinInput?.value ? parseFlo"
+      },
+      {
+        "start": 4317,
+        "before": "",
+        "after": "(optM"
+      },
+      {
+        "start": 4318,
+        "before": "",
+        "after": "nInput."
+      },
+      {
+        "start": 4319,
+        "before": "",
+        "after": "alue) : null;\n  const optMax = optMaxInput?.value ? parseFloat(optMaxInput.value) : null;\n\n  if (!state.importedData.customMarkers) state.importedData.customMarkers = {};\n  state.importedData.customMarkers[fullKey] = {\n    markerId: creat"
+      },
+      {
+        "start": 4332,
+        "before": "Cre",
+        "after": "Id(st"
+      },
+      {
+        "start": 4337,
+        "before": "",
+        "after": "e."
+      },
+      {
+        "start": 4338,
+        "before": "",
+        "after": "mp"
+      },
+      {
+        "start": 4339,
+        "before": "n(",
+        "after": "rtedData.cust"
+      },
+      {
+        "start": 4342,
+        "before": "wn",
+        "after": "mMark"
+      },
+      {
+        "start": 4346,
+        "before": ".profileId",
+        "after": "s)"
+      },
+      {
+        "start": 4357,
+        "before": "",
+        "after": "\n"
+      },
+      {
+        "start": 4358,
+        "before": "i",
+        "after": "   "
+      },
+      {
+        "start": 4360,
+        "before": "put, { allowed: s",
+        "after": ""
+      },
+      {
+        "start": 4380,
+        "before": "",
+        "after": ",\n    unit: (unit"
+      },
+      {
+        "start": 4385,
+        "before": "",
+        "after": "?.value || '').trim()"
+      },
+      {
+        "start": 4386,
+        "before": "",
+        "after": "\n    refMin: validRefMin,\n    refMax: validRefMax,\n    categoryLabel,\n   "
+      },
+      {
+        "start": 4391,
+        "before": "i",
+        "after": "newCategoryI"
+      },
+      {
+        "start": 4404,
+        "before": "",
+        "after": ": newCategoryIcon"
+      },
+      {
+        "start": 4412,
+        "before": "",
+        "after": ",\n "
+      },
+      {
+        "start": 4414,
+        "before": "",
+        "after": ";\n  if (optMin != null && !Number.isNaN(optMin"
+      },
+      {
+        "start": 4415,
+        "before": ";",
+        "after": " && optMax != null && !Number.isNaN(optMax)) {"
+      },
+      {
+        "start": 4426,
+        "before": "cu",
+        "after": "state.importedData.refOve"
+      },
+      {
+        "start": 4430,
+        "before": "",
+        "after": "id"
+      },
+      {
+        "start": 4431,
+        "before": "nt()",
+        "after": "s"
+      },
+      {
+        "start": 4437,
+        "before": "",
+        "after": "state.importedData."
+      },
+      {
+        "start": 4439,
+        "before": "tu",
+        "after": "fOve"
+      },
+      {
+        "start": 4442,
+        "before": "n",
+        "after": "rides"
+      },
+      {
+        "start": 4444,
+        "before": "true",
+        "after": "= {}"
+      },
+      {
+        "start": 4452,
+        "before": "",
+        "after": "  state.importedData.refOverrides[fullKey] = {\n      ...(state.importedData.refOverrides[fullKey] || {}),\n      optimalMin: optMin,\n      optimalMax: optMax,\n    };\n  }\n  saveImportedData();\n"
+      },
+      {
+        "start": 4491,
+        "before": "  if (!sameInput()) { showNotification(`Created \"${plan.name}\". Your newer form input has been kept.`, 'success'); return true; }\n    ",
+        "after": ""
+      },
+      {
+        "start": 4661,
+        "before": "  ",
+        "after": ""
+      },
+      {
+        "start": 4692,
+        "before": "plan.",
+        "after": ""
+      },
+      {
+        "start": 4709,
+        "before": "plan.",
+        "after": ""
+      },
+      {
+        "start": 4722,
+        "before": ".l",
+        "after": "L"
+      },
+      {
+        "start": 4744,
+        "before": "  ",
+        "after": "\n"
+      },
+      {
+        "start": 4759,
+        "before": "pl",
+        "after": "c"
+      },
+      {
+        "start": 4762,
+        "before": "n.",
+        "after": "tegoryKey + '_' + "
+      },
+      {
+        "start": 4773,
+        "before": ".replace('.', '_')",
+        "after": ""
+      },
+      {
+        "start": 4793,
+        "before": "  ",
+        "after": ""
+      },
+      {
+        "start": 4825,
+        "before": "",
+        "after": "\n   "
+      },
+      {
+        "start": 4830,
+        "before": ":",
+        "after": ",\n"
+      },
+      {
+        "start": 4832,
+        "before": "plan.name,",
+        "after": "  "
+      },
+      {
+        "start": 4849,
+        "before": "plan.",
+        "after": "("
+      },
+      {
+        "start": 4858,
+        "before": "",
+        "after": "Input?.value || '').trim()"
+      },
+      {
+        "start": 4859,
+        "before": "",
+        "after": "\n   "
+      },
+      {
+        "start": 4868,
+        "before": "",
+        "after": "val"
+      },
+      {
+        "start": 4869,
+        "before": "nput.r",
+        "after": "dR"
+      },
+      {
+        "start": 4880,
+        "before": "",
+        "after": ",\n"
+      },
+      {
+        "start": 4881,
+        "before": "??",
+        "after": ""
+      },
+      {
+        "start": 4884,
+        "before": "null,",
+        "after": " "
+      },
+      {
+        "start": 4898,
+        "before": "",
+        "after": "val"
+      },
+      {
+        "start": 4899,
+        "before": "nput.r",
+        "after": "dR"
+      },
+      {
+        "start": 4910,
+        "before": "",
+        "after": ",\n"
+      },
+      {
+        "start": 4911,
+        "before": "??",
+        "after": ""
+      },
+      {
+        "start": 4914,
+        "before": "null,",
+        "after": " "
+      },
+      {
+        "start": 4933,
+        "before": "",
+        "after": "\n"
+      },
+      {
+        "start": 4934,
+        "before": "storageDotKey: plan.markerKey",
+        "after": ""
+      },
+      {
+        "start": 4967,
+        "before": "  ",
+        "after": ""
+      },
+      {
+        "start": 4987,
+        "before": " {\n      if (state.currentProfile === owner.profileId && state.importedData === owner.root && !document.querySelector('.modal-overlay.show,.confirm-overlay.show,[data-modal-focus-trap]'))",
+        "after": ""
+      },
+      {
+        "start": 5218,
+        "before": ";\n    }",
+        "after": ""
+      },
+      {
+        "start": 5232,
+        "before": "\n    return true;\n  } catch (error) {\n    if (current()) showNotification(error instanceof Error ? error.message : 'The custom marker could not be saved. Your input is kept.', 'error');\n    return false;\n  }",
+        "after": ""
+      },
+      {
+        "start": 5506,
+        "before": "root = state.importedData, profileId = state.currentProfile, modal = document.getElementById('detail-modal');\n  const current = () => state.currentProfile === profileId && state.importedData === root && (!modal || modal.isConnected && document.getElementById('detail-modal') === modal);\n  if (document.querySelector('.ref-edit-form')) { showNotification('Close the current range editor before removing a marker. Your input is kept.', 'error'); return false; }\n  const ",
+        "after": ""
+      },
+      {
+        "start": 6001,
+        "before": ",",
+        "after": ";\n"
+      },
+      {
+        "start": 6003,
+        "before": "m",
+        "after": " const activeM"
+      },
+      {
+        "start": 6025,
+        "before": "",
+        "after": "\n   "
+      },
+      {
+        "start": 6112,
+        "before": "",
+        "after": "\n   "
+      },
+      {
+        "start": 6129,
+        "before": "k",
+        "after": "dotK"
+      },
+      {
+        "start": 6158,
+        "before": "m",
+        "after": "activeM"
+      },
+      {
+        "start": 6198,
+        "before": "",
+        "after": "\n "
+      },
+      {
+        "start": 6204,
+        "before": "k",
+        "after": "dotK"
+      },
+      {
+        "start": 6215,
+        "before": " false",
+        "after": ""
+      },
+      {
+        "start": 6223,
+        "before": "  try {\n  ",
+        "after": ""
+      },
+      {
+        "start": 6241,
+        "before": "expe",
+        "after": ""
+      },
+      {
+        "start": 6246,
+        "before": "",
+        "after": "a"
+      },
+      {
+        "start": 6248,
+        "before": "d",
+        "after": "goryKey"
+      },
+      {
+        "start": 6252,
+        "before": "awa",
+        "after": "dotKey.spl"
+      },
+      {
+        "start": 6257,
+        "before": " readNativeCustomMarker",
+        "after": ""
+      },
+      {
+        "start": 6281,
+        "before": "profileId, key, current",
+        "after": "'.'"
+      },
+      {
+        "start": 6305,
+        "before": "",
+        "after": "[0]"
+      },
+      {
+        "start": 6309,
+        "before": "",
+        "after": "const"
+      },
+      {
+        "start": 6310,
+        "before": " awa",
+        "after": "defin"
+      },
+      {
+        "start": 6316,
+        "before": " c",
+        "after": "i"
+      },
+      {
+        "start": 6319,
+        "before": "mmitNativeCustomMarkerRemoval(profileId, expected, curre",
+        "after": ""
+      },
+      {
+        "start": 6376,
+        "before": "t);\n    if (state.currentProfile",
+        "after": ""
+      },
+      {
+        "start": 6410,
+        "before": "== profileId &&",
+        "after": ""
+      },
+      {
+        "start": 6444,
+        "before": "",
+        "after": "?.customMarkers?.[dotKey] as DeletedMarkerReader | null | undefined;\n  if (!definition) return;\n  const siblings"
+      },
+      {
+        "start": 6446,
+        "before": "==",
+        "after": ""
+      },
+      {
+        "start": 6449,
+        "before": "roo",
+        "after": "Objec"
+      },
+      {
+        "start": 6453,
+        "before": " && !",
+        "after": ".keys("
+      },
+      {
+        "start": 6490,
+        "before": "?",
+        "after": ")"
+      },
+      {
+        "start": 6492,
+        "before": "[",
+        "after": "filter("
+      },
+      {
+        "start": 6496,
+        "before": "",
+        "after": " => key.startsWith(categoryKey + '.'));\n  const isLastInCategory = siblings.length <= 1;\n  const message = isLastInCategory\n    ? `Delete \"${definition.name}\" and the entire \"${definition.categoryLabel || categoryKey}\" category? This cannot be undone.`\n    : `Delete \"${definition.name}\" and all its values? This cannot be undone.`;\n  if (!await showConfirmDialog(message)) return;\n\n  const keysToDelete = isLastInCategory ? siblings : [dotKey"
+      },
+      {
+        "start": 6497,
+        "before": "",
+        "after": ";\n  const now = Date.now("
+      },
+      {
+        "start": 6498,
+        "before": "",
+        "after": ";\n "
+      },
+      {
+        "start": 6510,
+        "before": "[vi",
+        "after": "k"
+      },
+      {
+        "start": 6514,
+        "before": "wId, value]",
+        "after": "y"
+      },
+      {
+        "start": 6529,
+        "before": "O",
+        "after": "keysToDelete) {\n    const markerId = (state.importedData.customMarkers[key] as DeletedMarkerReader | null | undefined)?.markerId;\n    deleteLa"
+      },
+      {
+        "start": 6531,
+        "before": "ject.e",
+        "after": "E"
+      },
+      {
+        "start": 6540,
+        "before": "i",
+        "after": "yMarkerValu"
+      },
+      {
+        "start": 6550,
+        "before": "",
+        "after": "i"
+      },
+      {
+        "start": 6551,
+        "before": "",
+        "after": "portedD"
+      },
+      {
+        "start": 6552,
+        "before": "r",
+        "after": "ta, "
+      },
+      {
+        "start": 6555,
+        "before": "rR",
+        "after": "y, { now, d"
+      },
+      {
+        "start": 6558,
+        "before": "gis",
+        "after": "leteEmptyEn"
+      },
+      {
+        "start": 6563,
+        "before": "y",
+        "after": "ies: false }"
+      },
+      {
+        "start": 6565,
+        "before": ")",
+        "after": ";\n   "
+      },
+      {
+        "start": 6571,
+        "before": "g",
+        "after": "stat"
+      },
+      {
+        "start": 6573,
+        "before": "",
+        "after": ".impor"
+      },
+      {
+        "start": 6574,
+        "before": "M",
+        "after": "edD"
+      },
+      {
+        "start": 6576,
+        "before": "",
+        "after": "ta."
+      },
+      {
+        "start": 6577,
+        "before": "k",
+        "after": "efOv"
+      },
+      {
+        "start": 6580,
+        "before": "Sto",
+        "after": ""
+      },
+      {
+        "start": 6584,
+        "before": "ag",
+        "after": "id"
+      },
+      {
+        "start": 6587,
+        "before": "DotKey(value, viewId) === key",
+        "after": "s"
+      },
+      {
+        "start": 6631,
+        "before": "",
+        "after": "i"
+      },
+      {
+        "start": 6632,
+        "before": "",
+        "after": "portedD"
+      },
+      {
+        "start": 6633,
+        "before": "",
+        "after": "ta."
+      },
+      {
+        "start": 6634,
+        "before": "",
+        "after": "efOverrides["
+      },
+      {
+        "start": 6636,
+        "before": "rRegistr",
+        "after": ""
+      },
+      {
+        "start": 6645,
+        "before": "[viewId",
+        "after": ""
+      },
+      {
+        "start": 6663,
+        "before": "",
+        "after": "state.importedData.markerNotes) delete state.importedData.markerNotes[key];\n    if (state.importedData.markerLabels) delete state.importedData.markerLabels[key];\n    if (markerId && state.importedData.markerPla"
+      },
+      {
+        "start": 6664,
+        "before": "urr",
+        "after": "em"
+      },
+      {
+        "start": 6670,
+        "before": "()",
+        "after": "s"
+      },
+      {
+        "start": 6680,
+        "before": "",
+        "after": "  delete state.importedData.markerPlacements[markerId as string];\n    }\n    delete state.importedData.customMarkers[key];\n  }\n  deleteEmptyLabEntries(state.importedData);\n  saveImportedData();\n"
+      },
+      {
+        "start": 6715,
+        "before": "",
+        "after": "\n "
+      },
+      {
+        "start": 6750,
+        "before": "",
+        "after": "\n "
+      },
+      {
+        "start": 6771,
+        "before": "",
+        "after": "\n "
+      },
+      {
+        "start": 6817,
+        "before": "    ",
+        "after": ""
+      },
+      {
+        "start": 6838,
+        "before": "",
+        "after": "\n    "
+      },
+      {
+        "start": 6850,
+        "before": "",
+        "after": "d"
+      },
+      {
+        "start": 6851,
+        "before": "xpec",
+        "after": "fini"
+      },
+      {
+        "start": 6856,
+        "before": "ed",
+        "after": "ion"
+      },
+      {
+        "start": 6865,
+        "before": "",
+        "after": "${isLastInCategory && siblings.length > 1 ? `"
+      },
+      {
+        "start": 6870,
+        "before": "",
+        "after": "${s"
+      },
+      {
+        "start": 6871,
+        "before": "",
+        "after": "blings.leng"
+      },
+      {
+        "start": 6872,
+        "before": "",
+        "after": "h - 1} other marker("
+      },
+      {
+        "start": 6873,
+        "before": "",
+        "after": ")`"
+      },
+      {
+        "start": 6874,
+        "before": "reviewed",
+        "after": ":"
+      },
+      {
+        "start": 6883,
+        "before": "results",
+        "after": "''}"
+      },
+      {
+        "start": 6892,
+        "before": "",
+        "after": "\n   "
+      },
+      {
+        "start": 6899,
+        "before": "",
+        "after": ",\n  "
+      },
+      {
+        "start": 6902,
+        "before": "    ",
+        "after": ""
+      },
+      {
+        "start": 6908,
+        "before": "    return true;\n  } catch (error) {\n    if (current() && !(error && typeof error === 'object' && 'cancelledBeforeSave' in error)) showNotification(error instanceof Error ? error.message : 'The custom marker removal could not be confirmed.', 'error');\n    return false;\n  }\n}\n",
+        "after": ""
+      }
+    ]
+  }
+]

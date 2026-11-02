@@ -42,7 +42,7 @@
               <ChatAttachmentMenu {root} canAttach={attachments.canAttach} discussionActive={!!discussion.round}/>
             </div>
             <div class={"chat-composer-actions gb:composer:flex-1 gb:composer:min-w-0 gb:composer:justify-end gb:composer:shrink " + COMPOSER_GROUP}>
-              <button type="button" class={"chat-discuss-btn " + COMPOSER_TOOL_BUTTON} id="chat-discuss-btn" data-chat-action="start-discussion" style:display={discussion.visible ? 'flex' : 'none'} style:opacity={discussion.dim ? '0.5' : '1'} aria-label={discussion.active ? 'Add a discussion participant' : 'Start a discussion'} title={discussion.active ? 'Add a discussion participant' : 'Start a discussion'} onclickcapture={event=>guardDiscussionAction(root,event)}>
+              <button type="button" class={"chat-discuss-btn " + COMPOSER_TOOL_BUTTON} id="chat-discuss-btn" data-chat-action="start-discussion" disabled={discussion.round?.saving} style:display={discussion.visible ? 'flex' : 'none'} style:opacity={discussion.dim ? '0.5' : '1'} aria-label={discussion.active ? 'Add a discussion participant' : 'Start a discussion'} title={discussion.active ? 'Add a discussion participant' : 'Start a discussion'} onclickcapture={event=>guardDiscussionAction(root,event)}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
               </button>
               <ChatModelPicker />

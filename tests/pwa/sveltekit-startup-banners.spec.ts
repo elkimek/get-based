@@ -3,7 +3,7 @@ import path from 'node:path';
 import {expect,test,type Page} from '@playwright/test';
 import {createDefaultProfileData,migrateProfileData} from '../../js/profile.js';
 import {productionRawModuleAssets} from '../../scripts/build-production.mjs';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {artifactInputs,cacheReceipt,profile,activate} from './kit-native-receipts.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';

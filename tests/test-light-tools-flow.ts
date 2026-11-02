@@ -37,6 +37,8 @@ const lightTools = await import('../js/light-tools.js');
     ? (state.importedData as {lightEnvironment: FlowEnvironmentRead | null | undefined}).lightEnvironment!.rooms
     : [{ id: 'lt-probe-room', name: 'Probe Room', light: 'led-cool', hours: '3-6', eveningHours: '<1' }];
   const roomId = (state.importedData as {lightEnvironment: FlowEnvironmentRead | null | undefined}).lightEnvironment!.rooms[0]!.id;
+  localStorage.setItem('labcharts-active-profile', state.currentProfile);
+  assert('Synthetic room fixture is durably committed before measurement commands', await (await import('../js/data.js')).saveImportedData({skipSync:true}));
 
   // ── 1. Pure data readers ─────────────────────────────────────────────
   const all = lightTools.getMeasurements();

@@ -60,6 +60,12 @@ function compareThreads(a: SyncChatThread | null | undefined, b: SyncChatThread 
     || (Number(a?.messageCount) || 0) - (Number(b?.messageCount) || 0)
     || compareStable(a, b);
 }
+const PERSONA_FIELDS = ['personality', 'personalityName', 'personalityIcon', 'personalityUpdatedAt'] as const;
+function personaClock(thread: SyncChatThread) {
+  if (typeof thread.personalityUpdatedAt !== 'string' || PERSONA_FIELDS.some(field => Object.hasOwn(thread, field) && typeof thread[field] !== 'string')) return 0;
+  const value = Date.parse(thread.personalityUpdatedAt); return Number.isFinite(value) && value > 0 ? value : 0;
+}
+const personaProjection = (thread: SyncChatThread) => Object.fromEntries(PERSONA_FIELDS.filter(field => Object.hasOwn(thread, field)).map(field => [field, thread[field]]));
 
 export function mergeChatData(local: SyncChatData | null | undefined, incoming: SyncChatData | null | undefined) {
   const deletedThreads = normalizeChatDeletedThreads(local?.deletedThreads);
@@ -83,6 +89,14 @@ export function mergeChatData(local: SyncChatData | null | undefined, incoming: 
     items.sort((a, b) => compareThreads(b.thread, a.thread));
     const winner = items[0]!;
     let mergedThread = winner.thread;
+    // Renaming or editing messages on an older replica must not reverse an
+    // explicit persona choice. Legacy-only pairs retain their existing policy.
+    const persona = items.filter(item => personaClock(item.thread) > 0).sort((a, b) => personaClock(b.thread) - personaClock(a.thread)
+      || compareStable(personaProjection(b.thread), personaProjection(a.thread)))[0];
+    if (persona) {
+      mergedThread = { ...mergedThread };
+      for (const field of PERSONA_FIELDS) { if (Object.hasOwn(persona.thread, field)) mergedThread[field] = persona.thread[field]; else delete mergedThread[field]; }
+    }
     // Message clocks are independent of metadata: renaming an old copy must
     // not undo a later clear or hide a later message edit on another device.
     const complete = items.filter((item): item is typeof item & { messages: unknown[] } => Array.isArray(item.messages)).sort((a, b) =>
@@ -94,7 +108,7 @@ export function mergeChatData(local: SyncChatData | null | undefined, incoming: 
       // A recovered older body must retain its original clock so an actual
       // complete newer copy can replace it on a subsequent pull.
       if (messagesUpdatedAtMs(complete.thread) !== messagesUpdatedAtMs(winner.thread)) {
-        mergedThread = { ...winner.thread,
+        mergedThread = { ...mergedThread,
           messagesUpdatedAt: new Date(messagesUpdatedAtMs(complete.thread)).toISOString(),
           messageCount: complete.messages.length };
       }
@@ -116,7 +130,7 @@ export function mergeChatData(local: SyncChatData | null | undefined, incoming: 
 }
 
 export function chatHasLocalChanges(local: SyncChatData | null | undefined, remote: SyncChatData | null | undefined) {
-  // Selection is not versioned and can legitimately differ per device. It
+  // The profile's last-active preference can legitimately differ per device. It
   // must not generate a perpetual rebroadcast between otherwise equal chats.
   const snapshot = (data: ReturnType<typeof mergeChatData>) => {
     const { activePersonality: _active, ...rest } = data;

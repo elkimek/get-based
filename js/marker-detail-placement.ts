@@ -2,14 +2,14 @@ import {renderHTML as renderPlacementSummaryHTML} from './components/MarkerPlace
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 import type { ActiveCategory } from './data-view-types.js';
 import type { PlacementViewMarker } from './marker-placement.js';
-import type { NormalizedProfileData } from '../types/app-state.js';
 // marker-detail-placement.js — Marker category placement form and persistence.
 
-import { getActiveData, invalidateActiveDataCache, saveImportedDataForProfile } from './data.js';
+import { getActiveData } from './data.js';
+import { readNativeLabDisplay, commitNativeLabDisplay } from './lab-display-store.js';
+import type { LabDisplaySnapshot } from './lab-display-core.js';
 import { getLabCategoryEntriesInSidebarOrder } from './category-order.js';
 import {projectPlacementSummary,renderPlacementForm} from './marker-placement-presentation.js';
 import {
-  clearMarkerPlacement,
   getMarkerStorageDotKey,
   setMarkerPlacement,
 } from './marker-placement.js';
@@ -33,6 +33,7 @@ const placementRuntime: PlacementCalls = {
 };
 
 const placementMutationProfiles = new Map<string, Promise<boolean>>();
+const placementEditors = new WeakMap<HTMLElement, { profileId: string; root: typeof state.importedData; viewId: string; content: Element | null; expected: LabDisplaySnapshot }>();
 
 export function configureMarkerDetailPlacement(runtime: unknown = {}): MarkerPlacementRuntimeSnapshot {
   return configureRuntimeFunctions(placementRuntime, runtime as Partial<PlacementCalls>, ["showDetailModal"]);
@@ -131,12 +132,19 @@ export function projectMarkerPlacementSummary(id: string, marker: PlacementSumma
 
 export function openMarkerPlacementModal(id: string) {
   if (!safeMarkerId(id)) return false;
-  return openWithMarkerDetailStylesheet(() => renderMarkerPlacementModal(id));
+  const profileId = state.currentProfile, root = state.importedData;
+  return openWithMarkerDetailStylesheet(() => state.currentProfile === profileId && state.importedData === root ? renderMarkerPlacementModal(id) : false);
 }
 
-function renderMarkerPlacementModal(id: string) {
+async function renderMarkerPlacementModal(id: string) {
   const context = getMarkerPlacementChoices(id);
   if (!context) return false;
+  const profileId = state.currentProfile, root = state.importedData, view = state.currentView;
+  const current = () => state.currentProfile === profileId && state.importedData === root && state.currentView === view;
+  let expected: LabDisplaySnapshot;
+  try { expected = await readNativeLabDisplay(profileId, 'markerDisplay', context.storageDotKey, current); }
+  catch (error) { if (current()) showNotification(error instanceof Error ? error.message : 'The placement could not be read.', 'error'); return false; }
+  if (!current()) return false;
   const modal = setDetailModalShell('gb-form-modal', 'marker-placement-form');
   const overlay = document.getElementById('modal-overlay');
   if (!modal || !overlay) return false;
@@ -144,6 +152,7 @@ function renderMarkerPlacementModal(id: string) {
   const nativeLabel = context.data.categories[context.nativeCategoryKey]?.label || context.nativeCategoryKey;
   const moved = context.displayCategoryKey !== context.nativeCategoryKey;
   modal.innerHTML = renderPlacementForm(id,context,currentLabel,nativeLabel,moved);
+  placementEditors.set(modal, { profileId, root, viewId: id, content: modal.firstElementChild, expected });
   openModalOverlay(overlay, { initialFocus: '#marker-placement-category', focusDelay: 20 });
   return true;
 }
@@ -179,73 +188,39 @@ async function runPlacementMutation(profileId: string, mutation: () => Promise<b
   }
 }
 
-async function persistMarkerPlacement(context: NonNullable<ReturnType<typeof getMarkerPlacementContext>>, profileId: string, profileData: NormalizedProfileData, categoryKey: string, action: 'move' | 'restore') {
-  const modal = document.getElementById('detail-modal');
-  const modalContent = modal?.firstElementChild;
-  const overlay = document.getElementById('modal-overlay');
-  const hadPlacements = isRecord(profileData?.markerPlacements);
-  const previousPlacements = clonePlacements(profileData?.markerPlacements);
-  const result = action === 'restore'
-    ? clearMarkerPlacement(profileData, context.markerReference)
-    : setMarkerPlacement(profileData, context.markerReference, categoryKey);
-  if (!result.ok) {
-    showNotification('That marker cannot be placed in the selected category.', 'error');
-    return false;
-  }
-  const destinationCategoryKey = result.categoryKey;
-  const nextId = `${destinationCategoryKey}_${context.markerKey}`;
-  if (!result.changed) {
-    if (state.currentProfile === profileId && state.importedData === profileData) {
-      placementRuntime.showDetailModal(nextId);
+async function persistMarkerPlacement(id: string, categoryKey: string | null) {
+  const modal = document.getElementById('detail-modal'), overlay = document.getElementById('modal-overlay'), editor = modal ? placementEditors.get(modal) : null;
+  const context = getMarkerPlacementContext(id); if (!context) return false;
+  const profileId = state.currentProfile, root = state.importedData, view = state.currentView, content = modal?.firstElementChild;
+  const validEditor = editor && editor.viewId === id && editor.content === content && editor.profileId === profileId && editor.root === root ? editor : null;
+  if (categoryKey !== null && !validEditor) return false;
+  const current = () => state.currentProfile === profileId && state.importedData === root && state.currentView === view
+    && !!modal?.isConnected && modal.firstElementChild === content && !!overlay?.classList.contains('show')
+    && (categoryKey === null || (document.getElementById('marker-placement-category') as HTMLSelectElement | null)?.value === categoryKey);
+  if (!current()) return false;
+  try {
+    const expected = validEditor?.expected || await readNativeLabDisplay(profileId, 'markerDisplay', context.storageDotKey, current);
+    const result = await commitNativeLabDisplay(profileId, expected, categoryKey === null ? { restore: ['category'] } : { category: categoryKey }, current);
+    if (current() && 'name' in result.after) {
+      const destination = result.after.category, nextId = `${destination.key}_${context.markerKey}`;
+      try { buildMarkerDetailSidebarRuntime(); navigateMarkerDetailRuntime(destination.key, getActiveData()); await placementRuntime.showDetailModal(nextId); } catch { /* Placement is already durable. */ }
+      if (state.currentProfile === profileId && state.importedData === root) showNotification(categoryKey === null ? `Restored “${result.after.name}” to ${destination.label}` : `Moved “${result.after.name}” to ${destination.label}. Values and history stayed linked.`, 'success');
     }
     return true;
-  }
-  invalidateActiveDataCache();
-  const saved = await saveImportedDataForProfile(profileId, profileData, {
-    forceProfileScope: true,
-    reason: 'marker-placement',
-  });
-  if (!saved) {
-    if (hadPlacements) (profileData as {markerPlacements: Record<string, unknown>}).markerPlacements = previousPlacements || {};
-    else Reflect.deleteProperty(profileData, 'markerPlacements');
-    invalidateActiveDataCache();
+  } catch (error) {
+    if (current()) showNotification(error instanceof Error ? error.message : 'The placement could not be saved. Your input is kept.', 'error');
     return false;
   }
-  const stillOwnsView = state.currentProfile === profileId
-    && state.importedData === profileData
-    && modal?.firstElementChild === modalContent
-    && overlay?.classList.contains('show');
-  if (!stillOwnsView) return true;
-  const destinationLabel = getActiveData().categories?.[destinationCategoryKey]?.label || destinationCategoryKey;
-  buildMarkerDetailSidebarRuntime();
-  navigateMarkerDetailRuntime(destinationCategoryKey, getActiveData());
-  placementRuntime.showDetailModal(nextId);
-  showNotification(
-    action === 'restore'
-      ? `Restored “${context.marker.name}” to ${destinationLabel}`
-      : `Moved “${context.marker.name}” to ${destinationLabel}. Values and history stayed linked.`,
-    'success',
-  );
-  return true;
 }
-
 export async function saveMarkerPlacement(id: string) {
   if (!safeMarkerId(id)) return false;
-  const select = (document.getElementById('marker-placement-category') as HTMLSelectElement | null);
+  const select = document.getElementById('marker-placement-category') as HTMLSelectElement | null;
   if (!select?.value) return false;
-  const context = getMarkerPlacementContext(id);
-  if (!context) return false;
-  const categoryKey = select.value;
-  const profileId = state.currentProfile;
-  const profileData = state.importedData;
-  return runPlacementMutation(profileId, () => persistMarkerPlacement(context, profileId, profileData, categoryKey, 'move'));
+  const profileId = state.currentProfile, categoryKey = select.value, root = state.importedData;
+  return runPlacementMutation(profileId, () => state.currentProfile === profileId && state.importedData === root ? persistMarkerPlacement(id, categoryKey) : Promise.resolve(false));
 }
-
 export async function restoreMarkerPlacement(id: string) {
   if (!safeMarkerId(id)) return false;
-  const context = getMarkerPlacementContext(id);
-  if (!context) return false;
-  const profileId = state.currentProfile;
-  const profileData = state.importedData;
-  return runPlacementMutation(profileId, () => persistMarkerPlacement(context, profileId, profileData, context.nativeCategoryKey, 'restore'));
+  const profileId = state.currentProfile, root = state.importedData;
+  return runPlacementMutation(profileId, () => state.currentProfile === profileId && state.importedData === root ? persistMarkerPlacement(id, null) : Promise.resolve(false));
 }

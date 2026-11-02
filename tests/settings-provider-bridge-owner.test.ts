@@ -10,16 +10,16 @@ vi.mock('../js/utils.js', () => ({ showNotification: state.notify }));
 vi.mock('../js/settings-cli-agent-panel.js', () => ({ renderCLIAgentProviderPanel: () => '<div>CLI controls</div>' }));
 import { mountAiSettings, getAiSettingsView } from '../js/ai-settings-component.js';
 import { buildAiSettingsSnapshot } from '../js/ai-settings-presentation.js';
-import { configureSettingsProviderBridgeDeps, disposeSettingsProviderPanels, initSettingsProviderPanels, renderAIProviderPanelBridge, switchAIProviderBridge, showCLIAgentProviderBridge, toggleAIPauseBridge } from '../js/settings-provider-bridge.js';
+import { configureSettingsProviderBridgeDeps, disposeSettingsProviderPanels, initSettingsProviderPanels, renderAIProviderPanelBridge, switchAIProviderBridge, showCLIAgentProviderBridge, toggleAIPauseBridge, toggleChatControlsBridge } from '../js/settings-provider-bridge.js';
 import { setChatBackend } from '../js/agent-chat-settings.js';
 function host() {
   const root = document.createElement('section'); document.body.append(root);
   const view = mountAiSettings(root, buildAiSettingsSnapshot({ enabled: !state.paused, hideProviders: false, provider: state.provider, backend: state.backend }), {
-    pause: toggleAIPauseBridge, select: provider => provider === 'cli' ? showCLIAgentProviderBridge() : switchAIProviderBridge(provider),
+    chatControls: toggleChatControlsBridge, pause: toggleAIPauseBridge, select: provider => provider === 'cli' ? showCLIAgentProviderBridge() : switchAIProviderBridge(provider),
   });
   const panel = view.getProviderHost()!; panel.textContent = 'existing'; return panel;
 }
-afterEach(() => { disposeSettingsProviderPanels(); document.body.replaceChildren(); vi.clearAllMocks(); state.provider = 'openrouter'; state.backend = 'direct'; state.paused = false; state.persistPause.mockReset(); state.switchProvider.mockResolvedValue(true); });
+afterEach(() => { disposeSettingsProviderPanels(); document.body.replaceChildren(); vi.restoreAllMocks(); localStorage.removeItem('getbased-chat-controls'); vi.clearAllMocks(); state.provider = 'openrouter'; state.backend = 'direct'; state.paused = false; state.persistPause.mockReset(); state.switchProvider.mockResolvedValue(true); });
 it('returns a host placeholder without starting asynchronous presentation work', async () => {
   expect(renderAIProviderPanelBridge()).toContain('data-ai-provider-loading-host');
   await Promise.resolve(); expect(state.render).not.toHaveBeenCalled();
@@ -68,19 +68,22 @@ it('uses the latest provider when only the stored selection changes while the lo
   expect(state.render).toHaveBeenCalledWith('venice'); expect(getAiSettingsView()?.getSnapshot().activeProvider).toBe('venice'); expect(state.hydrate).toHaveBeenCalledOnce(); expect(state.init).toHaveBeenCalledTimes(2);
 });
 
-it('keeps a rejected feature toggle consistent with persistence and allows a retry', () => {
+it('keeps a rejected feature toggle consistent with persistence and allows a retry', async () => {
   host(); const checkbox = document.querySelector<HTMLInputElement>('#ai-pause-toggle')!;
   state.persistPause.mockImplementationOnce(() => { throw new Error('storage unavailable'); });
   checkbox.click();
+  await vi.waitFor(() => expect(document.body.textContent).toContain('AI features could not be updated'));
   expect(checkbox.checked).toBe(true); expect(state.paused).toBe(false);
   expect(document.body.textContent).toContain('AI features could not be updated');
   expect(state.notify).not.toHaveBeenCalled(); expect(state.focus).not.toHaveBeenCalled();
   checkbox.click();
+  await vi.waitFor(() => expect(state.paused).toBe(true));
+  await vi.waitFor(() => expect(document.body.textContent).not.toContain('AI features could not be updated'));
   expect(checkbox.checked).toBe(false); expect(state.paused).toBe(true);
   expect(document.body.textContent).not.toContain('AI features could not be updated');
   expect(state.notify).toHaveBeenCalledExactlyOnceWith('AI features paused','info');
   expect(state.focus).toHaveBeenCalledOnce();
-  checkbox.click(); expect(checkbox.checked).toBe(true); expect(state.paused).toBe(false);
+  checkbox.click(); await vi.waitFor(() => expect(state.paused).toBe(false)); expect(checkbox.checked).toBe(true);
 });
 it('rejects pause and provider helpers after the parent is disposed', () => {
   host(); disposeSettingsProviderPanels();
@@ -94,4 +97,15 @@ it('restores the selected CLI preview when provider consent is declined', async 
   await vi.waitFor(() => expect(panel.textContent).toBe('CLI controls'));
   expect(getAiSettingsView()?.getSnapshot().activeProvider).toBe('cli');
   expect(state.backend).toBe('codex'); expect(setChatBackend).not.toHaveBeenCalled();
+});
+
+it('saves chat controls independently, keeps failed saves truthful and refreshes cross-tab changes', async () => {
+  host(); const toggle = document.querySelector<HTMLInputElement>('#chat-controls-toggle')!;
+  const setter = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('quota'); });
+  toggle.click(); await vi.waitFor(() => expect(document.body.textContent).toContain('Chat controls could not be updated'));
+  expect(toggle.checked).toBe(true); expect(localStorage.getItem('getbased-chat-controls')).toBeNull(); setter.mockRestore();
+  toggle.click(); await vi.waitFor(() => expect(toggle.checked).toBe(false));
+  expect(localStorage.getItem('getbased-chat-controls')).toMatch(/^0:/); expect(state.paused).toBe(false); expect(state.persistPause).not.toHaveBeenCalled();
+  localStorage.setItem('getbased-chat-controls', '1:' + crypto.randomUUID()); window.dispatchEvent(new StorageEvent('storage', { key: 'getbased-chat-controls' }));
+  expect(toggle.checked).toBe(true); expect(document.body.textContent).not.toContain('Chat controls could not be updated');
 });

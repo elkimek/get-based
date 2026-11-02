@@ -6,10 +6,11 @@ export interface ContextSummaryArea { label: unknown; detail: string }
 const CONTEXT_AREA_LABELS: Readonly<Record<string, unknown>> = {
   profile: 'Profile', genetics: 'Genome', wearables: 'Wearables',
   nutrition: 'Meals & Nutrition', nutritionHistory: 'Meals & Nutrition',
-  emfAssessment: 'EMF Assessment', contextNotes: 'Context Notes', sun: 'Light & Sun',
+  emfAssessment: 'EMF Assessment', contextNotes: 'Context Notes', sun: 'Light & Sun', labSampleResults: 'Lab values',
 };
 
 function sectionDetail(name: string, content: string) {
+  if (name === 'labSampleResults') return `${(content.match(/^\s*- /gm) || []).length} separate samples`;
   if (name === 'wearables') return content.match(/^## Wearables \(([^)]+)\)/m)?.[1] || '';
   if (name === 'nutrition') {
     const selected = [...content.matchAll(/Last (\d+) days: (\d+) meals.*? across (\d+\/\d+) days/gi)].at(-1);
@@ -64,7 +65,9 @@ export function getContextSummary(context: unknown = '') {
     const markerCount = labSections.reduce((sum, content) => sum + (content.match(/^\s*- /gm) || []).length, 0);
     const detail = `${markerCount} marker${markerCount === 1 ? '' : 's'} · ${labSections.length} section${labSections.length === 1 ? '' : 's'}`;
     const collectionIndex = areas.findIndex(area => area.label === 'Lab Collection Context');
-    areas.splice(collectionIndex >= 0 ? collectionIndex : Math.min(1, areas.length), 0, { label: 'Lab values', detail });
+    const samples = seen.get('Lab values');
+    if (samples) samples.detail = `${detail} · ${samples.detail}`;
+    else areas.splice(collectionIndex >= 0 ? collectionIndex : Math.min(1, areas.length), 0, { label: 'Lab values', detail });
   }
   const critical = String(context).match(/^\[critical\]\s*\nFlagged markers[^:]*:\s*([^\n]+)\n\[\/critical\]/m)?.[1];
   if (critical) areas.push({ label: 'Flagged Results', detail: `${critical.split(',').filter(Boolean).length} flagged` });

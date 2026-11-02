@@ -1,8 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { HEALTH_GOAL_STARTERS, HEALTH_GOAL_PRIORITIES, healthGoalRows } from '../health-goals-utils.js';
-  let { initial, current, add, remove, clear, done, close }: {
-    initial: unknown; current(): boolean; add(): void; remove(index: number): void; clear(): void; done(): void; close(): void;
+  let { initial, current, add, remove, prioritize, clear, done, close }: {
+    initial: unknown; current(): boolean; add(): void; remove(index: number): void; prioritize(index: number, severity: string): void; clear(): void; done(): void; close(): void;
   } = $props();
   let goals = $state.raw(untrack(() => initial)), text = $state(''), severity = $state('mild');
   let busy = $state(false), status = $state('');
@@ -14,7 +14,8 @@
     status = message; busy = pending; if (reset) { text = ''; severity = 'mild'; }
   }
   export function focusInput(): void { input?.focus({ preventScroll: true }); }
-  import { button, surfaceButton, choiceButton, input as inputClass, closeButton, goalRemove, editorHeader, editorKicker, editorTitle, editorFooter } from '../context-form-classes.js';
+  export function focusPriority(index: number): void { input?.closest('[data-context-goals-view]')?.querySelector<HTMLSelectElement>(`[data-goal-priority-index="${index}"]`)?.focus({ preventScroll: true }); }
+  import { button, surfaceButton, choiceButton, goalPrioritySelect, input as inputClass, closeButton, goalRemove, editorHeader, editorKicker, editorTitle, editorFooter } from '../context-form-classes.js';
   const surface = choiceButton;
   const priorityColor: Record<string, string> = { major: 'gb:context-form:border-danger gb:context-form:text-danger-ink', mild: 'gb:context-form:border-warning gb:context-form:text-warning-ink', minor: 'gb:context-form:border-success gb:context-form:text-success-ink' };
   function submit(): void { if (current() && !busy) add(); }
@@ -28,7 +29,13 @@
     <p class="gb:context-form:mt-0 gb:context-form:mb-5 gb:context-form:text-[13px] gb:context-form:leading-normal gb:context-form:text-secondary">List things you want to solve or improve. The AI will prioritize analysis around your stated goals.</p>
     {#if rows.length}<ul class="gb:context-form:m-0 gb:context-form:mb-4 gb:context-form:list-none gb:context-form:p-0" aria-label="Saved health goals">
       {#each rows as row (row)}<li class="gb:context-form:mb-1.5 gb:context-form:flex gb:context-form:items-center gb:context-form:gap-2.5 gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:bg-surface gb:context-form:py-2.5 gb:context-form:px-3 gb:context-form:text-[13px] gb:context-form:max-[480px]:flex-wrap">
-        <span class={`gb:context-form:justify-self-start gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:bg-secondary-surface gb:context-form:px-2 gb:context-form:py-0.5 gb:context-form:text-[11px] gb:context-form:font-bold gb:context-form:uppercase gb:context-form:text-ink ${priorityColor[row.severity] || ''}`}>{row.priority}</span>
+        <select data-goal-priority-index={row.index} aria-label={`Priority for goal: ${row.text}`} value={row.severity} disabled={busy} class={`${goalPrioritySelect} ${priorityColor[row.severity] || 'gb:context-form:border-line gb:context-form:text-secondary'}`} onchange={event => {
+          const selected = event.currentTarget; const value = selected.value; selected.value = row.severity;
+          if (current() && !busy && rows.includes(row)) prioritize(row.index, value);
+        }}>
+          {#if !HEALTH_GOAL_PRIORITIES.some(option => option.value === row.severity)}<option value={row.severity} disabled>{row.priority}</option>{/if}
+          {#each HEALTH_GOAL_PRIORITIES as option}<option value={option.value}>{option.label}</option>{/each}
+        </select>
         <span class="goals-text gb:context-form:flex-1 gb:context-form:min-w-0 gb:context-form:text-ink gb:context-form:max-[480px]:col-start-1">{row.text}</span>
         <button type="button" aria-label={`Remove goal: ${row.text}`} title="Remove goal" disabled={busy} class={goalRemove} onclick={() => { if (current() && !busy && rows.includes(row)) remove(row.index); }}>×</button>
       </li>{/each}

@@ -28,7 +28,7 @@ function populated() {
 }
 function engineFor(marker: string) {
   return fixture.engines.find(({ config }) => {
-    const target = config.getTarget('2026-10-08', createDefaultProfileData()) as Record<string, unknown> | null;
+    const target = config.getTarget('2026-10-08', state.importedData) as Record<string, unknown> | null;
     return target?.[marker] === true;
   })!;
 }

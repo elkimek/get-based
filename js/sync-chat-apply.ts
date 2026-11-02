@@ -1,8 +1,7 @@
-import type { SyncChatData, SyncChatThread, mergeChatData } from './sync-chat-merge.js';
+import type { SyncChatData, SyncChatThread } from './sync-chat-merge.js';
 
 // sync-chat-apply.ts - inbound chat sync apply helpers and freshness locks.
 
-import { state } from './state.js';
 import {
   getEncryptionEnabled, isUnlocked, encryptedSetItem, encryptedRemoveItem,
 } from './crypto.js';
@@ -10,54 +9,12 @@ import { chatDeletedThreadsKey, collectChatData } from './sync-payload-collector
 import { logSyncEvent } from './sync-state.js';
 import {
   loadCustomPersonalitiesFromStorage,
-  saveCustomPersonalitiesToStorage,
-  saveCustomPersonalityTombstones,
+  mergeCustomPersonalitiesFromReplica,
 } from './chat-personality-storage.js';
 
-const CHAT_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-local-lock-until';
-const CHAT_PERSONA_LOCAL_LOCK_UNTIL_KEY = 'labcharts-chat-persona-local-lock-until';
-const CHAT_LOCAL_LOCK_MS = 90 * 1000;
-
-export function markChatDataLocal() {
-  try {
-    sessionStorage.setItem(CHAT_LOCAL_LOCK_UNTIL_KEY, String(Date.now() + CHAT_LOCAL_LOCK_MS));
-  } catch {}
-}
-
-export function markCustomPersonalityDataLocal() {
-  // Item timestamps and tombstones protect local persona edits during pulls.
-  try { sessionStorage.removeItem(CHAT_PERSONA_LOCAL_LOCK_UNTIL_KEY); } catch {}
-}
-
-function getLocalChatLockUntil(profileId: string | null | undefined) {
-  if (profileId !== state.currentProfile) return 0;
-  try {
-    const until = Number(sessionStorage.getItem(CHAT_LOCAL_LOCK_UNTIL_KEY) || '0');
-    return Number.isFinite(until) ? until : 0;
-  } catch {
-    return 0;
-  }
-}
-
-export function getChatDataLocalLockRemainingMs(profileId: string | null | undefined) {
-  if (profileId !== state.currentProfile) return 0;
-  return Math.max(
-    0,
-    getLocalChatLockUntil(profileId) - Date.now(),
-  );
-}
-
-async function applyCustomPersonalityState(profileId: string, chatData: SyncChatData, local: SyncChatData | null, merged: ReturnType<typeof mergeChatData>) {
-  if (!Object.hasOwn(chatData, 'customPersonalities') && !Object.hasOwn(chatData, 'customPersonalityDeleted')) return false;
-  const personalities = merged.customPersonalities || [];
-  const tombstones = merged.customPersonalityDeleted || {};
-  const changed = JSON.stringify(local?.customPersonalities || []) !== JSON.stringify(personalities)
-    || JSON.stringify(local?.customPersonalityDeleted || {}) !== JSON.stringify(tombstones);
-  if (!changed) return false;
-  await saveCustomPersonalitiesToStorage(personalities, profileId);
-  await saveCustomPersonalityTombstones(tombstones, profileId);
-  return true;
-}
+import { getChatDataLocalLockRemainingMs } from './sync-chat-local-state.js';
+import { withChatThreadIndexLock, readChatThreadIndexForCommand, writeLockedChatThreadIndex } from './chat-thread-index-storage.js';
+export { markChatDataLocal, markCustomPersonalityDataLocal, getChatDataLocalLockRemainingMs } from './sync-chat-local-state.js';
 
 function writeLocalDeletedThreads(profileId: string, deletedThreads: Record<string, number>) {
   // Deletion markers cannot expire until all replicas have acknowledged them.
@@ -83,12 +40,15 @@ async function applyChatThreadTombstones(profileId: string, existingThreads: rea
     keptThreads.push(thread);
   }
   if (changed) {
-    await encryptedSetItem(`labcharts-${profileId}-chat-threads`, JSON.stringify(keptThreads));
+    await writeLockedChatThreadIndex(profileId, keptThreads);
   }
   return changed;
 }
 
 export async function applyChatData(profileId: string, chatData: unknown) {
+  return withChatThreadIndexLock(profileId, () => applyChatDataLocked(profileId, chatData));
+}
+async function applyChatDataLocked(profileId: string, chatData: unknown) {
   if (!chatData || !Array.isArray((chatData as SyncChatData).threads)) return false;
   if (getEncryptionEnabled() && !isUnlocked()) {
     logSyncEvent('skip', `Chat encryption locked ${profileId.slice(0, 8)}`);
@@ -97,14 +57,17 @@ export async function applyChatData(profileId: string, chatData: unknown) {
   const { mergeChatData } = await import('./sync-chat-merge.js');
   // The thread index is a sensitive key, so writes must use the same encrypted
   // wrapper as normal chat saves.
-  const threadsKey = `labcharts-${profileId}-chat-threads`;
+  let index: Awaited<ReturnType<typeof readChatThreadIndexForCommand>>;
+  try { index = await readChatThreadIndexForCommand(profileId); }
+  catch { logSyncEvent('skip', `Chat index needs review ${profileId.slice(0, 8)}`); return false; }
   const local = await collectChatData(profileId);
+  if (!index.isCurrent()) throw new Error('The conversation index changed during sync collection.');
   const existingThreads = (local?.threads || []) as SyncChatThread[];
   const merged = mergeChatData(local, chatData as SyncChatData);
   const deletedThreads = merged.deletedThreads || {};
   writeLocalDeletedThreads(profileId, deletedThreads);
   const tombstonesChanged = await applyChatThreadTombstones(profileId, existingThreads, deletedThreads);
-  const personalitiesChanged = await applyCustomPersonalityState(profileId, chatData as SyncChatData, local, merged);
+  const personalitiesChanged = (await mergeCustomPersonalitiesFromReplica(chatData as SyncChatData, profileId)).changed;
 
   // Reuse the decrypted snapshot. A second read could observe a different
   // generation, and all locally deleted threads must be excluded from the lock.
@@ -122,7 +85,7 @@ export async function applyChatData(profileId: string, chatData: unknown) {
     const msgKey = `labcharts-${profileId}-chat-t_${threadId}`;
     await encryptedSetItem(msgKey, JSON.stringify(msgs));
   }
-  await encryptedSetItem(threadsKey, JSON.stringify(merged.threads));
+  await writeLockedChatThreadIndex(profileId, merged.threads);
   if ((chatData as SyncChatData).activePersonality) {
     const customIds = new Set((await loadCustomPersonalitiesFromStorage(profileId)).map(item => item.id));
     const requested = String((chatData as SyncChatData).activePersonality);

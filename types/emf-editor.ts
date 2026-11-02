@@ -5,7 +5,7 @@ export interface PhotoOperations {mediaType?: unknown; base64?: unknown; name?: 
 export interface RoomOperations {name?: unknown;location?: unknown;sleeping?: unknown;measurements?: Record<string, MeasurementOperations | undefined> | null; sources?: unknown[] | null; mitigations?: unknown[] | null; photos?: PhotoOperations[] | null;note?: unknown}
 export interface AssessmentOperations {id?:unknown;date?:unknown;label?:unknown;consultant?:unknown;rooms:RoomOperations[];note?:unknown}
 export interface PreviewInput {date?:unknown;consultant?:unknown;rooms:unknown;note?:unknown}
-export interface EditorOptions {onReturn?:unknown;returnLabel?:unknown}
+export interface EditorOptions {onReturn?:unknown;returnLabel?:unknown;assessmentId?:string;isCurrent?:()=>boolean}
 export interface ReturnRoute {label:string;callback:unknown}
 export type SeverityReader = (type: Parameters<typeof getEMFSeverity>[0],value:unknown,sleeping?:Parameters<typeof getEMFSeverity>[2])=>ReturnType<typeof getEMFSeverity>;
 // configureEMFEditor stores only functions/null. The original required hasAIProvider call

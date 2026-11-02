@@ -1,7 +1,7 @@
 import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 
@@ -132,7 +132,9 @@ test.describe('original desktop Settings density', () => {
         await expect(button).toHaveCSS('gap', '4px');
       }
       await expect(page.locator('[data-ai-settings-view] .settings-copy-title').first()).toHaveCSS('font-size', '13px');
-      await expect(page.locator('[data-ai-settings-view] .settings-group-title')).toHaveCSS('font-size', '11px');
+      const groupTitles = page.locator('[data-ai-settings-view] .settings-group-title');
+      await expect(groupTitles).toHaveCount(2);
+      for (const title of await groupTitles.all()) await expect(title).toHaveCSS('font-size', '11px');
       await expect(page.locator('#custom-key-status')).toHaveCSS('font-size', '13px');
       await expect(page.locator('#custom-key-status')).toHaveCSS('line-height', '19.5px');
       for (const id of ['custom-url-input', 'custom-key-input']) {

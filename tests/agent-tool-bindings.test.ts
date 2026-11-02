@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { bindAgentToolDependenciesToProfile } from '../js/agent-tool-bindings.js';
 
 describe('agent tool profile binding', () => {
+  it('preserves a redacted confirmed save after the originating profile changes', async () => {
+    let profile = 'a'; const dependencies = bindAgentToolDependenciesToProfile({ navigate: async () => { profile = 'b'; return { changed: true, settingsSaved: true, opened: 'correlations', undoId: 'PRIVATE_PROOF', details: 'PRIVATE_SELECTION' }; } }, 'a', () => profile);
+    const result = await dependencies.navigate({ view: 'correlations', marker: '' }); expect(result).toMatchObject({ changed: true, settingsSaved: true, dataSaved: false }); expect(JSON.stringify(result)).not.toMatch(/PRIVATE_|undoId|details|opened/);
+  });
   it('discards a tool result if the profile changes during an asynchronous read', async () => {
     let profile = 'a';
     let finish!: (result: unknown) => void;

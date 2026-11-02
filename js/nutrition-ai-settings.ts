@@ -21,16 +21,18 @@ import { getModelPricing } from './schema.js';
 import type { NutritionAISettingsSnapshot, NutritionAIOption } from './nutrition-ai-settings-contract.js';
 
 import type { StoredProviderModel } from './api-provider-storage.js';
+import { NUTRITION_AI_ROUTE_KEY, readNutritionAIRouteRaw, writeNutritionAIRouteRaw } from './nutrition-ai-route-store.js';
 
 type NutritionDiscovery = Awaited<ReturnType<typeof discoverLocalAI>>;
-interface NutritionRouteInput { provider?: unknown; model?: unknown }
-export interface NutritionAIRoute { provider: string; model: string }
+interface NutritionRouteInput { provider?: unknown; model?: unknown; agent?: unknown; target?: unknown }
+export interface NutritionAIRoute { provider: string; model: string; agent?: string; target?: string }
 interface RawCatalogRow { id?: unknown; name?: unknown }
 interface MealSelectionFlags {
   usesChatModel: boolean;
   usesAssistant: boolean;
   usesAutomatic: boolean;
   fallback: boolean;
+  routeValue?: string;
 }
 interface DirectMealRoute {
   adapter: 'direct';
@@ -44,7 +46,7 @@ interface DirectMealRoute {
 export type MealAISelection = (ReturnType<typeof getCodexExecutionRoute> | DirectMealRoute) & MealSelectionFlags;
 type ComparisonModel = Pick<ReturnType<typeof listNutritionVisionModels>[number], 'provider' | 'current' | 'providerCurrent' | 'value'>;
 
-export const NUTRITION_AI_ROUTE_KEY = 'labcharts-nutrition-ai-route';
+export { NUTRITION_AI_ROUTE_KEY };
 
 const PROVIDERS = Object.freeze(['openrouter', 'venice', 'ppq', 'routstr', 'custom', 'ollama']);
 const ROUTE_PROVIDERS = Object.freeze([...PROVIDERS, 'codex']);
@@ -175,6 +177,11 @@ function cleanRoute(value: unknown): NutritionAIRoute | null {
   const provider = String((value as NutritionRouteInput | null | undefined)?.provider || '');
   const model = String((value as NutritionRouteInput | null | undefined)?.model || '').trim();
   if (!ROUTE_PROVIDERS.includes(provider) || !model || model.length > 300) return null;
+  const input = value as NutritionRouteInput;
+  if (input.agent !== undefined || input.target !== undefined) {
+    if (provider !== 'codex' || typeof input.agent !== 'string' || !/^[a-z0-9-]{1,80}$/.test(input.agent) || typeof input.target !== 'string' || !/^[a-z0-9-]{1,80}$/.test(input.target)) return null;
+    return { provider, model, agent: input.agent, target: input.target };
+  }
   return { provider, model };
 }
 
@@ -207,7 +214,7 @@ export function isConfirmedMealVisionModel(provider: string, modelId: unknown) {
 
 export function getNutritionAIRoute() {
   try {
-    return cleanRoute(JSON.parse(localStorage.getItem(NUTRITION_AI_ROUTE_KEY) || 'null'));
+    return cleanRoute(JSON.parse(readNutritionAIRouteRaw() || 'null'));
   } catch {
     return null;
   }
@@ -215,8 +222,7 @@ export function getNutritionAIRoute() {
 
 export function setNutritionAIRoute(route: unknown) {
   const cleaned = cleanRoute(route);
-  if (cleaned) localStorage.setItem(NUTRITION_AI_ROUTE_KEY, JSON.stringify(cleaned));
-  else localStorage.removeItem(NUTRITION_AI_ROUTE_KEY);
+  writeNutritionAIRouteRaw(cleaned ? JSON.stringify(cleaned) : null);
   markAISettingsLocal();
   return cleaned;
 }
@@ -253,7 +259,7 @@ function formattedTokenRate(value: number) {
 }
 
 export function nutritionModelPricing(provider: string, modelId: string) {
-  if (provider === 'codex') return { priceLabel: 'Uses CLI subscription', priceScore: 0 };
+  if (['codex', 'claude', 'hermes', 'opencode', 'grok', 'openclaw'].includes(provider)) return { priceLabel: 'Uses CLI account', priceScore: 0 };
   if (provider === 'ollama') return { priceLabel: 'Local · no token charge', priceScore: 0 };
   if (provider === 'custom') return { priceLabel: 'Endpoint pricing', priceScore: Number.POSITIVE_INFINITY };
   try {
@@ -279,46 +285,41 @@ function modelDisplay(provider: string, model: string) {
   return model;
 }
 
-export function getMealAISelection(): MealAISelection {
-  const provider = getAIProvider();
-  const stored = getNutritionAIRoute();
-  const assistant = getAssistantExecutionRoute();
-  if (stored?.provider === 'codex') {
-    return {
-      ...getCodexExecutionRoute(stored.model, 'image'),
-      usesChatModel: assistant.adapter === 'codex' && assistant.model === stored.model,
-      usesAssistant: assistant.adapter === 'codex' && assistant.model === stored.model,
-      usesAutomatic: false,
-      fallback: false,
-    };
-  }
-  const saved = stored?.provider === provider ? stored : null;
-  if (!saved && assistant.adapter === 'codex') {
+/** Unknown stored shapes never authorize silently falling back to another recipient. */
+export function readNutritionAIRouteState() {
+  const raw = readNutritionAIRouteRaw();
+  if (raw === null) return { raw, recognized: true, route: null };
+  try {
+    const value: unknown = JSON.parse(raw), route = cleanRoute(value);
+    const recognized = !!route && !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === (route.agent ? 4 : 2) && Object.keys(value).every(key => ['provider', 'model', ...(route.agent ? ['agent', 'target'] : [])].includes(key)) && 'provider' in value && 'model' in value && value.provider === route.provider && value.model === route.model;
+    return { raw, recognized, route: recognized ? route : null };
+  } catch { return { raw, recognized: false, route: null }; }
+}
+
+export function getAutomaticMealAISelection(): MealAISelection {
+  const provider = getAIProvider(), assistant = getAssistantExecutionRoute();
+  if (assistant.adapter === 'codex') {
     const codex = getCodexExecutionRoute(assistant.model, 'image');
-    if (codex.available) {
-      return {
-        ...codex,
-        usesChatModel: true,
-        usesAssistant: true,
-        usesAutomatic: true,
-        fallback: false,
-      };
-    }
+    if (codex.available && codex.target === 'local') return { ...codex, usesChatModel: true, usesAssistant: true, usesAutomatic: true, fallback: false };
   }
-  const model = saved?.model || getActiveModelId(provider);
+  const model = getActiveModelId(provider);
   return {
-    adapter: 'direct',
-    provider,
-    model,
-    modelDisplay: saved ? modelDisplay(provider, model) : (getActiveModelDisplay(provider) || model || 'Selected model'),
-    providerDisplay: PROVIDER_LABELS[provider] || provider,
-    usesChatModel: !saved && assistant.adapter === 'direct',
-    usesAssistant: !saved && assistant.adapter === 'direct',
-    usesAutomatic: !saved,
-    fallback: !saved && assistant.adapter === 'codex',
-    local: provider === 'ollama',
+    adapter: 'direct', provider, model,
+    modelDisplay: getActiveModelDisplay(provider) || model || 'Selected model', providerDisplay: PROVIDER_LABELS[provider] || provider,
+    usesChatModel: assistant.adapter === 'direct', usesAssistant: assistant.adapter === 'direct', usesAutomatic: true,
+    fallback: assistant.adapter === 'codex', local: provider === 'ollama',
     available: hasAIProvider(provider) && !!model && isConfirmedMealVisionModel(provider, model),
   };
+}
+
+export function getMealAISelection(): MealAISelection {
+  const saved = readNutritionAIRouteState();
+  if (!saved.recognized) return getMealAISelectionForRoute(null);
+  if (!saved.route) return getAutomaticMealAISelection();
+  const selected = getMealAISelectionForRoute(saved.route), assistant = getAssistantExecutionRoute();
+  const follows = selected.adapter === 'codex' ? assistant.adapter === 'codex' && selected.provider === assistant.provider && selected.target === assistant.target && selected.model === assistant.model
+    : assistant.adapter === 'direct' && selected.provider === getAIProvider() && selected.model === getActiveModelId(selected.provider);
+  return { ...selected, usesChatModel: follows, usesAssistant: follows };
 }
 
 export function getMealAISelectionForRoute(route: unknown): MealAISelection {
@@ -331,8 +332,13 @@ export function getMealAISelectionForRoute(route: unknown): MealAISelection {
     };
   }
   if (saved.provider === 'codex') {
+    const selected = getCodexExecutionRoute(saved.model, 'image');
     return {
-      ...getCodexExecutionRoute(saved.model, 'image'),
+      ...selected,
+      provider: saved.agent || selected.provider, target: saved.target || selected.target,
+      providerDisplay: saved.agent ? saved.agent === selected.provider ? selected.providerDisplay : saved.agent : 'Unbound saved CLI route',
+      available: !!saved.agent && saved.agent === selected.provider && saved.target === selected.target && selected.available && selected.target === 'local',
+      routeValue: JSON.stringify(saved),
       usesChatModel: false,
       usesAssistant: false,
       usesAutomatic: false,
@@ -341,6 +347,7 @@ export function getMealAISelectionForRoute(route: unknown): MealAISelection {
   }
   return {
     adapter: 'direct',
+    routeValue: JSON.stringify(saved),
     provider: saved.provider,
     model: saved.model,
     modelDisplay: modelDisplay(saved.provider, saved.model),
@@ -356,7 +363,8 @@ export function getMealAISelectionForRoute(route: unknown): MealAISelection {
 
 export function listNutritionVisionModels() {
   const current = getMealAISelection();
-  const providerOrder = [current.provider, ...PROVIDERS.filter(provider => provider !== current.provider)];
+  const firstProvider = current.adapter === 'direct' ? current.provider : getAIProvider();
+  const providerOrder = [...new Set([firstProvider, ...PROVIDERS])].filter(provider => PROVIDERS.includes(provider));
   const directModels = providerOrder.flatMap(provider => {
     if (!hasAIProvider(provider)) return [];
     const providerModel = getActiveModelId(provider);
@@ -373,16 +381,17 @@ export function listNutritionVisionModels() {
       value: routeValue(provider, model.id),
     }));
   });
-  const codexModels = listCodexExecutionRoutes('image').map(route => ({
+  const codexModels = listCodexExecutionRoutes('image').filter(route => route.available && route.target === 'local').map(route => ({
     ...route,
-    current: current.provider === 'codex' && route.model === current.model,
+    provider: 'codex', agent: route.provider,
+    current: current.adapter === 'codex' && route.provider === current.provider && route.target === current.target && route.model === current.model && current.available,
     providerCurrent: getAssistantExecutionRoute().adapter === 'codex'
       && getAssistantExecutionRoute().model === route.model,
     guidance: getNutritionModelGuidance(route.model),
     ...nutritionModelPricing('codex', route.model),
-    value: routeValue('codex', route.model),
+    value: routeValue('codex', route.model, { agent: route.provider, target: route.target }),
   }));
-  return current.provider === 'codex' ? [...codexModels, ...directModels] : [...directModels, ...codexModels];
+  return current.adapter === 'codex' ? [...codexModels, ...directModels] : [...directModels, ...codexModels];
 }
 
 /**
@@ -401,8 +410,8 @@ export function getDefaultNutritionComparisonModelValues(models: ComparisonModel
   return secondary ? [primary.value, secondary.value] : [primary.value];
 }
 
-function routeValue(provider: string, model: string) {
-  return JSON.stringify({ provider, model });
+function routeValue(provider: string, model: string, binding?: { agent: string; target: string }) {
+  return JSON.stringify({ provider, model, ...(binding || {}) });
 }
 
 export function setNutritionAIRouteFromValue(value: string | null | undefined) {
@@ -422,36 +431,30 @@ export function renderNutritionAISettings(): string {
 export function buildNutritionAISettingsSnapshot(): NutritionAISettingsSnapshot {
   const directProvider = getAIProvider();
   const directProviderDisplay = PROVIDER_LABELS[directProvider] || directProvider;
-  const assistant = getAssistantExecutionRoute();
+  const automatic = getAutomaticMealAISelection();
   const selection = getMealAISelection();
   const stored = getNutritionAIRoute();
   const saved = selection.usesAutomatic ? null : stored;
-  const selectedValue = saved ? routeValue(saved.provider, saved.model) : '';
-  const automaticLabel = selection.fallback
-    ? `Automatic fallback — ${selection.modelDisplay} via ${selection.providerDisplay}`
-    : `Follow chat assistant — ${selection.modelDisplay}`;
+  const selectedValue = saved ? routeValue(saved.provider, saved.model, saved.agent && saved.target ? { agent: saved.agent, target: saved.target } : undefined) : '';
+  const automaticLabel = automatic.fallback
+    ? `Automatic fallback — ${automatic.modelDisplay} via ${automatic.providerDisplay}`
+    : `Follow chat assistant — ${automatic.modelDisplay}`;
   const groups: { label: string; options: NutritionAIOption[] }[] = [];
 
-  if (assistant.adapter === 'codex') {
-    const options = listCodexExecutionRoutes('image').map(model => ({
-      value: routeValue('codex', model.model),
-      label: `${model.modelDisplay} — Uses CLI subscription`,
-    }));
-    if (options.length) groups.push({ label: 'CLI agent vision models', options });
-  }
-  if (hasAIProvider(directProvider)) {
-    const options = modelCatalog(directProvider).map(model => ({
-      value: routeValue(directProvider, model.id),
-      label: `${model.name} — ${model.priceLabel}`,
-    }));
-    if (options.length) groups.push({ label: `${directProviderDisplay} vision models`, options });
+  for (const model of listNutritionVisionModels()) {
+    const groupLabel = `${model.providerDisplay} vision models`;
+    let group = groups.find(row => row.label === groupLabel);
+    if (!group) { group = { label: groupLabel, options: [] }; groups.push(group); }
+    group.options.push({ value: model.value, label: `${model.modelDisplay} — ${model.priceLabel}` });
   }
   const savedChoiceRendered = groups.some(group => group.options.some(option => option.value === selectedValue));
   if (saved && !savedChoiceRendered) {
-    groups.push({ label: 'Saved choice unavailable', options: [{
+    groups.push({ label: selection.available ? 'Saved choice outside current list' : 'Saved choice unavailable', options: [{
       value: selectedValue,
-      label: modelDisplay(saved.provider, saved.model),
+      label: saved.agent ? `${saved.agent} · ${saved.model}` : modelDisplay(saved.provider, saved.model),
     }] });
   }
-  return { selectedValue, automaticLabel, automaticDisabled: !selection.available, providerDisplay: directProviderDisplay, groups };
+  const needsReview = !readNutritionAIRouteState().recognized || !!saved && !selection.available;
+  return { selectedValue, automaticLabel, automaticDisabled: !automatic.available, providerDisplay: directProviderDisplay, groups,
+    ...(needsReview ? { notice: 'The saved meal-photo model is unavailable. Choose a listed model to confirm its connection.' } : {}) };
 }

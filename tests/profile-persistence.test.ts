@@ -40,6 +40,7 @@ let previousProfiles: typeof state.profiles;
 beforeEach(() => {
   previousProfiles = state.profiles;
   state.profiles = [profile('original')];
+  previousDeps = configureProfileDeps({ encryptedGetItem: async () => JSON.stringify(state.profiles) });
 });
 
 afterEach(() => {
@@ -52,7 +53,7 @@ describe('durable profile persistence', () => {
   it('does not publish a failed profile-list snapshot to the cache', async () => {
     const failure = new Error('quota exceeded');
     const showNotification = vi.fn();
-    previousDeps = configureProfileDeps({
+    configureProfileDeps({
       encryptedSetItem: vi.fn<ProfileListStoreDeps['encryptedSetItem']>().mockRejectedValue(failure),
       showNotification,
     });
@@ -71,11 +72,10 @@ describe('durable profile persistence', () => {
     const encryptedSetItem = vi.fn<ProfileListStoreDeps['encryptedSetItem']>(() => new Promise<void>(resolve => {
       finishWrite = resolve;
     }));
-    previousDeps = configureProfileDeps({ encryptedSetItem });
+    configureProfileDeps({ encryptedSetItem });
 
     const creation = createProfile('New profile', { skipInitialSync: true });
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(encryptedSetItem).toHaveBeenCalled());
 
     expect(encryptedSetItem).toHaveBeenCalledOnce();
     expect(getProfiles().map(item => item.id)).toEqual(['original']);
@@ -92,18 +92,16 @@ describe('durable profile persistence', () => {
     const encryptedSetItem = vi.fn<ProfileListStoreDeps['encryptedSetItem']>(() => new Promise<void>(resolve => {
       writeResolvers.push(resolve);
     }));
-    previousDeps = configureProfileDeps({ encryptedSetItem });
+    configureProfileDeps({ encryptedSetItem });
 
     const rename = renameProfile('original', 'Renamed');
     const setSex = setProfileSex('original', 'female');
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(encryptedSetItem).toHaveBeenCalledTimes(1));
 
     expect(encryptedSetItem).toHaveBeenCalledOnce();
     writeResolvers.shift()!();
     await rename;
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(encryptedSetItem).toHaveBeenCalledTimes(2));
 
     expect(encryptedSetItem).toHaveBeenCalledTimes(2);
     writeResolvers.shift()!();
@@ -119,11 +117,10 @@ describe('durable profile persistence', () => {
     const encryptedSetItem = vi.fn<ProfileListStoreDeps['encryptedSetItem']>(() => new Promise<void>(resolve => {
       writeResolvers.push(resolve);
     }));
-    previousDeps = configureProfileDeps({ encryptedSetItem });
+    configureProfileDeps({ encryptedSetItem });
 
     const rename = renameProfile('original', 'Renamed');
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(encryptedSetItem).toHaveBeenCalledTimes(1));
 
     const staleProfiles = getProfiles();
     staleProfiles[0]!.notes = 'Added from stale snapshot';
@@ -132,8 +129,7 @@ describe('durable profile persistence', () => {
     expect(encryptedSetItem).toHaveBeenCalledOnce();
     writeResolvers.shift()!();
     await rename;
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(encryptedSetItem).toHaveBeenCalledTimes(2));
 
     expect(encryptedSetItem).toHaveBeenCalledTimes(2);
     writeResolvers.shift()!();
@@ -155,17 +151,15 @@ describe('durable profile persistence', () => {
     const encryptedSetItem = vi.fn<ProfileListStoreDeps['encryptedSetItem']>(() => new Promise<void>(resolve => {
       writeResolvers.push(resolve);
     }));
-    previousDeps = configureProfileDeps({ encryptedSetItem });
+    configureProfileDeps({ encryptedSetItem });
 
     const creation = createProfile('Concurrent', { skipInitialSync: true });
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(encryptedSetItem).toHaveBeenCalledTimes(1));
 
     const staleSave = saveProfiles(getProfiles());
     writeResolvers.shift()!();
     const createdId = await creation;
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(encryptedSetItem).toHaveBeenCalledTimes(2));
 
     expect(encryptedSetItem).toHaveBeenCalledTimes(2);
     writeResolvers.shift()!();
@@ -178,7 +172,7 @@ describe('durable profile persistence', () => {
 
   it('rebases a retained snapshot from before an intervening write', async () => {
     const encryptedSetItem = vi.fn<ProfileListStoreDeps['encryptedSetItem']>().mockResolvedValue(undefined);
-    previousDeps = configureProfileDeps({ encryptedSetItem });
+    configureProfileDeps({ encryptedSetItem });
 
     const retainedProfiles = getProfiles();
     await renameProfile('original', 'Renamed');
@@ -197,7 +191,7 @@ describe('durable profile persistence', () => {
   });
 
   it('creates distinct profile ids for back-to-back writes', async () => {
-    previousDeps = configureProfileDeps({
+    configureProfileDeps({
       encryptedSetItem: vi.fn<ProfileListStoreDeps['encryptedSetItem']>().mockResolvedValue(undefined),
     });
     const now = vi.spyOn(Date, 'now').mockReturnValue(12345);

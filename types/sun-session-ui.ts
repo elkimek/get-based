@@ -7,7 +7,7 @@ export type DoseReader = Record<string, unknown>;
 export interface SessionReader {
   id?: unknown; startedAt?: unknown; endedAt?: unknown; durationMin?: unknown;
   paused?: unknown; pausedAt?: unknown; accumulatedPausedMs?: unknown;
-  calculationStatus?: unknown; posture?: unknown; surfaceAlbedo?: unknown; notes?: unknown;
+  calculationStatus?: unknown; posture?: unknown; surfaceAlbedo?: unknown; notes?: unknown; exposureSegments?: unknown[];
   safety?: Partial<Record<keyof NonNullable<SunSessionRecord['safety']>, unknown>> | null;
   doses?: DoseReader | null;
   bodyExposure?: Partial<Record<keyof NonNullable<SunSessionRecord['bodyExposure']>, unknown>> | null;

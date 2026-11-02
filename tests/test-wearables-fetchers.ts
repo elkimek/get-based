@@ -569,13 +569,9 @@ const realFetch = window.fetch;
     let rows: Awaited<ReturnType<typeof oura.fetchOuraDailyRange | typeof whoop.fetchWhoopDailyRange | typeof fitbit.fetchFitbitDailyRange | typeof ultrahuman.fetchUltrahumanDailyRange | typeof polar.fetchPolarDailyRange>> | null = null, err: unknown = null;
     try { rows = await oura.fetchOuraDailyRange('expired-token', '2026-04-23', '2026-04-23'); }
     catch (e) { err = e; }
-    // Oura's fetcher swallows per-endpoint errors and logs (returns empty rows).
-    // Either contract is acceptable as long as it doesn't throw an uncaught error.
-    assert('Oura 401 across all endpoints does not crash the fetcher',
-      err === null,
-      err ? `unexpected throw: ${(err as {message?: unknown}).message}` : `rows: ${rows?.length || 0}`);
-    assert('Oura 401 produces zero canonical rows (not a partial / wrong-shape record)',
-      Array.isArray(rows) && rows.length === 0);
+    assert('Oura all-endpoint authorization failure remains actionable',
+      (err as {status?: unknown} | null)?.status === 401);
+    assert('A failed Oura refresh returns no successful canonical batch', rows === null);
   } finally { restoreFetch(); }
 
   try {

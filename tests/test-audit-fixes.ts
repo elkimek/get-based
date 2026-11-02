@@ -512,8 +512,8 @@ return (async function () {
       /import\s+['"]\.\/light-device-ai-analysis\.js['"]/.test(appLightSunFeatures));
     assert('app-ai-interaction-modules.js retains chat import',
       /import\s+['"]\.\/chat\.js['"]/.test(appAiInteractionFeatures));
-    assert('app-ui-shell-modules.js retains the views runtime import',
-      /import\s+['"]\.\/views-runtime\.js['"]/.test(appUiShellFeatures));
+    assert('app-ui-shell-modules.js retains the native navigation owner import',
+      /import\s+['"]\.\/navigation-views\.js['"]/.test(appUiShellFeatures));
   }
 
   // ─── Restore mutated globals ───────────────────────────────────────

@@ -1,3 +1,6 @@
+import { getChatTurnRecovery } from './chat-turn-recovery.js';
+import { normalizeChatToolActivity, type ChatToolActivity } from '../shared/chat-tool-activity.js';
+import { callDirectChatWithTools } from './direct-chat-tools.js';
 // chat-send.js — direct chat send, streaming, stop button, and typewriter state
 
 import { state } from './state.js';
@@ -19,13 +22,13 @@ import {
 } from './chat-composer.js';
 import { autoNameThread, createNewThread } from './chat-threads.js';
 import { injectLensChunks } from './lab-context-output.js';
-import { hasLens, queryLensMulti } from './lens.js';
+import { canQueryLens, queryLensMulti } from './lens.js';
 import { createChatLiveMessage, completeChatLiveMessage, publishChatLiveText } from './chat-live-message-component.js';
 import type { ChatLiveMessageHandle } from './chat-live-message-component.js';
 import { setIconButtonContent } from './chat-icons.js';
 import { renderChatMessages } from './chat-render.js';
 import {
-  CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
+  CHAT_RESPONSE_MAX_TOKENS,
   isAIResponseTruncated,
 } from './chat-continuation.js';
 import {
@@ -125,7 +128,7 @@ export function restoreChatGenerationUI() {
   const container = (document.getElementById('chat-messages') as HTMLElement|null) || active.container;
   active.container = container;
   active.restore(container);
-  if (!active.aiMsgEl?.textContent && !active.typingEl.isConnected) container.appendChild(active.typingEl);
+  if (!active.hasToolActivity() && !active.aiMsgEl?.textContent && !active.typingEl.isConnected) container.appendChild(active.typingEl);
   setChatStreamStatus(`${active.personalityName} is responding.`, { busy: true });
   notifyChatContentAdded(container);
   return true;
@@ -156,6 +159,7 @@ export function createTypewriter(el: HTMLElement, typingEl: HTMLElement, contain
   return {
     update(text: unknown) {
       if (!isCurrent()) return;
+      if (typeof text === 'string' && typeof target === 'string' && !text.startsWith(target.slice(0, displayed))) { displayed = 0; publishChatLiveText(el, ''); }
       target = text;
       if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
         if (timer) { clearTimeout(timer); timer = null; }
@@ -234,8 +238,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   }
   // If currently streaming, abort and return (toggle behavior)
   if (isChatStreaming()) {
-    _chatAbortController?.abort();
-    _chatAbortController = null;
+    stopChatGeneration();
     return;
   }
   if (chatSavePending || isChatThreadInputBlocked()) return;
@@ -274,7 +277,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     : getAIProvider();
   const { requestAIProcessingApproval } = await import('./cloud-ai-consent.js');
   if (!await requestAIProcessingApproval(_msgProvider, { kind: hasImages ? 'image' : 'text' })) return;
-  if (!scopeIsCurrent() || useCodexAgent !== isCodexChatBackend()
+  if (!scopeIsCurrent() || isChatThreadInputBlocked() || useCodexAgent !== isCodexChatBackend()
     || (useCodexAgent ? _msgAgentId !== getAgentHostAgent() || _msgAgentTarget !== getAgentHostTarget() : _msgProvider !== getAIProvider())) return;
 
   // Capture attachments before clearing (they're ephemeral)
@@ -357,6 +360,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     labelEl: null,
     personalityName: getActivePersonality().name,
     isCurrent: scopeIsCurrent,
+    hasToolActivity: () => toolActivity.length > 0,
     restore: next => liveMessage?.restore(next),
     dispose: () => liveMessage?.dispose(),
   };
@@ -376,12 +380,15 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
   let aiMsgEl: HTMLElement|null = null;
   let liveMessage: ChatLiveMessageHandle | null = null;
+  const toolActivity: ChatToolActivity[] = [];
   let typewriter: ReturnType<typeof createTypewriter>|null = null;
 
   try {
     let labContext = buildChatLabContext(text);
     let _lensResultForMsg: Awaited<ReturnType<typeof queryLensMulti>> = null;
-    if (hasLens()) {
+    // Tool-capable chats retrieve only when the model requests document evidence.
+    // Personal gateways cannot call local tools, so retain their baseline retrieval.
+    if (useCodexAgent && isPersonalAgentTarget(_msgAgentTarget) && canQueryLens()) {
       const lensResult = await queryLensMulti(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });
       if (!scopeIsCurrent()) return;
       if (lensResult) {
@@ -437,24 +444,43 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
       if (scopeIsCurrent() && !controller.signal.aborted) typewriter!.update(streamedText);
       else { typewriter!.stop(); controller.abort(); }
     };
+    const onToolActivity = (step: ChatToolActivity) => {
+      if (!scopeIsCurrent() || controller.signal.aborted) return;
+      const index = toolActivity.findIndex(old => old.id === step.id);
+      if (index < 0) toolActivity.push(step); else toolActivity[index] = step;
+      stopChatThinkingStatus(typingEl); typingEl.remove();
+      liveMessage?.setToolActivity([...toolActivity]);
+    };
+    const onKnowledgeResult = (result: NonNullable<Awaited<ReturnType<typeof queryLensMulti>>>) => {
+      if (scopeIsCurrent() && !controller.signal.aborted) _lensResultForMsg = result;
+    };
     let aiResult;
     if (useCodexAgent) {
       const currentThread = state.chatThreads.find(thread => thread.id === state.currentThreadId);
+      const selectedRoute = getAssistantExecutionRoute();
+      const selectedAgentModel = selectedRoute.model;
+      // A native backend may pin its session model. Keep the saved transcript,
+      // but start a fresh backend session when the selected model changed.
+      const resumeAgentThread = currentThread?.chatBackend === 'codex' && selectedAgentModel && currentThread.agentModel === selectedAgentModel
+        && currentThread.agentProvider === selectedRoute.provider && currentThread.agentTarget === selectedRoute.target
+        ? currentThread.agentThreadId : undefined;
       // The native sender serializes historical roles without validating their values.
       aiResult = await (callCodexAgent as RawAgentCaller)({
         prompt: text || 'Respond to the attached image.',
         instructions: `${CHAT_SYSTEM_PROMPT}${personalityPrompt}${multiPersonaInstruction}`,
         labContext,
         profileId: state.currentProfile || '',
+        isCurrent: scopeIsCurrent,
         target: _msgAgentTarget,
-        threadId: currentThread?.agentThreadId,
+        threadId: resumeAgentThread,
         history: apiMessages.slice(0, -1).filter(message => typeof message.content === 'string').map(message => ({
           role: message.role,
           content: (message.content as string),
         })),
         images: attachments.map(attachment => ({ base64: attachment.base64, mediaType: attachment.mediaType })),
         signal: getStreamSignal(),
-        onStream,
+        onStream, onToolActivity,
+        onKnowledgeResult,
       });
       if (!scopeIsCurrent()) return;
       controller.signal.throwIfAborted();
@@ -462,16 +488,21 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         currentThread.agentThreadId = aiResult.threadId;
         currentThread.chatBackend = 'codex';
         currentThread.agentModel = aiResult.model;
+        currentThread.agentProvider = _msgAgentId;
+        currentThread.agentTarget = _msgAgentTarget;
       }
       const agentToolCalls = Array.isArray(aiResult.toolCalls) ? aiResult.toolCalls : [];
       contextSnapshot = mergeAgentContextReceipts(agentToolCalls, contextSnapshot);
     } else {
-      aiResult = await (callChatAPIWithContinuation as RawDirectCaller)({
+      aiResult = await (callDirectChatWithTools as RawDirectCaller)({
+        prompt: text || 'Respond to the attached image.', labContext, profileId: profile, isCurrent: scopeIsCurrent,
+        modelOverride: _msgModelId,
         system: systemPrompt,
         messages: apiMessages,
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
         signal: getStreamSignal(),
-        onStream,
+        onStream, onToolActivity,
+        onKnowledgeResult,
         webSearch: webSearchEnabled,
         provider: _msgProvider,
         reasoningEffort: _msgReasoningEffort,
@@ -479,7 +510,14 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     }
     if (!scopeIsCurrent()) return;
     controller.signal.throwIfAborted();
-    if (useCodexAgent && aiResult.model) {
+    if (!useCodexAgent) {
+      // An intervening API reply is part of the browser transcript, but not an
+      // old CLI session. The next CLI turn must rehydrate the full history.
+      const currentThread = state.chatThreads.find(thread => thread.id === state.currentThreadId);
+      if (currentThread) currentThread.chatBackend = 'direct';
+    }
+    if (!useCodexAgent) contextSnapshot = mergeAgentContextReceipts(aiResult.toolCalls, contextSnapshot);
+    if (useCodexAgent && 'model' in aiResult && aiResult.model) {
       _msgModelId = ((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).model;
       _msgModelDisplay = getAgentModelDisplay(((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).model, getCachedAgentModelCatalog(getAgentHostAgent(), _msgAgentTarget));
     }
@@ -493,7 +531,8 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
 
     // Build assistant message object with context snapshot
     const assistantMsg: ChatSendMessage = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
-    if (useCodexAgent && Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
+    assistantMsg.toolActivity = normalizeChatToolActivity(toolActivity);
+    if (Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
     if (responseTruncated) {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
@@ -568,14 +607,28 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
 
+    const recovery = getChatTurnRecovery(err);
+    if (recovery) {
+      streamOutcome = recovery.stopped ? 'stopped' : 'failed';
+      (state.chatHistory.push as (...messages: unknown[]) => number)({
+        role: 'assistant', ...recovery,
+        ...(toolActivity.length ? { toolActivity: normalizeChatToolActivity(toolActivity) } : {}),
+        personalityName: pendingPersonality.name, personalityIcon: pendingPersonality.icon,
+        provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay,
+      });
+      await saveChatHistory();
+      if (scopeIsCurrent()) renderChatMessages({ preserveScroll: true });
+      return;
+    }
+
     // Abort: save partial streamed text as a normal message
     if (error.name === 'AbortError') {
       streamOutcome = 'stopped';
       // Read partial text from the DOM (typewriter accumulates into textContent)
-      const partialText = aiMsgEl?.textContent?.trim() || '';
-      if (partialText && aiMsgEl) {
+      const partialText = liveMessage?.getText().trim() || '';
+      if ((partialText || toolActivity.length) && aiMsgEl) {
         const personality = getActivePersonality();
-        (state.chatHistory.push as (...messages:unknown[])=>number)({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
+        (state.chatHistory.push as (...messages:unknown[])=>number)({ role: 'assistant', content: partialText || 'Response stopped.', ...(toolActivity.length ? { toolActivity: normalizeChatToolActivity(toolActivity) } : {}), personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
         await saveChatHistory();
         if (!scopeIsCurrent()) return;
         renderChatMessages({ preserveScroll: true });
@@ -595,6 +648,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         (state.chatHistory.push as (...messages:unknown[])=>number)({
           role: 'assistant',
           content: errorMessage,
+          ...(toolActivity.length ? { toolActivity: normalizeChatToolActivity(toolActivity) } : {}),
           error: true,
           errorDetail: technicalMessage,
           personalityName: personality.name,

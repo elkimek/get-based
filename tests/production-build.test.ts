@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {STARTUP_DATA_MODULES} from '../scripts/startup-data-chunks.mjs';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -98,13 +99,44 @@ beforeAll(async () => {
   ), rawAssets);
   // These five bodies are intentionally assembled; their independent contracts
   // below check the document, identity, worker and companion. All copied public
-  // bodies, including physically retained font/SQLite aliases, must stay exact.
+  // bodies stay exact, including all stylesheets and font/SQLite aliases.
+  // Two frozen legacy JS bodies use independently pinned compact encodings;
+  // their complete syntax and notices are also checked by the build.
+  // Public JSON removes only outside-string whitespace; every literal byte
+  // and its original field/duplicate-key order remains exact.
   const assembled = new Set(['/app', '/index.html', '/version.js', '/service-worker-assets.js', '/getbased-companion.mjs']);
+  const legacyEncodings = new Map([
+    ['/vendor/evolu/Db.worker.js', ['f25e314ec4ba8581575537ddc0f290f58ece113a64a8a2cfd049ceb772094e10', '5e04be37348b943afec706709331291f11555180719fa6a6cb4cd0cc65ebf734']],
+    ['/vendor/evolu/evolu-bundle.js', ['95027ae3c7fa7d26ebac2468e3f6d9c70e79e21b40c624919d2fa9fd38ef789a', '1d7aaa40fdc632d47b5d3ae9e265d2903b8ecb7160bad8e2cb634ee5259e0103']],
+  ]);
   for (const url of parseAppShellEntries(rawWorker)) {
     if (assembled.has(url)) continue;
     const supplied = await fs.realpath(path.join(outputRoot, url.slice(1)));
     assert(supplied.startsWith(outputRoot + path.sep), 'Public asset stays inside the artifact: ' + url);
-    assert.deepEqual(await fs.readFile(supplied), await fs.readFile(path.join(root, url.slice(1))), 'Exact current public asset: ' + url);
+    const canonical = await fs.readFile(path.join(root, url.slice(1)));
+    const encoding = legacyEncodings.get(url);
+    if (encoding) {
+      assert.equal(createHash('sha256').update(canonical).digest('hex'), encoding[0], 'Exact frozen legacy source: ' + url);
+      assert.equal(createHash('sha256').update(await fs.readFile(supplied)).digest('hex'), encoding[1], 'Exact complete compact encoding: ' + url);
+      continue;
+    }
+    let expected = canonical;
+    if (url.startsWith('/data/') && url.endsWith('.json')) {
+      // Independent character scan, separate from the producer's regex.
+      let inString = false, escaped = false, compact = '';
+      for (const char of canonical.toString()) {
+        if (inString) {
+          compact += char;
+          if (escaped) escaped = false;
+          else if (char === '\\') escaped = true;
+          else if (char === '"') inString = false;
+        } else if (char === '"') {inString = true; compact += char;}
+        else if (![' ', '\t', '\r', '\n'].includes(char)) compact += char;
+      }
+      expected = Buffer.from(compact);
+      assert.deepEqual(JSON.parse(expected.toString()), JSON.parse(canonical.toString()), 'All public JSON values preserved: ' + url);
+    }
+    assert.deepEqual(await fs.readFile(supplied), expected, 'Exact current public asset encoding: ' + url);
   }
   worker = await readServiceWorkerSource(relative => fs.readFile(path.join(outputRoot, relative), 'utf8'));
   shell = parseAppShellEntries(worker);
@@ -141,7 +173,15 @@ beforeAll(async () => {
         assert(directive.index !== undefined);
         assert.equal(source.slice(directive.index + directive[0].length).trim(), '', 'Trailing generated source-map directive: ' + url);
         assert.equal(directive[1], path.posix.basename(url) + '.map', 'Exact adjacent generated source map: ' + url);
-        const map = object(JSON.parse(await fs.readFile(path.join(outputRoot, url.slice(1) + '.map'), 'utf8')));
+      }
+      // Hidden sidecars carry the same authored-source proof without appending
+      // a per-entry comment that makes identical retry bodies differ.
+      const mapText = await fs.readFile(path.join(outputRoot, url.slice(1) + '.map'), 'utf8').catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT' && !directives.length) return null;
+        throw error;
+      });
+      if (mapText !== null) {
+        const map = object(JSON.parse(mapText));
         assert(Array.isArray(map.sources));
         const entries: unknown[] = map.sources;
         assert(entries.every((entry): entry is string => typeof entry === 'string'));
@@ -163,7 +203,37 @@ beforeAll(async () => {
     kind: 'dynamic', specifier: 'node:async_hooks',
   });
   assert.equal(object(JSON.parse(await fs.readFile('node_modules/svelte/package.json', 'utf8'))).version, '5.57.1');
-  assert.equal(createHash('sha256').update(sources.get(sdkEdge.url)!).digest('hex'),
+  // Hidden maps change immutable filenames and remove only the map directive.
+  // Reconstruct the exact originally accepted transport before its unchanged
+  // full-body hash check. Each renamed import has independently pinned owners.
+  const sdkImports = graph.get(sdkEdge.url)!.dependencies.filter(edge => edge.kind === 'static');
+  assert.equal(sdkImports.length, 3, 'Exact accepted SDK static imports');
+  const acceptedImports = [
+    {legacy: './BaNbYf_w.js', body: '49e31bba082196935782ac14bbedbc2a8e7c4229f918bc086ab5dd08ca015034'},
+    {legacy: './LT_5sPUk.js', owners: 'e513b0fa5435549b28c724448b96192e9ade9e4f88bf3392e2084891ef4d65fb'},
+    {legacy: './BlQsJeXD.js', owners: '7951520c21e07e170694f43c54822eed84ceab419e56a5ee69b920d1ef1305b9'},
+  ];
+  let acceptedSdkBody = sources.get(sdkEdge.url)!;
+  for (const [index, edge] of sdkImports.entries()) {
+    const accepted = acceptedImports[index]!, url = new URL(edge.specifier, origin + sdkEdge.url).pathname;
+    assert(/^\.\/[A-Za-z0-9_-]+\.js$/.test(edge.specifier), 'SDK imports remain local immutable siblings');
+    if ('body' in accepted) assert.equal(createHash('sha256').update(sources.get(url)!).digest('hex'), accepted.body, 'Exact generated preload helper');
+    else {
+      const map = object(JSON.parse(await fs.readFile(path.join(outputRoot, url.slice(1) + '.map'), 'utf8')));
+      assert(Array.isArray(map.sources) && Array.isArray(map.sourcesContent));
+      const contents = map.sourcesContent;
+      assert.equal(contents.length, map.sources.length);
+      const owners = map.sources.map((source: unknown, position: number) => {
+        assert(typeof source === 'string' && source.includes('node_modules/') && typeof contents[position] === 'string');
+        return [source.replace(/^.*node_modules\//, 'node_modules/'), contents[position]];
+      });
+      assert.equal(createHash('sha256').update(JSON.stringify(owners)).digest('hex'), accepted.owners, 'Exact accepted dependency source identities and bodies');
+    }
+    assert.equal(acceptedSdkBody.split(JSON.stringify(edge.specifier)).length, 2, 'One exact SDK import literal');
+    acceptedSdkBody = acceptedSdkBody.replace(JSON.stringify(edge.specifier), JSON.stringify(accepted.legacy));
+  }
+  acceptedSdkBody += '\n//# sourceMappingURL=Z0I8Wkyl.js.map';
+  assert.equal(createHash('sha256').update(acceptedSdkBody).digest('hex'),
     'abdf1a51dd479b1c17b56a67452b1f4d8099bb32870b9ef0284c3800a0390ff8',
     'Complete accepted SDK chunk retains its async callback and caught import');
   const sdkMap = object(JSON.parse(await fs.readFile(path.join(outputRoot, sdkEdge.url.slice(1) + '.map'), 'utf8')));
@@ -265,6 +335,26 @@ describe('shipping SvelteKit production build', () => {
     expect(closure(entryPoints, true).size).toBeGreaterThan(closure(entryPoints, false).size);
     // Startup and first-use transfer are independently enforced for every one
     // of 12 real browser journeys by the ordinary performance:check CI step.
+  });
+
+  it('combines only the exact already-eager data helpers into one client startup chunk', () => {
+    const owners = new Set<string>(STARTUP_DATA_MODULES), chunks = new Set<string>();
+    for (const module of owners) {
+      const matches = [...sourceMaps].filter(([, sources]) => sources.some(source => source.endsWith('/' + module))).map(([url]) => url);
+      expect(matches, 'One actual emitted owner: ' + module).toHaveLength(1);
+      chunks.add(matches[0]!);
+    }
+    expect(chunks.size).toBe(1);
+    const chunk = [...chunks][0]!;
+    // Kit loads the actual application through its route boundary; its HTML
+    // loader entry alone is not the application startup dependency graph.
+    const main = [...sourceMaps].filter(([, sources]) => sources.some(source => source.endsWith('/js/main.js'))).map(([url]) => url);
+    expect(main, 'One real application main owner').toHaveLength(1);
+    expect(closure(entryPoints, true).has(main[0]!), 'Kit reaches the real application').toBe(true);
+    expect(closure(main, false).has(chunk), 'Real application startup statically reaches the data group').toBe(true);
+    const actual = sourceMaps.get(chunk)!.map(source => source.replace(/^.*?\/(js|shared)\//, '$1/'));
+    expect(actual.sort()).toEqual([...owners].sort());
+    expect(graph.get(chunk)!.dependencies).toEqual([]);
   });
 
   it('keeps every inbound sync reconciliation owner out of the startup static closure', () => {

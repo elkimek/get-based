@@ -41,12 +41,15 @@ import type { StoredWearableRow } from './wearable-storage-types.js';
 import type { WearableMetricSummary } from './wearables-summary-model.js';
 import {renderWearableDetailView,type WearableManualEntriesView,type WearableManualEntryView,type WearableDetailStatView,type WearableDetailFeedbackView,type WearableDetailSourceView,type WearableDetailRangeView} from './wearable-detail-presentation.js';
 import {wearableEmptyText} from './wearable-strip-empty-presentation.js';
+import { routeRevision } from './route-lifecycle.js';
+import { writeHistoryViewPreferencesNow } from './history-view-preferences.js';
+import { registerReadonlyHistorySurface } from './readonly-history-surfaces.js';
 
 interface WearableSeriesPoint { date: StoredWearableRow['date']; v: number }
 interface ManualDetailPoint extends Pick<StoredWearableRow, 'date'> {
   v: unknown; pairedV: unknown; tags: unknown; note: unknown;
 }
-export interface WearableDetailOptions { fromRangeToggle?: unknown }
+export interface WearableDetailOptions { fromRangeToggle?: unknown; isCurrent?: () => boolean; range?: string }
 // Private consumed operations describe the original unchecked summary readers;
 // restored storage is not normalized or validated by this module.
 type DetailMetricReader = WearableMetricSummary;
@@ -96,16 +99,25 @@ function getWearableDetailRange() {
 
 export function setWearableDetailRange(metricId: string, rangeKey: unknown) {
   if (!WEARABLE_DETAIL_RANGES.some(r => r.key === rangeKey)) return;
-  localStorage.setItem(WEARABLE_DETAIL_RANGE_KEY, rangeKey as string);
+  writeHistoryViewPreferencesNow({ wearableRange: rangeKey as '90d' | '6m' | '1y' | 'all' });
   openWearableDetail(metricId, { fromRangeToggle: true });
 }
 
 // Monotonic op token: fast successive clicks on different cards should not
 // land mismatched data in the shared detail modal.
 let _detailOp = 0;
+let detailSurface: { current: () => boolean; modal: HTMLElement; metric: string; releaseSurface?: () => void } | null = null;
+function ownsReadonlyWearableDetail() {
+  return !!detailSurface && detailSurface.current() && !detailSurface.modal.querySelector('#wearable-manual-add-slot')?.childElementCount;
+}
 
 export async function openWearableDetail(metricId: string, opts: WearableDetailOptions = {}) {
   const op = ++_detailOp;
+  const profile = state.currentProfile, root = state.importedData, route = routeRevision();
+  const modalBefore = document.getElementById('detail-modal'), overlayBefore = document.getElementById('modal-overlay'), contentBefore = modalBefore?.firstElementChild, shownBefore = overlayBefore?.classList.contains('show');
+  const pending = () => op === _detailOp && state.currentProfile === profile && state.importedData === root && routeRevision() === route && opts?.isCurrent?.() !== false
+    && document.getElementById('detail-modal') === modalBefore && modalBefore?.firstElementChild === contentBefore && document.getElementById('modal-overlay') === overlayBefore && overlayBefore?.classList.contains('show') === shownBefore;
+  if (!pending()) return;
   const summary = state.importedData?.wearableSummary;
   const normalizedMetricId = metricId === 'bp_diastolic' && summary?.metrics?.bp_systolic
     ? 'bp_systolic'
@@ -119,9 +131,9 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
 
   if (!opts.fromRangeToggle) rememberWearableDetailModalTriggerRuntime();
 
-  const rangeKey = getWearableDetailRange();
+  const rangeKey = opts.range && WEARABLE_DETAIL_RANGES.some(range => range.key === opts.range) ? opts.range : getWearableDetailRange();
   const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0]!;
-  const profileId = getActiveProfileId();
+  const profileId = profile || getActiveProfileId();
   const endDate = isoDay();
   let startDate;
   if (rangeDef.days == null) {
@@ -139,6 +151,7 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
   const pairedMetric = pairedMetricId ? summary?.metrics?.[pairedMetricId] : null;
   try {
     rows = await getDailyRange(profileId, m.primarySource, startDate, endDate);
+    if (!pending()) return;
     if (pairedMetricId && pairedMetric?.primarySource && pairedMetric.primarySource !== m.primarySource) {
       pairedRows = await getDailyRange(profileId, pairedMetric.primarySource, startDate, endDate);
     } else {
@@ -148,7 +161,7 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
     showNotification?.(`Couldn't read local history: ${getErrorMessage(e)}`, 'error', 4000);
     return;
   }
-  if (op !== _detailOp) return;
+  if (!pending()) return;
 
   const series = (rows
     .map(r => ({ date: r.date, v: r[normalizedMetricId] }))
@@ -170,7 +183,7 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
     } catch {
       manualRows = [];
     }
-    if (op !== _detailOp) return;
+    if (!pending()) return;
   }
 
   const manualEntries = manualRows
@@ -224,6 +237,10 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
     : modal.querySelector('.modal-close');
   if (focusTarget instanceof HTMLElement) focusTarget.focus();
   _installWearableModalFocusTrap(modal);
+  const content = modal.firstElementChild;
+  detailSurface?.releaseSurface?.();
+  detailSurface = { metric: normalizedMetricId, modal, current: () => state.currentProfile === profile && state.importedData === root && routeRevision() === route && modal.isConnected && overlay.isConnected && document.getElementById('detail-modal') === modal && document.getElementById('modal-overlay') === overlay && modal.firstElementChild === content && overlay.classList.contains('show') };
+  const surface = detailSurface; surface.releaseSurface = registerReadonlyHistorySurface('wearableDetail', () => detailSurface === surface && ownsReadonlyWearableDetail(), normalizedMetricId);
 
   const canvas = document.getElementById('chart-modal');
   if (canvas && (series.length > 0 || pairedSeries.length > 0 || manualChartEntries.length > 0)) {
@@ -239,6 +256,7 @@ let _modalTrapHandler: ((e: KeyboardEvent) => void) | null = null;
 export function _uninstallWearableModalFocusTrap() {
   // Closing the shared shell must also cancel history reads from range toggles.
   _detailOp++;
+  detailSurface?.releaseSurface?.(); detailSurface = null;
   removeWearableModalFocusTrap();
 }
 

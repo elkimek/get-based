@@ -18,6 +18,9 @@ import { DELTA_ARRAY_CONFIG, DELTA_MAP_CONFIG } from './sync-delta-surface-confi
 import { mergeArrayRowsIntoImported } from './sync-delta-array-merge.js';
 import { mergeMapRowsIntoImported } from './sync-delta-map-merge.js';
 import { mergeScalarRowsIntoImported } from './sync-delta-scalar-merge.js';
+import { packLabPanelRows } from './lab-panel-identity.js';
+import type { LabEntryDraft } from './lab-entry.js';
+import { reconcileGeneticsSnpState } from './genetics-snp-lifecycle.js';
 
 const mergeQueryAccess = createDeltaQueryAccess();
 export type PulledMapSnapshots = Record<string, Record<string, {key?: string; hash: string | null}>>;
@@ -37,8 +40,9 @@ function _currentItemRowQuery() {
 /** Only the exact row value that survived durable pull persistence is a receipt. */
 export function acknowledgePulledArrayVersions(profileId: string, committed: DeltaImportedData, versions: PulledArrayVersions = {}) {
   for (const [arrayName, candidates] of Object.entries(versions)) {
-    const items = getAt(committed, arrayName);
-    if (!Array.isArray(items)) continue;
+    const stored = getAt(committed, arrayName);
+    if (!Array.isArray(stored)) continue;
+    const items = arrayName === 'entries' ? packLabPanelRows(stored as LabEntryDraft[]) : stored;
     const itemIdFn = DELTA_ARRAY_CONFIG[arrayName]?.itemIdFn
       ?? ((item: {id?: unknown}) => typeof item?.id === 'string' ? item.id : null);
     const matching = Object.fromEntries(items.flatMap(item => {
@@ -140,7 +144,14 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
   resetPullDeltaSnapshot(profileId);
   const _DELTA_MAPS_SET = new Set(DELTA_MAPS);
   const _DELTA_SCALARS_SET = new Set(DELTA_SCALARS);
+  // Lifecycle state precedes transport deletes and metadata, independently of
+  // relay scan order. A final reconciliation also covers metadata-only rows.
+  const lifecycle = byArray.get('geneticsLifecycle');
+  if (lifecycle) await mergeMapRowsIntoImported(imported, 'geneticsLifecycle', lifecycle);
+  const snpHistory = byArray.get('geneticsSnpTombstones');
+  if (snpHistory) await mergeMapRowsIntoImported(imported, 'geneticsSnpTombstones', snpHistory);
   for (const [arrayName, arrRows] of byArray) {
+    if (arrayName === 'geneticsSnpTombstones' || arrayName === 'geneticsLifecycle') continue;
     if (_DELTA_SCALARS_SET.has(arrayName!) || arrayName === PROFILE_METADATA_SURFACE) continue;
     if (_DELTA_MAPS_SET.has(arrayName!)) {
       await mergeMapRowsIntoImported(imported, arrayName!, arrRows, {onValue: (id, value) => {
@@ -173,5 +184,5 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
       onVersion: version => {if (options.scalarVersions) options.scalarVersions[field] = version;},
     });
   }
-  return imported;
+  reconcileGeneticsSnpState(imported); return imported;
 }

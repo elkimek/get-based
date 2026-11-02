@@ -2,6 +2,7 @@
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildCompanionBundle } from '../scripts/build-companion-bundle.mjs';
@@ -25,5 +26,8 @@ describe('companion distribution bundle', () => {
     expect(source).toContain('health.getbased.companion');
     expect(source).toContain('schtasks.exe');
     expect(source).not.toMatch(/from\s+['"]\.\.?\//);
+    expect(() => execFileSync(process.execPath, ['--check', result.outputPath], { encoding: 'utf8' })).not.toThrow();
+    const help = execFileSync(process.execPath, [result.outputPath, '--help'], { encoding: 'utf8' });
+    expect(help).toBe(execFileSync(process.execPath, ['bin/getbased-companion.js', '--help'], { encoding: 'utf8' }));
   });
 });
