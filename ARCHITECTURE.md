@@ -1606,7 +1606,9 @@ the higher-layer behavior through a narrow runtime seam.
   Patient names use conventional Czech, Slovak or English fictional names.
   Specific Czech/Slovak label vocabulary supplies the language hint; shared,
   mixed or unknown clues use English aliases without suppressing name removal.
-  Reported sex takes priority over profile sex. Explicit
+  Reported sex, including multiline fields, takes priority over profile sex.
+  Aliases avoid original labeled name components so final privacy validation
+  cannot mistake an intentional replacement for retained identity. Explicit
   name fields include short names; standalone matches preserve measured clinical
   rows. Lab values, units, test names, age and collection/report dates retain
   their source meaning. The local-model review displays and sends the finalized

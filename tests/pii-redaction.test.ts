@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import crypto from 'node:crypto';
 import {PATIENT_PLACEHOLDER, detectSexFromPDF, parsePersonName, parseReportDate, patientPseudonym, redactReportText, reportLanguageHint} from '../js/pii-redaction.js';
 import {hmacSha256, sha256} from '../js/pii-pseudonym.js';
-import {obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming} from '../js/pii.js';
+import {finalizePIIResult, obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming} from '../js/pii.js';
 import {state} from '../js/state.js';
 
 // Every identifier below is synthetic (fictional names, 555 phone numbers, made-up IDs).
@@ -215,12 +215,27 @@ describe('report-scoped redaction in pii.js', () => {
     expect(localStorage.getItem('labcharts-profile-a-pii-pseudonym-key')).toBeNull();
     if (mode === 'stream') expect(chunks.join('')).toContain(supplied);
   });
+
+  it.each(['plain', 'stream'] as const)('accepts copied aliases for separately labeled names through the %s model path', async mode => {
+    localStorage.setItem('labcharts-ollama-pii-url', 'http://localhost:11434');
+    localStorage.setItem('labcharts-ollama-pii-model', 'privacy-qwen:7b');
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (!url.endsWith('/v1/chat/completions')) return Response.json({});
+      const body = JSON.parse(String(init?.body)) as {messages: Array<{content: string}>};
+      const content = body.messages[0]!.content.split('TEXT TO PROCESS:\n')[1]!;
+      if (mode === 'plain') return Response.json({choices: [{message: {content}}]});
+      return new Response(`data: ${JSON.stringify({choices: [{delta: {content}}]})}\n\ndata: [DONE]\n\n`, {headers: {'Content-Type': 'text/event-stream'}});
+    }));
+    const input = 'First Name: John\nSurname: Smith\nSex: Male\nGlucose 91 mg/dL';
+    const output = mode === 'plain' ? await sanitizeWithOllama(input) : await sanitizeWithOllamaStreaming(input, () => {}, undefined, () => {});
+    expect(output).toBe('First Name: Richard Roe\nSurname: Richard Roe\nSex: Male\nGlucose 91 mg/dL');
+  });
 });
 
 describe('names that are also calendar words', () => {
   it('removes full names like "Jan Novotny" or "May Ortega" without touching month words elsewhere', () => {
     const out = redactReportText('Jmeno: Jan Novotny\nPatient Name: May Ortega\nCollected: May 3, 2026\nORTEGA, MAY', {key: 'k'}).text;
-    expect(out).toBe('Jmeno: Jan Novák\nPatient Name: Jan Novák\nCollected: May 3, 2026\nJan Novák');
+    expect(out).toBe('Jmeno: Petr Svoboda\nPatient Name: Petr Svoboda\nCollected: May 3, 2026\nPetr Svoboda');
   });
 });
 
@@ -341,6 +356,16 @@ describe('Slovak redaction and report-language hints', () => {
     expect(patientPseudonym('Meno: Anna Kováčová', 'female')).toBe('Petra Horváthová');
   });
 
+  it.each([
+    ['Sex:\nFemale', 'female', 'Patient', 'Jane Doe'],
+    ['Gender\nMale', 'male', 'Patient', 'John Doe'],
+    ['Pohlaví:\r\nŽena', 'female', 'Jméno', 'Jana Nováková'],
+    ['Pohlavie:\nžena', 'female', 'Meno', 'Petra Horváthová'],
+  ] as const)('retains reported sex across line breaks: %s', (field, sex, label, alias) => {
+    expect(detectSexFromPDF(field)).toBe(sex);
+    expect(patientPseudonym(`${label}: Anna Kováčová\n${field}`, sex === 'female' ? 'male' : 'female')).toBe(alias);
+  });
+
   it('does not reuse the original Slovak name when it equals a fixed alias', () => {
     expect(patientPseudonym('Meno: Peter Horvath\nPohlavie: muž')).toBe('Ján Novák');
     expect(patientPseudonym('Meno: Petra Horváthová\nPohlavie: žena')).toBe('Jana Nováková');
@@ -370,6 +395,51 @@ describe('Slovak redaction and report-language hints', () => {
 
 describe('review findings on PR #1699', () => {
   const run = (input: string, extra: Record<string, unknown> = {}) => redactReportText(input, {key: 'k', profileName: 'Demo', ...extra}).text;
+
+  it.each([
+    ['First Name: John\nSurname: Smith\nSex: Male', 'Richard Roe'],
+    ['First Name: Jane\nSurname: Smith\nSex: Female', 'Mary Roe'],
+    ['Jméno: Jan\nPříjmení: Dvořák\nPohlaví: muž', 'Petr Svoboda'],
+    ['Meno: Peter\nPriezvisko: Kováč\nPohlavie: muž', 'Ján Novák'],
+    ['Meno: Petra\nPriezvisko: Kováčová\nPohlavie: žena', 'Jana Nováková'],
+  ])('avoids original labeled name components in aliases: %s', (input, alias) => {
+    expect(patientPseudonym(input)).toBe(alias);
+    const out = run(input + '\nGlucose 91 mg/dL');
+    expect(out.match(new RegExp(alias, 'g'))).toHaveLength(2);
+    expect(out).toContain('Glucose 91 mg/dL');
+  });
+
+  it('uses a non-name mask when every fictional and anonymous alias would retain an original component', () => {
+    const input = 'First Name: John\nSurname: Richard\nPatient: Anon\nSex: Male';
+    expect(patientPseudonym(input)).toBe('[——]');
+    expect(run(input)).not.toMatch(/John|Richard|Anon/i);
+  });
+
+  it('rejects retained Slovak name values if a model changes identifying labels to unsupported punctuation', () => {
+    const input = 'Meno: Anna Kováčová\nPriezvisko: Kováčová\nGlukóza 5.2 mmol/L';
+    const context = {key: 'synthetic-slovak-validation'};
+    const prepared = {context, output: redactReportText(input, context)};
+    expect(() => finalizePIIResult(input.replaceAll(':', ' ='), input, prepared)).toThrow(/Privacy check found/);
+  });
+
+  it.each(['Birth Date', 'Birthdate', 'Date of Birth', 'DOB', 'Datum narození', 'Dátum narodenia'])('keeps repeated DOBs and their year consistent for %s', label => {
+    const out = run(`${label}: 03/14/1999\nSeen 03/14/1999\nCollected: 03/14/1999`);
+    const [first, seen, collected] = out.split('\n');
+    const value = first!.slice(label.length + 2);
+    expect(value).toMatch(/^\d{2}\/\d{2}\/1999$/);
+    expect(value).not.toBe('03/14/1999');
+    expect(seen).toBe(`Seen ${value}`);
+    expect(collected).toBe('Collected: 03/14/1999');
+  });
+
+  it.each(['\n', '\r\n', '\n\n'])('recognizes a valid DOB after a line break without consuming clinical fields (%j)', separator => {
+    const out = run(`Birth Date:${separator}03/14/1999\nSeen 03/14/1999\nGlucose 91 mg/dL`);
+    const date = out.match(/Seen (\d{2}\/\d{2}\/1999)/)![1];
+    expect(date).not.toBe('03/14/1999');
+    expect(out).toBe(`Birth Date:${separator}${date}\nSeen ${date}\nGlucose 91 mg/dL`);
+    const empty = `Birth Date:${separator}Glucose 91 mg/dL\nCollected: 03/14/1999`;
+    expect(run(empty)).toBe(empty);
+  });
 
   it('removes names after English labels without a colon, but keeps headings', () => {
     expect(run('Patient Jane Smith\nGlucose 91 mg/dL')).toBe(`Patient ${PATIENT_PLACEHOLDER}\nGlucose 91 mg/dL`);

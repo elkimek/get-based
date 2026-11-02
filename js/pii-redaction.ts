@@ -27,8 +27,8 @@ export interface RedactionResult { readonly text: string; readonly replacements:
 export const PATIENT_PLACEHOLDER = 'John Doe';
 
 export function detectSexFromPDF(text: string) {
-  if (/(?:^|[^\p{L}])(?:pohlav(?:[ií]|ie)|sex|gender)[ \t:]+(?:ž|z|žena|zena|female|f)(?=$|\s)/imu.test(text)) return 'female';
-  if (/(?:^|[^\p{L}])(?:pohlav(?:[ií]|ie)|sex|gender)[ \t:]+(?:m|muž|muz|male)(?=$|\s)/imu.test(text)) return 'male';
+  if (/(?:^|[^\p{L}])(?:pohlav(?:[ií]|ie)|sex|gender)[\s:]+(?:ž|z|žena|zena|female|f)(?=$|\s)/imu.test(text)) return 'female';
+  if (/(?:^|[^\p{L}])(?:pohlav(?:[ií]|ie)|sex|gender)[\s:]+(?:m|muž|muz|male)(?=$|\s)/imu.test(text)) return 'male';
   if (/\b\d{2}(5[1-9]|6[0-2])\d{2}\/\d{3,4}\b/.test(text)) return 'female';
   return null;
 }
@@ -44,7 +44,7 @@ export function reportLanguageHint(input: string): 'cs' | 'sk' | null {
 const PATIENT_NAMES = {
   cs: { male: ['Jan Novák', 'Petr Svoboda'], female: ['Jana Nováková', 'Marie Svobodová'] },
   sk: { male: ['Peter Horváth', 'Ján Novák'], female: ['Petra Horváthová', 'Jana Nováková'] },
-  en: { male: ['John Doe', 'Richard Roe'], female: ['Jane Doe', 'Jane Roe'] },
+  en: { male: ['John Doe', 'Richard Roe'], female: ['Jane Doe', 'Mary Roe'] },
 } as const;
 const ANONYMOUS_PATIENT = { cs: 'Anonymní pacient', sk: 'Anonymný pacient', en: 'Anonymous patient' } as const;
 
@@ -53,9 +53,22 @@ export function patientPseudonym(input: string, profileSex?: string | null, prof
   const language = reportLanguageHint(input) ?? 'en';
   const female = (detectSexFromPDF(input) || profileSex) === 'female';
   const names = PATIENT_NAMES[language][female ? 'female' : 'male'];
-  const original = `${input}\n${profileName || ''}`.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-  return names.find(name => !original.includes(name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()))
-    || ANONYMOUS_PATIENT[language];
+  const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  const original = normalize(`${input}\n${profileName || ''}`);
+  const components: string[] = [];
+  for (const match of input.matchAll(PATIENT_LABEL_RE)) {
+    const value = segmentValue(input.slice(match.index! + match[0].length).split('\n')[0]!);
+    const person = parsePersonName(value, {allowLowercase: true});
+    if (person) components.push(...[person.first, person.last, person.middle].flatMap(part => part.split(/\s+/)).map(normalize).filter(part => part.length >= 3));
+  }
+  // Separately labeled first/surnames are independently checked after the local
+  // model. A fictional alias must not reintroduce one of those original values.
+  const safe = (name: string) => {
+    const candidate = normalize(name);
+    return !original.includes(candidate) && !components.some(part => candidate.includes(part));
+  };
+  const fallback = ANONYMOUS_PATIENT[language];
+  return names.find(safe) ?? (safe(fallback) ? fallback : '[——]');
 }
 
 interface Person { first: string; last: string; middle: string; raw: string; }
@@ -102,6 +115,8 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const DATE_SOURCE = String.raw`(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\.\s\d{1,2}\.\s\d{4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4})`;
 const DOB_LABEL_SOURCE = String.raw`(?:DOB|D\.O\.B\.?|date[ \t]+of[ \t]+birth|birth[ \t]*date|datum[ \t]+narozen[ií]|narozen[ií]?|(?:d[áa]tum[ \t]+)?naroden(?:ia|ie)|nar\.)`;
+const DOB_FIELD_END_RE = new RegExp(`${DOB_LABEL_SOURCE}[ \\t]*:?[ \\t]*$`, 'iu');
+const PATIENT_LABEL_RE = /(?:^|[^\p{L}])(?:(?:patient|full|legal)[ \t]+name|(?<!(?:physician|doctor|provider|clinician|facility|lab|laboratory|test|company|practice|clinic|hospital|ordering|referring|plan|insurance|file|user)[ \t]+)name|patient|surname|last[ \t]+name|first[ \t]+name|jm[ée]no(?:[ \t]+a[ \t]+p[řr][íi]jmen[íi])?|p[řr][íi]jmen[íi]|meno(?:[ \t]+(?:a[ \t]+priezvisko|pacienta))?|priezvisko(?:[ \t]+a[ \t]+meno)?|pacient)[ \t]*:[ \t]*/giu;
 
 function escapeRegExp(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
@@ -279,7 +294,9 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   const dobKeys = new Set<string>();
   const profileDob = context.profileDob ? parseReportDate(context.profileDob) : null;
   if (profileDob) dobKeys.add(dateKey(profileDob));
-  const dobLabeled = new RegExp(`${DOB_LABEL_SOURCE}[ \\t]*:?[ \\t]*(${DATE_SOURCE})`, 'gi');
+  // Only a recognized date may follow a label onto the next line. The generic
+  // fallback remains line-bound so an empty DOB cannot consume a lab result.
+  const dobLabeled = new RegExp(`${DOB_LABEL_SOURCE}[ \\t]*:?\\s*(${DATE_SOURCE})`, 'gi');
   for (const match of input.matchAll(dobLabeled)) {
     const parsed = parseReportDate(match[1]!);
     if (parsed) dobKeys.add(dateKey(parsed));
@@ -287,7 +304,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
 
   const patients: Person[] = [];
   const addPatient = (person: Person | null) => { if (person && person.last) patients.push(person); };
-  const patientLabel = /(?:^|[^\p{L}])(?:(?:patient|full|legal)[ \t]+name|(?<!(?:physician|doctor|provider|clinician|facility|lab|laboratory|test|company|practice|clinic|hospital|ordering|referring|plan|insurance|file|user)[ \t]+)name|patient|surname|last[ \t]+name|first[ \t]+name|jm[ée]no(?:[ \t]+a[ \t]+p[řr][íi]jmen[íi])?|p[řr][íi]jmen[íi]|meno(?:[ \t]+(?:a[ \t]+priezvisko|pacienta))?|priezvisko(?:[ \t]+a[ \t]+meno)?|pacient)[ \t]*:[ \t]*/giu;
+  const patientLabel = PATIENT_LABEL_RE;
   const czechSlovakPatientLabel = /(?:^|[^\p{L}])(?:jm[ée]no|pacient|p[řr][íi]jmen[íi]|meno(?:[ \t]+(?:a[ \t]+priezvisko|pacienta))?|priezvisko(?:[ \t]+a[ \t]+meno)?)[ \t]+(?=\p{Lu})/giu;
   // English labels followed by a space instead of a colon ("Patient Jane Smith"): only at the start of a
   // line or column, and only as a full capitalized name, so headings like "Patient Report" stay.
@@ -351,7 +368,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
       const parsed = parseReportDate(raw);
       if (!parsed || !dobKeys.has(dateKey(parsed))) return raw;
       const before = whole.slice(whole.lastIndexOf('\n', offset - 1) + 1, offset);
-      if (COMPACT_DATE_LABEL_RE.test(before)) return raw;
+      if (!DOB_FIELD_END_RE.test(before) && COMPACT_DATE_LABEL_RE.test(before)) return raw;
       const bytes = digest('dob', dateKey(parsed));
       let m = 1 + (bytes[0]! % 12);
       let d = 1 + (bytes[1]! % 28);

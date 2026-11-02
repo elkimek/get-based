@@ -717,6 +717,10 @@ Report privacy contracts in [`pii-redaction.test.ts`](../tests/pii-redaction.tes
 cover conventional Czech/Slovak/English fictional names, shared and mixed language
 clues, Slovak identity/DOB fields, short and lowercase labeled
 identities, exact clinical-row preservation and report-local identifier keys.
+Alias collision cases exercise original first/surname components through both
+local-model transports. Repeated birth-date labels preserve the same substituted
+date and real year while keeping actual collection dates unchanged. Reported sex
+retains priority across line breaks.
 Both local-model transports retain the same captured profile hints and key
 through finalization without storing it. The review contracts in
 [`pii-review-presentation.test.ts`](../tests/pii-review-presentation.test.ts)
