@@ -34,20 +34,22 @@ export function _renderLensSources(chunks: unknown, sourceName?: unknown) {
 }
 
 const renderedConversations = new WeakMap<HTMLElement, {
-  profile: typeof state.currentProfile; thread: typeof state.currentThreadId; count: number; latestContent: string;
+  profile: typeof state.currentProfile; thread: typeof state.currentThreadId; count: number; latestContent: string; start: number;
 }>();
 
-export function renderChatMessages({ preserveScroll, attentionMessage }: {preserveScroll?:boolean; attentionMessage?: object} = {}) {
+export function renderChatMessages({ preserveScroll, attentionMessage, disposeLiveMessage }: {preserveScroll?:boolean; attentionMessage?: object; disposeLiveMessage?: () => void} = {}) {
   const container = document.getElementById('chat-messages');
-  if (!container) return;
+  if (!container) { disposeLiveMessage?.(); return; }
   initChatScrollControls();
   const previous = renderedConversations.get(container);
   const sameConversation = previous?.profile === state.currentProfile && previous?.thread === state.currentThreadId;
   const position = sameConversation && preserveScroll !== false ? captureChatScrollPosition(container) : null;
   const current = { profile: state.currentProfile, thread: state.currentThreadId,
-    count: state.chatHistory.length, latestContent: state.chatHistory.at(-1)?.content || '' };
+    count: state.chatHistory.length, latestContent: state.chatHistory.at(-1)?.content || '', start: 0 };
   const hasNewContent = !!previous && (current.count > previous.count
     || current.count === previous.count && current.latestContent !== previous.latestContent);
+  // Dispose the service-owned reply only after capturing its visible position.
+  disposeLiveMessage?.();
   const panel = document.getElementById('chat-panel');
   panel?.classList.remove('chat-onboarding-active');
 
@@ -63,7 +65,9 @@ export function renderChatMessages({ preserveScroll, attentionMessage }: {preser
   disposeChatProviderSetup();
   disposeChatProfileSetup();
   disposeChatOptionalSetup();
-  const renderStart = getChatRenderStart(state.currentThreadId, state.chatHistory.length);
+  const renderStart = getChatRenderStart(state.currentThreadId, state.chatHistory.length,
+    position && !position.followingLatest ? previous?.start : undefined);
+  current.start = renderStart;
   renderChatTranscript(container, projectChatTranscript(renderStart, attentionMessage));
   renderedConversations.set(container, current);
   if (position) restoreChatScrollPosition(container, position, hasNewContent);
@@ -78,7 +82,9 @@ export function showEarlierChatMessages() {
   if (!container || !state.currentThreadId) return false;
   const previousHeight = container.scrollHeight;
   const previousTop = container.scrollTop;
-  const nextStart = expandChatRenderWindow(state.currentThreadId, state.chatHistory.length);
+  const rendered = renderedConversations.get(container);
+  const visibleStart = rendered?.profile === state.currentProfile && rendered?.thread === state.currentThreadId ? rendered.start : undefined;
+  const nextStart = expandChatRenderWindow(state.currentThreadId, state.chatHistory.length, visibleStart);
   renderChatMessages({ preserveScroll: true });
   requestAnimationFrame(() => {
     container.scrollTop = previousTop + Math.max(0, container.scrollHeight - previousHeight);

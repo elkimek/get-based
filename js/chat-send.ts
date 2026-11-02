@@ -587,8 +587,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     completeChatLiveMessage(aiMsgEl, assistantMsg as (typeof state.chatHistory)[number]);
     await saveChatHistory();
     if (!scopeIsCurrent()) return;
-    liveMessage.dispose();
-    renderChatMessages({ preserveScroll: true, attentionMessage: assistantMsg });
+    renderChatMessages({ preserveScroll: true, attentionMessage: assistantMsg, disposeLiveMessage: liveMessage.dispose });
     const msgIndex = state.chatHistory.length - 1;
     const recommendationRuntime = getChatSendRecommendationRuntime();
     if (_recSlots.length && recommendationRuntime) {
