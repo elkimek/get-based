@@ -16,8 +16,9 @@ describe('DOM HTML sink audit', () => {
   }, 15_000);
 
   it('rejects altered fingerprints, omitted and stale entries, and discovery totals', () => {
-    const { current } = auditDomSinks();
-    const policy = structuredClone(current);
+    // The preceding positive case freshly qualifies this maintained policy.
+    // Mutate its independent expectations, then scan every actual source once.
+    const policy = JSON.parse(fs.readFileSync('scripts/dom-sink-policy.json', 'utf8')) as ReturnType<typeof createDomSinkPolicy>;
     const [changed, omitted] = Object.keys(policy.files);
     if (!changed || !omitted) throw new Error('Expected multiple reviewed sink-bearing modules');
     policy.files[changed]!.digest = 'unreviewed';

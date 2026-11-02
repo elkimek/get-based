@@ -4,6 +4,12 @@ import { CURRENT_RELEASE } from './changelog-current.js';
 // Shared authored notes; retry controllers retain their own evaluation and delegates.
 export const CHANGELOG: readonly ChangelogEntry[] = [
   CURRENT_RELEASE,
+  { version: '1.25.0', date: '2026-10-22', title: 'Waist measurements and cycle guidance', items: [
+  '<b>More body measurements.</b> Log waist and optional hip measurements, see waist-to-hip and waist-to-height ratios, or record abdominal depth (SAD) with a caliper.',
+  '<b>Measure in a way that suits you.</b> Choose standing, seated or lying down for waist measurements, with simple guidance and centimetres or inches.',
+  '<b>Follow your progress consistently.</b> The app remembers your measurement method and keeps different positions and locations separate in your history.',
+  '<b>Use your cycle for timing.</b> See cycle context beside measurements and estimated dates for your first measurement and later comparisons.',
+] },
   { version: '1.24.0', date: '2026-10-18', title: 'A stronger foundation', items: [
   '<b>Rebuilt for the future.</b> The interface now uses Svelte, SvelteKit and Tailwind CSS, making getbased easier to maintain and improve.',
   '<b>Your familiar app, preserved.</b> Existing profiles, health data, preferences and workflows carry forward.',

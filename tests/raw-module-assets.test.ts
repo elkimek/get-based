@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
 import { expect, it } from 'vitest';
 import { collectRawModuleAssets } from '../scripts/raw-module-assets.mjs';
 import { productionRawModuleAssets, pruneSourceModuleAppShell } from '../scripts/build-production.mjs';
@@ -175,7 +176,7 @@ it('keeps precisely the genuine raw graph and public files while pruning the 22 
     .toEqual(original.filter(url => !url.startsWith('/js/') || !url.endsWith('.js')));
   for (const url of previouslyQuoteRetained) expect(pruned).not.toContain(url);
   const afterFiles = await Promise.all(previouslyQuoteRetained.map(url => fs.readFile(url.slice(1))));
-  expect(afterFiles).toEqual(beforeFiles);
+  assert.deepEqual(afterFiles, beforeFiles);
 });
 
 

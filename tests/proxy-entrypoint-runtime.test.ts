@@ -69,7 +69,7 @@ describe('proxy production entrypoint', () => {
     expect(proxyEntrypoint).toEqual({ fetch: proxyHandler });
   });
 
-  it('pins the Blob runtime artifacts from the last healthy deployment', () => {
+  it('pins the reviewed Blob SDK and patched compatible transport', () => {
     const packageJson = JSON.parse(readFileSync(
       new URL('../package.json', import.meta.url),
       'utf8',
@@ -80,9 +80,10 @@ describe('proxy production entrypoint', () => {
     ));
 
     expect(packageJson.dependencies['@vercel/blob']).toBe('2.8.0');
+    expect(packageJson.overrides['@vercel/blob'].undici).toBe('6.29.1');
     expect(packageLock.packages['node_modules/@vercel/blob'].version).toBe('2.8.0');
     expect(packageLock.packages['node_modules/@vercel/blob/node_modules/undici'].version)
-      .toBe('6.28.1');
+      .toBe('6.29.1');
   });
 
   it('answers preflight and method probes without initializing Blob storage', async () => {

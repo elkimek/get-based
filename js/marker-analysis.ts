@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { getStatus, formatValue, linearRegression } from './utils.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
+import { baselineForDate, projectMarkerBaseline } from './marker-baseline.js';
 
 import type { ActiveMarker, ActiveData, MarkerValues } from './data-view-types.js';
 interface AnalysisRange { min?: number | null | undefined; max?: number | null | undefined; label?: string }
@@ -197,7 +198,9 @@ export function formatMarkerValuesForChat(marker: ActiveMarker, data: Pick<Activ
   }).join(', ');
   const unit = marker.unit ? ` ${marker.unit}` : '';
   const latestText = formatChatRanges(latestRanges, marker.values[latestIndex]);
-  return `${values}${unit}${latestText ? ` (latest ranges: ${latestText})` : ''}`;
+  const baseline = baselineForDate(marker, latestIndex, data.dates[latestIndex]);
+  const summary = projectMarkerBaseline(baseline, marker.unit || '', formatValue);
+  return `${values}${unit}${latestText ? ` (latest ranges: ${latestText})` : ''}${summary && baseline ? ` [Personal baseline: ${summary.value}; n=${baseline.count} prior draws ${baseline.startDate} to ${baseline.endDate}; compared=${baseline.comparedDate}; ${summary.comparison}]` : ''}`;
 }
 
 export function getPhaseRefEnvelope(marker: ActiveMarker) {

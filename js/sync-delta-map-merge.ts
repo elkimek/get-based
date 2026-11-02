@@ -1,3 +1,4 @@
+import {compareSyncRows} from './sync-conflict-order.js';
 import type { MapIdentityConfig } from './sync-delta-surface-config.js';
 import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js';
 // sync-delta-map-merge.js - Pull-side keyed-map row overlay helper.
@@ -5,11 +6,12 @@ import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js'
 import { getAt, setAt, pickTimestamp } from './data-merge.js';
 import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
 import { DELTA_MAP_CONFIG } from './sync-delta-surface-config.js';
-import { _isAllowlistSafeId, _isProtoPollutionKey } from './sync-delta-id.js';
+import { _djb2, _isAllowlistSafeId, _isProtoPollutionKey } from './sync-delta-id.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
 export async function mergeMapRowsIntoImported(
   imported: DeltaImportedData, arrayName: string, arrRows: readonly DeltaItemRow[],
+  options: {onValue?: (itemId: string, value: {key?: string; hash: string | null}) => void} = {},
 ) {
   // Dotted-path support: same getAt/setAt walk as the array path.
   // Required for entries like `genetics.snps` so per-key CRDT lands
@@ -34,35 +36,27 @@ export async function mergeMapRowsIntoImported(
   const keyIdFn = (k: unknown) => { const id = rawKeyIdFn(k); return _isAllowlistSafeId(id) ? id : null; };
   // Build a tombstone-key set first so deletes can find the original raw
   // key in the current map even when the row only carries the synth itemId.
-  const liveByRawKey = new Map<string, { v: unknown; syncedAt: string }>(); // rawKey -> { v, syncedAt }
-  const tombItemIds = new Set<string>();
+  const liveByRawKey = new Map<string, { v: unknown; row: DeltaItemRow }>(); // rawKey -> { v, syncedAt }
+  const tombRows = new Map<string,DeltaItemRow>();
   for (const row of arrRows) {
-    if (row.isDeleted) { tombItemIds.add(row.itemId); continue; }
+    if (row.isDeleted) {const prior=tombRows.get(row.itemId);if(!prior||compareSyncRows(row,prior)>0)tombRows.set(row.itemId,row);continue;}
     try {
       const parsed = await decodeRowPayload(row) as Record<string, unknown> | null;
-      if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string') continue;
+      if (!parsed || typeof parsed !== 'object' || typeof parsed.k !== 'string' || !Object.hasOwn(parsed, 'v')) continue;
       // Defence-in-depth: re-derive itemId from the payload's claimed k and
       // verify it matches the row column. Catches a relay swapping payloads
       // between rows even for synth-id maps.
       if (keyIdFn(parsed.k) !== row.itemId) continue;
-      // Iteration-order tiebreak hardening: prefer the row with the newer
-      // relay-stamped syncedAt over whichever happened to come last in the
-      // unordered SQLite scan.
-      const sa = String(row.syncedAt || '');
       const cur = liveByRawKey.get(parsed.k);
-      if (!cur || sa >= cur.syncedAt) {
-        liveByRawKey.set(parsed.k, { v: parsed.v, syncedAt: sa });
-      }
+      if (!cur || compareSyncRows(row,cur.row)>0) liveByRawKey.set(parsed.k,{v:parsed.v,row});
     } catch {}
   }
   // Apply tombstones: walk current map keys, drop any whose synth itemId is
-  // in the tombstone set. Skips entries that just happened to be re-inserted
-  // in this batch (liveByRawKey wins via overwrite).
-  if (tombItemIds.size > 0) {
+  // in the tombstone set. Only a strictly newer live version can resurrect it.
+  if (tombRows.size > 0) {
     for (const k of Object.keys(curMap!)) {
-      if (liveByRawKey.has(k)) continue;
-      const synth = keyIdFn(k);
-      if (synth && tombItemIds.has(synth)) delete curMap![k];
+      const synth=keyIdFn(k),tomb=synth?tombRows.get(synth):null,live=liveByRawKey.get(k);
+      if(tomb&&(!live||compareSyncRows(tomb,live.row)>=0))delete curMap![k];
     }
   }
   // Apply live entries under their original key (preserves `:` for
@@ -72,8 +66,14 @@ export async function mergeMapRowsIntoImported(
     && pickTimestamp(curMap![key]) > pickTimestamp(incoming);
   for (const [rawKey, entry] of liveByRawKey) {
     if (_isProtoPollutionKey(rawKey)) continue;
+    const itemId=keyIdFn(rawKey),tomb=itemId?tombRows.get(itemId):null;
+    if(tomb&&compareSyncRows(tomb,entry.row)>=0)continue;
     if (newerManualField(rawKey, entry.v)) continue;
     curMap![rawKey] = entry.v;
+    if (itemId) options.onValue?.(itemId, {key: rawKey, hash: _djb2(JSON.stringify({k: rawKey, v: entry.v}))});
   }
-  recordPullDeltaSurface(arrayName, { live: liveByRawKey.size, tombstones: tombItemIds.size });
+  for (const [id] of tombRows) {
+    if (_isAllowlistSafeId(id) && !Object.keys(curMap!).some(key => keyIdFn(key) === id)) options.onValue?.(id, {hash: null});
+  }
+  recordPullDeltaSurface(arrayName, { live: liveByRawKey.size, tombstones: tombRows.size });
 }

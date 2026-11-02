@@ -1,4 +1,5 @@
 // Canonical data projection and serialized profile saves, with explicit service ports.
+import { buildMarkerBaselines } from './marker-baseline.js';
 import type { ProfileData as ImportedDataRecord } from '../types/app-state.js';
 import type { LabEntry, LabCollectionContext } from '../types/lab-data.js';
 import type { ActiveData, ActiveCategory, ActiveMarker, MarkerViewRange } from './data-view-types.js';
@@ -215,10 +216,12 @@ export function createDataCore(ports: DataCorePorts) {
       const base = snapshot.base;
       let persisted;
       let changed;
+      let mutationBefore: string | null = null;
       try {
         if ((0, ports.isProfileReadBlocked)(profileId)) return false;
         const key = (0, ports.profileStorageKey)(profileId, 'imported');
         const previous = await (0, ports.encryptedGetItem)(key, { throwOnDecryptError: true });
+        mutationBefore = previous;
         // Explicit restores must retry if their reviewed snapshot changed.
         if (options.expectedData !== undefined && previous !== options.expectedData) {
           if (options.notifyOnStaleSnapshot === false) return false;
@@ -259,11 +262,23 @@ export function createDataCore(ports: DataCorePorts) {
       } catch (e) {
         return failedProfileSave(e);
       }
+      try {
+        if (changed) (0, ports.noteProfileDataCommit)(profileId, mutationBefore, persisted);
+        else if (base && !(0, ports.profileDataValuesEqual)(base, intent)) {
+          (0, ports.noteProfileDataCommit)(profileId, JSON.stringify(base), intent);
+        }
+      } catch { /* Observation cannot turn a durable save into a failed save. */ }
       // Storage has committed. Adoption and hooks cannot turn it into a failed save.
       try {
         const live = ports.state.currentProfile === profileId ? ports.state.importedData : null;
         if (live && (options.activeSave || base)) {
-          const result = (0, ports.rebaseLiveProfileData)(options.activeSave ? intent : (0, ports.profileDataBaseline)(live) || base, live, persisted);
+          // A reload may install another object for this same profile while
+          // the save awaits storage. Its own origin distinguishes a stale
+          // loaded value from a new unsaved edit; this save's intent belongs
+          // only to the object it captured.
+          const liveBase = options.activeSave && live === source
+            ? intent : (0, ports.profileDataBaseline)(live) || base;
+          const result = (0, ports.rebaseLiveProfileData)(liveBase, live, persisted);
           if (persisted.biologyScoreAI) result.data.biologyScoreAI = persisted.biologyScoreAI;
           (0, ports.adoptProfileData)(live, result.data);
           (0, ports.rememberProfileData)(live, result.baseline);
@@ -274,7 +289,9 @@ export function createDataCore(ports: DataCorePorts) {
       } catch (e) {
         if ((0, ports.isDebugMode)()) console.warn('Live profile refresh failed after data was persisted:', e);
       }
-      if (!changed && options.activeSave) return true;
+      // A pull may have persisted this live intent while the save waited for
+      // its lock. It still needs an upload marker even without another write.
+      if (!changed && options.activeSave && (!base || (0, ports.profileDataValuesEqual)(base, intent))) return true;
       try {
         (0, ports.broadcastDataChanged)(profileId);
         (0, ports.scheduleAutoBackup)();
@@ -594,6 +611,17 @@ export function createDataCore(ports: DataCorePorts) {
       refOverrides,
     });
     applyUnitConversion(data, ports.state.unitSystem);
+    // Derive from full history before UI date filtering; never persist this
+    // descriptive comparison or use it to replace clinical/optimal ranges.
+    for (const category of Object.values(data.categories)) {
+      for (const marker of Object.values(category.markers)) {
+        if (!marker.singlePoint && !category.singlePoint) {
+          const baselines = buildMarkerBaselines(marker.values, data.dates);
+          if (baselines.some(Boolean)) marker.personalBaselines = baselines;
+          else delete marker.personalBaselines;
+        }
+      }
+    }
     // Values, calculations, and unit conversions always run against immutable
     // storage dotkeys. Category placement is a final view projection only.
     (0, ports.applyMarkerPlacements)(data.categories, ports.state.importedData || {});
@@ -708,6 +736,7 @@ export function createDataCore(ports: DataCorePorts) {
           filteredCat.markers[mKey] = {
             ...marker,
             values: indices.map(i => marker.values[i] as number | null),
+            ...(marker.personalBaselines && { personalBaselines: indices.map(i => marker.personalBaselines![i] ?? null) }),
             ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges![i]) }),
             ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels![i]) }),
             ...(marker.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => marker.phaseDisplayLabels![i]) }),

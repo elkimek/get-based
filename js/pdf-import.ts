@@ -206,6 +206,7 @@ ${IMPORT_COLLECTION_CONTEXT_PROMPT}
    - Do NOT map urine-prefixed rows to serum/plasma/blood markers. Example: "S Celk.bílkovina" is serum Total Protein → "proteins.totalProtein", but "U Celková bílkovina" is urine total protein and must be a separate urine marker, not "proteins.totalProtein"
 4. Only map to a marker if you're confident it's the correct match
 5. For differential WBC: only map absolute count values (marked with # or abs.) to the # markers; percentage values go to the Pct markers
+   For lymphocyte subsets, map CD3, CD3+CD4+, CD3+CD8+, CD19 and CD3-negative CD16/CD56-positive NK cells to lymphocyteSubsets. Keep counts and percentages separate; subset Pct markers use whole percentages (0–100) of total lymphocytes. Percentages of CD3/T cells, CD3-positive NKT cells and NK activity are different measurements: retain as custom markers. Preserve report units and laboratory intervals. Reported CD4/CD8 and LMR belong in calculatedRatios.cd4Cd8Ratio and calculatedRatios.lmr.
 6. Skip non-numeric results (text-only findings, interpretive notes). But EVERY numeric result MUST be included — if it doesn't match a known key, set mappedKey to null and provide suggestedKey/suggestedName/suggestedCategoryLabel. Never silently drop a numeric marker
 7. Identify the type of lab test this PDF represents. Return as "testType" field:
    - "blood" for standard blood panels (CBC, metabolic, lipids, hormones, etc.)

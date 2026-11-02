@@ -3,6 +3,7 @@ import { dataModuleSource } from './helpers/data-module-source.js';
 import { syncPushSourceContracts, syncCommittedDeltaSourceContracts, syncChatSaveSourceContracts, syncHealthGoalsSourceContracts, syncPullEncryptionSourceContract } from './helpers/sync-push-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
+import {syncLegacyDiagnoseContracts} from './helpers/sync-legacy-diagnose-contracts.js';
 // test-sync.js — Verify sync module exports, payload format, settings UI
 //
 // Run: node tests/test-sync.js  (or via npm test)
@@ -15,6 +16,7 @@ import {writeScalarVersion, scalarValueHash} from '../js/sync-scalar-snapshot.js
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mock } from 'node:test';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
@@ -41,22 +43,20 @@ console.log('=== Cross-Device Sync Tests ===\n');
 
 // Load the module-only Sync surfaces and Settings Sync panel.
 const { state } = await import('../js/state.js');
-const syncActions = await import('../js/sync-actions.js');
-const syncSaveHooks = await import('../js/sync-save-hooks.js');
-const syncApply = await import('../js/sync-apply.js');
-const syncChatApply = await import('../js/sync-chat-apply.js');
-const syncChatMerge = await import('../js/sync-chat-merge.js');
-const syncDelta = await import('../js/sync-delta.js');
-const syncCutover = await import('../js/sync-cutover.js');
-const dataMerge = await import('../js/data-merge.js');
-const syncSubscriptions = await import('../js/sync-subscriptions.js');
-await import('../js/sync-payload.js');
-const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
-const syncStorageCleanup = await import('../js/sync-storage-cleanup.js');
-await import('../js/sync.js');
-const settingsSyncPanel = await import('../js/settings-sync-panel.js');
-await import('../js/settings.js');
-const {syncLegacyDiagnoseContracts} = await import('./helpers/sync-legacy-diagnose-contracts.js');
+// These independent surfaces are all ready before the root wiring below.
+// Avoid serial cold transform round trips inside the unchanged case deadline.
+const [syncActions, syncSaveHooks, syncApply, syncChatApply, syncChatMerge, syncDelta,
+  syncCutover, dataMerge, syncSubscriptions, , syncPayloadCollectors, syncStorageCleanup] = await Promise.all([
+  import('../js/sync-actions.js'), import('../js/sync-save-hooks.js'), import('../js/sync-apply.js'),
+  import('../js/sync-chat-apply.js'), import('../js/sync-chat-merge.js'), import('../js/sync-delta.js'),
+  import('../js/sync-cutover.js'), import('../js/data-merge.js'), import('../js/sync-subscriptions.js'),
+  import('../js/sync-payload.js'), import('../js/sync-payload-collectors.js'), import('../js/sync-storage-cleanup.js'),
+]);
+// Settings statically depends on the Sync facade, so the module loader retains
+// initialization order while independent graph fetching/compilation overlaps.
+const [, settingsSyncPanel] = await Promise.all([
+  import('../js/sync.js'), import('../js/settings-sync-panel.js'), import('../js/settings.js'),
+]);
 const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   const syncSrc = await fetchWithRetry('js/sync.js');
@@ -516,7 +516,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncIdentitySrc.includes('export function getMnemonicResolutionError')
       && syncIdentitySrc.includes('export async function restoreFromMnemonic')
       && syncIdentitySrc.includes('RESTORE_JOIN_PENDING_KEY')
-      && syncConfigureSrc.includes('seedLocalProfiles: () => pushAllProfiles({ force: true })')
+      && syncConfigureSrc.includes('seedLocalProfiles: async (options) => stageBackupRestorePending(getProfiles().map(profile => profile.id), options)')
       && exportBlockIncludes(syncSrc, ['getMnemonic', 'getMnemonicResolutionError', 'restoreFromMnemonic']));
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));
@@ -695,7 +695,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     serviceWorkerSrc.includes("'/js/sync-push.js'"));
   assert('sync-push-deltas.js owns push delta planning/application',
     syncPushDeltasSrc.includes('export async function planProfileDeltas')
-      && syncPushDeltasSrc.includes('export function applyCommittedDeltas')
+      && syncPushDeltasSrc.includes('export async function applyCommittedDeltas')
       && syncPushDeltasSrc.includes('for (const arrayName of DELTA_ARRAYS)')
       && syncPushDeltasSrc.includes('for (const mapName of DELTA_MAPS)')
       && syncPushDeltasSrc.includes('for (const scalarName of DELTA_SCALARS)')
@@ -828,16 +828,17 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncHealthGoalsSourceContracts(healthGoalsViewSrc)
       && healthGoalsViewSrc.includes("modal.dataset.syncRefreshKind = 'healthGoals'")
       && /export function refresh\(value: unknown\): void\s*\{\s*goals = value;\s*\}/.test(healthGoalsPresentationSrc));
+  const jsSourceCorpus = new Map(listJsFiles(path.join(ROOT, 'js')).map(abs => [abs, fs.readFileSync(abs, 'utf-8')]));
   {
     const syncedArraySurfaces = ['entries', 'notes', 'supplements', 'healthGoals', 'chatSummaries', 'changeHistory'];
     const helperOwnedFiles = new Set(['js/data-merge.js']);
     const ownerExpr = '(?:state\\.importedData|current|imp)';
     const mutationExpr = new RegExp(`${ownerExpr}\\.(${syncedArraySurfaces.join('|')})(?:\\s*=|\\.(?:push|splice|filter|sort|unshift|shift|pop|reverse)\\b)`);
     const violations: string[] = [];
-    for (const abs of listJsFiles(path.join(ROOT, 'js'))) {
+    for (const [abs, src] of jsSourceCorpus) {
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
       if (helperOwnedFiles.has(rel)) continue;
-      const lines = fs.readFileSync(abs, 'utf-8').split('\n');
+      const lines = src.split('\n');
       lines.forEach((line, i) => {
         if (mutationExpr.test(line)) violations.push(`${rel}:${i + 1}: ${line.trim()}`);
       });
@@ -857,10 +858,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && !chatSummariesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync)"));
   {
     const violations: string[] = [];
-    for (const abs of listJsFiles(path.join(ROOT, 'js'))) {
+    for (const [abs, src] of jsSourceCorpus) {
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
       if (rel === 'js/utils.js') continue;
-      const src = fs.readFileSync(abs, 'utf-8');
       if (src.includes("window.addEventListener('labcharts-sync-applied'")) violations.push(rel);
     }
     assert('sync-applied modal listeners are centralized in utils helpers',
@@ -1048,18 +1048,26 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       onSyncReceived: () => { received++; },
     });
     (syncSubscriptions.bindSyncSubscriptions as unknown as (options: Omit<NonNullable<Parameters<typeof syncSubscriptions.bindSyncSubscriptions>[0]>, "evolu"> & {evolu: {subscribeQuery(query: unknown): (callback: () => void) => unknown; subscribeError(): void; getQueryRows(): unknown[]}}) => ReturnType<typeof syncSubscriptions.bindSyncSubscriptions>)({ evolu: fakeEvolu, profileQuery, tombstoneQuery, itemRowQuery });
-    callbacks.get(profileQuery)?.();
-    assert('subscription receive is not dropped while syncing', received === 0);
-    syncing = false;
-    await new Promise(r => setTimeout(r, 650));
-    assert('deferred subscription receive runs after syncing clears', received === 1);
-    pulling = true;
-    callbacks.get(itemRowQuery)?.();
-    assert('itemRow receive is deferred while pulling', received === 1);
-    pulling = false;
-    await new Promise(r => setTimeout(r, 650));
-    assert('deferred itemRow receive runs after pulling clears', received === 2);
-    syncSubscriptions.clearSyncSubscriptionTimers();
+    // Run the actual production retry callbacks through the same 650ms
+    // boundaries without spending 1.3s of the unchanged cold-case deadline.
+    // No asynchronous work runs while the scoped timer replacement is active.
+    mock.timers.enable({apis: ['setTimeout']});
+    try {
+      callbacks.get(profileQuery)?.();
+      assert('subscription receive is not dropped while syncing', received === 0);
+      syncing = false;
+      mock.timers.tick(650);
+      assert('deferred subscription receive runs after syncing clears', received === 1);
+      pulling = true;
+      callbacks.get(itemRowQuery)?.();
+      assert('itemRow receive is deferred while pulling', received === 1);
+      pulling = false;
+      mock.timers.tick(650);
+      assert('deferred itemRow receive runs after pulling clears', received === 2);
+    } finally {
+      syncSubscriptions.clearSyncSubscriptionTimers();
+      mock.timers.reset();
+    }
   }
   assert('Sync diagnose includes tombstone rows and deleted-state column',
     /tombstoneRows[\s\S]{0,300}isDeleted:\s*true/.test(syncDiagnosticsSnapshotSrc)
@@ -1318,7 +1326,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',
-    /_planArrayDelta[\s\S]{0,1800}_readDeltaSnapshot\(profileId,\s*arrayName\)[\s\S]{0,1800}prev\[itemId\]\s*===\s*hash/.test(syncDeltaPlannerSearchSrc));
+    syncDeltaArrayPlannerSrc.includes('_readDeltaSnapshot(profileId, arrayName)')
+      && syncDeltaArrayPlannerSrc.includes('readArrayVersions(profileId, arrayName)')
+      && /prev\[itemId\] === hash/.test(syncDeltaArrayPlannerSrc));
   assert('_planArrayDelta validates itemId allowlist (defence-in-depth)',
     /\^\[a-zA-Z0-9_\.-\]\+\$/.test(syncDeltaIdSrc));
   assert('_planArrayDelta gzip-compresses payloads >256 bytes',
@@ -1328,7 +1338,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('_planArrayDelta is conservative on missing rows (no phantom delete)',
     /safer to no-op[\s\S]{0,100}phantom delete/.test(syncDeltaPlannerSearchSrc));
   assert('_applyArrayDelta dispatches insert/update/tombstone',
-    /_applyArrayDelta[\s\S]{0,400}evolu\.insert\("itemRow"[\s\S]{0,200}evolu\.update\("itemRow"/.test(syncDeltaSrc));
+    /if \(op.kind === 'insert'\)\s*evolu\.insert\("itemRow", op.args, options\)/.test(syncDeltaSrc)
+      && /if \(op.kind === 'update'\)\s*evolu\.update\("itemRow", op.args, options\)/.test(syncDeltaSrc)
+      && /if \(op.kind === 'tombstone'\)\s*evolu\.update\("itemRow", op.args, options\)/.test(syncDeltaSrc));
 
   // Push integration in pushProfile
   assert('pushProfile plans deltas before evolu.update on profileData',
@@ -1364,7 +1376,8 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('_mergeItemRowsIntoImported ignores stale remote tombstones when local item is newer',
     /remoteTombs\.set\(row\.itemId[\s\S]{0,1800}tombAt\s*>=\s*Math\.max\(pickTimestamp\(item\),\s*canonicalBlobAt\)/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported preserves fresher local non-lab items over stale per-row payloads',
-    /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0[\s\S]{0,120}continue/.test(syncDeltaArrayMergeSrc)
+    /compareRecordFreshness\(item,\s*nextArr\[idx\]\)\s*<=\s*0/.test(syncDeltaArrayMergeSrc)
+      && syncDeltaArrayMergeSrc.includes('!represented.get(itemId)?.has(syncValueKey(nextArr[idx])) && !newerCommitted')
       && /nextArr\[idx\]\s*=\s*item/.test(syncDeltaArrayMergeSrc));
   assert('_mergeItemRowsIntoImported merges same-date lab entries instead of replacing marker maps',
     /import\s*\{[^}]*mergeLabEntry[^}]*\}\s*from\s*['"]\.\/data-merge\.js['"]/.test(syncDeltaArrayMergeSrc)
@@ -1379,7 +1392,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     /labcharts-\$\{profileId\}-delta-\$\{arrayName\}/.test(syncDeltaSnapshotSrc));
   assert('Snapshot only writes after onComplete (wedged-push safety)',
     syncPushContracts.commitOwnsDeltas
-      && /applyCommittedDeltas[\s\S]{0,1800}_writeDeltaSnapshot\(profileId,\s*arrayName,\s*plan\.next,\s*plan\.plannedAt\)/.test(syncPushDeltasSrc));
+      && syncCommittedDeltaSourceContracts(syncPushDeltasSrc).snapshotsGuarded);
 
   // Live diff sanity: confirm the diff logic respects content-equality
   if (typeof CompressionStream !== 'undefined') {
@@ -1516,6 +1529,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   // Verify timestamps are cleared AFTER restoreAppOwner within restoreFromMnemonic (not before)
   const restoreIdx = syncIdentitySrc.indexOf('evolu.restoreAppOwner(normalizedMnemonic, { reload: false })');
   const clearTsInRestore = syncIdentitySrc.indexOf('clearSyncDisableStorage();', restoreIdx);
+  const restoreCleanupAfterOwner = restoreIdx > 0 && clearTsInRestore > restoreIdx;
   assert('Sync-ts cleared after restoreAppOwner (not before)', restoreIdx > 0 && clearTsInRestore > restoreIdx,
     `restoreAppOwner at ${restoreIdx}, sync-ts clear at ${clearTsInRestore}`);
 
@@ -1584,7 +1598,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
       && syncPushSrc.includes('_syncing = true')
       && syncPushSrc.includes('export function isSyncPushInFlight'));
   assert('pushProfile await resolves only from onComplete/watchdog paths',
-    syncPushSourceContracts(syncPushSrc).successOwnedByComplete
+    syncPushContracts.successOwnedByComplete
       && /Push NOT committed after 30s[\s\S]{0,800}finish\(\{ ok: false, reason: 'timeout' \}\)/.test(syncPushSrc));
   assert('pushProfile uses insert/update pattern', syncPushSrc.includes('evolu.insert(') && syncPushSrc.includes('evolu.update('));
   // v1.6.3: debounce bumped 2s → 10s. Each push is the full importedData
@@ -1628,9 +1642,16 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     syncActionsSrc.includes('createDefaultProfileData()')
       && /pushAllProfiles[\s\S]{0,1200}readProfileImportedData\(p\.id\)/.test(syncActionsSrc)
       && /pushAllProfiles[\s\S]{0,1200}if \(!dataJson\)/.test(syncActionsSrc));
-  assert('restore-as-source seeds the new owner before reload',
+  const sourceRestoreStart = syncIdentitySrc.indexOf('export async function restoreFromMnemonic');
+  const sourceRestoreBranch = syncIdentitySrc.slice(sourceRestoreStart, syncIdentitySrc.indexOf('await evolu.restoreAppOwner', sourceRestoreStart));
+  assert('restore-as-source confirms recovery with retiring runtime suspended before changing owner',
     /restoreFromMnemonic\(mnemonic,\s*options = \{\}\)/.test(syncIdentitySrc)
-      && /options\?\.seedLocal[\s\S]{0,400}await _seedLocalProfiles\(\)/.test(syncIdentitySrc)
+      && sourceRestoreStart >= 0
+      && sourceRestoreBranch.includes('setSyncPublishingSuspended(true)')
+      && sourceRestoreBranch.indexOf('setSyncPublishingSuspended(true)') < sourceRestoreBranch.indexOf('if (shouldStageRecovery)')
+      && sourceRestoreBranch.indexOf('setSyncPublishingSuspended(true)') < sourceRestoreBranch.indexOf('await _seedLocalProfiles({ ownerFingerprint })')
+      && sourceRestoreBranch.includes('await _seedLocalProfiles({ ownerFingerprint })')
+      && sourceRestoreBranch.includes('await fingerprintBackupRestoreOwner(normalizedMnemonic)')
       && /restoreMnemonicForDiagnose\(words\.join\(' '\),\s*\{ seedLocal: true \}\)/.test(syncDiagnoseIdentityActionsSrc));
   assert('restore-as-joiner marks first pull to ignore old local tombstones',
     /setRestoreJoinPending\(true\)/.test(syncIdentitySrc)
@@ -2216,7 +2237,8 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Map-shape pull rebuilds map under ORIGINAL rawKey, not synth itemId',
     /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,500}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
   assert('Map-shape pull guards rawKey against proto-pollution at write site',
-    /for \(const \[rawKey, entry\] of liveByRawKey\)[\s\S]{0,400}_isProtoPollutionKey\(rawKey\)[\s\S]{0,100}curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
+    /if \(_isProtoPollutionKey\(rawKey\)\)\s*continue;/.test(syncDeltaMapMergeSrc)
+      && syncDeltaMapMergeSrc.indexOf('_isProtoPollutionKey(rawKey)') < syncDeltaMapMergeSrc.indexOf('curMap[rawKey] = entry.v'));
 
   // Live: round-trip the manualValues keyIdFn — `:` collapses to `_`,
   // result is allowlist-safe, original key recoverable on pull via
@@ -2299,7 +2321,8 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Map-shape merge writes to the resolved map container (preserves original key, dotted-path-safe)',
     /curMap\[rawKey\]\s*=\s*entry\.v/.test(deltaSearchSrc));
   assert('Map-shape merge deletes tombstoned keys from the resolved map via synth-id reverse-lookup',
-    /tombItemIds\.has\(synth\)[\s\S]{0,200}delete curMap\[k\]/.test(deltaSearchSrc));
+    /tomb = synth \? tombRows.get\(synth\) : null/.test(syncDeltaMapMergeSrc)
+      && /if \(tomb && \(!live \|\| compareSyncRows\(tomb, live.row\) >= 0\)\)\s*delete curMap\[k\]/.test(syncDeltaMapMergeSrc));
   // Dotted-path support — required for genetics.snps and any other
   // nested map registered in DELTA_MAPS. Without isNestedMap → getAt
   // walk, per-key writes would land at a flat top-level sibling and
@@ -2367,7 +2390,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('_planScalarDelta wraps payload as {v: value}',
     /_planScalarDelta[\s\S]{0,1500}payloadObj\s*=\s*\{\s*v:\s*scalarValue\s*\}/.test(deltaSearchSrc));
   assert('_planScalarDelta picks most-recently-synced when multiple rows exist',
-    /_planScalarDelta[\s\S]{0,800}sort\(\(a,\s*b\)\s*=>\s*String\(b\.syncedAt[\s\S]{0,200}\.localeCompare\(String\(a\.syncedAt/.test(deltaSearchSrc));
+    /matching.slice\(\).sort\(\(a, b\) => compareSyncRows\(b, a\)\)\[0\]/.test(syncDeltaScalarPlannerSrc));
   writeScalarVersion('legacy-blob-clear', 'contextNotes', {clock: 200, hash: scalarValueHash('contextNotes', 'observed')});
   const blobOnlyClear = await _planScalarDelta('legacy-blob-clear', 'contextNotes', null);
   const neverSetClear = await _planScalarDelta('legacy-unset-clear', 'contextNotes', null, {force: true});
@@ -2416,7 +2439,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     /_DELTA_TELEMETRY_CAP\s*=\s*50/.test(deltaSearchSrc));
   assert('pushProfile records telemetry from onComplete (not synchronously)',
     syncPushContracts.commitOwnsDeltas
-      && /applyCommittedDeltas[\s\S]{0,2000}_recordPushTelemetry\(profileId,\s*\(dataJson\s*\|\|\s*''\)\.length,\s*deltaPlans\)/.test(syncPushDeltasSrc));
+      && syncCommittedDeltaSourceContracts(syncPushDeltasSrc).telemetryOwned);
   assert('Pull-side merge records pull telemetry per array',
     /recordPullDeltaSurface\(arrayName,\s*\{\s*live:\s*liveById\.size,\s*tombstones:\s*localTombs\.size\s*\+\s*remoteTombs\.size\s*\}\)/.test(deltaSearchSrc));
   assert('Pull snapshot resets profileId on each merge (no stale carry-over)',
@@ -2640,7 +2663,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('_isAllowlistSafeId combines regex + private proto-key predicate',
     /_isAllowlistSafeId[\s\S]{0,300}\^\[a-zA-Z0-9_\.-\]\+\$[\s\S]{0,200}_isProtoPollutionKey\(id\)/.test(deltaSearchSrc));
   assert('_planArrayDelta uses _isAllowlistSafeId (not bare regex)',
-    /_planArrayDelta[\s\S]{0,1500}_isAllowlistSafeId\(id\)/.test(deltaSearchSrc));
+    /\.filter\(\(\[, id\]\) => _isAllowlistSafeId\(id\) && !explicitTombstones.has\(id\)\)/.test(syncDeltaArrayPlannerSrc));
   assert('_planKeyedMapDelta uses _isAllowlistSafeId on derived itemId',
     /_planKeyedMapDelta[\s\S]{0,3500}!_isAllowlistSafeId\(itemId\)/.test(deltaSearchSrc));
   assert('Map-shape pull wraps keyIdFn with _isAllowlistSafeId guard',
@@ -2652,11 +2675,11 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   // Resurrect-after-tombstone fix
   assert('_planArrayDelta resurrects tombstoned row by clearing isDeleted',
-    /_planArrayDelta[\s\S]{0,2500}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
+    /const resurrect = existing\?\.isDeleted \|\| versions\[itemId\]\?\.hash === null \? \{ isDeleted: 0 \} : \{\};\s*ops.push\(createDeltaWrite\(existing, \{ profileId, arrayName, itemId: itemId, payload, syncedAt \}, resurrect\)\)/.test(syncDeltaArrayPlannerSrc));
   assert('_planKeyedMapDelta resurrects tombstoned row by clearing isDeleted',
-    /_planKeyedMapDelta[\s\S]{0,4700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
+    /_planKeyedMapDelta[\s\S]{0,4700}existing\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*0\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
   assert('_planScalarDelta resurrects tombstoned row by clearing isDeleted',
-    /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*null\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
+    /_planScalarDelta[\s\S]{0,2000}canonical\?\.isDeleted\s*\?\s*\{\s*isDeleted:\s*0\s*\}\s*:\s*\{\}/.test(deltaSearchSrc));
 
   // Phase 2 cutover scope — previously unenumerated importedData fields
   assert('DELTA_MAPS includes refOverrides (Phase 2 scope fix)',
@@ -2683,10 +2706,10 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears delta snapshots',
-    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    restoreCleanupAfterOwner
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-delta-'\)/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears cutover flag',
-    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    restoreCleanupAfterOwner
       && /isSyncDisableCleanupKey[\s\S]{0,300}-sync-cutover-v2/.test(syncDisableCleanupSrc));
 
   // Live: proto-pollution defence — verify a malicious key is rejected
@@ -2726,9 +2749,9 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
 
   // Snapshot-poisoning fix
   assert('_applyArrayDelta returns boolean success',
-    /function _applyArrayDelta[\s\S]{0,800}let allOk\s*=\s*true[\s\S]{0,400}return allOk/.test(deltaSyntaxSearchSrc));
-  assert('onComplete advances snapshot only when _applyArrayDelta returned true',
-    /const allOk\s*=\s*_applyArrayDelta\(arrayName,\s*plan\)[\s\S]{0,200}if \(allOk\)[\s\S]{0,500}_writeDeltaSnapshot/.test(deltaSearchSrc));
+    /let allOk\s*=\s*true/.test(syncDeltaSrc) && /return allOk;\s*\}/.test(syncDeltaSrc));
+  assert('onComplete advances snapshot only after item-row acknowledgement succeeds',
+    syncCommittedDeltaSourceContracts(syncPushDeltasSrc).snapshotsGuarded);
   assert('onComplete logs partial-failure ratio',
     /snapshotsAdvanced\}\/\$\{deltaPlans\.length\}/.test(deltaSearchSrc));
 
@@ -2809,10 +2832,10 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears -relay-bytes- keys',
-    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    restoreCleanupAfterOwner
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\.includes\('-relay-bytes-'\)/.test(syncDisableCleanupSrc));
   assert('restoreFromMnemonic clears legacy global quota-warned key',
-    /restoreFromMnemonic[\s\S]{0,2200}clearSyncDisableStorage\(\)/.test(syncIdentitySrc)
+    restoreCleanupAfterOwner
       && /isSyncDisableCleanupKey[\s\S]{0,300}key\s*===\s*'labcharts-relay-quota-warned'/.test(syncDisableCleanupSrc));
 
   // P2: warned-marker key now owner-scoped
@@ -3513,7 +3536,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Reconciliation routes through localHasRowsRemoteLacks (catches same-id timestamp drift)',
     /reconcileLocalStorageWithEvolu[\s\S]{0,2500}localHasRowsRemoteLacks\(state\.importedData,\s*remoteImported\)/.test(syncReconcileSrc));
   assert('Reconciliation force-pushes when local has unsynced rows',
-    /reconcileLocalStorageWithEvolu[\s\S]{0,4000}_pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true\s*\}\)/.test(syncReconcileSrc));
+    /reconcileLocalStorageWithEvolu[\s\S]{0,4000}_pushProfile\(state\.currentProfile,\s*state\.importedData,\s*\{\s*force:\s*true,\s*skipUnchanged:\s*true\s*\}\)/.test(syncReconcileSrc));
   // Defence-in-depth: the regression we're guarding against was id-only
   // comparison, so explicitly assert the OLD shape is gone. Hard to write
   // without false-positives — this regex matches the v1.7.x id-set diff

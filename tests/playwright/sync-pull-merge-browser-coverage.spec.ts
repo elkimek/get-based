@@ -8,6 +8,44 @@ const openBlankPage = createBlankPage({
   path: "/sync-pull-merge-browser-coverage", status: 200, body: '<!doctype html><html><head><title>Sync pull merge coverage</title></head><body></body></html>',
 });
 
+for (const active of [true, false]) test(`a later save in another browser tab survives pull-journal replay (active: ${active})`, async ({page}) => {
+  await openBlankPage(page);
+  const peer = await page.context().newPage();
+  await openBlankPage(peer);
+  const profileId = `cross-tab-journal-${active}`;
+  try {
+    expect(await page.evaluate(async profileId => {
+      localStorage.setItem('labcharts-encryption-enabled', 'false');
+      const {state} = await import('/js/state.js'), data = await import('/js/data.js');
+      state.currentProfile = profileId;
+      state.importedData = {...(await import('/js/profile.js')).createDefaultProfileData(), contextNotes: 'A'};
+      if (!await data.saveImportedData()) return false;
+      const pull = await (await import('/js/sync-pull-merge.js')).mergePulledImportedData(profileId, {interpretiveLens: 'independent incoming lens'});
+      (window as unknown as {preparedPull: typeof pull}).preparedPull = pull;
+      state.importedData.contextNotes = 'B';
+      return data.saveImportedData();
+    }, profileId)).toBe(true);
+    expect(await peer.evaluate(async profileId => {
+      const {state} = await import('/js/state.js'), crypto = await import('/js/crypto.js');
+      const key = (await import('/js/profile.js')).profileStorageKey(profileId, 'imported');
+      state.currentProfile = profileId; state.importedData = JSON.parse((await crypto.encryptedGetItem(key))!) as typeof state.importedData;
+      (await import('/js/profile-data-writes.js')).rememberProfileData(state.importedData);
+      state.importedData.contextNotes = 'C';
+      return (await import('/js/data.js')).saveImportedData();
+    }, profileId)).toBe(true);
+    const result = await page.evaluate(async ({profileId, active}) => {
+      const merge = await import('/js/sync-pull-merge.js'), {state} = await import('/js/state.js');
+      const pull = (window as unknown as {preparedPull: Awaited<ReturnType<typeof merge.mergePulledImportedData>>}).preparedPull;
+      if (!active) {state.currentProfile = 'different-profile'; state.importedData = (await import('/js/profile.js')).createDefaultProfileData();}
+      await merge.persistPulledImportedData(pull.localKey, profileId, pull.merged, Date.now());
+      const stored = JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem(pull.localKey))!) as {contextNotes: string; interpretiveLens: string};
+      return {stored, live: active ? state.importedData.contextNotes : null};
+    }, {profileId, active});
+    expect(result.stored).toMatchObject({contextNotes: 'C', interpretiveLens: 'independent incoming lens'});
+    expect(result.live).toBe(active ? 'C' : null);
+  } finally {await peer.close();}
+});
+
 test('sync pull merge browser coverage exercises row recovery merge persistence and profile updates', async ({ page }) => {
   await openBlankPage(page);
 
@@ -83,8 +121,9 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
 
       const preparedRows = await (pullMerge.prepareSyncPullRows as (rows:readonly (NonNullable<Parameters<typeof pullMerge.prepareSyncPullRows>[0]>[number] & {marker?:unknown})[]) => Promise<(Awaited<ReturnType<typeof pullMerge.prepareSyncPullRows>>[number] & {marker?:unknown})[]>)([
         { profileId: '', dataJson: payloadForProfile('dedupe_one'), syncedAt: '2026-06-01T00:00:00.000Z' },
-        { profileId: 'dedupe_one', dataJson: '{}', syncedAt: '2026-06-04T00:00:00.000Z', marker: 'newer' },
-        { profileId: 'dedupe_two', dataJson: '{}', syncedAt: '2026-06-03T00:00:00.000Z' },
+        { profileId: 'dedupe_one', dataJson: payloadForProfile('dedupe_one'), syncedAt: '2026-06-04T00:00:00.000Z', marker: 'newer' },
+        { profileId: 'dedupe_one', dataJson: null, syncedAt: '2026-06-05T00:00:00.000Z' },
+        { profileId: 'dedupe_two', dataJson: payloadForProfile('dedupe_two'), syncedAt: '2026-06-03T00:00:00.000Z' },
       ]);
       const explicitDedupe = (pullMerge.dedupeSyncPullRows as (rows:readonly (NonNullable<Parameters<typeof pullMerge.dedupeSyncPullRows>[0]>[number] & {marker?:unknown})[]) => (Awaited<ReturnType<typeof pullMerge.dedupeSyncPullRows>>[number] & {marker?:unknown})[])([
         { profileId: 'dedupe_three', syncedAt: '2026-06-01T00:00:00.000Z' },

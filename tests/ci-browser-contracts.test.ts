@@ -147,11 +147,13 @@ describe('manual WebKit diagnostic isolation', () => {
   function verifyGates(source: string) {
     const prepare = expression(source, 'prepare', 'if'), aggregate = expression(source, 'test', 'if');
     const diagnosticJob = expression(source, 'webkit_diagnostics', 'if'), pwaDiagnosticJob = expression(source, 'webkit_pwa_routstr_diagnostics', 'if'), aggregateName = expression(source, 'test', 'name');
-    expect(source).toContain("default: 'off'\n        options: ['off', 'webkit-lens-wearable', 'webkit-pwa-routstr']");
-    for (const event of ['pull_request', 'push', 'workflow_call', 'workflow_dispatch']) for (const mode of ['off', '', 'webkit-lens-wearable', 'webkit-pwa-routstr', 'foreign']) {
+    expect(source).toContain("default: 'off'\n        options: ['off', 'webkit-lens-wearable', 'webkit-pwa-routstr', 'webkit-evolu-runtime']");
+    for (const event of ['pull_request', 'push', 'workflow_call', 'workflow_dispatch']) for (const mode of ['off', '', 'webkit-lens-wearable', 'webkit-pwa-routstr', 'webkit-evolu-runtime', 'foreign']) {
       const lensDiagnostic = event === 'workflow_dispatch' && mode === 'webkit-lens-wearable';
       const pwaDiagnostic = event === 'workflow_dispatch' && mode === 'webkit-pwa-routstr';
-      const diagnostic = lensDiagnostic || pwaDiagnostic;
+      const evoluDiagnostic = event === 'workflow_dispatch' && mode === 'webkit-evolu-runtime';
+      const diagnostic = lensDiagnostic || pwaDiagnostic || evoluDiagnostic;
+      expect(evaluate(expression(source, 'webkit_evolu_diagnostics', 'if'), event, mode)).toBe(evoluDiagnostic);
       expect(evaluate(prepare, event, mode), `${event}/${mode} prepare`).toBe(!diagnostic);
       expect(evaluate(diagnosticJob, event, mode), `${event}/${mode} Lens diagnostic`).toBe(lensDiagnostic);
       expect(evaluate(pwaDiagnosticJob, event, mode), `${event}/${mode} PWA diagnostic`).toBe(pwaDiagnostic);
@@ -170,11 +172,13 @@ describe('manual WebKit diagnostic isolation', () => {
   it('keeps every normal event and failed-prepare aggregator intact, including forged diagnostic inputs', () => verifyGates(workflow));
   it('rejects event bypass, missing always, default-on diagnostics and a misleading required check name', () => {
     for (const changed of [
-      workflow.replace("    if: github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr')", "    if: inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr'"),
+      workflow.replace("    if: github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime')", "    if: inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr'"),
       workflow.replace('    if: always() && (', '    if: ('),
       workflow.replace("    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable'", "    if: inputs.diagnostic == 'webkit-lens-wearable'"),
       workflow.replace("    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-pwa-routstr'", "    if: inputs.diagnostic == 'webkit-pwa-routstr'"),
       workflow.replace(" && inputs.diagnostic != 'webkit-pwa-routstr'", ""),
+      workflow.replace(" && inputs.diagnostic != 'webkit-evolu-runtime'", ""),
+      workflow.replace("    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-evolu-runtime'", "    if: inputs.diagnostic == 'webkit-evolu-runtime'"),
       workflow.replace('DIAGNOSTIC normal gate omitted', 'test'),
       workflow.replace("default: 'off'", "default: 'webkit-lens-wearable'"),
     ]) expect(() => verifyGates(changed)).toThrow();
@@ -246,11 +250,28 @@ describe('manual WebKit diagnostic isolation', () => {
     expect(diagnostic).toContain('This run does not execute the normal matrix or provide the test release gate.');
     expect(diagnostic).toContain('name: diagnostic-webkit-pwa-routstr-${{ github.run_id }}-${{ github.run_attempt }}');
     for (const file of ['results', 'guard.json', 'scope.json', 'case.log', 'build.log', 'build-seal.json', 'build-verify.json', 'build-metrics.json', 'transport/manifest.json']) expect(diagnostic).toContain('.local-notes/ci/webkit-pwa-routstr-diagnostics/' + file);
-    for (const pin of ['actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020', 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a']) expect(diagnostic).toContain(pin);
+    for (const pin of ['actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1', 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1', 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9']) expect(diagnostic).toContain(pin);
     const canonical = fs.readFileSync('tests/pwa/sveltekit-routstr-model-settings.spec.ts', 'utf8');
     expect(canonical.match(/^test\('/gm)).toHaveLength(1);
     expect(canonical).toContain("test('static Routstr models retain private and regular choices through unavailable-origin cold launch'");
     expect(canonical).toContain('test.setTimeout(120_000)');
+  });
+  it('keeps focused Evolu diagnostics on actual Cocoa with unchanged restart assertions', () => {
+    const diagnostic = job(workflow, 'webkit_evolu_diagnostics');
+    expect(diagnostic).toContain('runs-on: macos-15');
+    expect(diagnostic).toContain('project: [kit-webkit, kit-mobile-webkit]');
+    expect(diagnostic).toContain('timeout-minutes: 20');
+    expect(diagnostic).toContain('GETBASED_KIT_ACCEPTANCE_GUARD: \'1\'');
+    expect(diagnostic).toContain('persist-credentials: false');
+    expect(diagnostic).toContain('node-version: 24');
+    expect(diagnostic).toContain('npx --no-install playwright install --with-deps webkit');
+    expect(diagnostic).toContain('ci-artifact.mjs verify --artifact dist');
+    expect(diagnostic).toContain('--workers=1 --retries=0 tests/pwa/sveltekit-evolu-runtime.spec.ts');
+    expect(diagnostic).toContain("assert.equal(report.tests.length, 1)");
+    expect(diagnostic).toContain("assert.equal(test.attemptCount, 1)");
+    expect(diagnostic).toContain("assert.equal(test.declaredExpectedStatus, 'passed')");
+    expect(diagnostic).not.toMatch(/\b(?:secrets|continue-on-error)\b|--(?:grep|headed|shard|timeout)\b|needs:|WEBKIT_SKIA|PLAYWRIGHT_WEBKIT_EXECUTABLE/);
+    expect(diagnostic).toContain('the normal release matrix is still required');
   });
   it('executes the actual Cocoa PWA scope guard and rejects every false one-case result', () => {
     const diagnostic = job(workflow, 'webkit_pwa_routstr_diagnostics');

@@ -37,12 +37,12 @@ function locationOffset(source: string, position: Position) {
   expect(position.column === null || (Number.isInteger(position.column) && position.column >= 0)).toBe(true);
   return lines.slice(0, position.line - 1).reduce((sum, line) => sum + line.length + 1, 0) + (position.column || 0);
 }
-function functionIdentity(source: string, entry: FileCoverage['fnMap'][string], file: string) {
+function functionIdentity(source: string, entry: FileCoverage['fnMap'][string], file: string,
+  index = file.endsWith('.svelte.native.js') || file.endsWith('.svelte.html.js')
+    ? productionFunctionIndex(source, file, root) : {owned: sourceFunctions(source, file), thirdParty: []}) {
   // Use the same body-first coordinate contract as the combined collector.
   const body = [locationOffset(source, entry.loc.start), locationOffset(source, entry.loc.end)] as const;
   const span = body[1] > body[0] ? body : [locationOffset(source, entry.decl.start), locationOffset(source, entry.decl.end)] as const;
-  const index = file.endsWith('.svelte.native.js') || file.endsWith('.svelte.html.js')
-    ? productionFunctionIndex(source, file, root) : {owned: sourceFunctions(source, file), thirdParty: []};
   return {
     owned: matchSourceFunction(index.owned, span[0], span[1], 'istanbul'),
     framework: matchSourceFunction(index.thirdParty, span[0], span[1], 'istanbul'),
@@ -135,9 +135,10 @@ export default {...base, root: ${JSON.stringify(root)}, test: {...base.test,
     for (const suffix of ['native.js', 'html.js']) {
       const file = `${component}.${suffix}`, entry = entries.find(entry => entry.path === path.join(root, file))!;
       const source = fs.readFileSync(path.join(root, file), 'utf8'); let ownedCalled = 0, frameworkCalled = 0;
+      const index = productionFunctionIndex(source, file, root);
       for (const [id, fn] of Object.entries(entry.fnMap)) {
         if (!entry.f[id]) continue;
-        const identity = functionIdentity(source, fn, file);
+        const identity = functionIdentity(source, fn, file, index);
         expect(identity.owned !== null || identity.framework !== null, `${file}: ${fn.name}`).toBe(true);
         if (identity.owned) ownedCalled++; if (identity.framework) frameworkCalled++;
       }
@@ -152,8 +153,9 @@ export default {...base, root: ${JSON.stringify(root)}, test: {...base.test,
     // reach the parent collector without inventing execution for untouched code.
     expect(Object.values(worker.f).some(count => count === 0)).toBe(true);
     const workerSource = fs.readFileSync(worker.path, 'utf8');
+    const workerIndex = {owned: sourceFunctions(workerSource, 'service-worker-runtime.js'), thirdParty: []};
     for (const [id, fn] of Object.entries(worker.fnMap)) {
-      if (worker.f[id]) expect(functionIdentity(workerSource, fn, 'service-worker-runtime.js').owned, fn.name).not.toBeNull();
+      if (worker.f[id]) expect(functionIdentity(workerSource, fn, 'service-worker-runtime.js', workerIndex).owned, fn.name).not.toBeNull();
     }
     const browser = path.join(directory, 'browser'); fs.mkdirSync(browser);
     // This is the transport validator's unit input seam, not a browser execution receipt.

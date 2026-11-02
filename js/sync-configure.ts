@@ -7,7 +7,7 @@ import {
 } from './profile.js';
 import { configureRelayHealth } from './sync-relay-health.js';
 import { logSyncEvent, updateSyncStatus } from './sync-state.js';
-import { isSyncConfigured, isSyncEnabled } from './sync-settings-state.js';
+import { isSyncConfigured, isSyncEnabled, SYNC_STORAGE_KEY } from './sync-settings-state.js';
 import { configureSyncDelta } from './sync-delta.js';
 import { configureSyncTombstones, deleteProfileFromRelay } from './sync-tombstones.js';
 import { buildDefaultSyncMessengerContext, configureSyncMessenger, configureSyncMessengerContextPreparation } from './sync-messenger.js';
@@ -21,12 +21,13 @@ import { configureSyncDiagnostics } from './sync-diagnostics-context.js';
 import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from './sync-ui.js';
 import { configureSyncDiagnoseUI, showSyncDiagnose } from './sync-diagnose-ui.js';
 import {
-  configureSyncActions, forceResendCurrentProfile, pushAllProfiles,
+  configureSyncActions, forceResendCurrentProfile,
   pushDirtyProfiles, pushProfilesById, syncNow,
 } from './sync-actions.js';
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from './sync-push.js';
 import { configureSyncPayload } from './sync-payload.js';
+import { stageBackupRestorePending } from './sync-backup-restore-state.js';
 import { configureSyncRecovery } from './sync-recovery.js';
 import { configureSyncInit } from './sync-init.js';
 import { isSyncRebroadcastSettling } from './sync-pull-rebroadcast.js';
@@ -57,6 +58,7 @@ export function configureSyncModules({ enableSync }: {
   configureRelayHealth({
     getAppOwner: getSyncAppOwner,
     getSyncRelay,
+    isOwnerProvisional: () => localStorage.getItem(SYNC_STORAGE_KEY) !== 'true',
     onQuotaThreshold(q) {
       if (q.level === 'red') {
         logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon; reduce storage`);
@@ -134,7 +136,7 @@ export function configureSyncModules({ enableSync }: {
     getAppOwner: getSyncAppOwner,
     getAppOwnerError: getSyncAppOwnerError,
     getEvolu: getSyncEvolu,
-    seedLocalProfiles: () => pushAllProfiles({ force: true }),
+    seedLocalProfiles: async options => stageBackupRestorePending(getProfiles().map(profile => profile.id), options),
   });
 
   configureSyncDiagnostics({

@@ -7,6 +7,13 @@ type ProfileRows = Map<string | null, unknown>;
 interface ProfileRebase<T> { data: T; baseline: unknown; conflict: boolean; }
 const baselines = new WeakMap<object, unknown>();
 const queues = new Map<string, Promise<unknown>>();
+interface MutationProjection { before: Record<string, unknown>; after: Record<string, unknown> }
+interface MutationJournal { changes: MutationProjection[]; overflowed: boolean }
+const mutationJournals = new Map<string, Set<WeakRef<MutationJournal>>>();
+export interface ProfileMutationCapture {
+  rebase<T>(data: T, latest: unknown): {ok: true; data: T} | {ok: false};
+  release(): void;
+}
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
 // Live adoption preserves object identities and can change property insertion order.
 // Compare JSON values, not that incidental order, when detecting concurrent edits.
@@ -15,6 +22,67 @@ const canonicalJSON = (value: unknown) => JSON.stringify(value, (_key, item: unk
 export const profileDataValuesEqual = (a: unknown, b: unknown) => canonicalJSON(a) === canonicalJSON(b);
 const equal = profileDataValuesEqual;
 export class ProfileWriteConflict extends Error {}
+
+/** Observe local commits only while a pull owns this cursor. Keep changed
+ * top-level fields, not a full profile per save; defer after a bounded burst. */
+export function captureProfileMutations(profileId: string): ProfileMutationCapture {
+  const journal: MutationJournal = {changes: [], overflowed: false}, reference = new WeakRef(journal);
+  const observers = mutationJournals.get(profileId) ?? new Set<WeakRef<MutationJournal>>();
+  observers.add(reference); mutationJournals.set(profileId, observers);
+  return {
+    rebase<T>(data: T, latest: unknown) {
+      if (journal.overflowed) return {ok: false};
+      const tip: Record<string, unknown> = {}, current: Record<string, unknown> = {};
+      // These projections came from successful writes to this same profile;
+      // replay preserves the target shape while changing its recorded fields.
+      for (const change of journal.changes) {
+        data = mergeProfileMutation(change.before, change.after, data) as T;
+        for (const key of new Set([...Object.keys(change.before), ...Object.keys(change.after)])) {
+          if (Object.hasOwn(change.after, key)) tip[key] = change.after[key]; else delete tip[key];
+          if (object(latest) && Object.hasOwn(latest, key)) current[key] = latest[key]; else delete current[key];
+        }
+      }
+      // Another tab does not share this journal. Its later stored changes
+      // must win over the last locally observed commit, including deletions.
+      data = mergeProfileMutation(tip, current, data) as T;
+      return {ok: true, data};
+    },
+    release() {
+      observers.delete(reference);
+      if (!observers.size && mutationJournals.get(profileId) === observers) mutationJournals.delete(profileId);
+    },
+  };
+}
+
+export function noteProfileDataCommit(profileId: string, previous: string | null, committed: unknown): void {
+  const observers = mutationJournals.get(profileId);
+  if (!observers) return;
+  const journals: MutationJournal[] = [];
+  for (const reference of observers) {
+    const journal = reference.deref();
+    if (!journal) observers.delete(reference); else if (!journal.overflowed) journals.push(journal);
+  }
+  if (!observers.size) mutationJournals.delete(profileId);
+  if (!journals.length) return;
+  try {
+    const before: unknown = previous ? JSON.parse(previous) : {};
+    if (!object(before) || !object(committed)) throw new Error('Unknown profile mutation');
+    const change: MutationProjection = {before: {}, after: {}};
+    for (const key of new Set([...Object.keys(before), ...Object.keys(committed)])) {
+      if (['__proto__', 'constructor', 'prototype'].includes(key) || equal(before[key], committed[key])) continue;
+      if (Object.hasOwn(before, key)) change.before[key] = structuredClone(before[key]);
+      if (Object.hasOwn(committed, key)) change.after[key] = structuredClone(committed[key]);
+    }
+    if (!Object.keys(change.before).length && !Object.keys(change.after).length) return;
+    for (const journal of journals) {
+      if (journal.changes.length >= 8) { journal.changes = []; journal.overflowed = true; }
+      else journal.changes.push(change);
+    }
+  } catch {
+    // A failed observation must never turn a completed local save into failure.
+    for (const journal of journals) { journal.changes = []; journal.overflowed = true; }
+  }
+}
 
 export function rememberProfileData(data: unknown, persisted: unknown = data) {
   if (object(data)) baselines.set(data, structuredClone(persisted));

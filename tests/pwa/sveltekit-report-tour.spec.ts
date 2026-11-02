@@ -5,9 +5,17 @@ import {expect, test, type Locator, type Page} from '@playwright/test';
 import {createDefaultProfileData} from '../../js/profile.js';
 import {startKitServer} from './kit-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
-import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
+import {installOfflineStartupDiagnostics, captureOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';
-import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
+import {readyLightArtifact} from '../helpers/light-artifact-navigation.js';
+
+async function ready(page: Page, origin: string) {
+  // Observe a pending install before the existing test deadline tears it down.
+  // The shared readiness infrastructure and its success path stay unchanged.
+  const diagnostic = setTimeout(() => { void captureOfflineLaunchDiagnostics(page, test.info()).catch(() => {}); }, 30_000);
+  try { return await readyLightArtifact(page, origin); }
+  finally { clearTimeout(diagnostic); }
+}
 
 async function keyboardActivate(page: Page, control: Locator) {
   await page.keyboard.press(nativeTabKey(page));

@@ -125,6 +125,8 @@ deploy/profile-share/data/
 /js/marker-schema/coagulation.js
 /js/marker-schema/diabetes.js
 /js/marker-schema/differential.js
+/js/marker-schema/lymphocyte-subsets.js
+/js/pdf-import-lymphocyte-subsets.js
 /js/marker-schema/electrolytes.js
 /js/marker-schema/hematology.js
 /js/marker-schema/hormones.js
@@ -3695,3 +3697,9 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 # Explicit external catalog input for Light acceptance
 /tests/helpers/light-device-catalog-fixture.js
 /tests/helpers/light-device-catalog-fixture.js.map
+
+# Sync conflict-order runtime output
+/js/sync-conflict-order.js
+/js/marker-baseline.js
+
+/js/marker-chart-scale.js

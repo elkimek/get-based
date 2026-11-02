@@ -25,8 +25,8 @@ describe('proxy DNS pinning transport', () => {
 
     expect(packageJson.engines.node).toBe('>=24.20.0 <25');
     expect(packageLock.packages[''].engines.node).toBe(packageJson.engines.node);
-    expect(packageJson.dependencies.undici).toBe('8.11.2');
-    expect(packageLock.packages['node_modules/undici'].version).toBe('8.11.2');
+    expect(packageJson.dependencies.undici).toBe('8.12.3');
+    expect(packageLock.packages['node_modules/undici'].version).toBe('8.12.3');
     expect(source).toContain("import { Agent, fetch as undiciFetch } from 'undici'");
     expect(source).not.toContain("import('undici')");
   });

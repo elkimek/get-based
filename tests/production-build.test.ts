@@ -364,7 +364,9 @@ describe('shipping SvelteKit production build', () => {
   it('publishes byte-identical previous workers and current licenses outside the new precache', async () => {
     for (const url of ONLINE_EVOLU_ASSETS) {
       expect(shell).not.toContain(url);
-      expect(await fs.readFile(path.join(outputRoot, url.slice(1))), url).toEqual(await fs.readFile(url.slice(1)));
+      // Node compares Buffer bytes directly, without a JS property visit for
+      // every byte under the full-suite V8 profiler.
+      assert.deepEqual(await fs.readFile(path.join(outputRoot, url.slice(1))), await fs.readFile(url.slice(1)), url);
     }
   });
 

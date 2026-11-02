@@ -2,6 +2,7 @@ import path from 'node:path';
 import {devices, expect, test, type BrowserContext, type Page} from '@playwright/test';
 import {startKitServer} from './kit-server.js';
 import {artifactInputs} from './kit-native-receipts.js';
+import {captureOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import type {SyncRuntimeClient} from '../../js/sync-runtime.js';
 
 const runtime = '/vendor/evolu8/v8.24.1-web3.6.5/';
@@ -19,8 +20,11 @@ async function fixtureRows(page: Page) {
 }
 async function ready(page: Page) {
   await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({timeout: 30_000});
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
-  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  const diagnostic = setTimeout(() => { void captureOfflineLaunchDiagnostics(page, test.info()).catch(() => {}); }, 30_000);
+  try {
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+    await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  } finally { clearTimeout(diagnostic); }
 }
 async function openIdentity(page: Page) {
   await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, {timeout: 30_000});

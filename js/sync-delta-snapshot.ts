@@ -1,6 +1,58 @@
 // sync-delta-snapshot.js — Delta snapshot storage keys and advancement gates.
 import {clearScalarVersion} from './sync-scalar-snapshot.js';
-import {DELTA_SCALARS} from './sync-delta-surfaces.js';
+import {DELTA_ARRAYS, DELTA_SCALARS} from './sync-delta-surfaces.js';
+import {_isAllowlistSafeId} from './sync-delta-id.js';
+
+export interface ArrayItemVersion { hash: string | null; clock: number }
+export type ArrayItemVersions = Record<string, ArrayItemVersion>;
+export type PulledArrayVersions = Record<string, ArrayItemVersions>;
+
+// Separate from diff snapshots: these receipts identify the exact committed
+// value and its row clock, including values received without a local push.
+export function readArrayVersions(profileId: unknown, arrayName: string): ArrayItemVersions {
+  const versions: ArrayItemVersions = Object.create(null);
+  if (typeof profileId !== 'string' || !DELTA_ARRAYS.includes(arrayName)) return versions;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(`${_deltaSnapshotKey(profileId, arrayName)}-versions`) || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return versions;
+    for (const [id, value] of Object.entries(parsed) as [string, Partial<ArrayItemVersion>][]) {
+      if (_isAllowlistSafeId(id) && value && (typeof value.hash === 'string' || value.hash === null)
+          && Number.isSafeInteger(value.clock) && value.clock! > 0) versions[id] = {hash: value.hash, clock: value.clock!};
+    }
+  } catch { /* Unknown receipts cannot authorize replacing a local edit. */ }
+  return versions;
+}
+
+/** Upgrade merge base for values committed before row-version receipts existed.
+ * The old planning clock is only a lower bound; an actual receipt takes priority. */
+export function readLegacyArrayVersions(profileId: unknown, arrayName: string): ArrayItemVersions {
+  const versions: ArrayItemVersions = Object.create(null);
+  if (typeof profileId !== 'string' || !DELTA_ARRAYS.includes(arrayName)) return versions;
+  let clock = 0;
+  try {
+    const meta = JSON.parse(localStorage.getItem(`${_deltaSnapshotKey(profileId, arrayName)}-meta`) || '{}');
+    if (Number.isSafeInteger(meta?.plannedAt) && meta.plannedAt > 0) clock = meta.plannedAt;
+  } catch { /* Older snapshots may predate planning-clock metadata as well. */ }
+  for (const [id, hash] of Object.entries(_readDeltaSnapshot(profileId, arrayName))) {
+    if (_isAllowlistSafeId(id) && typeof hash === 'string') versions[id] = {hash, clock};
+  }
+  return versions;
+}
+
+export function writeArrayVersions(profileId: string, arrayName: string, incoming: ArrayItemVersions): boolean {
+  if (!DELTA_ARRAYS.includes(arrayName)) return false;
+  const versions = readArrayVersions(profileId, arrayName), before = JSON.stringify(versions);
+  // A partial query/plan cannot prove that an older receipt is obsolete.
+  // Explicit snapshot/profile clearing removes these receipts with its data.
+  for (const [id, version] of Object.entries(incoming)) {
+    if (!_isAllowlistSafeId(id) || !Number.isSafeInteger(version.clock) || version.clock <= 0) continue;
+    if (!versions[id] || version.clock >= versions[id]!.clock) versions[id] = version;
+  }
+  const next = JSON.stringify(versions);
+  if (next === before) return true;
+  try { localStorage.setItem(`${_deltaSnapshotKey(profileId, arrayName)}-versions`, next); return true; }
+  catch { return false; }
+}
 
 // Returns the localStorage key holding the last-pushed snapshot
 // (`{itemId: contentHash}`) for one (profileId, arrayName). Snapshot is
@@ -44,6 +96,7 @@ export function clearDeltaSnapshot(profileId: unknown, arrayName: unknown) {
   try {
     localStorage.removeItem(_deltaSnapshotKey(profileId, arrayName));
     localStorage.removeItem(`${_deltaSnapshotKey(profileId, arrayName)}-meta`);
+    localStorage.removeItem(`${_deltaSnapshotKey(profileId, arrayName)}-versions`);
     if (typeof profileId === 'string' && typeof arrayName === 'string' && DELTA_SCALARS.includes(arrayName)) return clearScalarVersion(profileId, arrayName);
     return true;
   } catch { return false; }

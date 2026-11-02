@@ -32,6 +32,7 @@ interface SyncPullDeps {
 import { encodeMergedRoutstrSessions, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
 
 import { state } from './state.js';
+import { getSyncAppOwner } from './sync-runtime.js';
 import { parseSyncPayload } from './sync-payload.js';
 import { applyChatData, chatDataNeedsRebroadcast, getChatDataLocalLockRemainingMs } from './sync-chat-apply.js';
 import { refreshActiveProfileAfterPull } from './sync-pull-active-refresh.js';
@@ -48,7 +49,7 @@ import {
 } from './sync-state.js';
 import { isLocalSyncCommitEcho } from './sync-origin-state.js';
 import {
-  clearBackupRestorePending, getPendingBackupRestoreProfileIds,
+  getPendingBackupRestoreProfileIds, republishPendingBackupRestore, resetBackupRestoreRetryBudget,
 } from './sync-backup-restore-state.js';
 import {
   getProfileSyncBlockReason, isDemoProfileRecord,
@@ -195,9 +196,21 @@ export function isSyncPulling() {
 export function clearSyncPullTimers() {
   for (const t of _chatPullRetryTimers.values()) clearTimeout(t);
   _chatPullRetryTimers.clear();
+  if (_localWriteRetryTimer !== null) clearTimeout(_localWriteRetryTimer);
+  _localWriteRetryTimer = null;
+}
+
+let _localWriteRetryTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleLocalWritePullRetry() {
+  if (_localWriteRetryTimer !== null) return;
+  _localWriteRetryTimer = setTimeout(() => {
+    _localWriteRetryTimer = null;
+    void forcePull()?.catch(error => dbg('Deferred local-write pull retry failed:', error));
+  }, 100);
 }
 
 export function forcePull() {
+  resetBackupRestoreRetryBudget();
   if (!currentEvolu() || !currentProfileQuery()) {
     console.warn('[sync] Cannot force pull — Evolu not initialized');
     return undefined;
@@ -272,12 +285,18 @@ async function receiveSync() {
     const restoredProfileIds = getPendingBackupRestoreProfileIds();
     if (restoredProfileIds.length > 0) {
       dbg(`Restore preflight: republishing ${restoredProfileIds.length} restored profile(s)`);
-      const restored = await _pushProfilesById(restoredProfileIds, { force: true, completeSnapshot: true });
-      if (restored.failed > 0 || restored.skipped > 0 || restored.succeeded !== restoredProfileIds.length) {
-        logSyncEvent('skip', `Pull deferred — ${restored.succeeded}/${restoredProfileIds.length} restored profiles were republished`);
+      const ownerId = getSyncAppOwner()?.id || '';
+      const restored = await republishPendingBackupRestore({
+        runtime: evolu, ownerId, ownerMnemonic: getSyncAppOwner()?.mnemonic || '', getProfiles: _getProfiles, pushProfilesById: _pushProfilesById,
+        isCurrent: () => currentEvolu() === evolu && getSyncAppOwner()?.id === ownerId && _isSyncEnabled(),
+      });
+      if (!restored.complete) {
+        logSyncEvent('skip', `Pull deferred — ${restored.remaining} restored profile(s) still need recovery`);
+        if (restored.reason !== 'identity-changed' && restored.reason !== 'identity-unavailable') {
+          updateSyncStatus({lastError: {type: 'BackupRestorePending', message: 'Some restored profiles could not be committed. Local data is retained. Make those profiles available, then retry Sync now.', at: Date.now()}});
+        }
         return;
       }
-      clearBackupRestorePending();
     }
 
     // Resolve remote tombstones before processing live rows. The tombstone
@@ -398,6 +417,7 @@ async function receiveSync() {
         // user deleted on another device.
         await _reconcilePulledManualWearables(profileId, merged);
         const committedPull = await persistPulledImportedData(localKey, profileId, merged, remoteUpdated);
+        if (committedPull.retry) { scheduleLocalWritePullRetry(); continue; }
         if (restoreJoinApplied) clearRestoreJoinPending();
 
         if (await mergePulledProfile(profileId, profile, metadata.clock)) {
@@ -435,7 +455,11 @@ async function receiveSync() {
       } catch (e) {
         console.error('[sync] Pull failed for row:', e);
       } finally {
-        if (typeof row.profileId === 'string') earlyBaselines.delete(row.profileId);
+        if (typeof row.profileId === 'string') {
+          const baseline = earlyBaselines.get(row.profileId);
+          if (baseline?.ok) baseline.value.mutations?.release();
+          earlyBaselines.delete(row.profileId);
+        }
       }
     }
 
@@ -453,6 +477,7 @@ async function receiveSync() {
       _renderProfileButton();
     }
   } finally {
+    for (const baseline of earlyBaselines.values()) if (baseline.ok) baseline.value.mutations?.release();
     earlyBaselines.clear();
     _pulling = false;
     updateSyncStatus({ pull: 'received', pullReceivedAt: Date.now() });

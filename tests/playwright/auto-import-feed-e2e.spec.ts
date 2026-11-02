@@ -7,6 +7,8 @@ async function openSandbox(page: Page, source: string) {
   await page.addInitScript(() => {
     for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
     localStorage.setItem('labcharts-theme', 'light');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+    localStorage.setItem('labcharts-analytics-disabled', 'true');
   });
   const appOrigin = new URL(test.info().project.use.baseURL!).origin;
   await page.route('**/*', route => {
