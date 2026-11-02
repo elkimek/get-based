@@ -124,7 +124,8 @@ export function parsePersonName(value: string, options: { allowLowercase?: boole
   const kept: string[] = [];
   const raw: string[] = [];
   for (const token of tokens) {
-    if (kept.length >= 4 || !token || token.endsWith(':') || /\d/.test(token)) break;
+    // "Last, First Middle Middle" keeps every given name after the comma (one more token allowed).
+    if (kept.length >= (kept.some(item => item.endsWith(',')) ? 5 : 4) || !token || token.endsWith(':') || /\d/.test(token)) break;
     if (!NAME_TOKEN_RE.test(token)) break;
     if (TITLE_RE.test(token)) { raw.push(token); continue; }
     if (NON_NAME_WORDS.has(token.replace(/[,.]$/, '').toLowerCase())) break;
@@ -140,7 +141,7 @@ export function parsePersonName(value: string, options: { allowLowercase?: boole
   if (commaIndex >= 0 && commaIndex < kept.length - 1) {
     last = kept.slice(0, commaIndex + 1).map(clean).join(' ');
     first = clean(kept[commaIndex + 1]!);
-    middle = kept[commaIndex + 2] ? clean(kept[commaIndex + 2]!) : '';
+    middle = kept.slice(commaIndex + 2).map(clean).join(' ');
   } else if (kept.length === 1) {
     last = clean(kept[0]!);
   } else {
@@ -160,7 +161,9 @@ function personKey(person: Person) {
 function personForms(person: Person, allowStandaloneFirst: boolean): string[] {
   const forms: string[] = [];
   const word = (value: string) => escapeRegExp(value).replace(/\s+/g, '\\s+');
-  const midOpt = `(?:\\s+(?:${person.middle ? word(person.middle) + '|' : ''}[${L}]\\.?))?`;
+  // Every middle name in full, any one of them alone, or initials, in any combination up to their count.
+  const middles = person.middle ? person.middle.split(/\s+/) : [];
+  const midOpt = `(?:\\s+(?:${middles.map(word).join('|')}${middles.length ? '|' : ''}[${L}]\\.?)){0,${Math.max(1, middles.length)}}`;
   const { first, last } = person;
   if (first && last) {
     forms.push(`${word(last)}\\s*,\\s*${word(first)}${midOpt}`);

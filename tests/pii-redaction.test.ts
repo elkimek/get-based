@@ -294,4 +294,12 @@ describe('review findings on PR #1699', () => {
     expect(redactReportText('Datum odběru: 20260930', {key: 'k'}).text).toContain('20260930');
     expect(redactReportText('Collection date: 20260930', {key: 'k'}).text).toContain('20260930');
   });
+
+  it('removes every given name after a comma, for patients and physicians', () => {
+    const out = redactReportText('Patient Name: Smith, Jane Anne Marie\nLater: Jane Anne Marie Smith and Jane Marie Smith', {key: 'k'}).text;
+    expect(out).not.toMatch(/Smith|Jane|Anne|Marie/);
+    const doc = redactReportText('Ordering Physician: Brown, Robert James Lee  Glucose 91 mg/dL', {key: 'k'}).text;
+    expect(doc).not.toMatch(/Brown|Robert|James|Lee\b/);
+    expect(doc).toContain('Glucose 91 mg/dL');
+  });
 });
