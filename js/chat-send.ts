@@ -311,7 +311,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   (state.chatHistory.push as (...messages:unknown[])=>number)(userMsg);
   const sendingHistory = state.chatHistory;
   generationHistory = sendingHistory;
-  renderChatMessages();
+  renderChatMessages({ preserveScroll: false });
   let saved = false;
   chatSavePending = true;
   try { saved = await saveChatHistory(); }
@@ -587,8 +587,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     completeChatLiveMessage(aiMsgEl, assistantMsg as (typeof state.chatHistory)[number]);
     await saveChatHistory();
     if (!scopeIsCurrent()) return;
-    liveMessage.dispose();
-    renderChatMessages({ preserveScroll: true, attentionMessage: assistantMsg });
+    renderChatMessages({ preserveScroll: true, attentionMessage: assistantMsg, disposeLiveMessage: liveMessage.dispose });
     const msgIndex = state.chatHistory.length - 1;
     const recommendationRuntime = getChatSendRecommendationRuntime();
     if (_recSlots.length && recommendationRuntime) {

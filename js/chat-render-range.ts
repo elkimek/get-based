@@ -4,18 +4,18 @@ export const CHAT_RENDER_WINDOW_SIZE = 120;
 const CHAT_RENDER_BATCH_SIZE = 120;
 const explicitStarts = new Map<string, number>();
 
-export function getChatRenderStart(threadId: string | null | undefined, total: number): number {
+export function getChatRenderStart(threadId: string | null | undefined, total: number, visibleStart?: number): number {
   const safeTotal = Math.max(0, Math.trunc(total));
-  if (!threadId) return Math.max(0, safeTotal - CHAT_RENDER_WINDOW_SIZE);
-  const explicit = explicitStarts.get(threadId);
-  return explicit === undefined
-    ? Math.max(0, safeTotal - CHAT_RENDER_WINDOW_SIZE)
-    : Math.min(explicit, safeTotal);
+  const explicit = threadId ? explicitStarts.get(threadId) : undefined;
+  const start = explicit === undefined ? Math.max(0, safeTotal - CHAT_RENDER_WINDOW_SIZE) : Math.min(explicit, safeTotal);
+  // Retain visible messages while reading; do not turn this into a persistent expansion.
+  return typeof visibleStart === 'number' && Number.isFinite(visibleStart)
+    ? Math.min(start, Math.max(0, Math.trunc(visibleStart))) : start;
 }
 
-export function expandChatRenderWindow(threadId: string | null | undefined, total: number): number {
+export function expandChatRenderWindow(threadId: string | null | undefined, total: number, visibleStart?: number): number {
   if (!threadId) return 0;
-  const start = Math.max(0, getChatRenderStart(threadId, total) - CHAT_RENDER_BATCH_SIZE);
+  const start = Math.max(0, getChatRenderStart(threadId, total, visibleStart) - CHAT_RENDER_BATCH_SIZE);
   explicitStarts.set(threadId, start);
   return start;
 }
