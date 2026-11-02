@@ -18,7 +18,7 @@ import {
 interface ScrollAnchor { selector: string; viewportTop: number }
 interface RouteDataOperations { categories?: Record<string, unknown> | null; preserveScroll?: unknown; preserveSidebar?: boolean; scrollAnchor?: string }
 type RouteHandler = (data?: unknown) => unknown;
-export interface NavigateDependencies { routeHandlers: Partial<Record<'dashboard' | 'labs' | 'genome' | 'body' | 'nutrition' | 'supplements' | 'insight' | 'recommendations' | 'correlations' | 'compare' | 'light' | 'biologyScores', RouteHandler>> & { category?: (route: string, data?: unknown) => unknown }; syncMobileBottomNav?: ((route: string) => unknown) | null; destroyAllCharts?: (() => unknown) | null }
+export interface NavigateDependencies { routeHandlers: Partial<Record<'dashboard' | 'labs' | 'genome' | 'body' | 'nutrition' | 'supplements' | 'insight' | 'recommendations' | 'correlations' | 'compare' | 'light' | 'biologyScores' | 'longevityTools', RouteHandler>> & { category?: (route: string, data?: unknown) => unknown }; syncMobileBottomNav?: ((route: string) => unknown) | null; destroyAllCharts?: (() => unknown) | null }
 
 export const CORE_ROUTES = new Set([
   'dashboard',
@@ -33,6 +33,7 @@ export const CORE_ROUTES = new Set([
   'compare',
   'light',
   'biology-scores',
+  'longevity-tools',
 ]);
 
 function _lastViewStorageKey() {
@@ -147,6 +148,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     else if (routeCategory === "compare") routeResult = routeHandlers.compare?.(routeData);
     else if (routeCategory === "light") routeResult = routeHandlers.light?.(routeData);
     else if (routeCategory === "biology-scores") routeResult = routeHandlers.biologyScores?.(routeData);
+    else if (routeCategory === "longevity-tools") routeResult = routeHandlers.longevityTools?.(routeData);
     else routeResult = routeHandlers.category?.(routeCategory, routeData);
     state.currentView = routeCategory;
     _persistCurrentView(routeCategory);

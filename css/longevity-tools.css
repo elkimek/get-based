@@ -1,0 +1,45 @@
+/* longevity-tools.css — Longevity Tools screen (route "longevity-tools"). Lazy-loaded. */
+.lt-root { display: flex; flex-direction: column; gap: 14px; padding: 4px 0 28px; }
+@media (min-width: 1600px) { .lt-root { max-width: 2000px; margin: 0 auto; } }
+.lt-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); position: sticky; top: 0; z-index: 5; backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent); }
+.lt-segs { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.lt-seg { min-height: 36px; padding: 0 16px; background: transparent; border: 0; color: var(--text-secondary); font-size: 13px; cursor: pointer; }
+.lt-seg + .lt-seg { border-left: 1px solid var(--border); }
+.lt-seg.active { background: var(--accent); color: #fff; }
+.lt-search { flex: 1 1 260px; min-height: 36px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); font-size: 14px; }
+.lt-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+.lt-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--text-muted); padding: 0 4px; }
+.lt-summary strong { color: var(--text-primary); }
+.lt-missing { opacity: .65; }
+.lt-privacy { margin-left: auto; }
+.lt-section { display: flex; flex-direction: column; gap: 10px; }
+.lt-section-title { margin: 8px 0 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.lt-grid { display: grid; gap: 10px; }
+.lt-grid-tools { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.lt-grid-markers { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.lt-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-card); color: var(--text-primary); cursor: pointer; font: inherit; transition: border-color .12s, transform .12s, box-shadow .12s; }
+.lt-card:hover, .lt-card:focus-visible { border-color: var(--accent); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 18%, transparent); transform: translateY(-1px); outline: none; }
+.lt-card.lt-dim { opacity: .6; }
+.lt-card-head { display: flex; justify-content: space-between; align-items: center; }
+.lt-kind { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); font-weight: 600; }
+.lt-kind-bioage .lt-kind, .lt-kind-interpreter .lt-kind { color: var(--accent); }
+.lt-ext { font-size: 13px; color: var(--text-muted); }
+.lt-title { font-weight: 600; font-size: 14px; line-height: 1.3; }
+.lt-desc { font-size: 12.5px; line-height: 1.4; color: var(--text-secondary); }
+.lt-value { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.lt-value.lt-none { font-size: 12.5px; font-weight: 400; color: var(--text-muted); }
+.lt-date { font-size: 11.5px; font-weight: 400; color: var(--text-muted); }
+.lt-pill { display: inline-block; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
+.lt-full { color: var(--green, #2e9d5b); border-color: color-mix(in srgb, var(--green, #2e9d5b) 50%, transparent); }
+.lt-partial { color: var(--yellow, #c08a1e); border-color: color-mix(in srgb, var(--yellow, #c08a1e) 50%, transparent); }
+.lt-empty { color: var(--text-muted); }
+.lt-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.lt-chip { font-size: 11px; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--border); white-space: nowrap; }
+.lt-chip-ok { background: color-mix(in srgb, var(--green, #2e9d5b) 12%, transparent); border-color: color-mix(in srgb, var(--green, #2e9d5b) 35%, transparent); }
+.lt-chip-miss { color: var(--text-muted); border-style: dashed; }
+.lt-chip-ask { color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 8%, transparent); }
+.lt-note { font-size: 11.5px; color: var(--text-muted); }
+@media (max-width: 700px) { .lt-grid-tools { grid-template-columns: 1fr; } .lt-grid-markers { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lt-privacy { margin-left: 0; } }

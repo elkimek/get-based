@@ -10,6 +10,12 @@ export function standaloneLensEntries(): string[] {
     <span class="nav-item-label">${label}</span><span class="nav-item-dot"></span></div>`);
 }
 
+/** Analysis tools entry for the optional Longevity Tools deep-link screen. */
+export function longevityToolsEntry(): string {
+  return `<div class="nav-item" data-category="longevity-tools" tabindex="0" role="button" data-nav-action="navigate" data-nav-route="longevity-tools">
+    <span class="nav-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><!--[18--><path d="M3 12h4l3-8 4 16 3-8h4"></path><!--]--></svg><!----></span><span class="nav-item-label">Longevity Tools</span><span class="nav-item-dot"></span></div>`;
+}
+
 // Qualify the intentional navigation changes before comparing the rest against
 // immutable migration receipts. Shipping acceptance compares the complete new tree.
 export function withoutStandaloneLensEntries(html: string): string {
@@ -17,6 +23,10 @@ export function withoutStandaloneLensEntries(html: string): string {
     assert.equal(html.split(row).length, 2, 'Exactly one qualified standalone lens entry');
     html = html.replace(row, '');
   }
+  const longevity=longevityToolsEntry();
+  assert.equal(html.split(longevity).length, 2, 'Exactly one qualified Longevity Tools entry');
+  assert.ok(html.indexOf(longevity)>html.indexOf('data-category="correlations"'),'Longevity Tools follows Correlations');
+  html=html.replace(longevity,'');
   const genome=html.match(/<div class="nav-item" data-category="genome"[\s\S]*?<\/div>/g);
   assert.equal(genome?.length,1,'Exactly one Genome entry');
   const entry=genome![0]!;

@@ -1339,6 +1339,10 @@ deploy/profile-share/data/
 /js/app-shell-hooks.js
 /js/biology-score-ai-context.js
 /js/biology-scores.js
+/js/longevity-tools-catalog.js
+/js/longevity-tools-loader.js
+/js/longevity-tools-values.js
+/js/longevity-tools-view.js
 /js/dashboard-lab-widget-renderers.js
 /js/dashboard-recommendation-widget.js
 /js/dashboard-view-composition.js

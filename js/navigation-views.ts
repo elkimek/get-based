@@ -24,6 +24,7 @@ import {
   isLightSunUILoaded,
   loadLightSunUI,
 } from './light-sun-loader.js';
+import { getLoadedLongevityToolsModule, isLongevityToolsReady, loadLongevityToolsUI } from './longevity-tools-loader.js';
 import {
   isBodyHealthDataReady,
   isNutritionFeatureReady,
@@ -687,6 +688,7 @@ const _navigate = createNavigate({
     ),
     compare: data => showCategoryPresentationRoute('compare', 'Compare', () => showCompare(data)),
     light: showLightRoute,
+    longevityTools: () => showPreparedRoute('longevity-tools', 'Longevity Tools', isLongevityToolsReady, loadLongevityToolsUI, () => getLoadedLongevityToolsModule()?.showLongevityTools(null) ?? false),
     category: (category, data) => showPreparedRoute(
       category,
       'Category',

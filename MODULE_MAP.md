@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2093 |
-| Internal import edges | 7037 |
-| Dynamic internal edges | 216 |
+| Modules | 2097 |
+| Internal import edges | 7049 |
+| Dynamic internal edges | 217 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -65,12 +65,12 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/state.ts`](js/state.ts) | 340 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 81 |
-| [`js/utils.ts`](js/utils.ts) | 271 | [`js/agent-data-bindings.ts`](js/agent-data-bindings.ts) | 45 |
+| [`js/state.ts`](js/state.ts) | 341 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 81 |
+| [`js/utils.ts`](js/utils.ts) | 272 | [`js/agent-data-bindings.ts`](js/agent-data-bindings.ts) | 45 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 97 | [`js/chat-send.ts`](js/chat-send.ts) | 41 |
 | [`js/data.ts`](js/data.ts) | 97 | [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 86 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
-| [`js/profile.ts`](js/profile.ts) | 71 | [`js/settings.ts`](js/settings.ts) | 35 |
+| [`js/profile.ts`](js/profile.ts) | 72 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 66 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
 | [`js/profile-data-writes.ts`](js/profile-data-writes.ts) | 63 | [`js/pdf-import.ts`](js/pdf-import.ts) | 31 |
 | [`shared/agent-data-contract.ts`](shared/agent-data-contract.ts) | 63 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 30 |
@@ -79,7 +79,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/schema.ts`](js/schema.ts) | 44 | [`js/agent-data-apply.ts`](js/agent-data-apply.ts) | 27 |
 | [`js/data-merge.ts`](js/data-merge.ts) | 43 | [`js/export.ts`](js/export.ts) | 27 |
 | [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 39 | [`js/chat-empty-state.ts`](js/chat-empty-state.ts) | 26 |
-| [`js/lab-context-settings.ts`](js/lab-context-settings.ts) | 34 | [`js/navigation-views.ts`](js/navigation-views.ts) | 25 |
+| [`js/lab-context-settings.ts`](js/lab-context-settings.ts) | 34 | [`js/navigation-views.ts`](js/navigation-views.ts) | 26 |
 
 ## Existing cyclic components
 
@@ -3619,6 +3619,15 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>longevity</code> family — 4 modules</summary>
+
+- [`js/longevity-tools-catalog.ts`](js/longevity-tools-catalog.ts) → no in-scope imports
+- [`js/longevity-tools-loader.ts`](js/longevity-tools-loader.ts) → [`js/longevity-tools-view.ts`](js/longevity-tools-view.ts) *(dynamic)*
+- [`js/longevity-tools-values.ts`](js/longevity-tools-values.ts) → [`js/longevity-tools-catalog.ts`](js/longevity-tools-catalog.ts)
+- [`js/longevity-tools-view.ts`](js/longevity-tools-view.ts) → [`js/body-measurement-model.ts`](js/body-measurement-model.ts), [`js/longevity-tools-catalog.ts`](js/longevity-tools-catalog.ts), [`js/longevity-tools-values.ts`](js/longevity-tools-values.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
 <details><summary><code>lymphocyte</code> family — 1 module</summary>
 
 - [`js/marker-schema/lymphocyte-subsets.ts`](js/marker-schema/lymphocyte-subsets.ts) → no in-scope imports
@@ -3844,7 +3853,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>navigation</code> family — 2 modules</summary>
 
 - [`js/navigation-completion.ts`](js/navigation-completion.ts) → no in-scope imports
-- [`js/navigation-views.ts`](js/navigation-views.ts) → [`js/biology-page-loader.ts`](js/biology-page-loader.ts), [`js/category-customization.ts`](js/category-customization.ts), [`js/category-page-runtime.ts`](js/category-page-runtime.ts), [`js/category-page-view.ts`](js/category-page-view.ts) *(dynamic)*, [`js/compare-correlations.ts`](js/compare-correlations.ts) *(dynamic)*, [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/dashboard-composition-loader.ts`](js/dashboard-composition-loader.ts), [`js/dashboard-control-runtime.ts`](js/dashboard-control-runtime.ts), [`js/dashboard-view-shell.ts`](js/dashboard-view-shell.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/navigation-completion.ts`](js/navigation-completion.ts), [`js/onboarding-view.ts`](js/onboarding-view.ts), [`js/recommendation-action-delegates.ts`](js/recommendation-action-delegates.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/views-router.ts`](js/views-router.ts)
+- [`js/navigation-views.ts`](js/navigation-views.ts) → [`js/biology-page-loader.ts`](js/biology-page-loader.ts), [`js/category-customization.ts`](js/category-customization.ts), [`js/category-page-runtime.ts`](js/category-page-runtime.ts), [`js/category-page-view.ts`](js/category-page-view.ts) *(dynamic)*, [`js/compare-correlations.ts`](js/compare-correlations.ts) *(dynamic)*, [`js/cycle-runtime.ts`](js/cycle-runtime.ts), [`js/dashboard-composition-loader.ts`](js/dashboard-composition-loader.ts), [`js/dashboard-control-runtime.ts`](js/dashboard-control-runtime.ts), [`js/dashboard-view-shell.ts`](js/dashboard-view-shell.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime.ts`](js/dna-runtime.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-drop-zone.ts`](js/import-drop-zone.ts), [`js/lens-page-shell-core.ts`](js/lens-page-shell-core.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/longevity-tools-loader.ts`](js/longevity-tools-loader.ts), [`js/marker-detail-modal.ts`](js/marker-detail-modal.ts), [`js/mobile-dashboard.ts`](js/mobile-dashboard.ts), [`js/nav.ts`](js/nav.ts), [`js/navigation-completion.ts`](js/navigation-completion.ts), [`js/onboarding-view.ts`](js/onboarding-view.ts), [`js/recommendation-action-delegates.ts`](js/recommendation-action-delegates.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/views-router.ts`](js/views-router.ts)
 
 </details>
 

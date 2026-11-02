@@ -242,6 +242,7 @@ export function buildSidebar(data?: unknown) {
   const recommendations = {action:sidebarAction(_navNavigateAttrs('recommendations'),'navigate','recommendations'),icon:_sidebarIcon('recommendations')};
   const compare = {action:sidebarAction(_navNavigateAttrs('compare'),'navigate','compare'),icon:_sidebarIcon('compare')};
   const correlations = {action:sidebarAction(_navNavigateAttrs('correlations'),'navigate','correlations'),icon:_sidebarIcon('correlations')};
+  const longevityTools = {action:sidebarAction(_navNavigateAttrs('longevity-tools'),'navigate','longevity-tools'),icon:_sidebarIcon('longevityTools')};
   const emfAssessments = state.importedData?.emfAssessment?.assessments;
   const emfAssessmentCount = Array.isArray(emfAssessments) ? emfAssessments.length : 0;
   const emf = _projectConditionalNavItem({
@@ -301,7 +302,7 @@ export function buildSidebar(data?: unknown) {
     const collapsedStyle = collapsed ? componentStaticStyles.hidden : undefined;
     groups.push({className,name,headerAction,toggleAction,expanded,accessibleName,label,flagged,itemsName,collapsedStyle,items:group.items.map(item => item.view)});
   }
-  const view:SidebarView = {searchIcon,dashboard,dashboardCount,labs,labsCount,biology,genome,genomeBadge,body,bodyBadge,nutrition,supplements,light,insight,recommendations,compare,correlations,emf,lightAssessment,reports,context,knowledge,custom,labAction,categories,groups};
+  const view:SidebarView = {searchIcon,dashboard,dashboardCount,labs,labsCount,biology,genome,genomeBadge,body,bodyBadge,nutrition,supplements,light,insight,recommendations,compare,correlations,longevityTools,emf,lightAssessment,reports,context,knowledge,custom,labAction,categories,groups};
   const html = renderSidebarPresentation(view);
 
   nav.innerHTML = html;
@@ -354,7 +355,7 @@ export function filterSidebar() {
   // When searching: show matching items, expand groups with matches, hide empty groups
   items.forEach(el => {
     const cat = el.dataset.category;
-    if (cat === 'dashboard' || cat === 'labs' || cat === 'biology-scores' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'reports' || cat === 'context' || cat === 'knowledge-base' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'nutrition' || cat === 'supplements' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
+    if (cat === 'dashboard' || cat === 'labs' || cat === 'biology-scores' || cat === 'correlations' || cat === 'longevity-tools' || cat === 'compare' || cat === 'recommendations' || cat === 'reports' || cat === 'context' || cat === 'knowledge-base' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'nutrition' || cat === 'supplements' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
     const label = el.textContent!.toLowerCase();
     const markers = (el.dataset.markers || '').toLowerCase();
     el.style.display = (label.includes(query) || markers.includes(query)) ? '' : 'none';

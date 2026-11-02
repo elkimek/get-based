@@ -44,6 +44,12 @@ function restoreReviewedComponentSource(file:string,source:string){
   ] as const){expect(source.split(current).length-1).toBe(count);source=source.split(current).join(previous);}
  }
  if(file==='js/nav.ts'){
+  // Qualify the additive Longevity Tools entry (row, view field, search allow-list).
+  for(const [current,previous] of [
+   ["  const longevityTools = {action:sidebarAction(_navNavigateAttrs('longevity-tools'),'navigate','longevity-tools'),icon:_sidebarIcon('longevityTools')};\n",''],
+   ['compare,correlations,longevityTools,emf,','compare,correlations,emf,'],
+   [" || cat === 'longevity-tools'",''],
+  ] as const){expect(source.split(current)).toHaveLength(2);source=source.replace(current,previous);}
   // Qualify the exact native mobile repair independently, preserving every
   // original ordering/lens/style-port digest and archived fixture below.
   expect(crypto.createHash('sha256').update(source).digest('hex')).toBe('f24dcd9f4958bc0c4a87ba73201ea56f650659ef0cdc7294b4ef1116c279ac04');
