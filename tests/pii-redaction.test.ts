@@ -273,4 +273,25 @@ describe('review findings on PR #1699', () => {
     expect(ord).toContain('Collected: 20260930');
     expect(ord).not.toContain('12345678');
   });
+
+  it('matches the exact review examples for empty DOB labels, label surnames and nearby order numbers', () => {
+    const dob = redactReportText('Date of Birth\nGlucose 91 mg/dL', {key: 'k'}).text;
+    expect(dob).toBe('Date of Birth\nGlucose 91 mg/dL');
+    const sur = redactReportText('Surname: Low  Age: 27', {key: 'k'}).text;
+    expect(sur).not.toMatch(/Surname:\s*Low\b/);
+    const unitSur = redactReportText('Patient: Jane Low\nSurname: Low  Glucose 60 mg/dL', {key: 'k'}).text;
+    expect(unitSur).not.toMatch(/Surname:\s*Low\b/);
+    expect(unitSur).toContain('60 mg/dL');
+    const flag = redactReportText('Patient: Jane Low\nGlucose 60 mg/dL Low', {key: 'k'}).text;
+    expect(flag).toContain('60 mg/dL Low');
+    const ord = redactReportText('Collected: 2026-09-30  Order: 12345678', {key: 'k'}).text;
+    expect(ord).toContain('2026-09-30');
+    expect(ord).not.toContain('12345678');
+    const compactOrd = redactReportText('Collected: 20260930  Order: 20260930', {key: 'k'}).text;
+    expect(compactOrd).toMatch(/^Collected: 20260930 {2}Order: (?!20260930)\d{8}$/);
+    expect(redactReportText('Collected  Order: 20260930', {key: 'k'}).text).not.toContain('20260930');
+    expect(redactReportText('Collected: 20261399', {key: 'k'}).text).not.toContain('20261399');
+    expect(redactReportText('Datum odběru: 20260930', {key: 'k'}).text).toContain('20260930');
+    expect(redactReportText('Collection date: 20260930', {key: 'k'}).text).toContain('20260930');
+  });
 });

@@ -61,6 +61,7 @@ const UNIT_KEYWORDS = /\b(mmol|µmol|µkat|umol|ukat|g\/l|mg\/l|ng\/l|µg|ug|mU\
 const NEXT_LABEL_RE = /\s{2,}|\t|\s+(?:DOB|D\.O\.B|Date|Sex|Gender|Age|Phone|Tel|Fax|Email|Patient|Account|Acct|Specimen|Accession|Control|MRN|ID|NPI|Address|Physician|Ordering|Referring|Doctor|Provider|Collected|Received|Reported|Pohlav[ií]|V[ěe]k|Datum|Adresa|Rodn[ée]|L[ée]ka[řr])\b[^:\n]{0,20}:/iu;
 const RESULT_FLAG_RE = /^(?:low|high|normal|abnormal|critical|borderline|positive|negative|elevated|decreased)$/i;
 const COLLECTION_LABEL_RE = /(?:collect|odb[ěe]r|received|reported|report\s+date|specimen\s+date|datum|date)/i;
+const COMPACT_DATE_LABEL_RE = new RegExp(`(?:^|[^\\p{L}])${COLLECTION_LABEL_RE.source}\\p{L}*(?:[ \\t]+(?:date|on|at|odb[ěe]ru))?[ \\t]*:?[ \\t]*$`, 'iu');
 const MAX_SPANS = 0xF8FF - 0xE100;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -326,8 +327,12 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   if (patientForms.length) {
     const re = new RegExp(`${NOT_WORD_BEFORE}(?:${patientForms.join('|')})${NOT_WORD_AFTER}`, 'giu');
     text = text.replace(re, (match: string, offset: number, whole: string) => {
-      // A surname that doubles as a result flag ("Glucose 60 mg/dL Low") stays in clinical lines.
-      if (RESULT_FLAG_RE.test(match) && UNIT_KEYWORDS.test(lineAt(whole, offset))) return match;
+      // A surname that doubles as a result flag ("Glucose 60 mg/dL Low") stays only where it trails
+      // a measured value on a result line, never right after a label ("Surname: Low  Age: 27").
+      if (RESULT_FLAG_RE.test(match)) {
+        const before = whole.slice(whole.lastIndexOf('\n', offset - 1) + 1, offset);
+        if (/\d/.test(before) && UNIT_KEYWORDS.test(lineAt(whole, offset)) && !/:[ \t]*$/.test(before)) return match;
+      }
       return protect(PATIENT_PLACEHOLDER);
     });
   }
@@ -416,7 +421,9 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   text = text.replace(/\b\d{8,}\b/g, (match: string, offset: number, whole: string) => {
     const line = lineAt(whole, offset);
     if (UNIT_KEYWORDS.test(line) || /===\s*Page/i.test(line)) return match;
-    if (/^\d{8}$/.test(match) && new RegExp(`${COLLECTION_LABEL_RE.source}[a-z ]{0,12}[:\\s]*$`, 'i').test(line.slice(0, line.indexOf(match)))) {
+    // A compact date stays only when it is the value right beside a collection/report label.
+    const before = whole.slice(whole.lastIndexOf('\n', offset - 1) + 1, offset);
+    if (/^\d{8}$/.test(match) && COMPACT_DATE_LABEL_RE.test(before)) {
       const y = +match.slice(0, 4), mo = +match.slice(4, 6), d = +match.slice(6, 8);
       if (y >= 1900 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return match;
     }
