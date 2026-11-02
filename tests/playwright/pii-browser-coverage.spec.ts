@@ -517,7 +517,8 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
       const editMode = textarea!.style.display !== 'none';
       overlay!.querySelector<HTMLElement>('#pii-review-regex')!.click();
       await waitFor(() => !!overlay!.querySelector<HTMLElement>('.pii-diff-preview'), 'regex diff preview');
-      const regexFallback = (textarea! as unknown as {value: string}).value.includes('Jana') || (textarea! as unknown as {value: string}).value.includes('Jan');
+      const regexValue = (textarea! as unknown as {value: string}).value;
+      const regexFallback = regexValue.includes('Patient: [PATIENT]') && !regexValue.includes('Alice Smith') && !regexValue.includes('777 888 999');
       overlay!.querySelector<HTMLElement>('#pii-review-cancel')!.click();
       const cancelResult = await cancelPromise;
 

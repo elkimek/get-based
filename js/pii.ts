@@ -25,6 +25,8 @@ import {
 import { createInitialResponseTimeout } from './api-transport.js';
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { state } from './state.js';
+import { profileStorageKey } from './profile-storage-key.js';
+import { redactReportText } from './pii-redaction.js';
 import {
   buildPIIDiffHTML,
   reviewPIIBeforeSend as reviewPIIBeforeSendUI,
@@ -136,6 +138,8 @@ REPLACE these with fake data:
 - Doctor names → fictional doctor names
 - Patient IDs → random numbers
 
+Bracketed placeholders such as [PATIENT], [PHYSICIAN-AB12], [ADDRESS-AB12] or [PHONE-AB12] are already anonymized — copy them exactly and never replace them.
+
 DO NOT CHANGE (copy exactly as-is):
 - Collection dates, sample dates, and report dates — these are critical. Only dates of birth should change
 - ALL "=== Page N ===" headers
@@ -214,7 +218,9 @@ export function validatePIIResult(result: string | null | undefined, pdfText: st
 export function finalizePIIResult(result: string, pdfText: string) {
   const validationError = validatePIIResult(result, pdfText);
   if (validationError) throw new Error(validationError);
-  const deterministic = obfuscatePDFText(result).obfuscated;
+  // The model saw the deterministic pre-pass output; keep those replacements as they are
+  // so the second pass only catches what the model left behind.
+  const deterministic = obfuscatePDFText(result, obfuscatePDFText(pdfText).produced ?? []).obfuscated;
   const normalizedFinal = normalizePIIComparison(deterministic);
   const retained = extractSensitiveValues(pdfText).filter(value => normalizedFinal.includes(value));
   if (retained.length > 0) throw new Error(`Privacy check found ${retained.length} original identifier${retained.length === 1 ? '' : 's'} still present`);
@@ -271,7 +277,9 @@ export async function sanitizeWithOllamaStreaming(pdfText: string, onChunk: (chu
   const piiModel = getOllamaPIIModel();
   ensurePIIModelEligible(piiModel);
   const apiKey = getOllamaPIIApiKey();
-  const promptText = PII_PROMPT_PREFIX + pdfText;
+  // Deterministic redaction first so the local model only handles leftovers and
+  // repeated identifiers stay consistent across pages and reports.
+  const promptText = PII_PROMPT_PREFIX + obfuscatePDFText(pdfText).obfuscated;
   const baseUrl = piiUrl.replace(/\/+$/, '');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
@@ -399,7 +407,9 @@ export async function sanitizeWithOllama(pdfText: string) {
   const piiModel = getOllamaPIIModel();
   ensurePIIModelEligible(piiModel);
   const apiKey = getOllamaPIIApiKey();
-  const promptText = PII_PROMPT_PREFIX + pdfText;
+  // Deterministic redaction first so the local model only handles leftovers and
+  // repeated identifiers stay consistent across pages and reports.
+  const promptText = PII_PROMPT_PREFIX + obfuscatePDFText(pdfText).obfuscated;
   try {
     const baseUrl = piiUrl.replace(/\/+$/, '');
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -433,108 +443,47 @@ export async function sanitizeWithOllama(pdfText: string) {
 // ═══════════════════════════════════════════════
 // REGEX PII OBFUSCATION (fallback when no Ollama)
 // ═══════════════════════════════════════════════
-export function obfuscatePDFText(pdfText: string) {
-  let text = pdfText;
-  let replacements = 0;
+// Replacements are keyed per profile (see pii-redaction.ts) so the same
+// original value gets the same replacement on every page and in every report.
+const PII_PSEUDONYM_KEY_SUFFIX = 'pii-pseudonym-key';
+let sessionPseudonymKey = '';
+
+function randomKeyHex() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** Per-profile random redaction key. Holds no report content; falls back to a session key without storage. */
+export function getPIIPseudonymKey(profileId: string = state.currentProfile || 'default') {
+  const storageKey = profileStorageKey(profileId, PII_PSEUDONYM_KEY_SUFFIX);
+  try {
+    const existing = localStorage.getItem(storageKey);
+    if (existing && /^[0-9a-f]{64}$/.test(existing)) return existing;
+    const created = randomKeyHex();
+    localStorage.setItem(storageKey, created);
+    return created;
+  } catch {
+    if (!sessionPseudonymKey) sessionPseudonymKey = randomKeyHex();
+    return sessionPseudonymKey;
+  }
+}
+
+function currentProfileName() {
+  const profiles = Array.isArray(state.profiles) ? state.profiles : [];
+  const active = profiles.find(profile => profile?.id === state.currentProfile);
+  return typeof active?.name === 'string' ? active.name : null;
+}
+
+export function obfuscatePDFText(pdfText: string, preserve?: Iterable<string>): { obfuscated: string; original: string; replacements: number; produced?: readonly string[] } {
   const original = pdfText;
-  const pdfSex = detectSexFromPDF(pdfText) || state.profileSex;
-
-  // Unit keywords that indicate a result line — never strip digits from these
-  const unitKeywords = /\b(mmol|µmol|µkat|umol|ukat|g\/l|mg\/l|ng\/l|µg|ug|mU\/l|pmol|nmol|ml\/s|fL|pg|×10|10\^|u\/l|iu\/l|%|sec|s\/1|mg\/dL|ng\/dL|mIU\/mL|mEq\/L|mcg|cells\/uL|thou\/uL|mill\/uL)\b/i;
-  // Collection date line — protect entirely
-  const collectionDateLine = /^.*\b(odb[eě]r|collect|datum|sample|vzork|nasb[ií]r|drawn)\b.*$/gim;
-  const protectedLines = new Set<number>();
-  let m;
-  while ((m = collectionDateLine.exec(pdfText)) !== null) {
-    protectedLines.add(m.index);
-  }
-
-  function isProtectedLine(matchIndex: number) {
-    // Check if this match falls on a collection date line
-    const lineStart = text.lastIndexOf('\n', matchIndex) + 1;
-    return protectedLines.has(lineStart) || protectedLines.has(matchIndex);
-  }
-
-  function replaceUnprotectedMatch(match: string, offset: number, generate: () => string) {
-    if (isProtectedLine(offset)) return match;
-    replacements++;
-    return generate();
-  }
-
-  // Phase 1 — Label-based: lines with PII-identifying labels
-  const labelReplacements = [
-    { pattern: /^(.*?\b(?:jm[eé]no|name|pacient|patient|p[rř][ií]jmen[ií]|surname)\b[:\s]+)(.+)$/gim, gen: () => fakeName(pdfSex) },
-    { pattern: /^(.*?\b(?:adresa|address|bydli[sš]t[eě]|residence)\b[:\s]+)(.+)$/gim, gen: () => `${randomPick(FAKE_STREETS)}, ${randomPick(FAKE_CITIES)}` },
-    { pattern: /^(.*?\b(?:datum\s*narozen|date\s*of\s*birth|nar(?:ozen[ií])?\.?|DOB)\b[:\s]+)(.+)$/gim, gen: () => fakeDate() },
-    { pattern: /^(.*?\b(?:l[eé]ka[rř]|doctor|phy?sician|o[sš]et[rř]uj[ií]c[ií]|ordering|provider|referring)\b\.?[:\s]+)(.+)$/gim, gen: () => randomPick(FAKE_DOCTORS) },
-    { pattern: /^(.*?\b(?:rodn[eé]\s*[cč][ií]slo|birth\s*number|r[\.\s]?[cč][\.\s]?)\b[:\s]+)(.+)$/gim, gen: () => fakeBirthNumber() },
-    { pattern: /^(.*?\b(?:[cč][ií]slo\s*(?:poji[sš]t[eě]n|insurance)|insurance\s*(?:no|number|id)|poji[sš][tť]ovna|member\s*id|group\s*(?:no|number|id)|policy)\b[:\s]+)(.+)$/gim, gen: () => randomDigits(10) },
-    { pattern: /^(.*?\b(?:id\s*pacienta|patient\s*id|[cč][ií]slo\s*pacienta|account\s*(?:no|number)|acct|MRN|medical\s*record)\b[:\s]+)(.+)$/gim, gen: () => fakePatientId() },
-    { pattern: /^(.*?\b(?:specimen\s*(?:id|no|number)|accession\s*(?:no|number)|control\s*(?:id|no|number)|requisition)\b[:\s]+)(.+)$/gim, gen: () => randomDigits(10) },
-    { pattern: /^(.*?\b(?:age|v[eě]k)\b[:\s]+)(\d{1,3}\b.*)$/gim, gen: () => `${20 + secureRandomInt(50)}` },
-  ];
-
-  for (const { pattern, gen } of labelReplacements) {
-    text = text.replace(pattern, (match: string, label: string, _value: string, offset: number) => {
-      return replaceUnprotectedMatch(match, offset, () => label + gen());
-    });
-  }
-
-  // Phase 2 — Pattern-based: anywhere in text
-  // Czech/Slovak birth number (YYMMDD/XXXX)
-  text = text.replace(/\b(\d{2})(0[1-9]|1[0-2]|5[1-9]|6[0-2])(0[1-9]|[12]\d|3[01])\/(\d{3,4})\b/g, (match: string, _y: string, _m: string, _d: string, _s: string, offset: number) => {
-    return replaceUnprotectedMatch(match, offset, () => fakeBirthNumber());
+  const { text, replacements, produced } = redactReportText(pdfText, {
+    key: () => getPIIPseudonymKey(),
+    profileName: currentProfileName(),
+    profileDob: state.profileDob,
+    preserve,
   });
-
-  // SSN (XXX-XX-XXXX)
-  text = text.replace(/\b\d{3}-\d{2}-\d{4}\b/g, (match: string, offset: number) => {
-    return replaceUnprotectedMatch(match, offset, () => `${randomDigits(3)}-${randomDigits(2)}-${randomDigits(4)}`);
-  });
-
-  // US phone: (XXX) XXX-XXXX (with optional label)
-  text = text.replace(/(?:(?:tel|phone|fax|ph)\.?[\s:]+)?\(\d{3}\)[\s.-]\d{3}[\s.-]\d{4}\b/gi, (match: string, offset: number) => {
-    if (isProtectedLine(offset)) return match;
-    const lineStart = text.lastIndexOf('\n', offset) + 1;
-    const lineEnd = text.indexOf('\n', offset);
-    const line = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd);
-    if (unitKeywords.test(line)) return match;
-    replacements++;
-    return `(${randomDigits(3)}) ${randomDigits(3)}-${randomDigits(4)}`;
-  });
-
-  // Email
-  text = text.replace(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g, (match: string, offset: number) => {
-    return replaceUnprotectedMatch(match, offset, () => fakeEmail());
-  });
-
-  // Phone numbers (international and local)
-  // Require +country code OR leading tel/phone/fax label to avoid matching reference ranges like "150-380"
-  text = text.replace(/(?:(?:\+\d{1,3}[\s-]?)\(?\d{2,3}\)?[\s.-]?\d{3}[\s.-]?\d{3,4}\b)|(?:(?:tel|phone|fax|mobil|telefon)\.?[\s:]+\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{3,4}\b)/gi, (match: string, offset: number) => {
-    if (isProtectedLine(offset)) return match;
-    const lineStart = text.lastIndexOf('\n', offset) + 1;
-    const lineEnd = text.indexOf('\n', offset);
-    const line = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd);
-    // Skip result lines and lines already handled by label-based phase (IDs, birth numbers)
-    if (unitKeywords.test(line)) return match;
-    if (/\b(id\s*pacienta|patient\s*id|rodn[eé]\s*[cč][ií]slo|birth\s*number|[cč][ií]slo\s*pacienta|i[cč]p)\b/i.test(line)) return match;
-    replacements++;
-    return fakePhone();
-  });
-
-  // Long digit sequences (8+ digits) on non-result lines — likely patient/sample IDs
-  text = text.replace(/\b\d{8,}\b/g, (match: string, offset: number) => {
-    if (isProtectedLine(offset)) return match;
-    const lineStart = text.lastIndexOf('\n', offset) + 1;
-    const lineEnd = text.indexOf('\n', offset);
-    const line = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd);
-    if (unitKeywords.test(line)) return match;
-    // Skip page headers
-    if (/===\s*Page/i.test(line)) return match;
-    replacements++;
-    return randomDigits(match.length);
-  });
-
-  return { obfuscated: text, original, replacements };
+  return { obfuscated: text, original, replacements, produced };
 }
 
 // extractPatientName dropped — too unreliable across PDF layouts
