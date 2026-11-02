@@ -1,7 +1,7 @@
 import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 const artifact=process.env.GETBASED_KIT_ARTIFACT||path.resolve('.local-notes/sveltekit-build');
 async function open(page: Page, origin: string) {

@@ -101,6 +101,7 @@ export function getSyncStatusNotice(status: SyncStatus): string | null {
 }
 
 export function updateSyncStatus(partial: Partial<SyncStatus>) {
+  if (Object.entries(partial).every(([key, value]) => Object.is(_syncStatus[key as keyof SyncStatus], value))) return;
   Object.assign(_syncStatus, partial);
   _emitSyncStatus();
 }

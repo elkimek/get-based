@@ -13,23 +13,28 @@ import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-featur
 import { isValidLensUrl as isValidLensUrlImpl } from './lens-url.js';
 import { clearLensCache as clearLensCacheImpl, getLensCacheEntry, setLensCacheEntry } from './lens-cache.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
+import { LENS_CONFIG_STORAGE_KEY, commitLensConfigValue, noteLegacyLensConfigWrite, readCommittedLensConfigRaw } from './lens-config-store.js';
 
 import type { LensUiConfig } from './lens-knowledge-base-ui.js';
 import type { LensCacheValue } from './lens-cache.js';
 type LensKnowledgeBaseUi = ReturnType<typeof import('./lens-knowledge-base-ui.js').createLensKnowledgeBaseUi>;
 interface LensStatus { state: string; lastChunkCount: number; lastError: string | null; sourceName: string }
-interface LensQueryOptions { topK?: unknown; multiQuery?: unknown; signal?: AbortSignal | undefined }
+interface LensQueryOptions { topK?: unknown; multiQuery?: unknown; signal?: AbortSignal | undefined; sourceRevision?: string }
 interface LensFusionChunk { text?: unknown; source?: unknown }
 interface LocalLensStats { documents?: unknown; total_chunks?: unknown }
 type LensConnectionResult = { ok: true; chunkCount: number; firstSource: string } | { ok: false; error: string };
 
-const CONFIG_KEY = 'labcharts-lens-config';
+const CONFIG_KEY = LENS_CONFIG_STORAGE_KEY;
 const SECRET_KEY = 'labcharts-lens-key';
 // testProbe — per-user "canary" query used by Save + connect to verify the
 // endpoint. Default is health-themed because getbased's audience typically
 // indexes health research, but any user with a different domain corpus (legal
 // docs, code docs, recipes…) can change it so the test result reflects their
 // actual content instead of always looking like "0 passages returned".
+let lastLocalLensStats: LocalLensStats | null = null;
+let lastLocalLibraryName: string | null = null, libraryRefreshGeneration = 0;
+let libraryNotifications: BroadcastChannel | null = null;
+
 const DEFAULT_TEST_PROBE = 'vitamin D deficiency supplementation';
 // Two backends under one UI:
 //   'in-browser'      — MiniLM in a Web Worker, vectors in OPFS. Works in
@@ -83,6 +88,14 @@ export function getLensConfig() {
     return migrateLensConfig({ ...DEFAULT_CONFIG, ...saved });
   } catch { return { ...DEFAULT_CONFIG }; }
 }
+// Local display aliases do not change the saved corpus or its disclosure scope.
+// This private identity retains all connection/settings fields for source gates.
+export function getLensSourceIdentity() {
+  const config = getLensConfig();
+  if (config.backend !== 'in-browser') return localStorage.getItem(CONFIG_KEY) ?? '';
+  const { name: _alias, ...source } = config;
+  return JSON.stringify(Object.fromEntries(Object.entries(source).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)));
+}
 /// Rename/rebucket legacy backend values. 'desktop-engine' (Electron-only,
 /// removed) migrates to 'external-server' iff the user already had the
 /// Python lens URL saved — they can keep pointing at it if they kept a
@@ -99,13 +112,18 @@ function migrateLensConfig(cfg: LensUiConfig) {
   return cfg;
 }
 export function saveLensConfig(partial: Partial<LensUiConfig>) {
+  return writeLensConfigMirror(partial, noteLegacyLensConfigWrite);
+}
+function writeLensConfigMirror(partial: Partial<LensUiConfig>, accepted?: () => void) {
   const prev = getLensConfig();
   const next = { ...prev, ...partial };
   localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
+  accepted?.();
   const urlChanged = partial.url !== undefined && partial.url !== prev.url;
   const topKChanged = partial.topK !== undefined && partial.topK !== prev.topK;
   const backendChanged = partial.backend !== undefined && partial.backend !== prev.backend;
   if (urlChanged || topKChanged || backendChanged) clearLensCache();
+  if (backendChanged || partial.name !== undefined) lastLocalLibraryName = null;
   // A different source must not inherit the previous source's last-search
   // error. Other edits preserve useful search diagnostics in the settings UI.
   updateLensStatus(urlChanged || backendChanged
@@ -113,6 +131,16 @@ export function saveLensConfig(partial: Partial<LensUiConfig>) {
     : {});
   return next;
 }
+/** Maintained UI and reviewed chat writes use the same acknowledged boundary. */
+export function commitLensConfig(partial: Partial<LensUiConfig>, options: { expectedRaw?: string | null; canCommit?: () => boolean } = {}) {
+  const expectedRaw = options.expectedRaw === undefined ? localStorage.getItem(CONFIG_KEY) : options.expectedRaw;
+  return commitLensConfigValue(() => {
+    const next = { ...getLensConfig(), ...partial };
+    return { raw: JSON.stringify(next), value: next, publish: () => { writeLensConfigMirror(partial); } };
+  }, { ...options, expectedRaw });
+}
+export function refreshLensConfigControls() { lensKnowledgeBaseUi?.refreshConfigControls(); }
+export function hasKnowledgeLibraryDraft() { return lensKnowledgeBaseUi?.hasLibraryDraftOrBusy() ?? false; }
 export function getLensKey() { return getCachedKey(SECRET_KEY) || ''; }
 export async function saveLensKey(key: string) {
   await encryptedSetCredentialItem(SECRET_KEY, key);
@@ -124,10 +152,12 @@ export async function saveLensKey(key: string) {
   updateChatHeaderModelRuntime();
 }
 export async function removeLens() {
-  localStorage.removeItem(CONFIG_KEY);
-  await encryptedRemoveItem(SECRET_KEY);
-  clearLensCache();
-  updateLensStatus({ state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' });
+  const expectedRaw = localStorage.getItem(CONFIG_KEY);
+  await commitLensConfigValue(() => ({ raw: null, value: undefined, publish: () => localStorage.removeItem(CONFIG_KEY) }), { expectedRaw, afterCommit: async () => {
+    try { await encryptedRemoveItem(SECRET_KEY); } catch (error) { throw new Error('Knowledge Base settings were removed, but credential cleanup could not finish. Reopen settings to review it.', { cause: error }); }
+    clearLensCache();
+    updateLensStatus({ state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' });
+  } });
 }
 export function hasLens() {
   const cfg = getLensConfig();
@@ -174,28 +204,56 @@ export function subscribeLensStatus(fn: (status: LensStatus) => unknown) {
 }
 
 // ─── Query ────────────────────────────────────────────────────
+async function refreshQueryConfig(signal?: AbortSignal) {
+  const active = () => { if (signal?.aborted) throw signal.reason ?? new DOMException('The request was aborted.', 'AbortError'); };
+  active();
+  try { await readCommittedLensConfigRaw(); active(); return true; }
+  catch { active(); try { updateLensStatus({ state: 'error', lastError: 'Knowledge Base settings could not be read. Reopen settings or retry.' }); } catch { /* Optional source feedback cannot block chat. */ } return false; }
+}
+type LensScope = { profile: typeof state.currentProfile; root: typeof state.importedData; config: string | null };
+function captureLensScope(): LensScope { return { profile: state.currentProfile, root: state.importedData, config: getLensSourceIdentity() }; }
+async function lensScopeCurrent(scope: LensScope, signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason ?? new DOMException('The request was aborted.', 'AbortError');
+  await readCommittedLensConfigRaw();
+  if (signal?.aborted) throw signal.reason ?? new DOMException('The request was aborted.', 'AbortError');
+  return scope.profile === state.currentProfile && scope.root === state.importedData && scope.config === getLensSourceIdentity();
+}
+export function canQueryLens() {
+  const config = getLensConfig();
+  return config.enabled && (config.backend === 'in-browser' ? typeof navigator !== 'undefined' && !!navigator.storage?.getDirectory && typeof Worker !== 'undefined' : hasLens());
+}
 export async function queryLens(queryHint: unknown, opts: LensQueryOptions = {}) {
-  if (!hasLens()) return null;
-  const cfg = getLensConfig();
-  const topK = typeof opts.topK === 'number' ? opts.topK : cfg.topK;
-  const hint = String(queryHint || '').trim();
+  const owner = { profile: state.currentProfile, root: state.importedData };
+  if (!await refreshQueryConfig(opts.signal) || owner.profile !== state.currentProfile || owner.root !== state.importedData || !canQueryLens()) return null;
+  const cfg = getLensConfig(), scope = captureLensScope();
+  const topK = typeof opts.topK === 'number' ? opts.topK : cfg.topK, hint = String(queryHint || '').trim();
   if (!hint) return null;
   if (cfg.backend === 'in-browser') {
-    const sourceName = cfg.name || 'Knowledge Base';
-    return queryWithCache('in-browser', sourceName, hint, topK, async () => {
-      const mod = await import('./lens-local.js');
-      const result = await mod.queryLensLocal(hint, { topK });
-      if (!result) return [];
-      return result.chunks.map((c) => ({ text: c.text, source: c.source }));
-    });
+    try {
+      const { readLocalKnowledgeQuerySource } = await import('./knowledge-library-query.js');
+      const before = await readLocalKnowledgeQuerySource();
+      if (!before?.numChunks || opts.sourceRevision && before.revision !== opts.sourceRevision || !await lensScopeCurrent(scope, opts.signal)) return null;
+      const result = await queryWithCache(`in-browser:${before.revision}`, before.name, hint, topK, async () => {
+        const mod = await import('./lens-local.js');
+        const response = await mod.queryLensLocal(hint, { topK, expectedLibraryId: before.libraryId, expectedSourceRevision: before.revision });
+        return response?.chunks.map(chunk => ({ text: chunk.text, source: chunk.source })) ?? [];
+      });
+      const after = await readLocalKnowledgeQuerySource();
+      if (before.revision !== after?.revision || !await lensScopeCurrent(scope, opts.signal)) {
+        clearLensCache(); updateLensStatus({ state: 'error', lastChunkCount: 0, lastError: 'The Knowledge Base source changed during retrieval. Retry with its current library.', sourceName: '' }); return null;
+      }
+      return result;
+    } catch (error) {
+      if (opts.signal?.aborted) throw opts.signal.reason ?? error;
+      if (getErrorName(error) === 'AbortError') throw error;
+      clearLensCache(); updateLensStatus({ state: 'error', lastChunkCount: 0, lastError: 'Knowledge Base data could not be verified. Reopen Knowledge Base to review it.', sourceName: '' }); return null;
+    }
   }
-  // external-server
-  const url = cfg.url;
-  const key = getLensKey();
-  if (!url || !key) return null;
-  const sourceName = cfg.name || 'Lens';
-  return queryWithCache(url, sourceName, hint, topK,
-    () => _fetchRemoteChunks(url, key, hint, topK, opts));
+  const url = cfg.url, key = getLensKey(); if (!url || !key) return null;
+  const result = await queryWithCache(url, cfg.name || 'Lens', hint, topK, () => _fetchRemoteChunks(url, key, hint, topK, opts));
+  try { if (!await lensScopeCurrent(scope, opts.signal)) { clearLensCache(); return null; } }
+  catch (error) { if (opts.signal?.aborted) throw opts.signal.reason ?? error; if (getErrorName(error) === 'AbortError') throw error; clearLensCache(); return null; }
+  return result;
 }
 
 // ─── Multi-query rewrite ──────────────────────────────────────
@@ -229,8 +287,18 @@ const REWRITE_SYSTEM_PROMPT =
   'no numbering, no quotes, no explanation. Keep each query under 12 words.';
 
 export async function queryLensMulti(queryHint: unknown, opts: LensQueryOptions = {}) {
-  if (!hasLens()) return null;
-  const cfg = getLensConfig();
+  const owner = { profile: state.currentProfile, root: state.importedData };
+  if (!await refreshQueryConfig(opts.signal) || owner.profile !== state.currentProfile || owner.root !== state.importedData || !canQueryLens()) return null;
+  const cfg = getLensConfig(), scope = captureLensScope();
+  let readSource: typeof import('./knowledge-library-query.js')['readLocalKnowledgeQuerySource'] | null = null, revision: string | null = null;
+  if (cfg.backend === 'in-browser') {
+    try { readSource = (await import('./knowledge-library-query.js')).readLocalKnowledgeQuerySource; const source = await readSource(); if (!source?.numChunks) return null; revision = source.revision; }
+    catch { if (opts.signal?.aborted) throw opts.signal.reason; return null; }
+  }
+  const searchOptions = { ...opts, ...(revision ? { sourceRevision: revision } : {}) };
+  const current = async () => { try { return await lensScopeCurrent(scope, opts.signal) && (!readSource || (await readSource())?.revision === revision); } catch (error) { if (opts.signal?.aborted) throw opts.signal.reason ?? error; if (getErrorName(error) === 'AbortError') throw error; return false; } };
+  const finish = async <T>(result: T): Promise<T | null> => { if (!await current()) { clearLensCache(); return null; } return result; };
+  if (!await current()) return null;
   const hint = String(queryHint || '').trim();
   if (!hint) return null;
 
@@ -239,7 +307,7 @@ export async function queryLensMulti(queryHint: unknown, opts: LensQueryOptions 
   // (1-2 word queries are usually proper nouns / lab names where rewriting
   // adds noise without helping).
   if (!enabled || !hasAssistantFeatureProvider() || hint.split(/\s+/).length < 3) {
-    return queryLens(hint, opts);
+    return finish(await queryLens(hint, searchOptions));
   }
 
   let variants: string[] = [];
@@ -253,8 +321,9 @@ export async function queryLensMulti(queryHint: unknown, opts: LensQueryOptions 
   // Always include the original — protects against rewrites drifting too
   // far from intent. Dedupe (case-insensitive) so an LLM that just echoes
   // the question doesn't waste a search.
+  if (!await current()) return null;
   const queries = _dedupeQueries([hint, ...variants]);
-  if (queries.length === 1) return queryLens(hint, opts);
+  if (queries.length === 1) return finish(await queryLens(hint, searchOptions));
 
   const topK = typeof opts.topK === 'number' ? opts.topK : cfg.topK;
   // Each sub-query asks for the per-query topK; RRF reranks across the
@@ -262,7 +331,7 @@ export async function queryLensMulti(queryHint: unknown, opts: LensQueryOptions 
   // does a per-backend oversample (the in-browser worker does 3× for MMR;
   // external servers handle it server-side).
   const subResults = await Promise.all(queries.map(q =>
-    queryLens(q, { ...opts, topK }).catch((error) => {
+    queryLens(q, { ...searchOptions, topK }).catch((error) => {
       if (getErrorName(error) === 'AbortError') throw error;
       return null;
     })
@@ -272,10 +341,10 @@ export async function queryLensMulti(queryHint: unknown, opts: LensQueryOptions 
   // every sub-query failed (network down, server 500), fall back to the
   // existing single-query behavior so the caller still sees something.
   const first = subResults.find(r => r != null);
-  if (!first) return queryLens(hint, opts);
+  if (!first) return finish(await queryLens(hint, searchOptions));
 
   const fusedChunks = _fuseChunksRRF(subResults.map(r => r?.chunks || []), topK);
-  return { ...first, chunks: fusedChunks };
+  return finish({ ...first, chunks: fusedChunks });
 }
 
 // Calls the active chat LLM with a tight system prompt asking for N
@@ -479,13 +548,35 @@ subscribeLensStatus(() => updateChatHeaderModelRuntime());
 // The dashboard summary must stay synchronous and cold-safe. The UI reports
 // richer local-library stats after it loads; until then the localStorage count
 // used by hasLens() is enough to distinguish configured from empty.
-let lastLocalLensStats: LocalLensStats | null = null;
+function getDisplayLensConfig() { const config = getLensConfig(); return config.backend === 'in-browser' && lastLocalLibraryName !== null ? { ...config, name: lastLocalLibraryName } : config; }
+function ensureLibraryNotifications() {
+  const browser = typeof window === 'undefined' ? undefined : window, Channel = browser?.BroadcastChannel;
+  if (libraryNotifications || typeof Channel !== 'function') return;
+  try { libraryNotifications = new Channel('getbased-knowledge-library'); libraryNotifications.onmessage = () => { clearLensCache(); void refreshKnowledgeLibraryMetadata().catch(() => {}); }; } catch { /* Read-time source proofs remain authoritative without notifications. */ }
+}
+export function notifyKnowledgeLibraryChange() { try { ensureLibraryNotifications(); libraryNotifications?.postMessage({ type: 'changed' }); } catch { /* An accepted data write does not depend on display notifications. */ } }
+export async function refreshKnowledgeLibraryMetadata() {
+  const generation = ++libraryRefreshGeneration, profile = state.currentProfile, root = state.importedData;
+  if (hasKnowledgeLibraryDraft()) return false;
+  await readCommittedLensConfigRaw();
+  const configuration = getLensSourceIdentity();
+  if (!getLensConfig().enabled || getLensConfig().backend !== 'in-browser') return false;
+  const module = await import('./knowledge-library-metadata.js');
+  if (state.currentProfile !== profile || state.importedData !== root) return false;
+  const metadata = await module.readKnowledgeLibraryMetadata(), client = await import('./lens-local.js');
+  await readCommittedLensConfigRaw();
+  if (!metadata || generation !== libraryRefreshGeneration || state.currentProfile !== profile || state.importedData !== root || getLensSourceIdentity() !== configuration || !getLensConfig().enabled || getLensConfig().backend !== 'in-browser' || hasKnowledgeLibraryDraft()) return false;
+  client.acceptLocalLibraryMetadata(metadata.stats.total_chunks); lastLocalLibraryName = metadata.activeName; recordLocalLensStats(metadata.stats);
+  lensKnowledgeBaseUi?.refreshLibraryControls(metadata); updateLensStatus({ state: 'idle', lastChunkCount: 0, lastError: null, sourceName: metadata.activeName });
+  return true;
+}
 
 function recordLocalLensStats(stats: LocalLensStats | null) {
   lastLocalLensStats = stats;
 }
 
 export function getLensSummary() {
+  ensureLibraryNotifications();
   const cfg = getLensConfig();
   const configured = hasLens();
   const aiAvailable = hasAssistantFeatureProvider();
@@ -500,7 +591,7 @@ export function getLensSummary() {
     chunkCount: null as number | null,
   };
   if (cfg.backend === 'in-browser') {
-    summary.displayName = (cfg.name || '').trim() || 'My Library';
+    summary.displayName = (lastLocalLibraryName ?? cfg.name ?? '').trim() || 'My Library';
     if (configured && lastLocalLensStats) {
       summary.docCount = Array.isArray(lastLocalLensStats.documents)
         ? lastLocalLensStats.documents.length
@@ -525,8 +616,8 @@ let useLensKnowledgeBaseUiRetryUrl = false;
 
 const lensKnowledgeBaseUiDeps = {
   defaultTestProbe: DEFAULT_TEST_PROBE,
-  getLensConfig,
-  saveLensConfig,
+  getLensConfig: getDisplayLensConfig,
+  saveLensConfig: commitLensConfig,
   getLensKey,
   saveLensKey,
   removeLens,
@@ -607,8 +698,19 @@ export function renderCustomLensSection() {
   return '<div class="settings-loading-placeholder" data-lens-ui-loading>Loading Knowledge Base controls…</div>';
 }
 
-export function openKnowledgeBaseModal(options = {}) {
-  return runLensKnowledgeBaseUiAction('openKnowledgeBaseModal', [options]);
+export async function openKnowledgeBaseModal(options: { source?: string; isCurrent?: () => boolean } = {}): Promise<unknown> {
+  if (options.isCurrent?.() === false) return false;
+  try { await readCommittedLensConfigRaw(); } catch { showNotification('Knowledge Base settings could not be read. Retry after storage is available.', 'error'); return false; }
+  try {
+    const ui = await loadLensKnowledgeBaseUi();
+    if (options.isCurrent?.() === false) return false;
+    return ui.openKnowledgeBaseModal(options);
+  } catch (error) {
+    if (options.isCurrent?.() === false) return false;
+    console.error('[lens] Could not run openKnowledgeBaseModal:', error);
+    showNotification('Knowledge Base controls could not be loaded. Try again.', 'error');
+    return false;
+  }
 }
 
 export function closeKnowledgeBaseModal() {

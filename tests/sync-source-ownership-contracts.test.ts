@@ -99,7 +99,7 @@ it('requires one delta application owned by onComplete and an awaited plan befor
  expect(syncPushSourceContracts(missingSuccess).successOwnedByComplete).toBe(false);
  const outside = change(push, 'const onComplete = async () => {', 'applyCommittedDeltas(profileId, dataJson, deltaPlans, deltaOpCount, _debug);\n      const onComplete = async () => {');
  expect(syncPushSourceContracts(outside).commitOwnsDeltas).toBe(false);
- const missing = push.replace(/if \(!applyCommittedDeltas\(/, 'if (!skippedDeltas(');
+ const missing = push.replace(/await applyCommittedDeltas\(/, 'await skippedDeltas(');
  expect(missing).not.toBe(push);
  expect(syncPushSourceContracts(missing).commitOwnsDeltas).toBe(false);
  const unawaited = push.replace(/await\s+planProfileDeltas\(/, 'planProfileDeltas(');
@@ -112,4 +112,37 @@ it('rejects advancing snapshots when the successful row-application guard is rem
  expect(syncCommittedDeltaSourceContracts(deltas).snapshotsGuarded).toBe(true);
  const bypass = change(deltas, 'if (allOk) {', 'if (true) {');
  expect(syncCommittedDeltaSourceContracts(bypass).snapshotsGuarded).toBe(false);
+});
+
+it('rejects removing the item-row completion callback or its await before snapshot advancement',()=>{
+ const deltas=readFileSync('js/sync-push-deltas.js','utf8');
+ for(const [before,after] of [
+  ['await applyAcknowledgedDelta(arrayName, plan, options.signal)','applyAcknowledgedDelta(arrayName, plan, options.signal)'],
+  ['_applyArrayDelta(arrayName, plan, finish)','_applyArrayDelta(arrayName, plan)'],
+ ] as const)expect(syncCommittedDeltaSourceContracts(change(deltas,before,after)).snapshotsGuarded).toBe(false);
+});
+
+it('requires owned post-commit telemetry and durable pull receipt ordering',()=>{
+ const deltas=readFileSync('js/sync-push-deltas.js','utf8');
+ expect(syncCommittedDeltaSourceContracts(deltas).telemetryOwned).toBe(true);
+ expect(syncCommittedDeltaSourceContracts(change(deltas,"_recordPushTelemetry(profileId, (dataJson || '').length, deltaPlans)","_recordPushTelemetry(profileId, 0, deltaPlans)")).telemetryOwned).toBe(false);
+ const acknowledgement='acknowledgePulledArrayVersions(profileId, committed, baseline?.arrayVersions);';
+ const removed=change(pullMerge,acknowledgement,'');
+ const early=change(removed,'await encryptedSetItem(localKey, JSON.stringify(committed));',acknowledgement+'\n await encryptedSetItem(localKey, JSON.stringify(committed));');
+ expect(syncPullEncryptionSourceContract(early)).toBe(false);
+ expect(syncPullEncryptionSourceContract(change(pullMerge,acknowledgement,'acknowledgePulledArrayVersions(profileId, merged, baseline?.arrayVersions);'))).toBe(false);
+});
+
+it('requires the actual local-mutation cursor and its cleanup on pull completion and capture failure',()=>{
+ expect(syncPullEncryptionSourceContract(change(pullMerge,'mutations = captureProfileMutations(profileId)','mutations = unrelatedCapture(profileId)'))).toBe(false);
+ expect(syncPullEncryptionSourceContract(change(pullMerge,'pullBaselines.get(merged)?.mutations?.release();','pullBaselines.get(merged);'))).toBe(false);
+ expect(syncPullEncryptionSourceContract(change(pullMerge,'mutations.release();','mutations;'))).toBe(false);
+});
+
+it('acknowledges received map snapshots only after their rebased profile is durable',()=>{
+ const call='acknowledgePulledMapSnapshots(profileId, committed, observedAt, baseline?.mapSnapshots);';
+ expect(syncPullEncryptionSourceContract(change(pullMerge,call,''))).toBe(false);
+ expect(syncPullEncryptionSourceContract(change(pullMerge,call,'acknowledgePulledMapSnapshots(profileId, merged, observedAt, baseline?.mapSnapshots);'))).toBe(false);
+ const early=change(change(pullMerge,call,''),'await encryptedSetItem(localKey, JSON.stringify(committed));',call+'\n await encryptedSetItem(localKey, JSON.stringify(committed));');
+ expect(syncPullEncryptionSourceContract(early)).toBe(false);
 });

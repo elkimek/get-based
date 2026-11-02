@@ -4,6 +4,18 @@ import { CURRENT_RELEASE } from './changelog-current.js';
 // Shared authored notes; retry controllers retain their own evaluation and delegates.
 export const CHANGELOG: readonly ChangelogEntry[] = [
   CURRENT_RELEASE,
+  { version: '1.26.0', date: '2026-11-01', title: 'Personal baselines and immune markers', items: [
+  '<b>See your personal baseline.</b> Marker charts can now show a baseline from your previous results, helping you compare a new reading with your own history.',
+  '<b>Get more context in chat.</b> AI can consider your baseline alongside lab and optimal ranges when explaining changes in your results.',
+  '<b>Track more immune markers.</b> Added CD4, CD8, total T cells, B cells and NK cells, with separate counts and percentages, plus CD4/CD8 and lymphocyte-to-monocyte (LMR) ratios.',
+  '<b>Read small changes more clearly.</b> Charts keep low readings visible when reference ranges are much wider than your results.',
+] },
+  { version: '1.25.0', date: '2026-10-22', title: 'Waist measurements and cycle guidance', items: [
+  '<b>More body measurements.</b> Log waist and optional hip measurements, see waist-to-hip and waist-to-height ratios, or record abdominal depth (SAD) with a caliper.',
+  '<b>Measure in a way that suits you.</b> Choose standing, seated or lying down for waist measurements, with simple guidance and centimetres or inches.',
+  '<b>Follow your progress consistently.</b> The app remembers your measurement method and keeps different positions and locations separate in your history.',
+  '<b>Use your cycle for timing.</b> See cycle context beside measurements and estimated dates for your first measurement and later comparisons.',
+] },
   { version: '1.24.0', date: '2026-10-18', title: 'A stronger foundation', items: [
   '<b>Rebuilt for the future.</b> The interface now uses Svelte, SvelteKit and Tailwind CSS, making getbased easier to maintain and improve.',
   '<b>Your familiar app, preserved.</b> Existing profiles, health data, preferences and workflows carry forward.',

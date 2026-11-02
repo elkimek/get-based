@@ -236,11 +236,11 @@ describe('sync action profile dependencies', () => {
     }
   });
 
-  it('waits and retries when a pull-side rebroadcast wins the manual-push race', async () => {
+  it.each(['in-flight', 'superseded'])('waits and retries when the manual push is %s', async reason => {
     const previousProfile = state.currentProfile;
     state.currentProfile = 'edit-during-pull';
     const pushProfile = vi.fn()
-      .mockResolvedValueOnce({ ok: false, skipped: true, reason: 'in-flight' })
+      .mockResolvedValueOnce({ ok: false, skipped: true, reason })
       .mockResolvedValueOnce({ ok: true });
     configureSyncActions({
       forcePull: async () => { markSyncProfileDirty(state.currentProfile); },

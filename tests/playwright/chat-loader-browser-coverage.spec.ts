@@ -48,6 +48,26 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/chat-loader-facade-coverage');
 });
 
+for (const action of ['openChatPanel', 'toggleChatPanel'] as const) {
+  test(`Chat lazy ${action} cannot act on a replacement profile`, async ({ page }) => {
+    await page.route('**/js/app-ai-interaction-modules.js*', route => route.fulfill({contentType: 'text/javascript', body: syntheticChatModule}));
+    const result = await page.evaluate(async ({url, action}) => {
+      const {state} = await import('/js/state.js');
+      const loader = await import(url) as typeof import('../../js/chat-loader.js');
+      let release!: () => void;
+      loader.configureChatLoader({prepareHealthDataContext: () => new Promise<void>(resolve => { release = resolve; })});
+      const pending = loader[action]('original-profile');
+      state.currentProfile = 'replacement-profile';
+      release();
+      const stale = await pending;
+      const callsBeforeFresh = (window as unknown as {__chatFacadeCalls?: unknown[]}).__chatFacadeCalls?.length ?? 0;
+      const fresh = await loader[action]('replacement-profile');
+      return {stale, callsBeforeFresh, fresh};
+    }, {url: chatLoaderUrl(), action});
+    expect(result).toEqual({stale: false, callsBeforeFresh: 0, fresh: {name: action, args: ['replacement-profile']}});
+  });
+}
+
 test('Chat lazy facade preserves every public action before and after first load', async ({ page }) => {
   let implementationRequests = 0;
   await page.route('**/js/app-ai-interaction-modules.js*', route => {

@@ -137,7 +137,7 @@ export async function openSpectrumClassifier(opts: { roomId?: unknown } = {}, de
       showNotification('Pick a light type first (or grant camera access).', 'error');
       return;
     }
-    await saveMeasurement('spectrum', result.label, {
+    const saved = await saveMeasurement('spectrum', result.label, {
       confidence: result.confidence,
       extra: {
         ...result,
@@ -148,6 +148,7 @@ export async function openSpectrumClassifier(opts: { roomId?: unknown } = {}, de
       },
       roomId,
     });
+    if (saved === null || saved === false) { if (deps.isCurrent?.() ?? true) showNotification('Could not save this reading. Try again.', 'error'); return; }
     showNotification(`Light type saved: ${result.label}`);
     closeSpectrumOverlay();
   });

@@ -36,7 +36,7 @@ it('changes only the finite native style fragments in all five components, prese
 });
 it('retains the native hidden file-picker ports and actual click/label activation contracts',()=>{
  expect(expected.filePickerHidden).toBe('display:none');const editor=fs.readFileSync('js/components/EMFEditor.svelte','utf8'),room=fs.readFileSync('js/components/EMFRoomContent.svelte','utf8'),controller=fs.readFileSync('js/emf-editor.ts','utf8');
- expect(editor).toMatch(/id="emf-pdf-input"[^>]*style=\{emfStaticStyles.filePickerHidden\}/);expect(room).toMatch(/<label class="emf-photo-add" title="Add photo">[\s\S]*?<input type="file"[^>]*style=\{emfStaticStyles.filePickerHidden\}[^>]*data-emf-change-action="photos"/);expect(controller).toContain("document.getElementById('emf-pdf-input')?.click()");
+ expect(editor).toMatch(/id="emf-pdf-input"[^>]*style=\{emfStaticStyles.filePickerHidden\}/);expect(room).toMatch(/<label class="emf-photo-add" title="Add photo">[\s\S]*?<input type="file"[^>]*style=\{emfStaticStyles.filePickerHidden\}[^>]*data-emf-change-action="photos"/);expect(controller).toContain("const picker = document.getElementById('emf-pdf-input'); if (picker instanceof HTMLInputElement) { markEMFFilePicker(picker); picker.click(); }");
 });
 it('rejects stale generated maps rather than permitting runtime fallback styles',async()=>{
  const temporary=await fsp.mkdtemp(path.join(os.tmpdir(),'getbased-emf-inline-'));

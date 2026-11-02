@@ -1,3 +1,4 @@
+import {compareSyncRows} from './sync-conflict-order.js';
 import type { SyncChatData } from './sync-chat-merge.js';
 
 /** Profile identity is stable; legacy and edition metadata stays opaque on the wire. */
@@ -44,7 +45,7 @@ export {
 
 export function latestProfileRow<Row extends SyncProfileRow | null | undefined>(rows: readonly Row[] | null | undefined, profileId: string) {
   return (rows || []).filter(row => row?.profileId === profileId)
-    .sort((a, b) => (Date.parse((b?.syncedAt || '') as string) || 0) - (Date.parse((a?.syncedAt || '') as string) || 0))[0];
+    .sort((a,b)=>compareSyncRows(b!,a!))[0];
 }
 
 const syncPayloadDeps: SyncPayloadDeps = {

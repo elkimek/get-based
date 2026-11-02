@@ -85,7 +85,7 @@ export function createLensLibraryHandlers({
       const { libraries, activeId } = await _libList();
       const active = libraries?.find((l) => l.id === activeId);
       if (active && getLensConfig().name !== active.name) {
-        saveLensConfig({ name: active.name });
+        try { await saveLensConfig({ name: active.name }); } catch { /* A display-alias failure cannot hide valid saved libraries. */ }
         updateLensStatusChip();
       }
       if (!sel) return;
@@ -294,30 +294,24 @@ export function createLensLibraryHandlers({
   }
 
   async function handleLibraryDelete() {
-    if (await showConfirmDialog('Delete the active library? Every document in it will be removed. This can\'t be undone.')) {
-      try {
-        const { libraries, activeId } = await _libList();
-        if (!activeId) return;
-        await _libDelete(activeId);
-        clearLensCache();
-        const remaining = libraries.length - 1;
-        showNotification(
-          remaining === 0
-            ? 'Library deleted. A fresh one will be created automatically.'
-            : 'Library deleted.',
-          'info',
-        );
-        await _loadLibraryPicker();
-        const cfg = getLensConfig();
-        if (cfg.backend === 'in-browser') await loadLocalLensStats();
-        updateLensStatusChip();
-      } catch (e) {
-        showNotification(`Couldn't delete library: ${getErrorMessage(e, e)}.`, 'error');
-      }
-    }
+    try {
+      const { libraries, activeId } = await _libList(); if (!activeId) return;
+      const active = libraries.find(row => row.id === activeId);
+      if (!await showConfirmDialog(`Delete the library "${active?.name || 'Selected library'}"? Every document in it will be removed. This can't be undone.`)) return;
+      const deleted = await _libDelete(activeId);
+      clearLensCache();
+      showNotification(deleted?.cleanupPending ? 'Library removed from Knowledge Base. Some stored files could not be erased; storage cleanup is still needed.' : 'Library deleted.', 'info');
+      await _loadLibraryPicker();
+      if (getLensConfig().backend === 'in-browser') await loadLocalLensStats();
+      updateLensStatusChip();
+    } catch (error) { showNotification(`Couldn't delete library: ${getErrorMessage(error, error)}.`, 'error'); }
   }
 
   return {
+    refreshFromMetadata({ libraries, activeId }: Awaited<ReturnType<LocalLens['listLibraries']>>) {
+      const select = document.getElementById('lens-library-select');
+      if (select) select.innerHTML = renderKnowledgeBaseLibraryOptions(projectKnowledgeBaseLibraryOptions({ kind: 'libraries', libraries, activeId }));
+    },
     loadLibraryPicker: _loadLibraryPicker,
     handleLibraryActivate,
     handleLibraryNew,

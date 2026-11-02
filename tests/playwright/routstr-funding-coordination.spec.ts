@@ -1,4 +1,4 @@
-type FundingFixtureWindow = Window & {__quoteUpdates: unknown[]; __stopQuoteUpdates: Awaited<ReturnType<typeof import('../../js/cashu-wallet.js').subscribeFundingQuotes>>; __fundingStats: {checks: number; refreshes: number; paid: boolean}; __fundingMonitor: ReturnType<typeof import('../../js/provider-wallet-funding-recovery.js').createFundingMonitor>};
+type FundingFixtureWindow = Window & {__quoteUpdates: import('@cashu/cashu-ts').MintQuoteBolt11Response[]; __stopQuoteUpdates: Awaited<ReturnType<typeof import('../../js/cashu-wallet.js').subscribeFundingQuotes>>; __fundingStats: {checks: number; refreshes: number; paid: boolean}; __fundingMonitor: ReturnType<typeof import('../../js/provider-wallet-funding-recovery.js').createFundingMonitor>};
 
 import type {Page} from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
@@ -28,7 +28,13 @@ test('the vendored Cashu library receives NUT-17 updates and closes its subscrip
     (window as unknown as FundingFixtureWindow).__quoteUpdates = [];
     (window as unknown as FundingFixtureWindow).__stopQuoteUpdates = await wallet.subscribeFundingQuotes('https://mint.push.test', ['q1'], update => (window as unknown as FundingFixtureWindow).__quoteUpdates.push(update), error => { throw error; });
   });
-  await expect.poll(() => page.evaluate(() => (window as unknown as FundingFixtureWindow).__quoteUpdates)).toEqual([{ quote: 'q1', state: 'PAID', amount: 12 }]);
+  // The SDK's public response contract preserves its lossless Amount object.
+  await expect.poll(() => page.evaluate(() => {
+    const sdk = (globalThis as unknown as {cashuts: typeof import('@cashu/cashu-ts')}).cashuts;
+    return (window as unknown as FundingFixtureWindow).__quoteUpdates.map(update => ({
+      quote: update.quote, state: update.state, amount: update.amount.toBigInt(), nativeAmount: update.amount instanceof sdk.Amount,
+    }));
+  })).toEqual([{ quote: 'q1', state: 'PAID', amount: 12n, nativeAmount: true }]);
   await page.evaluate(() => (window as unknown as FundingFixtureWindow).__stopQuoteUpdates!());
   await expect.poll(() => messages.map(message => message.method)).toContain('unsubscribe');
   expect(messages[0]!.params).toMatchObject({ kind: 'bolt11_mint_quote', filters: ['q1'] });

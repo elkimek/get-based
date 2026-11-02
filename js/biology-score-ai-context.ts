@@ -8,6 +8,8 @@ export interface BiologyAIContextOptions extends ScoreOptions { limit?: unknown;
 import { computeBiologyScores } from './biology-score-compute.js';
 import { TONE_LABELS, coreScoreDrivers } from './biology-score-engine.js';
 import { buildBiologyScoreCoveragePlannerModel, labelMarkers, markerDisplayLabel, effectiveMissingMarkers } from './biology-score-coverage-planner.js';
+import { createLabContextDisclosure } from './lab-context-disclosure.js';
+import type { ActiveData } from './data-view-types.js';
 
 function summarizeContextFlag(flag: unknown) {
   const text = String(flag || '');
@@ -108,7 +110,7 @@ function appendAgentScoreSections(lines: string[], scores: BiologyContextScore[]
         '',
         `[section:${name}]`,
         `## ${score.title}`,
-        'Biology Score subscore; same value shown in the Biology Scores UI.',
+        'Biology Score subscore computed from enabled context.',
         scoreLine,
         `[/section:${name}]`
       );
@@ -118,7 +120,8 @@ function appendAgentScoreSections(lines: string[], scores: BiologyContextScore[]
 }
 
 export function buildBiologyScoresAIContext(data: Parameters<typeof computeBiologyScores>[0], options: BiologyAIContextOptions = {}) {
-  const scores = computeBiologyScores(data || {}, options);
+  const visible = data?.dates && data.categories ? createLabContextDisclosure(options).project(data as ActiveData) : data;
+  const scores = computeBiologyScores(visible || {}, options);
   const coherence = scores.find(score => score.id === 'biologicalCoherence');
   const live = scores.filter(score => score.id !== 'biologicalCoherence' && (score.score != null || score.coverage > 0));
   if (live.length === 0 && !(coherence && (coherence.score != null || coherence.coverage > 0))) return '';
@@ -127,6 +130,7 @@ export function buildBiologyScoresAIContext(data: Parameters<typeof computeBiolo
     '[section:biologyScores]',
     '## Biology Scores',
     'Deterministic 0-100 derived lab pattern scores; not diagnoses.',
+    'Enabled results/context only; may differ from local Biology Scores.',
   ];
   if (coherenceLine) lines.push(coherenceLine);
   const limit = Number.isFinite(options.limit) ? Math.max(1, Number(options.limit)) : 5;

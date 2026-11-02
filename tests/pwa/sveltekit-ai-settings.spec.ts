@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 
 test('static AI chooser preserves all providers and feature pause through cached cold launch', async ({ page, context }) => {
@@ -56,7 +56,12 @@ test('static AI chooser preserves all providers and feature pause through cached
     await page.locator('[data-provider="custom"]').click();
     await expect(page.locator('[data-custom-settings-view]')).toBeVisible();
     await page.locator('#custom-key-input').fill('PRIVATE UNSAVED DRAFT');
-    await page.locator('#ai-pause-toggle').uncheck();
+    await expect(page.locator('#chat-controls-toggle')).toBeChecked();
+    await page.locator('#chat-controls-toggle').click();
+    await expect(page.locator('#chat-controls-toggle')).not.toBeChecked();
+    expect(await page.evaluate(() => localStorage.getItem('getbased-chat-controls'))).toMatch(/^0:/);
+    await page.locator('#ai-pause-toggle').click();
+    await expect(page.locator('#ai-pause-toggle')).not.toBeChecked();
     await expect(page.locator('#custom-key-input')).toHaveValue('PRIVATE UNSAVED DRAFT');
     expect(await page.evaluate(() => localStorage.getItem('labcharts-ai-paused'))).toBe('true');
     await page.locator('#settings-modal [data-settings-action="close"]').click();
@@ -67,8 +72,13 @@ test('static AI chooser preserves all providers and feature pause through cached
     await open(cold);
     await expect(cold.locator('[data-provider="custom"]')).toHaveAttribute('aria-pressed','true');
     await expect(cold.locator('#custom-key-input')).toHaveValue('');
+    await expect(cold.locator('#chat-controls-toggle')).not.toBeChecked();
+    await cold.locator('#chat-controls-toggle').click();
+    await expect(cold.locator('#chat-controls-toggle')).toBeChecked();
+    expect(await cold.evaluate(() => localStorage.getItem('getbased-chat-controls'))).toMatch(/^1:/);
     await expect(cold.locator('#ai-pause-toggle')).not.toBeChecked();
-    await cold.locator('#ai-pause-toggle').check();
+    await cold.locator('#ai-pause-toggle').click();
+    await expect(cold.locator('#ai-pause-toggle')).toBeChecked();
     expect(await cold.evaluate(() => localStorage.getItem('labcharts-ai-paused'))).toBe('false');
     const activeColor = await cold.locator('.ai-provider-btn[aria-pressed="true"]').evaluate(button => getComputedStyle(button).backgroundColor);
     await expect.poll(() => cold.locator('#ai-pause-toggle').evaluate(input => getComputedStyle(input.nextElementSibling!).backgroundColor)).toBe(activeColor);

@@ -15,11 +15,13 @@ vi.mock('../js/profile-storage-cleanup.js', () => ({ clearProfileStorage: async 
 vi.mock('../js/profile-list-store.js', () => ({
   configureProfileListStoreDeps: () => ({}), getProfiles: () => [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }],
   initProfilesCache: async () => {}, mutateProfiles: async () => {}, saveProfiles: async () => {},
+  readCurrentProfiles: async () => [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }],
 }));
 vi.mock('../js/profile-sync-policy.js', () => ({ clearLocalProfileDeleteIntent: () => {}, isDemoProfileId: () => false, markLocalProfileDeleteIntent: () => {}, queueEligibleProfileSync: () => {} }));
 import { state } from '../js/state.js';
 import { configureProfileDeps, configureProfileRuntimeDeps, createDefaultProfileData, loadProfile, switchProfile } from '../js/profile.js';
 import { isProfileReadBlocked } from '../js/profile-load-safety.js';
+import { isProfileChatReady, isProfileChatIndexReady } from '../js/profile-chat-state.js';
 function deferred<Value>() {
   let resolve!: (value: Value) => void, reject!: (reason: unknown) => void;
   const promise = new Promise<Value>((yes, no) => { resolve = yes; reject = no; });
@@ -53,6 +55,27 @@ it('keeps the latest selection when an older storage read finishes last', async 
   expect(localStorage.getItem('labcharts-active-profile')).toBe('b');
   expect(runtime.dispatchProfileSwitched).toHaveBeenCalledExactlyOnceWith('b');
   expect(mocks.notify).toHaveBeenCalledExactlyOnceWith('Switched to B', 'info');
+});
+it('does not publish a reviewed transition declined after reading its target', async () => {
+  const root = state.importedData; const beforePublish = vi.fn(async () => false);
+  expect(await switchProfile('a', { beforePublish })).toBe(false); expect(beforePublish).toHaveBeenCalledExactlyOnceWith(data('A'));
+  expect(state.currentProfile).toBe('start'); expect(state.importedData).toBe(root); expect(runtime.invalidateProfileContextCache).not.toHaveBeenCalled(); expect(mocks.notify).not.toHaveBeenCalled();
+});
+it('rechecks generation after awaiting a reviewed target guard', async () => {
+  const pending = deferred<boolean>(), entered = vi.fn(() => pending.promise), first = switchProfile('a', { beforePublish: entered });
+  await vi.waitFor(() => expect(entered).toHaveBeenCalledOnce()); await switchProfile('b'); pending.resolve(true); await first;
+  expect(state.currentProfile).toBe('b'); expect(state.importedData.contextNotes).toBe('B'); expect(runtime.dispatchProfileSwitched).toHaveBeenCalledExactlyOnceWith('b');
+});
+it.each(['context', 'workspace', 'shell'] as const)('retires the source conversation even when the target %s rebuild fails', async stage => {
+  state.chatHistory = [{ role: 'user', content: 'Source private message' }]; state.currentThreadId = 'source-thread'; state.chatThreads = [{ id: 'source-thread', name: 'Source', createdAt: '2026-10-27T12:00:00.000Z', updatedAt: '2026-10-27T12:00:00.000Z', messageCount: 1 }];
+  const failure = new Error('Target rebuild failed');
+  if (stage === 'context') runtime.invalidateProfileContextCache.mockRejectedValueOnce(failure);
+  if (stage === 'workspace') mocks.restore.mockRejectedValueOnce(failure);
+  if (stage === 'shell') runtime.reloadProfileRuntimeShell.mockRejectedValueOnce(failure);
+  await expect(switchProfile('a')).rejects.toBe(failure);
+  expect(state.currentProfile).toBe('a'); expect(state.chatHistory).toEqual([]); expect(state.chatThreads).toEqual([]); expect(state.currentThreadId).toBeNull();
+  expect(isProfileChatReady('a')).toBe(false); expect(isProfileChatIndexReady('a')).toBe(false);
+  await switchProfile('a'); expect(isProfileChatReady('a')).toBe(true);
 });
 it('invalidates a pending selection when the user reselects the already active profile', async () => {
   state.currentProfile = 'a'; const older = deferred<string | null>(); mocks.read.mockImplementationOnce(() => older.promise);

@@ -104,7 +104,7 @@ export async function openGlassTransmission(opts: { roomId?: unknown } = {}, dep
     const glassSave = queryRequired<HTMLButtonElement>(overlay, '#glass-save');
     glassSave.disabled = false;
     glassSave.onclick = async () => {
-      await saveMeasurement('glass-transmission', transmission, {
+      const saved = await saveMeasurement('glass-transmission', transmission, {
         confidence: lastGlassLock?.exposure === 'manual' ? 0.45 : 0.25,
         extra: {
           inside: glassReadings.inside,
@@ -115,6 +115,7 @@ export async function openGlassTransmission(opts: { roomId?: unknown } = {}, dep
         },
         roomId,
       });
+      if (saved === null || saved === false) { if (deps.isCurrent?.() ?? true) showNotification('Could not save this reading. Try again.', 'error'); return; }
       showNotification(`Glass transmission saved: ${(transmission * 100).toFixed(0)}%`);
       closeGlassOverlay();
     };

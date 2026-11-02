@@ -149,6 +149,9 @@ const _origProfileSex = state ? state.profileSex : null;
       S.importedData.lightMeasurements = [];
       delete S.importedData._deleted;
       const r = 'room_test_retain';
+      S.importedData.lightEnvironment = { rooms: [{id:r,name:'Retention fixture room',primarySource:'led-warm'}], screens: [] };
+      localStorage.setItem('labcharts-active-profile', S.currentProfile);
+      assert('Synthetic retention room is durably committed', await (await import('../js/data.js')).saveImportedData({skipSync:true}));
       await lightTools.saveMeasurement('flicker', 1, { roomId: r });
       await lightTools.saveMeasurement('flicker', 3, { roomId: r });
       await lightTools.saveMeasurement('lux', 800, { roomId: r });
@@ -185,16 +188,17 @@ const _origProfileSex = state ? state.profileSex : null;
       (S as {importedData: unknown}).importedData = _saved;
     }
     const ltSrc = await fetchSrc('js/light-tools.js');
+    const mutationSrc = fetchSrc('js/light-measurement-mutations.js');
     assert('light-tools.js: retention model is latest-per-(roomId, tool)',
-      /one-per-\(roomId, tool\)/i.test(ltSrc) || /latest-per-\(roomId, tool\)/i.test(ltSrc));
+      ltSrc.includes('const rows = nativeLightMeasurements()') && mutationSrc.includes('const key = (row) => JSON.stringify([row.roomId || null, row.tool]);') && mutationSrc.includes('winners.get(key(row)) === row'));
     assert('light-tools.js: _supersedePriorMeasurement helper exists',
-      /function _supersedePriorMeasurement/.test(ltSrc));
+      mutationSrc.includes('export function addMeasurementRecord(data, entry, at)') && mutationSrc.includes('retainReading(entry, prior, at);') && mutationSrc.includes('removeReading(data, prior);'));
     assert('light-tools.js: _collapseToLatestPerRoomTool one-time migration exists',
-      /function _collapseToLatestPerRoomTool/.test(ltSrc));
+      mutationSrc.includes('export function normalizeMeasurementRecords(data, at)') && ltSrc.includes('normalizationObserved.add(raw);') && ltSrc.includes('void normalizeLightMeasurements();'));
     assert('light-tools.js: tool === audit skips supersession at save',
-      /tool !== 'audit'[\s\S]{0,200}_supersedePriorMeasurement/.test(ltSrc));
+      /if \(entry\.tool !== 'audit'\)/.test(mutationSrc) && mutationSrc.includes('key(prior) === key(entry)'));
     assert('light-tools.js: collapse migration also exempts audit rows',
-      /auditRows\s*=\s*\[\][\s\S]{0,400}m\.tool\s*===\s*'audit'/.test(ltSrc));
+      mutationSrc.includes("!row.tool || row.tool === 'audit' || winners.get(key(row)) === row"));
 
     // Phase 2 cutover regression: lightMeasurements MUST emit
     // automatic per-row tombstones via the planner (no noTombstones
@@ -391,7 +395,7 @@ const _origProfileSex = state ? state.profileSex : null;
   {
     const sessionsSrc = fetchSrc('js/light-sessions-view.js');
     const historyPresentationSrc = fetchSrc('js/components/LightSessionHistory.svelte');
-    const viewsSrc = fetchSrc('js/views-runtime.js');
+    const viewsSrc = fetchSrc('js/navigation-views.js');
     const viewsFacadeSrc = fetchSrc('js/views.js');
     assert('light-sessions-view.js: SESSIONS_DEFAULT_CAP = 3',
       /SESSIONS_DEFAULT_CAP\s*=\s*3/.test(sessionsSrc));
@@ -539,7 +543,7 @@ const _origProfileSex = state ? state.profileSex : null;
       lightChannelViewSrc.includes("from './light-channel-presentation.js'") && /return \{ txt: n \? `\$\{n\} day/.test(fetchSrc('js/light-channel-presentation.js')) && /: 'Not logged', n, sun, device \}/.test(fetchSrc('js/light-channel-presentation.js')));
     const sunSrc = fetchSrc('js/sun.js');
     assert('sun.js: Eyes-mode option shortened ("never stare at sun")',
-      /Eyes uncovered \(never stare at sun\)/.test(sunSrc));
+      /Eyes uncovered \(never stare at sun\)/.test(fetchSrc('js/sun-session-model.js')) && sunSrc.includes("from './sun-session-model.js'"));
   }
 
   // ─── 18. Refresh restores the active view ───────────────────────────
@@ -548,7 +552,7 @@ const _origProfileSex = state ? state.profileSex : null;
     const startupUiSrc = fetchSrc('js/startup-ui.js');
     const profileSrc = fetchSrc('js/profile.js');
     const profileRuntimeSrc = fetchSrc('js/profile-runtime.js');
-    const viewsSrc = fetchSrc('js/views-runtime.js');
+    const viewsSrc = fetchSrc('js/navigation-views.js');
     const viewsFacadeSrc = fetchSrc('js/views.js');
     const routerSrc = fetchSrc('js/views-router.js');
     const navSrc = fetchSrc('js/nav.js');
@@ -572,8 +576,7 @@ const _origProfileSex = state ? state.profileSex : null;
       profileSrc.includes('await reloadProfileRuntimeShell(profileId)')
       && /profileRefreshDeps\.navigate\(profileRefreshDeps\.getInitialView\(\) \|\| 'dashboard'\)/.test(profileRuntimeSrc));
     assert('nav.js: sidebar rebuild preserves current route selection',
-      /export function syncSidebarActive/.test(navSrc)
-      && /nav\.innerHTML\s*=\s*html;\s*syncSidebarActive\(state\.currentView \|\| 'dashboard'\)/.test(navSrc));
+      /export function syncSidebarActive/.test(navSrc) && /nav\.innerHTML\s*=\s*html;\s*orderSidebarLabNodes\(nav, categories, groups, state\.importedData\?\.labOrdering\);\s*syncSidebarActive\(state\.currentView \|\| 'dashboard'\)/.test(navSrc));
     // Check the dispatch/state/nav sequence rather than an arbitrary source-length cap.
     assert('views-router.js: route renderer rebuilds cannot leave Dashboard selected',
       /_syncSidebarActive\(activeCategory\);[\s\S]*?let routeResult;[\s\S]*?routeHandlers\.[\s\S]*?state\.currentView = routeCategory;\s*_persistCurrentView\(routeCategory\);\s*syncMobileBottomNav\?\.\(routeCategory\);\s*_syncSidebarActive\(routeCategory\);/.test(routerSrc));
@@ -672,10 +675,10 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('marker-detail-modal.js: marker modal history defaults to last three with delegated expansion',
       /MARKER_HISTORY_DEFAULT_CAP\s*=\s*3/.test(markerDetailSrc)
       && /MARKER_HISTORY_EXPANDED_CAP\s*=\s*40/.test(markerDetailSrc)
-      && /modalPoints\.slice\(-MARKER_HISTORY_DEFAULT_CAP\)/.test(markerDetailSrc)
-      && /modalPoints\.slice\(-expandedHistoryLimit\)/.test(markerDetailSrc)
+      && /historyPoints\.slice\(-MARKER_HISTORY_DEFAULT_CAP\)/.test(markerDetailSrc)
+      && /historyPoints\.slice\(-expandedHistoryLimit\)/.test(markerDetailSrc)
       && /projectMarkerDetailAction\('show-detail-modal', \{ id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true \}\)/.test(markerDetailSrc)
-      && /View more history \(\$\{modalPoints\.length\} values\)/.test(markerDetailSrc)
+      && /View more history \(\$\{historyPoints\.length\} values\)/.test(markerDetailSrc)
       && /Show \$\{showCount\} older/.test(markerDetailSrc)
       && detailHistorySrc.includes('Show last {node.count} values') && markerDetailSrc.includes('count: `${MARKER_HISTORY_DEFAULT_CAP}`'));
     assert('marker-detail-modal.js: marker range band uses reference scale instead of full-width optimal green',

@@ -1,6 +1,7 @@
 // pii-review.js — PII diff rendering and review-modal interaction.
 
 import type { ModalOverlayOptions } from './modal-lifecycle.js';
+import { syncPIIReviewScroll } from './pii-scroll-sync.js';
 
 export type PIIStreamFunction = (
   onChunk: (chunk: string) => void,
@@ -21,13 +22,16 @@ export interface PIIReviewOptions {
 
 /** Sentinel returned only to callers that opt in with `reportUnavailable`. */
 export const PII_REVIEW_UNAVAILABLE = '\u0000pii-review-unavailable';
-type PIIReviewDeps = Pick<typeof import('./pii.js'), 'obfuscatePDFText' | 'unloadOllamaPIIModel'>;
+type PIIReviewDeps = Pick<typeof import('./pii.js'), 'unloadOllamaPIIModel'> & {
+  obfuscatePDFText: (text: string) => Pick<ReturnType<typeof import('./pii.js').obfuscatePDFText>, 'original' | 'obfuscated' | 'replacements'>;
+};
 type DiffOperation =
   | { type: 'equal'; original: string; replacement: string }
   | { type: 'add'; replacement: string }
   | { type: 'delete'; original: string };
 
 import { escapeHTML, showNotification } from './utils.js';
+import { getErrorMessage } from './caught-error.js';
 import {renderPIIPanel, renderPIIOriginalPanel, renderPIIDiffViewer, renderPIIReviewModal} from './pii-review-presentation.js';
 import type {PIIWordView, PIILineView, PIIDiffView} from './pii-review-presentation.js';
 import {
@@ -225,10 +229,13 @@ export function reviewPIIBeforeSend(
     const stopButton = overlay.querySelector<HTMLButtonElement>('#pii-stream-stop');
     const leftPanel = overlay.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-left');
     const mobileOriginal = overlay.querySelector<HTMLElement>('.pii-mobile-original-body');
+    const rightPanel = overlay.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-right');
+    if (leftPanel && rightPanel) syncPIIReviewScroll(leftPanel, rightPanel);
     let dirty = false;
     // True while the local model's last attempt failed and nothing usable
     // replaced it (a later successful stream or the regex fallback clears it).
     let modelFailed = false;
+    let closed = false;
     const unavailableOrCancel = () => (reportUnavailable && modelFailed ? PII_REVIEW_UNAVAILABLE : 'cancel');
 
     searchInput.addEventListener('input', () => {
@@ -341,10 +348,12 @@ export function reviewPIIBeforeSend(
     });
 
     sendButton.addEventListener('click', () => {
+      closed = true;
       closePIIOverlay(overlay);
       resolve(textarea.value);
     });
     overlay.querySelector<HTMLButtonElement>('#pii-review-cancel')!.addEventListener('click', () => {
+      closed = true;
       if (abortController) abortController.abort();
       deps.unloadOllamaPIIModel();
       closePIIOverlay(overlay);
@@ -369,11 +378,13 @@ export function reviewPIIBeforeSend(
       const thinkingContent = overlay.querySelector<HTMLElement>('#pii-thinking-content');
 
       const startStream = () => {
+        abortController?.abort();
         const controller = new AbortController();
         abortController = controller;
         // A stream that was stopped, replaced by a retry, or abandoned for the
         // regex fallback must not touch the modal or the failure state.
-        const isStale = () => controller.signal.aborted || abortController !== controller;
+        let finished = false;
+        const isStale = () => closed || finished || controller.signal.aborted || abortController !== controller;
         textarea.value = '';
         textarea.style.display = '';
         textarea.readOnly = true;
@@ -395,6 +406,12 @@ export function reviewPIIBeforeSend(
         let hasThinking = false;
 
         const flushToTextarea = () => {
+          if (isStale()) {
+            pendingText = '';
+            pendingThinking = '';
+            framePending = false;
+            return;
+          }
           if (pendingThinking && thinkingSection && thinkingContent) {
             if (!hasThinking) {
               thinkingSection.hidden = false;
@@ -422,6 +439,7 @@ export function reviewPIIBeforeSend(
         };
 
         const onThinking = (chunk: string) => {
+          if (isStale()) return;
           pendingThinking += chunk;
           if (!framePending) {
             framePending = true;
@@ -431,6 +449,7 @@ export function reviewPIIBeforeSend(
 
         runStream(
           chunk => {
+            if (isStale()) return;
             pendingText += chunk;
             if (!framePending) {
               framePending = true;
@@ -439,10 +458,15 @@ export function reviewPIIBeforeSend(
           },
           controller.signal,
           onThinking,
-        ).then(() => {
+        ).then(finalText => {
           if (isStale()) return;
           flushToTextarea();
           modelFailed = false;
+          // Send exactly what the non-streaming path would: the finalized, re-checked text.
+          if (typeof finalText === 'string' && finalText) {
+            textarea.value = finalText;
+            characterCount = finalText.length;
+          }
           textarea.readOnly = false;
           sendButton.disabled = false;
           statusElement.textContent = `Complete \u2014 ${characterCount.toLocaleString()} chars \u2014 click text to edit`;
@@ -454,14 +478,15 @@ export function reviewPIIBeforeSend(
             if (summary) summary.textContent = 'Thinking (done)';
           }
           showDiffPreview(textarea.value);
+          finished = true;
         }).catch(error => {
           if (isStale()) return;
           flushToTextarea();
-          if (error.name === 'AbortError') return;
+          finished = true;
           modelFailed = true;
           textarea.readOnly = false;
           sendButton.disabled = true;
-          statusElement.textContent = `Error: ${error.message} Use Regex fallback or retry before sending.`;
+          statusElement.textContent = `Error: ${getErrorMessage(error)} Use Regex fallback or retry before sending.`;
           stopButton.hidden = true;
           retryButton.hidden = false;
         });

@@ -122,7 +122,24 @@ async function mountPairs(page: Page): Promise<void> {
         } else {
           state.importedData = {menstrualCycle: structuredClone(entry.sample.input.mc ?? null)} as typeof state.importedData;
           state.profileDob = entry.sample.input.profileDob ?? null;
-          current = cycle.renderMenstrualCycleSection(structuredClone(entry.sample.input.data ?? null) as Parameters<typeof cycle.renderMenstrualCycleSection>[0], entry.sample.input.opts as Parameters<typeof cycle.renderMenstrualCycleSection>[1]);
+          const data = structuredClone(entry.sample.input.data ?? null) as Parameters<typeof cycle.renderMenstrualCycleSection>[0];
+          const opts = entry.sample.input.opts as Parameters<typeof cycle.renderMenstrualCycleSection>[1];
+          current = cycle.renderMenstrualCycleSection(data, opts);
+          // As in cycle-overview-owned, qualify the additive timing note from
+          // #1692 before comparing every original node against its frozen tree.
+          // The new note retains separate real-page body-measurement acceptance.
+          const timing = cycle.projectMenstrualCycleSection(data, opts).measurementTiming;
+          const compatible = document.createElement('div'); compatible.innerHTML = current;
+          const added = compatible.querySelectorAll('[data-cycle-body-timing]');
+          if (added.length !== (timing ? 1 : 0)) throw new Error('Cycle measurement timing presence ' + entry.sample.name);
+          if (timing) {
+            const note = added[0]!;
+            if (note.tagName !== 'DIV' || note.querySelector('strong')?.textContent !== `Waist & abdominal depth · ${timing.heading.toLowerCase()}`
+              || note.querySelector('small')?.textContent !== timing.hint
+              || (note.querySelector('.cycle-draw-copy > span')?.textContent ?? null) !== timing.dateLabel) throw new Error('Cycle measurement timing content ' + entry.sample.name);
+            note.remove();
+          }
+          current = compatible.innerHTML;
         }
         prepared.push({entry, current});
       }

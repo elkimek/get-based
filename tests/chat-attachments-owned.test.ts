@@ -4,6 +4,11 @@ import { ChatAttachmentDrafts, type AttachmentReservation } from '../js/chat-att
 import { ownChatAttachments, publishChatAttachments, configureChatAttachmentActions, chatAttachmentActions, chatAttachmentImageURL, pasteChatAttachments, dropChatAttachments } from '../js/chat-attachment-view.js';
 const reserved = (value: AttachmentReservation | string): AttachmentReservation => { expect(typeof value).toBe('object'); return value as AttachmentReservation; };
 describe('ephemeral attachment drafts', () => {
+  it('identifies accepted and preparing images without creating a draft for another scope', () => {
+    const drafts = new ChatAttachmentDrafts(); expect(drafts.hasWork('origin')).toBe(false);
+    const read = reserved(drafts.reserve('origin', 2, 5, 18)); expect(drafts.hasWork('origin')).toBe(true); expect(drafts.hasWork('target')).toBe(false);
+    drafts.release(read); expect(drafts.hasWork('origin')).toBe(false); drafts.get('origin').push({ sizeBytes: 2 }); expect(drafts.hasWork('origin')).toBe(true);
+  });
   it('reserves slots before overlapping reads and releases failures', () => {
     const drafts = new ChatAttachmentDrafts();
     const reads = Array.from({ length: 5 }, () => reserved(drafts.reserve('a', 1, 5, 18)));

@@ -370,8 +370,8 @@ assert('deleteGeneticsData removes genetics', profileData.genetics === undefined
 // ═══════════════════════════════════════
 console.log('10. Context Assembly');
 
-// Re-save for context tests
-dna.saveGeneticsData(profileData, aResult);
+// Explicitly reviewed restoration supplies the context fixture after its deletion.
+dna.saveGeneticsData(profileData, aResult, { restoreRemovedGenome: true });
 
 const fullCtx = dna.buildFullGeneticsContext(profileData.genetics);
 assert('Full context includes GENETICS header', fullCtx.startsWith('GENETICS ('));
@@ -590,12 +590,13 @@ assert('manual SNP CSS gives inputs app-native surfaces and focus rings',
   stylesSrc.includes('.dna-manual-input') &&
   stylesSrc.includes('background: var(--bg-primary)') &&
   stylesSrc.includes('box-shadow: 0 0 0 3px'));
-assert('manual/report SNP imports stage changes in a draft and restore memory on save failure',
-  dnaSrc.includes('const originalData = state.importedData') &&
-  dnaSrc.includes('const draftData = JSON.parse(JSON.stringify(originalData || {}))') &&
+assert('manual/report SNP imports stage changes and publish only after a durable save',
+  dnaSrc.includes('originalData = structuredClone(origin.data)') &&
+  dnaSrc.includes('next: draftData } = prepareGeneticsWrite(origin.data)') &&
   dnaSrc.includes('upsertGeneticsSnp(draftData') &&
-  dnaSrc.includes('state.importedData = draftData') &&
-  dnaSrc.includes('state.importedData = originalData'));
+  dnaSrc.includes('await commitGeneticsWrite(profileId, origin.data, base, draftData, authorized)') &&
+  !dnaSrc.includes('state.importedData = draftData') &&
+  !dnaSrc.includes('state.importedData = originalData'));
 assert('manual/report SNP imports merge through upsert instead of replacing genetics',
   dnaSrc.includes('result.mergeSnps') && dnaSrc.includes('upsertGeneticsSnp(draftData'));
 const dnaPreviewProjectorSrc = read('js/dna-preview-presentation.ts');
@@ -625,15 +626,16 @@ assert('DNA preview modal uses shared overlay lifecycle helpers and backdrop nud
       + (dnaUiSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length
       + (dnaMtDnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length) === 4);
 assert('DNA import success waits for persistence',
-  dnaSrc.includes('await saveImportedDataForProfile(profileId, draftData, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })') && !dnaSrc.slice(dnaSrc.indexOf('export async function confirmDNAImport'), dnaSrc.indexOf('await saveImportedDataForProfile(profileId')).includes('state.importedData = draftData'));
-const dnaSaveFailureBlock = (dnaSrc.match(/async function confirmDNAImport\(\)[\s\S]*?if \(!await saveImportedDataForProfile\([^\n]*\)\) \{([\s\S]*?)\n\s*\}/) || [null, ''])[1];
+  dnaSrc.includes('await commitGeneticsWrite(profileId, origin.data, base, draftData, authorized)') && dnaSrc.includes('getPendingDnaImport() === result && isPendingDnaImportCurrent(result)') && !dnaSrc.slice(dnaSrc.indexOf('export async function confirmDNAImport'), dnaSrc.indexOf('await commitGeneticsWrite(profileId')).includes('state.importedData = draftData'));
+const dnaSaveFailureBlock = (dnaSrc.match(/async function confirmDNAImport\(\)[\s\S]*?if \(!await commitGeneticsWrite\(profileId,[\s\S]*?\)\) \{([\s\S]*?)\n\s*\}/) || [null, ''])[1];
 assert('DNA import save failure resets running flag but keeps preview retryable',
   dnaSaveFailureBlock.includes('_dnaImportRunning = false') &&
   dnaSaveFailureBlock.includes('return;') &&
   !dnaSaveFailureBlock.includes('_pendingDNAImport = null'));
 assert('mtDNA save paths wait for persistence',
-  dnaMtDnaSrc.includes('await saveImportedDataForProfile(origin.profileId, draft, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })') &&
-  /export async function deleteMtDNAData\(\)[\s\S]{0,180}await saveImportedData\(\)/.test(dnaMtDnaSrc));
+  dnaMtDnaSrc.includes('await commitGeneticsWrite(origin.profileId, origin.data, base, draft, authorized,') &&
+  dnaMtDnaSrc.includes('getPendingMtDnaImport() === pending && isPendingDnaImportCurrent(pending)') &&
+  dnaMtDnaSrc.includes('await commitGeneticsWrite(origin.profileId, origin.data, base, next, origin.current)') && dnaMtDnaSrc.includes('clearReportedHaplogroup(next)'));
 // The controller captures literals once; the actual Svelte owner encodes text
 // and href attributes. Exercise that public route with synthetic hostile input.
 const hostileText = '<img src=x onerror="alert(1)"> & "literal"';

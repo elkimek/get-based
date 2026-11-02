@@ -586,6 +586,7 @@ Preserve independently failing assertions for these workflows:
 | Manual body reading Sync | Sync only explicit manual weight/BP/pulse fields; preserve distinct same-day values, edit clocks, deletion/re-add, add-only local history, profile/owner guards and ordinary startup catch-up; keep vendor histories local | [Store and row codec](../tests/manual-body-readings-sync.test.ts), [ownership/failure](../tests/manual-body-readings-ownership.test.ts), [startup/detail browser](../tests/playwright/manual-readings-sync.spec.ts) |
 | Lab import and restore | Reject invalid or duplicate mutations; retain report units, provenance, and unrelated data; recover from failed writes. C-peptide accepts pmol/L (331 per canonical µg/L), displays pmol/L in EU, and converts values and all ranges together; reapplying a saved review repairs affected entries without changing its raw report units or duplicating snapshots | [Import integrity](../tests/import-data-integrity.test.ts), [provenance](../tests/import-provenance.test.ts), [C-peptide units](../tests/cpeptide-units.test.ts), [saved-review repair](../tests/playwright/cpeptide-import.spec.ts) |
 | Profiles and notes | Late work stays with its originating profile; failed reads block saves; drafts and records survive failed writes | [Profile races](../tests/chat-profile-races.test.ts), [profile persistence](../tests/profile-persistence.test.ts), [notes](../tests/notes-safety.test.ts) |
+| Lymphocyte subsets and immune ratios | Keep CD3/CD4/CD8/CD19/NK absolute counts distinct from percentages of total lymphocytes; convert count units and lab intervals together; retain reported CD4/CD8 and LMR, derive only from same-date valid counts, preserve baseline chat context, and reject other percentage denominators, NKT cells and NK function as these built-ins | [Subset contracts](../tests/lymphocyte-subsets.test.ts), [Schema catalog](../tests/marker-schema-contract.test.ts), [Percent siblings](../tests/pdf-import-percent-sibling-mapping.test.ts) |
 | PDF preflight presentation | Preserve literal labels, whitespace, native button defaults, model conversion order, duplicate date formatting, specialty link attributes and scoped style ownership; retain ordered checks, cancellation and explicit model switching; create an accessible scanned-warning host when absent, keep Escape active after Tab, settle and clean up once, and protect a visible native confirmation | [Frozen presentation contracts](../tests/pdf-preflight-presentation.test.ts), [public PDF workflows](../tests/playwright/pdf-import-browser-coverage.spec.ts), [real-parser image-warning lifecycle](../tests/playwright/pdf-image-mode-lifecycle.spec.ts), [static PDF first use and cold launches](../tests/pwa/sveltekit-pdf-preflight.spec.ts), [modal lifecycle contracts](../tests/test-modal-lifecycle-integrations.ts) |
 | Standalone Note editor | Preserve original Add/Edit serialization, native form values and reset defaults, literal whitespace and coercion order; retain captured profile writes, aborted-write drafts, reload survival and both edit/delete sync tombstones; verify themes and stylesheet order, nested confirmation focus, first offline use and stopped-origin cold launches | [Frozen presentation contracts](../tests/note-editor-presentation.test.ts), [Note safety](../tests/notes-safety.test.ts), [native persistence](../tests/playwright/notes-persistence.spec.ts), [modal focus handoffs](../tests/modal-focus-handoff.test.ts), [static offline Note](../tests/pwa/sveltekit-note-editor.spec.ts) |
 | Client List overview | Preserve filtering, sorting, pinning, profile selection, protected records, native menus and form handoffs; keep the focused search toolbar attached during rapid typing and caret edits, retire stale deferred focus, and retain keyboard dismissal and offline first use through two cold launches | [Presentation contracts](../tests/client-list-presentation.test.ts), [search ownership](../tests/client-list-runtime.test.ts), [delegated actions](../tests/test-client-list-delegated-actions.ts), [shared focus](../tests/modal-focusable.test.ts), [static PWA workflows](../tests/pwa/sveltekit-client-list.spec.ts) |
@@ -711,6 +712,31 @@ Their inclusion must retain the same module floors; additional selected executio
 does not establish a fresh whole-project combined measurement.
 
 ## Release and integration evidence
+
+Report privacy contracts in [`pii-redaction.test.ts`](../tests/pii-redaction.test.ts)
+cover conventional Czech/Slovak/English fictional names, shared and mixed language
+clues, Slovak identity/DOB fields, short and lowercase labeled
+identities, exact clinical-row preservation and report-local identifier keys.
+Alias collision cases exercise original first/surname components through both
+local-model transports. Repeated birth-date labels preserve the same substituted
+date and real year while keeping actual collection dates unchanged. Reported sex
+retains priority across line breaks.
+Both local-model transports retain the same captured profile hints and key
+through finalization without storing it. The review contracts in
+[`pii-review-presentation.test.ts`](../tests/pii-review-presentation.test.ts)
+require Send to use the finalized result and its actual character count. They
+also require retired text, thinking, queued frame and completion callbacks to
+leave regex replacements and newer attempts intact. Unavailable-review opt-in,
+stylesheet failure and recovery retain ordinary Cancel behavior for other
+callers. [`pdf-import-batch-privacy.test.ts`](../tests/pdf-import-batch-privacy.test.ts)
+drives real batch and feed handlers: privacy failures remain eligible on the
+next check, while a subsequent deliberate skip is persisted as handled.
+[`pii-scroll-sync.test.ts`](../tests/pii-scroll-sync.test.ts) covers proportional
+scrolling and echo suppression; the real-browser
+[`pii-browser-coverage.spec.ts`](../tests/playwright/pii-browser-coverage.spec.ts)
+retains configuration, sanitizer and editable-review checks, including a
+controlled queued-frame race after regex replacement. These synthetic
+checks do not establish recognition of every real report layout or language.
 
 Opening CLI Settings and an explicit rescan must refresh installed versions through the separately installed Companion. Ordinary discovery keeps its short unused-port deadline; only an identified Companion receives the longer bounded refresh request. Version probes run asynchronously and concurrently against each configured executable and its launcher arguments, without ACP/gateway arguments, authentication checks, client restarts or gateway enumeration. Failed probes clear stale version text. Browser refresh failures retain the already discovered agents and their original discovery credential with version text cleared; explicit caller cancellation still discards the result. Concurrent refreshes share work, and discovery origin/credential boundaries remain unchanged. [Version probes](../tests/local-agent-version-refresh.test.ts), [host discovery](../tests/agent-host-service.test.ts), [browser discovery](../tests/agent-chat-settings.test.ts) and [Settings presentation](../tests/cli-companion-ui.test.ts) cover this contract.
 

@@ -3,9 +3,10 @@ import {JSDOM} from 'jsdom';
 import {buildPIIDiffHTML, projectPIIDiff, reviewPIIBeforeSend, showPIIDiffViewer, PII_REVIEW_UNAVAILABLE} from '../js/pii-review.js';
 import {renderPIIReviewModal, renderPIIDiffViewer, renderPIIPanel} from '../js/pii-review-presentation.js';
 
+const styles=vi.hoisted(()=>({loaded:true,loadResult:true}));
 vi.mock('../js/modal-lifecycle.js', () => ({
-  isDataProtectionStylesheetLoaded: () => true,
-  loadDataProtectionStylesheetForAction: async () => true,
+  isDataProtectionStylesheetLoaded: () => styles.loaded,
+  loadDataProtectionStylesheetForAction: async () => styles.loadResult,
   openModalOverlay: (node: HTMLElement) => node.classList.add('show'),
   removeModalOverlay: (node: HTMLElement) => node.remove(),
   trapModalFocus: () => {},
@@ -17,6 +18,7 @@ vi.mock('../js/utils.js', () => ({
 let window: JSDOM['window'];
 const click = (id: string) => window.document.querySelector<HTMLButtonElement>(id)!.click();
 beforeEach(() => {
+  styles.loaded=true;styles.loadResult=true;
   window = new JSDOM('<!doctype html><body></body>', {pretendToBeVisual: true, url: 'https://pii-fixture.invalid/'}).window;
   for (const name of ['window','document','HTMLElement','HTMLTextAreaElement','Element','Node','Event','AbortController']) vi.stubGlobal(name, Reflect.get(window, name));
   vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => {fn(0);return 1;});
@@ -124,6 +126,73 @@ describe('genuine PII children and retained controller',()=>{
     await Promise.resolve();await Promise.resolve();
     click('#pii-review-cancel');expect(await optedOut).toBe('cancel');
   });
+  it.each([false,true])('reports unavailable stylesheet loading only when opted in: %s',async reportUnavailable=>{
+    styles.loaded=false;styles.loadResult=false;
+    const stream=vi.fn();
+    const deps={obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()};
+    expect(await reviewPIIBeforeSend('Alice',{streamFn:stream,reportUnavailable},deps)).toBe(reportUnavailable?PII_REVIEW_UNAVAILABLE:'cancel');
+    expect(stream).not.toHaveBeenCalled();expect(window.document.querySelector('.pii-warning-overlay')).toBeNull();
+  });
+  it('retains unavailability while a failed model is being retried, then clears it after a successful retry',async()=>{
+    let attempt=0;let succeed:(value:string)=>void=()=>{};
+    const deps={obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()};
+    const run=()=>reviewPIIBeforeSend('Alice',{reportUnavailable:true,streamFn:()=>{
+      attempt++;return attempt===1?Promise.reject(new Error('down')):new Promise<string>(resolve=>{succeed=resolve;});
+    }},deps);
+    const cancelled=run();await Promise.resolve();await Promise.resolve();
+    click('#pii-stream-retry');click('#pii-review-cancel');expect(await cancelled).toBe(PII_REVIEW_UNAVAILABLE);
+    attempt=0;const recovered=run();await Promise.resolve();await Promise.resolve();
+    click('#pii-stream-retry');succeed('safe final');await Promise.resolve();await Promise.resolve();
+    click('#pii-review-cancel');expect(await recovered).toBe('cancel');
+  });
+  it('treats an unexplained provider AbortError as a failed attempt rather than a user stop',async()=>{
+    const done=reviewPIIBeforeSend('Alice',{reportUnavailable:true,streamFn:()=>Promise.reject(new window.DOMException('provider stopped','AbortError'))},{obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()});
+    await Promise.resolve();await Promise.resolve();
+    expect(window.document.querySelector('#pii-stream-status')!.textContent).toContain('Error: provider stopped');
+    click('#pii-review-cancel');expect(await done).toBe(PII_REVIEW_UNAVAILABLE);
+  });
+  it('keeps queued and late stream output out of a selected regex result',async()=>{
+    const frames:FrameRequestCallback[]=[];
+    vi.stubGlobal('requestAnimationFrame',(frame:FrameRequestCallback)=>{frames.push(frame);return frames.length;});
+    let lateText:(text:string)=>void=()=>{},lateThinking:(text:string)=>void=()=>{},finish:(text:string)=>void=()=>{};
+    const done=reviewPIIBeforeSend('original',{reportUnavailable:true,streamFn:(onChunk,_signal,onThinking)=>{
+      lateText=onChunk;lateThinking=onThinking;onChunk('old draft');onThinking('old reasoning');
+      return new Promise<string>(resolve=>{finish=resolve;});
+    }},{obfuscatePDFText:()=>({original:'original',obfuscated:'safe regex',replacements:1}),unloadOllamaPIIModel:vi.fn()});
+    click('#pii-review-regex');lateText('late draft');lateThinking('late reasoning');finish('old final');
+    await Promise.resolve();await Promise.resolve();for(const frame of frames)frame(0);
+    expect(window.document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!.value).toBe('safe regex');
+    expect(window.document.querySelector('#pii-thinking-content')!.textContent).toBe('');
+    expect(window.document.querySelector('#pii-stream-status')!.textContent).toBe('Regex applied — 1 replacement');
+    click('#pii-review-send');expect(await done).toBe('safe regex');
+  });
+  it('keeps queued output from a stopped attempt out of a successful retry',async()=>{
+    const frames:FrameRequestCallback[]=[];vi.stubGlobal('requestAnimationFrame',(frame:FrameRequestCallback)=>{frames.push(frame);return frames.length;});
+    let count=0;let oldText:(text:string)=>void=()=>{},oldFinish:(value:string)=>void=()=>{};
+    const done=reviewPIIBeforeSend('original',{streamFn:onChunk=>{
+      if(count++===0){oldText=onChunk;onChunk('old draft');return new Promise<string>(resolve=>{oldFinish=resolve;});}
+      onChunk('new draft');return Promise.resolve('new finalized text');
+    }},{obfuscatePDFText:()=>({original:'original',obfuscated:'safe regex',replacements:1}),unloadOllamaPIIModel:vi.fn()});
+    click('#pii-stream-stop');for(const frame of frames.splice(0))frame(0);
+    expect(window.document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!.value).toBe('');
+    click('#pii-stream-retry');oldText('late old draft');oldFinish('old finalized text');
+    await Promise.resolve();await Promise.resolve();for(const frame of frames)frame(0);
+    expect(window.document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!.value).toBe('new finalized text');
+    click('#pii-review-send');expect(await done).toBe('new finalized text');
+  });
+  it('ignores queued and late callbacks after cancellation or successful completion',async()=>{
+    const frames:FrameRequestCallback[]=[];vi.stubGlobal('requestAnimationFrame',(frame:FrameRequestCallback)=>{frames.push(frame);return frames.length;});
+    let late:(text:string)=>void=()=>{},finish:(value:string)=>void=()=>{};
+    const begin=()=>reviewPIIBeforeSend('original',{streamFn:onChunk=>{late=onChunk;onChunk('draft');return new Promise<string>(resolve=>{finish=resolve;});}},{obfuscatePDFText:()=>({original:'original',obfuscated:'regex',replacements:1}),unloadOllamaPIIModel:vi.fn()});
+    const cancelled=begin();const removed=window.document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!;
+    click('#pii-review-cancel');late('late cancelled draft');finish('cancelled final');
+    await Promise.resolve();await Promise.resolve();for(const frame of frames.splice(0))frame(0);
+    expect(await cancelled).toBe('cancel');expect(removed.value).toBe('');
+    const completed=begin();finish('validated final');await Promise.resolve();await Promise.resolve();late('late completed draft');
+    for(const frame of frames)frame(0);
+    expect(window.document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!.value).toBe('validated final');
+    click('#pii-review-send');expect(await completed).toBe('validated final');
+  });
   it('treats cancel as an explicit skip once regex fallback replaced a failed local model',async()=>{
     const deps={obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()};
     const done=reviewPIIBeforeSend('Alice',{streamFn:()=>Promise.reject(new Error('down')),reportUnavailable:true},deps);
@@ -176,6 +245,17 @@ describe('genuine PII children and retained controller',()=>{
     expect(window.document.querySelector<HTMLButtonElement>('#pii-review-send')!.disabled).toBe(true);
     click('#pii-stream-retry');expect(signals).toHaveLength(2);expect(signals[1]!.aborted).toBe(false);
     click('#pii-review-cancel');expect(await done).toBe('cancel');expect(signals[1]!.aborted).toBe(true);
+  });
+  it('sends the finalized privacy result and shows its actual length', async () => {
+    const finalText='Patient: John Doe\nGlucose 91 mg/dL';
+    const done=reviewPIIBeforeSend('Patient: Alice Smith\nGlucose 91 mg/dL', {streamFn:onChunk=>{
+      onChunk('unfinished model draft');return Promise.resolve(finalText);
+    }}, {obfuscatePDFText:()=>({original:'original',obfuscated:'regex',replacements:1}),unloadOllamaPIIModel:vi.fn()});
+    await Promise.resolve();await Promise.resolve();
+    const textarea=window.document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!;
+    expect(textarea.value).toBe(finalText);expect(textarea.readOnly).toBe(false);
+    expect(window.document.querySelector('#pii-stream-status')!.textContent).toBe(`Complete — ${finalText.length} chars — click text to edit`);
+    click('#pii-review-send');expect(await done).toBe(finalText);
   });
   it('retains blur preview and click-line caret/scroll restoration', async () => {
     vi.useFakeTimers();const done=reviewPIIBeforeSend('first\nAlice', {obfuscatedText:'first\nBob'}, {obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()});

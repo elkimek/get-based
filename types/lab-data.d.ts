@@ -1,5 +1,7 @@
 /** Canonical persisted lab data. Display-unit conversion belongs at view/input boundaries. */
 export interface MarkerProvenance {
+  /** Explicitly entered result; automatic derived-value refresh must preserve it. */
+  reported?: boolean;
   manuallyEdited?: boolean;
   snapshotId?: string | null;
   file?: string | null;
@@ -15,6 +17,11 @@ export interface LabCollectionContext {
 }
 
 export interface LabEntry {
+  /** First collection facts retained when an ordinary or approved edit corrects them. */
+  collectionOriginals?: Partial<Record<'date' | 'specimen' | 'sampleTime' | 'fasting' | 'cycleDay' | 'cyclePhase' | 'cyclePhaseDetail' | 'cyclePhaseSource', { value: unknown; sourceSnapshotId: string | null }>>;
+  manualOriginals?: Record<string, { value: number | true; source: MarkerProvenance | null } | null>;
+  /** Stable specimen/panel identity; legacy single-date records need no eager rewrite. */
+  panelId?: string;
   date: string;
   markers: Record<string, number | null>;
   markerSources?: Record<string, MarkerProvenance | null>;

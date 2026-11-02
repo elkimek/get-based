@@ -9,7 +9,7 @@ import { prepareSettingsSyncHost, hydrateSettingsSyncPanel, disposeMessengerSect
 import { getAiSettingsView } from './ai-settings-component.js';
 import type { AiProviderId } from './ai-settings-contract.js';
 import { disposeWearablesSettings } from './wearables-settings-component.js';
-import { setProductRecsEnabled } from './recommendations.js';
+import { setProductRecsEnabled } from './recommendation-preferences.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   configureSettingsProviderBridgeDeps,
@@ -93,8 +93,8 @@ import {
 } from './settings-voice-panel.js';
 import {
   buildNutritionAISettingsSnapshot,
-  setNutritionAIRouteFromValue,
 } from './nutrition-ai-settings.js';
+import { changeNativeMealRoute } from './nutrition-ai-route-commands.js';
 import {
   getAppExtensionSettingsPolicy,
   handleAppExtensionSettingsAction,
@@ -212,6 +212,11 @@ function isSettingsToggleAction(actionEl: HTMLElement) {
     || actionEl.dataset.settingsAction === 'set-analytics';
 }
 
+async function commitDisplaySettingFromUI(command: () => Promise<unknown>) {
+  try { await command(); updateSettingsUI(); }
+  catch { showNotification('The display preference could not be confirmed. Check the current setting before trying again.', 'error'); }
+}
+
 async function handleSettingsClick(event: Event) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
@@ -260,20 +265,16 @@ async function handleSettingsClick(event: Event) {
     scheduleSettingsThemeChange(actionEl.dataset.themeId || 'dark');
   } else if (action === 'switch-unit') {
     event.preventDefault();
-    switchUnitSystem(actionEl.dataset.unit || 'EU');
-    updateSettingsUI();
+    await commitDisplaySettingFromUI(() => switchUnitSystem(actionEl.dataset.unit || 'EU'));
   } else if (action === 'toggle-alt-units') {
     event.preventDefault();
-    toggleAltUnits(actionEl.dataset.altUnits === 'on');
-    updateSettingsUI();
+    await commitDisplaySettingFromUI(() => toggleAltUnits(actionEl.dataset.altUnits === 'on'));
   } else if (action === 'switch-range') {
     event.preventDefault();
-    switchRangeMode(actionEl.dataset.range || 'optimal');
-    updateSettingsUI();
+    await commitDisplaySettingFromUI(() => switchRangeMode(actionEl.dataset.range || 'optimal'));
   } else if (action === 'set-time-format') {
     event.preventDefault();
-    setTimeFormat(actionEl.dataset.timefmt === '12h' ? '12h' : '24h');
-    updateSettingsUI();
+    await commitDisplaySettingFromUI(() => setTimeFormat(actionEl.dataset.timefmt === '12h' ? '12h' : '24h'));
   } else if (action === 'open-tweaks') {
     event.preventDefault();
     closeSettingsModal();
@@ -406,8 +407,7 @@ function handleSettingsChange(event: Event) {
     setOllamaPIIModel(model);
     updatePrivacyStatusCard();
   } else if (action === 'set-nutrition-ai-route') {
-    setNutritionAIRouteFromValue(actionEl instanceof HTMLSelectElement ? actionEl.value : '');
-    showNotification('Meal photo model updated.', 'success');
+    if (actionEl instanceof HTMLSelectElement) void changeNativeMealRoute(actionEl, refreshNutritionAISettingsSection);
   }
 }
 
@@ -444,7 +444,8 @@ async function selectAiProviderFromSettings(provider: AiProviderId, actionEl: HT
   if (provider === 'cli') showCLIAgentProviderBridge(); else switchAIProviderBridge(provider);
 }
 
-export function openSettingsModal(tab?: unknown): void | false | Promise<void | false> {
+export function openSettingsModal(tab?: unknown, isCurrent: () => boolean = () => true): void | false | Promise<void | false> {
+  if (!isCurrent()) return false;
   const request = ++settingsActionRequest;
   setSettingsProviderHadProvider(hasAIProvider());
   const overlay = document.getElementById('settings-modal-overlay');
@@ -457,7 +458,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   if (tab === 'wearables' && !isWearablesStylesheetLoaded()) {
     const current = capturePendingSettingsAction(request);
     return loadWearablesStylesheetForAction(current)
-      .then(loaded => loaded && current() ? openSettingsModal(tab) : false);
+      .then(loaded => loaded && current() && isCurrent() ? openSettingsModal(tab, isCurrent) : false);
   }
   if (tab) _activeSettingsTab = tab;
 
@@ -506,7 +507,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   installSettingsDelegates(modal);
   installVoiceSettingsPanel(modal);
   openModalOverlay(overlay);
-  void initSettingsProviderPanels();
+  if (aiActive) void initSettingsProviderPanels();
   loadBackupSnapshots();
   loadSettingsCommitHash();
   hydrateSettingsSyncPanel();

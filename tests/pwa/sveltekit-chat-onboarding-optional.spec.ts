@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import type { BackupSnapshot } from '../../js/backup.js';
 import type { ProfileData } from '../../types/app-state.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page: Page) {

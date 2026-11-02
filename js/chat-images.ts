@@ -190,6 +190,7 @@ function currentAttachmentDraft({ create = true } = {}) {
 /// Queue inspection for chat.js's sendChatMessage + send-button state.
 export function getPendingAttachments() { return currentAttachmentDraft(); }
 export function hasPendingAttachments() { return currentAttachmentDraft({ create: false }).length > 0; }
+export function hasChatAttachmentWork() { return pendingAttachmentsByThread.hasWork(attachmentDraftKey()); }
 
 /** Shrink an image to a tiny thumbnail data URL for chat history storage */
 function makeThumbnail(previewUrl: string, width: number, height: number) {

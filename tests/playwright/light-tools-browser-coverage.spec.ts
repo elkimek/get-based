@@ -16,7 +16,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
 
   const results = await page.evaluate(async ({ lightToolsUrl, stateUrl }) => {
     const [lightTools, { state }] = await Promise.all([
-      ((import(lightToolsUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-tools.js"), "configureLightTools" | "getMeasurements" | "saveMeasurement" | "getMeasurementsForRoom" | "deleteMeasurement" | "renderLightTools" | "aimingGuideHTML" | "dismissAimingGuide" | "normalizeGoldenHourMinutes" | "openSunriseLogger" | "openLuxMeter" | "closeLuxMeter" | "openFlickerDetector" | "closeFlickerDetector" | "openDarknessMeter" | "closeDarknessMeter" | "openCCTMeter" | "closeCCTMeter" | "openSpectrumClassifier" | "closeSpectrumClassifier" | "openGlassTransmission" | "closeGlassTransmission" | "openEyeLevelAudit" | "closeEyeLevelAudit"> >),
+      ((import(lightToolsUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-tools.js"), "configureLightTools" | "getMeasurements" | "normalizeLightMeasurements" | "saveMeasurement" | "getMeasurementsForRoom" | "deleteMeasurement" | "renderLightTools" | "aimingGuideHTML" | "dismissAimingGuide" | "normalizeGoldenHourMinutes" | "openSunriseLogger" | "openLuxMeter" | "closeLuxMeter" | "openFlickerDetector" | "closeFlickerDetector" | "openDarknessMeter" | "closeDarknessMeter" | "openCCTMeter" | "closeCCTMeter" | "openSpectrumClassifier" | "closeSpectrumClassifier" | "openGlassTransmission" | "closeGlassTransmission" | "openEyeLevelAudit" | "closeEyeLevelAudit"> >),
       ((import(stateUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/state.js"), "state"> >),
     ]);
     const clone = (value:unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
@@ -79,6 +79,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
           screens: [],
         },
       };
+      if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic native measurement seed failed');
       lightTools.configureLightTools({
         maybeAnalyzeMeasurementAfterSave: (entry:unknown) => analyzeCalls.push((entry as {tool?:unknown}).tool),
         suggestRoomSourceFromSpectrum: async (roomId:unknown, value:unknown) => {
@@ -107,6 +108,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       results.migrationKeepsLatestRoomTool = migrated.some(item => item.id === 'new-lux')
         && !migrated.some(item => item.id === 'old-lux');
       results.migrationKeepsAuditHistory = migrated.filter(item => item.tool === 'audit').length === 2;
+      await lightTools.normalizeLightMeasurements();
       results.migrationTombstonesDroppedMeasurement = hasDeleted('old-lux');
 
       const firstLux = await lightTools.saveMeasurement('lux', 500, {
@@ -117,12 +119,14 @@ test('light tools browser coverage exercises storage render and modal flows', as
         extra: { source: 'manual-test' },
       });
       const secondLux = await lightTools.saveMeasurement('lux', 620, { roomId: 'room-1' });
+      if (!firstLux || !secondLux) throw new Error('The native lux fixtures did not save.');
       results.saveSupersedesPriorSameRoomTool = !lightTools.getMeasurements().some(item => item.id === firstLux.id)
         && lightTools.getMeasurements().some(item => item.id === secondLux.id)
         && hasDeleted(firstLux.id);
 
       const auditA = await lightTools.saveMeasurement('audit', 1, { extra: { rooms: [] } });
       const auditB = await lightTools.saveMeasurement('audit', 2, { extra: { rooms: [] } });
+      if (!auditA || !auditB) throw new Error('The native walkthrough fixtures did not save.');
       results.auditSavesRemainHistorical = lightTools.getMeasurements().some(item => item.id === auditA.id)
         && lightTools.getMeasurements().some(item => item.id === auditB.id);
 
@@ -380,6 +384,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
     } finally {
       (state as {importedData:unknown}).importedData = saved.importedData;
       state.currentView = saved.currentView;
+      if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic native measurement seed failed');
       lightTools.configureLightTools({
         maybeAnalyzeMeasurementAfterSave: () => {},
         suggestRoomSourceFromSpectrum: async () => {},

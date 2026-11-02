@@ -12,6 +12,7 @@ test('Display Svelte component opens for the first time offline and retains pref
       localStorage.setItem('labcharts-analytics-consent-seen', '1');
     });
     await page.goto(`${server.origin}/app?dev-sw=1`, { waitUntil: 'networkidle' });
+    await expect(page.locator('html[data-app-ready]')).toBeAttached();
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
     await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
     expect(await page.locator('link[data-settings-stylesheet]').count()).toBe(0);
@@ -28,6 +29,7 @@ test('Display Svelte component opens for the first time offline and retains pref
     await panel.locator('[data-alt-units="on"]').click();
     await expect(panel.locator('[data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
     await page.reload({ waitUntil: 'load' });
+    await expect(page.locator('html[data-app-ready]')).toBeAttached();
     await page.evaluate(async () => { await (await import('/js/settings-loader.js')).openSettingsModal('display'); });
     await expect(panel.locator('[data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(panel.locator('[data-alt-units="on"]')).toHaveAttribute('aria-pressed', 'true');

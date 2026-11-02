@@ -1198,6 +1198,32 @@ describe('AI provider request contracts', () => {
     expect(ollamaStreamError.message).not.toContain(secret);
   });
 
+  it.each(['cancelled', 'retired'] as const)('does not dispatch an Ollama request that is already %s', async cause => {
+    globalThis.fetch = vi.fn();
+    const controller = new AbortController();
+    if (cause === 'cancelled') controller.abort(new DOMException('Cancelled', 'AbortError'));
+    await expect(inferWithOllamaNativeProvider({
+      config: { url: 'http://ollama.test', apiKey: 'synthetic-private-key' },
+      model: 'local-model',
+      opts: { messages: [{ role: 'user', content: 'synthetic input' }], signal: controller.signal, requestCurrent: () => cause !== 'retired' },
+    })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a rejected Ollama schema after its recipient retires', async () => {
+    let current = true;
+    globalThis.fetch = vi.fn(async () => {
+      current = false;
+      return jsonResponse({ error: 'format schema is unsupported' }, { status: 400 });
+    });
+    await expect(inferWithOllamaNativeProvider({
+      config: { url: 'http://ollama.test' },
+      model: 'local-model',
+      opts: { messages: [{ role: 'user', content: 'synthetic input' }], jsonMode: true, jsonSchema: { type: 'object' }, requestCurrent: () => current },
+    })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(globalThis.fetch).toHaveBeenCalledOnce();
+  });
+
   it('reports an Ollama streaming response without a readable body', async () => {
     globalThis.fetch = vi.fn(async () => new Response(null, { status: 200 }));
 

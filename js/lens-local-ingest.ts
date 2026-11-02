@@ -2,10 +2,10 @@
 
 import { chunkText } from './lens-local-utils.js';
 
-import type { CorpusChunk, CorpusState } from './lens-local-store.js';
+import type { CorpusChunk, CorpusState, CorpusManifest } from './lens-local-store.js';
 export interface LensInputFile { name?: string; text?: string }
 export type LensEmbedder = (input: string | string[] | undefined, options: { pooling: 'mean'; normalize: true }) => { data?: ArrayLike<number> | null } | null | undefined | Promise<{ data?: ArrayLike<number> | null } | null | undefined>;
-export type IngestProgress = { stage: 'start' | 'saving'; total: number } | { stage: 'embed'; total: number; index: number; source: string };
+export type IngestProgress = { stage: 'start' | 'saving' | 'loading'; total: number } | { stage: 'embed'; total: number; index: number; source: string };
 export interface IngestOptions {
   files: LensInputFile[]; embedder: LensEmbedder; backend: string; dim: number; current: CorpusState;
   postProgress(progress: IngestProgress): void; yieldTask(): Promise<void>; isAbortRequested(): boolean;
@@ -127,14 +127,14 @@ export async function buildLocalIngestTransaction(options: IngestOptions) {
 
   const perDocument = new Map<string, number>();
   for (const chunk of allChunks) perDocument.set(chunk.source, (perDocument.get(chunk.source) || 0) + 1);
-  const nextManifest = {
+  const nextManifest: CorpusManifest = {
     ...current.manifest,
     numChunks: mergedChunks.length,
     indexedAt: Date.now(),
     docs: current.manifest.docs.filter((doc) => !replacedSources.has(doc.source)),
   };
   for (const file of changedWithChunks) {
-    nextManifest.docs.push({ source: file.name, chunks: perDocument.get(file.name) || 0, hash: file.hash });
+    nextManifest.docs.push({ ...current.manifest.docs.find(doc => doc.source === file.name), source: file.name, chunks: perDocument.get(file.name) || 0, hash: file.hash });
   }
 
   return {

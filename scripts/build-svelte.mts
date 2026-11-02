@@ -46,7 +46,7 @@ export const HTML_COMPONENTS = new Set([
   'ImportProgressPresentation', 'DropZoneResetPresentation',
   'MarkerPlacementSummary', 'MarkerPlacementOptions', 'MarkerPlacementForm',
   'CustomMarkerForm', 'CustomMarkerOptions',
-  'MarkerDetailHistory', 'MarkerDetailRange', 'MarkerReferenceEditor',
+  'MarkerDetailHistory', 'MarkerDetailRange', 'MarkerReferenceEditor', 'LabSampleEditor',
   'MarkerDetailChrome', 'MarkerDetailBioAge', 'MarkerDetailNotes', 'MarkerDetailModal',
   'CompareDatesPage', 'CompareDatesTable', 'CompareRangeStack',
   'CorrelationsSelectionPage', 'CorrelationsSelectionOptions', 'CorrelationsSelectionChips',

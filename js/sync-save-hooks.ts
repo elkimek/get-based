@@ -4,7 +4,7 @@ import './caught-error.js';
 import './state.js';
 import './profile-storage-key.js';
 import { encryptedGetItem } from './crypto.js';
-import { markChatDataLocal, markCustomPersonalityDataLocal } from './sync-chat-apply.js';
+import { markChatDataLocal, markCustomPersonalityDataLocal } from './sync-chat-local-state.js';
 import { pushContextToGateway } from './sync-messenger.js';
 import './utils-runtime.js';
 import './sync-dirty-state.js';

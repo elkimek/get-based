@@ -15,6 +15,7 @@ export function expectedMtDnaPreviewHTML(original:string):string {
     <div class="dna-preview-stats">${text(g.count!)} mtDNA markers read from ${text(g.file!)}</div>
   </div>
   <div class="dna-preview-body">
+    <!--[-1--><!--]-->
     <div class="mtdna-preview-haplogroup">
       <div class="mtdna-hg-label">Haplogroup</div>
       <div class="mtdna-hg-value">${text(g.haplogroup!)}</div>

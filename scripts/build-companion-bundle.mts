@@ -19,7 +19,8 @@ export async function buildCompanionBundle({ outputRoot = ROOT }: { outputRoot?:
       format: 'es',
       codeSplitting: false,
       entryFileNames: 'getbased-companion.mjs',
-      minify: false,
+      // Compact whitespace without changing identifiers or enabling compression.
+      minify: { compress: false, mangle: false, codegen: { removeWhitespace: true } },
     },
   });
   const chunks = result.output.filter(item => item.type === 'chunk');

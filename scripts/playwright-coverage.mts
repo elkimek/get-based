@@ -78,22 +78,27 @@ const COVERAGE_FIXTURES: BrowserFixture[] = [
   }],
 ];
 
-function unionLength(ranges: readonly CoverageRange[]) {
-  if (!ranges.length) return 0;
+function unionRanges(ranges: readonly CoverageRange[]): CoverageRange[] {
+  if (!ranges.length) return [];
   const sorted = [...ranges].sort((a, b) => a.start - b.start);
-  let covered = 0;
+  const merged: CoverageRange[] = [];
   let curStart = sorted[0]!.start;
   let curEnd = sorted[0]!.end;
   for (let i = 1; i < sorted.length; i += 1) {
     if (sorted[i]!.start <= curEnd) {
       curEnd = Math.max(curEnd, sorted[i]!.end);
     } else {
-      covered += curEnd - curStart;
+      merged.push({start: curStart, end: curEnd});
       curStart = sorted[i]!.start;
       curEnd = sorted[i]!.end;
     }
   }
-  return covered + (curEnd - curStart);
+  merged.push({start: curStart, end: curEnd});
+  return merged;
+}
+
+function unionLength(ranges: readonly CoverageRange[]) {
+  return unionRanges(ranges).reduce((total, range) => total + range.end - range.start, 0);
 }
 
 function cleanUrl(url: unknown) {
@@ -199,11 +204,15 @@ function getFileMetrics(model: CoverageModel, file: string, total: unknown = 0, 
 }
 
 function addCoveredRanges(metrics: FileMetrics, ranges: readonly RawRange[]) {
+  const next: CoverageRange[] = [];
   for (const range of ranges) {
     const start = Math.max(0, (range.start ?? 0) as number);
     const end = Math.max(start, (range.end ?? 0) as number);
-    if (end > start) metrics.ranges.push({ start, end });
+    if (end > start) next.push({ start, end });
   }
+  // Byte coverage is an exact interval union. Retaining every duplicate from
+  // thousands of captures changes no credit and can exhaust the Node heap.
+  if (next.length) metrics.ranges = unionRanges([...metrics.ranges, ...next]);
 }
 
 function addFunction(metrics: FileMetrics, key: string, name: unknown, called: boolean, collector = 'v8') {
@@ -402,18 +411,18 @@ function normalizeFixture(fixture: BrowserFixture | FixtureReader) {
   return fixture;
 }
 
-function readPlaywrightCoverageShards() {
-  if (!fs.existsSync(playwrightCoverageDir)) return { entries: [], fixtures: [], files: [], unreadable: [] };
+export function readPlaywrightCoverageShards(directory = playwrightCoverageDir) {
+  const model: CoverageModel = new Map();
+  if (!fs.existsSync(directory)) return { model, fixtures: [], files: [], unreadable: [] };
 
-  const files = fs.readdirSync(playwrightCoverageDir)
+  const files = fs.readdirSync(directory)
     .filter(file => file.endsWith('.json'))
     .sort();
-  const entries: RawEntry[] = [];
   const fixtures: FixtureReader[] = [];
   const unreadable: Array<{ file: string; error: unknown }> = [];
 
   for (const file of files) {
-    const shardPath = path.join(playwrightCoverageDir, file);
+    const shardPath = path.join(directory, file);
     let shard: RawShard;
     try {
       shard = JSON.parse(fs.readFileSync(shardPath, 'utf8'));
@@ -422,7 +431,10 @@ function readPlaywrightCoverageShards() {
       continue;
     }
     const shardEntries = Array.isArray(shard.entries) ? shard.entries : [];
-    entries.push(...shardEntries);
+    // Fold one shard at a time with the same exact source/function checks.
+    // Never retain all source strings
+    // and raw function/range trees while also building the aggregate model.
+    addBrowserEntriesToModel(model, shardEntries);
     fixtures.push({
       name: shard.titlePath?.slice(-1)[0] || shard.title || path.basename(file, '.json'),
       path: shard.file || path.relative(repoRoot, shardPath).split(path.sep).join('/'),
@@ -431,7 +443,7 @@ function readPlaywrightCoverageShards() {
     });
   }
 
-  return { entries, fixtures, files, unreadable };
+  return { model, fixtures, files, unreadable };
 }
 
 function enforceCoverageGate(report: CoverageSummary) {
@@ -449,9 +461,7 @@ function enforceCoverageGate(report: CoverageSummary) {
   );
 }
 
-async function writeCoverageReport(entries: readonly RawEntry[], fixtures: readonly (BrowserFixture | FixtureReader)[], options: { playwrightScope?: string } = {}) {
-  const playwrightModel: CoverageModel = new Map();
-  addBrowserEntriesToModel(playwrightModel, entries);
+async function writeCoverageReport(playwrightModel: CoverageModel, fixtures: readonly (BrowserFixture | FixtureReader)[], options: { playwrightScope?: string } = {}) {
   const playwright = summarizeCoverageModel(playwrightModel);
 
   const unitCoverage = await readVitestCoverageModel();
@@ -554,7 +564,7 @@ async function main() {
       throw new Error(`No readable Playwright coverage shards found in ${playwrightCoverageDir}.`);
     }
     console.log(`Reading ${suiteCoverage.fixtures.length} readable Playwright coverage shard(s) from ${path.relative(repoRoot, playwrightCoverageDir)}`);
-    const report = await writeCoverageReport(suiteCoverage.entries, suiteCoverage.fixtures, {
+    const report = await writeCoverageReport(suiteCoverage.model, suiteCoverage.fixtures, {
       playwrightScope: 'Playwright suite coverage shards',
     });
     enforceCoverageGate(report);
@@ -574,20 +584,20 @@ async function main() {
     });
     await smokeTestApp(browser);
 
-    const entries: RawEntry[] = [];
+    const model: CoverageModel = new Map();
     let firstFailure: unknown = null;
     console.log(`Running Playwright coverage sampler against ${BASE_URL}`);
     for (const [name, testPath, options = {}] of COVERAGE_FIXTURES) {
       console.log(`  - ${name}`);
       const result = await runCoverageFixture(browser, testPath, options);
-      entries.push(...result.entries);
+      addBrowserEntriesToModel(model, result.entries);
       if (result.failure) {
         firstFailure = result.failure;
         break;
       }
     }
 
-    const report = await writeCoverageReport(entries, COVERAGE_FIXTURES, {
+    const report = await writeCoverageReport(model, COVERAGE_FIXTURES, {
       playwrightScope: 'sampled Playwright Chromium fixtures',
     });
     if (firstFailure) throw firstFailure;

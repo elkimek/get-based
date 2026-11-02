@@ -415,7 +415,7 @@ assert('app shell prepares production composition while the public injected faca
   !viewsSrc.includes("from './dashboard-view-composition.js'") &&
   viewsSrc.includes('export function configureDashboardViewFactory') &&
   !appShellHooksSrc.includes("from './dashboard-view-composition.js'") &&
-  appShellHooksSrc.includes("from './views-runtime.js'") &&
+  appShellHooksSrc.includes("from './navigation-views.js'") &&
   appShellHooksSrc.includes('configureProductionDashboard()') &&
   dashboardCompositionSrc.includes('export function createDashboardViewComposition') &&
   dashboardCompositionSrc.includes('createDashboardWidgetRenderers') &&

@@ -20,7 +20,10 @@ const exportModule = await import('../js/export.js');
 if (!state.profiles) {
   state.profiles = [{ id: 'default', name: 'Default' }];
 }
+  const profilesBefore = structuredClone(state.profiles);
   const profileId = state.currentProfile;
+  if (!state.profiles.some(p => p.id === profileId)) state.profiles.push({ id: profileId, name: 'Synthetic biometric fixture' });
+  await (await import('../js/crypto.js')).encryptedSetItem('labcharts-profiles', JSON.stringify(state.profiles));
 
   // Save originals
   const origBio = state.importedData.biometrics;
@@ -180,5 +183,8 @@ if (!state.profiles) {
   // ═══════════════════════════════════════
   // Summary
   // ═══════════════════════════════════════
+state.profiles = profilesBefore;
+await (await import('../js/crypto.js')).encryptedSetItem('labcharts-profiles', JSON.stringify(profilesBefore));
+
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

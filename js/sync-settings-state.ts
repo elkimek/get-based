@@ -6,6 +6,14 @@ export const SYNC_PAUSED_STORAGE_KEY = 'labcharts-sync-paused';
 let _syncConfigured = false;
 let _syncPaused = false;
 let _syncStatePrimed = false;
+let _publishingSuspended = false;
+
+/** Owner handoff blocks the retiring runtime without changing saved settings. */
+export function setSyncPublishingSuspended(suspended: boolean) {
+  const previous = _publishingSuspended;
+  _publishingSuspended = suspended;
+  return previous;
+}
 
 export function primeSyncState() {
   if (!_syncStatePrimed) {
@@ -13,12 +21,12 @@ export function primeSyncState() {
     _syncPaused = _syncConfigured && localStorage.getItem(SYNC_PAUSED_STORAGE_KEY) === 'true';
     _syncStatePrimed = true;
   }
-  return _syncConfigured && !_syncPaused;
+  return _syncConfigured && !_syncPaused && !_publishingSuspended;
 }
 
 export function isSyncEnabled() {
   if (!_syncStatePrimed) primeSyncState();
-  return _syncConfigured && !_syncPaused;
+  return _syncConfigured && !_syncPaused && !_publishingSuspended;
 }
 
 export function isSyncConfigured() {

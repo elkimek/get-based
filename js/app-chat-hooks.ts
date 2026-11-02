@@ -1,6 +1,7 @@
 // app-chat-hooks.js - first-use Chat wiring that must not enter the startup graph.
 
-import { setAIPaused } from './api.js';
+import { commitAssistantPreferences } from './assistant-preferences.js';
+import { showNotification } from './utils.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
 import { configureChatEmptyStateDeps } from './chat-empty-state.js';
 import {
@@ -55,10 +56,10 @@ import {
 import { switchToThread } from './chat-threads.js';
 let initialized = false;
 
-function resumeAI() {
-  setAIPaused(false);
-  renderChatMessages();
-  updateChatInputState();
+async function resumeAI() {
+  try { await commitAssistantPreferences({ paused: false }); }
+  catch { showNotification('AI features could not be resumed. Check native AI settings.', 'error'); return; }
+  try { renderChatMessages(); updateChatInputState(); } catch { /* Saved setting remains authoritative. */ }
 }
 
 export function configureAppChatHooks(deps: unknown = {}) {

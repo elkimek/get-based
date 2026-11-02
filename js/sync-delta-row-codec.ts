@@ -18,6 +18,8 @@ export interface DeltaMutationArgs {
 export interface DeltaPlannedOperation {
   kind: 'insert' | 'update' | 'tombstone';
   args: DeltaMutationArgs;
+  // Logical identity for local receipt bookkeeping; never sent as wire args.
+  itemId?: string;
 }
 export interface DeltaPlan {
   ops: DeltaPlannedOperation[];
@@ -38,10 +40,12 @@ export interface DeltaWriteFields extends Record<string, unknown> {
   syncedAt: string;
 }
 
-/** Construct a final wire-row mutation; planners choose timing and explicit resurrection flags. */
+/** Construct a final wire-row mutation; planners choose timing and explicit
+ * resurrection flags. Evolu v8 treats null as no deletion change; 0 restores
+ * the row in both v7 and v8. */
 export function createDeltaWrite(
   existing: DeltaItemRow | null | undefined, fields: DeltaWriteFields,
-  resurrect: { isDeleted?: null | undefined },
+  resurrect: { isDeleted?: 0 | undefined },
 ): DeltaPlannedOperation {
   if (existing) return { kind: 'update', args: { id: existing.id, ...fields, ...resurrect } };
   return { kind: 'insert', args: fields };

@@ -2,7 +2,7 @@ import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { prepareStaticWallet } from './wallet-static-fixture.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 const mint = 'https://mint.minibits.cash/Bitcoin';
 async function ready(page: Page) {

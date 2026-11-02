@@ -9,7 +9,10 @@ import { isProfileReadBlocked } from './profile-load-safety.js';
 import { CONTEXT_SOURCE_IDS, getContextSourceDefinition, getLabGroupContextSourceSlug, isLabGroupContextSourceSlug, normalizeContextSourceSettings, migrateStoredContextSourceSettingsToProfile } from './context-source-registry.js';
 import { invalidateLabContextCache, normalizeNutritionContextDays } from './lab-context-settings.js';
 import type { ProfileData } from '../types/app-state.js';
-export type ContextSettingMutation = { kind: 'toggle'; key: string; checked: boolean; group?: string } | { kind: 'nutrition'; days: number } | { kind: 'migrate' };
+import { parseContextPreferencePatch } from '../shared/context-preference-contract.js';
+import type { ContextPreferencePatch } from '../shared/context-preference-contract.js';
+import { contextPreferenceRevision, readContextPreferenceState, contextPreferenceBaseline, applyContextPreferencePatch } from './context-preference-state.js';
+export type ContextSettingMutation = { kind: 'toggle'; key: string; checked: boolean; group?: string } | { kind: 'nutrition'; days: number } | { kind: 'preferences'; patch: ContextPreferencePatch } | { kind: 'migrate' };
 export type ContextSettingResult = 'saved' | 'unchanged' | 'failed' | 'conflict' | 'retired' | 'blocked' | 'busy' | 'invalid';
 const SOURCES: Record<string, string> = {
   'insight-cards': CONTEXT_SOURCE_IDS.INSIGHT_CARDS, 'supplements-meds': CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS,
@@ -27,7 +30,7 @@ export function createContextHubSession() {
   const profile = state.currentProfile, origin = state.importedData;
   let retired = false, saving = false;
   const current = () => !retired && state.currentProfile === profile && state.importedData === origin;
-  const preferences = (data: Partial<ProfileData>) => ({ sources: normalizeContextSourceSettings(data.contextSourceSettings), days: normalizeNutritionContextDays(data.nutritionContextDays), scores: data.biologyScoreContextSettings || {} });
+  const preferences = (data: Partial<ProfileData>) => ({ sources: normalizeContextSourceSettings(data.contextSourceSettings), days: normalizeNutritionContextDays(data.nutritionContextDays), scores: data.biologyScoreContextSettings || {}, wearableSeriesDays: data.agentAccessWearableSeriesDays ?? null });
   async function refreshSaved(): Promise<boolean> {
     try {
       const raw = await encryptedGetItem(profileStorageKey(profile, 'imported'), { throwOnDecryptError: true });
@@ -40,29 +43,36 @@ export function createContextHubSession() {
   }
   return {
     current, retire() { retired = true; }, refreshSaved,
-    async save(mutation: ContextSettingMutation): Promise<ContextSettingResult> {
+    async save(mutation: ContextSettingMutation, options: { expectedRevision?: string; canCommit?: () => boolean } = {}): Promise<ContextSettingResult> {
       if (!current()) return 'retired';
+      const allowed = () => current() && options.canCommit?.() !== false;
+      if (!allowed()) return 'retired';
       if (saving) return 'busy';
       if (isProfileReadBlocked(profile)) return 'blocked';
       const slug = sourceSlug(mutation);
       if (mutation.kind === 'toggle' && !slug) return 'invalid';
       if (mutation.kind === 'nutrition' && ![7, 30, 90].includes(mutation.days)) return 'invalid';
+      if (mutation.kind === 'preferences' && !parseContextPreferencePatch(mutation.patch)) return 'invalid';
       saving = true;
       try {
         const base = structuredClone(profileDataBaseline(origin) || origin), draft = structuredClone(base);
+        if (options.expectedRevision !== undefined && (contextPreferenceRevision(base, profile) !== options.expectedRevision || contextPreferenceRevision(origin, profile) !== options.expectedRevision)) return 'conflict';
+        if (mutation.kind === 'preferences') contextPreferenceBaseline(readContextPreferenceState(base, profile), mutation.patch);
         const migrated = migrateStoredContextSourceSettingsToProfile(draft);
         if (mutation.kind === 'migrate' && !migrated) return 'unchanged';
         if (mutation.kind === 'toggle') {
           draft.contextSourceSettings = { ...normalizeContextSourceSettings(draft.contextSourceSettings), [slug!]: mutation.checked };
           if (mutation.key === 'light-sun' || mutation.key === 'body-wearables') draft.biologyScoreContextSettings = { ...draft.biologyScoreContextSettings, [mutation.key === 'light-sun' ? 'includeLightContext' : 'includeBodyContext']: mutation.checked };
         } else if (mutation.kind === 'nutrition') draft.nutritionContextDays = normalizeNutritionContextDays(mutation.days);
+        else if (mutation.kind === 'preferences') applyContextPreferencePatch(draft, mutation.patch);
         const raw = await encryptedGetItem(profileStorageKey(profile, 'imported'), { throwOnDecryptError: true });
         const latest = raw ? JSON.parse(raw) as Partial<ProfileData> : {};
-        if (!profileDataValuesEqual(preferences(base), preferences(latest))) {
+        if (!allowed()) return 'retired';
+        if (!profileDataValuesEqual(preferences(base), preferences(latest)) || options.expectedRevision !== undefined && contextPreferenceRevision(latest as ProfileData, profile) !== options.expectedRevision) {
           await refreshSaved(); return 'conflict';
         }
         // The existing atomic receipt check rejects a peer write between this read and commit.
-        const saved = await saveImportedDataForProfile(profile, draft, { forceProfileScope: true, baseData: base, expectedData: raw, reason: 'context-source-settings' });
+        const saved = await saveImportedDataForProfile(profile, draft, { forceProfileScope: true, baseData: base, expectedData: raw, reason: 'context-source-settings', ...(options.canCommit ? { canCommit: allowed } : {}) });
         if (!saved) { await refreshSaved(); return 'failed'; }
         try {
           if (state.currentProfile !== profile || state.importedData !== origin) {
@@ -75,6 +85,10 @@ export function createContextHubSession() {
             localStorage.setItem(`labcharts-${profile}-ai-ctx-${slug}`, mutation.checked ? 'on' : 'off');
             const legacy = mutation.key === 'lab-group' ? `labcharts-ai-ctx-${String(mutation.group || '').trim()}` : getContextSourceDefinition(slug)?.legacyKey;
             if (legacy && state.currentProfile === profile) localStorage.removeItem(legacy);
+          }
+          if (mutation.kind === 'preferences') {
+            for (const [id, enabled] of Object.entries({ ...mutation.patch.sources, ...mutation.patch.groups })) localStorage.setItem(`labcharts-${profile}-ai-ctx-${id}`, enabled ? 'on' : 'off');
+            if (mutation.patch.wearableSeriesDays !== undefined) localStorage.setItem(`labcharts-${profile}-agent-wearable-series`, mutation.patch.wearableSeriesDays ? String(mutation.patch.wearableSeriesDays) : 'off');
           }
         } catch { /* Optional local mirrors cannot undo or silence a committed setting. */ }
         if (state.currentProfile === profile) {

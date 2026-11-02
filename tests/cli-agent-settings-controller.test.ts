@@ -13,8 +13,8 @@ function fixture() {
   const view:CliAgentSettingsView={ isCurrent:() => current,getSnapshot:() => snapshot,refresh:vi.fn(),setStatus:vi.fn(),setBusy:vi.fn(),getModelHost:() => null,resizeFrame:vi.fn() };
   const ports:Parameters<typeof createCliAgentSettingsController>[0]={
     view:() => view,platform:() => 'linux',context:() => ({ ...context }),connection:() => ({ ...connection }),companion:() => ({ id:companion.id,endpoint:companion.endpoint,token:companion.token }),
-    connect:vi.fn(async () => {}),discover:vi.fn(async () => [companion]),models:vi.fn(async () => []),
-    save:vi.fn(async ({ agent }) => { context.agent=agent; }),control:vi.fn(async () => ({})),
+    connect:vi.fn(async () => {}),discover:vi.fn(async () => [companion]),models:vi.fn(async () => [{id:'first',inputModalities:['text','image']}]),target:agent => agent===context.agent?context.target:'local',cacheModels:vi.fn(),
+    save:vi.fn(async ({ agent }) => { context.target=ports.target(agent);context.agent=agent; }),control:vi.fn(async () => ({})),
     setBackend:vi.fn(value => { context.backend=value; }),notify:vi.fn(),confirm:vi.fn(async () => true),clipboard:vi.fn(async () => {}),refresh:vi.fn(async () => {}),resetModels:vi.fn(),busyChanged:vi.fn(),
   };
   return { context,connection,companion,view,ports,controller:createCliAgentSettingsController(ports),close:() => { current=false; } };
@@ -93,4 +93,16 @@ it('discards failed test feedback after private credentials change', async () =>
 it('refuses a fresh discovery that replaces the companion the displayed controls belong to', async () => {
   const f=fixture();vi.mocked(f.ports.discover).mockResolvedValue([normalizeDiscoveredAgent({ ...f.companion,endpoint:'http://127.0.0.1:8326',token:'ANOTHER-PRIVATE-TOKEN' })]);
   await f.controller.control('pause');expect(f.ports.control).not.toHaveBeenCalled();expect(f.context.backend).toBe('codex');expect(f.ports.notify).toHaveBeenCalledWith('Companion controls changed. Check the connection again.','error',9000);
+});
+
+it('loads and publishes the selected agent image capabilities before announcing backend readiness', async () => {
+ const f=fixture(),pending=deferred<unknown[]>(),catalog=[{id:'hermes-vision',inputModalities:['text','image']}];
+ vi.mocked(f.ports.models).mockReturnValueOnce(pending.promise);const selecting=f.controller.toggle(true,'hermes');
+ await vi.waitFor(()=>expect(f.ports.models).toHaveBeenCalledOnce());expect(f.ports.save).not.toHaveBeenCalled();expect(f.ports.setBackend).not.toHaveBeenCalled();
+ pending.resolve(catalog);await selecting;expect(f.context.agent).toBe('hermes');expect(f.ports.cacheModels).toHaveBeenCalledExactlyOnceWith(catalog,'hermes','local');
+ expect(vi.mocked(f.ports.cacheModels).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(f.ports.setBackend).mock.invocationCallOrder[0]!);
+});
+it('does not select an agent if model discovery fails or its view closes before capabilities arrive', async () => {
+ const f=fixture();vi.mocked(f.ports.models).mockRejectedValueOnce(new Error('The selected agent could not load its models.'));await f.controller.toggle(true,'grok');expect(f.ports.save).not.toHaveBeenCalled();expect(f.context.agent).toBe('codex');expect(f.context.backend).toBe('codex');expect(f.ports.setBackend).not.toHaveBeenCalled();expect(f.ports.cacheModels).not.toHaveBeenCalled();
+ const g=fixture(),pending=deferred<unknown[]>();vi.mocked(g.ports.models).mockReturnValueOnce(pending.promise);const selecting=g.controller.toggle(true,'hermes');await vi.waitFor(()=>expect(g.ports.models).toHaveBeenCalledOnce());g.close();pending.resolve([{id:'vision'}]);await selecting;expect(g.ports.save).not.toHaveBeenCalled();expect(g.ports.cacheModels).not.toHaveBeenCalled();expect(g.ports.setBackend).not.toHaveBeenCalled();
 });

@@ -11,14 +11,14 @@ interface Legacy {open(title:unknown,existing:{text:unknown;model?:unknown}|null
 /** Execute the original whole emitted owner under explicit external service ports, not a retyped candidate oracle. */
 function legacy(document:Document,trace:string[],source?:string,ports:Record<string,unknown>={}){
  const stripModule=(text:string)=>text.replace(/^import[\s\S]*?;\s*$/gm,'').replace(/^export \{ configureEMFInterpretationRuntimeDeps \};\s*$/gm,'').replace(/^export /gm,'');
- // The candidate moved only its dependency holder; run that actual emitted module
+ // Run the actual emitted controller with explicit native lifecycle and commit ports
  // under the same original ports before executing the actual candidate controller body.
  const runtime=source===undefined?'':`const {configureEMFInterpretationRuntimeDeps,getEMFInterpretationRuntimeDeps,registerEMFInterpretationCloseHandler}=(()=>{${stripModule(fs.readFileSync(new URL('../js/emf-interpretation-runtime.js',import.meta.url),'utf8'))}\nreturn {configureEMFInterpretationRuntimeDeps,getEMFInterpretationRuntimeDeps,registerEMFInterpretationCloseHandler};})();\n`;
  const code=runtime+stripModule(source??fs.readFileSync(new URL('./fixtures/emf-interpretation-original.js.txt',import.meta.url),'utf8'));
  const context=vm.createContext({document,HTMLElement:document.defaultView!.HTMLElement,Element:document.defaultView!.Element,HTMLButtonElement:document.defaultView!.HTMLButtonElement,
   state:{importedData:{}},escapeHTML:escape,escapeAttr:escape,renderMarkdown:(text:unknown)=>{trace.push('markdown');return String(text);},
   openModalOverlay:()=>{},trapModalFocus:()=>{},isProductRecsEnabled:()=>false,callAssistantFeatureAI:()=>{},calculateCost:()=>0,formatCost:()=>'$0',
-  Date,AbortController,getAssistantFeatureIdentity:()=>({}),removeModalOverlay:()=>{},getEMFSeverity:()=>null,saveImportedData:()=>{},showNotification:()=>{},
+  Date,AbortController,getAssistantFeatureIdentity:()=>({}),removeModalOverlay:()=>{},getEMFSeverity:()=>null,saveImportedData:()=>{},onEMFRecordChanged:()=>()=>{},showNotification:()=>{},
   SBM_2015_THRESHOLDS:{},trackUsage:()=>{},detectMitigationsInText:()=>[],loadEMFCatalog:()=>{},renderEMFMitigationRecs:()=>'',renderEMFInterpretationModal,renderEMFInterpretationStatus,renderEMFInterpretationError,...ports});
  vm.runInContext(code+'\nglobalThis.original={open:openInterpretationModal,meta:buildMetaLine,stream:streamInterpretation};',context);
  return context.original as Legacy;

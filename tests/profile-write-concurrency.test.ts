@@ -3,9 +3,9 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { mergeProfileMutation, rememberProfileData, adoptProfileData } from '../js/profile-data-writes.js';
 import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged, configureDataContextDependencies } from '../js/data.js';
-import { profileStorageKey, loadProfile, configureProfileRuntimeDeps } from '../js/profile.js';
+import { profileStorageKey, loadProfile, configureProfileRuntimeDeps, createDefaultProfileData } from '../js/profile.js';
 import * as crypto from '../js/crypto.js';
-import * as sync from '../js/sync.js';
+import * as sync from '../js/sync-save-hooks.js';
 import { mergePulledImportedData, persistPulledImportedData } from '../js/sync-pull-merge.js';
 import { refreshActiveProfileAfterPull } from '../js/sync-pull-active-refresh.js';
 import { configureSyncPull, onSyncReceived, isSyncPulling } from '../js/sync-pull.js';
@@ -30,6 +30,90 @@ beforeEach(async () => {
   expect(await saveImportedData()).toBe(true);
 });
 afterEach(() => vi.restoreAllMocks());
+
+for (const edited of [false, true]) it(`acknowledges received map values only after persistence, preserving a newer local edit: ${edited}`, async () => {
+  const {_djb2} = await import('../js/sync-delta-id.js');
+  const {_planKeyedMapDelta} = await import('../js/sync-delta.js');
+  const snapshotKey = `labcharts-${profileId}-delta-markerNotes`;
+  const before = localStorage.getItem(snapshotKey), meta = localStorage.getItem(snapshotKey + '-meta');
+  const oldHash = _djb2(JSON.stringify({k: 'marker_1', v: 'original'}));
+  state.importedData.markerNotes = {marker_1: 'original'}; expect(await saveImportedData()).toBe(true);
+  localStorage.setItem(snapshotKey, JSON.stringify({marker_1: oldHash}));
+  configureSyncDelta({getEvolu: () => ({getQueryRows: () => [{id: 'physical', profileId, arrayName: 'markerNotes', itemId: 'marker_1',
+    payload: JSON.stringify({k: 'marker_1', v: 'received'}), syncedAt: new Date().toISOString()}], insert: () => {}, update: () => {}}), getItemRowQuery: () => 'query'});
+  try {
+    const pull = await mergePulledImportedData(profileId, null);
+    expect(JSON.parse(localStorage.getItem(snapshotKey)!)).toEqual({marker_1: oldHash});
+    if (edited) {state.importedData.markerNotes.marker_1 = 'new local edit'; expect(await saveImportedData()).toBe(true);}
+    await persistPulledImportedData(pull.localKey, profileId, pull.merged, Date.now());
+    const plan = await _planKeyedMapDelta(profileId, 'markerNotes', state.importedData.markerNotes);
+    expect(state.importedData.markerNotes.marker_1).toBe(edited ? 'new local edit' : 'received');
+    expect(plan.ops).toHaveLength(edited ? 1 : 0);
+  } finally {
+    configureSyncDelta({getEvolu: () => null, getItemRowQuery: () => null});
+    if (before === null) localStorage.removeItem(snapshotKey); else localStorage.setItem(snapshotKey, before);
+    if (meta === null) localStorage.removeItem(snapshotKey + '-meta'); else localStorage.setItem(snapshotKey + '-meta', meta);
+  }
+});
+
+it('queues the local intent when a pending pull already persisted the same live edit', async () => {
+  const previous = configureSyncSaveHooks({isSyncConfigured: () => true, isSyncEnabled: () => false, getProfiles: () => [{id: profileId}]});
+  const dirtyKey = `labcharts-${profileId}-sync-dirty`, before = localStorage.getItem(dirtyKey);
+  localStorage.removeItem(dirtyKey);
+  try {
+    const pull = await mergePulledImportedData(profileId, {contextNotes: 'old relay value'});
+    state.importedData.contextNotes = 'new local intent';
+    const pulling = persistPulledImportedData(pull.localKey, profileId, pull.merged, Date.now());
+    const saving = saveImportedData();
+    await pulling; expect(await saving).toBe(true);
+    expect((await read()).contextNotes).toBe('new local intent');
+    expect(getSyncDirtyToken(profileId)).not.toBeNull();
+    localStorage.removeItem(dirtyKey);
+    // Once the remembered origin has adopted that intent, an unchanged save
+    // must retain the no-op path and cannot start another upload loop.
+    expect(await saveImportedData()).toBe(true);
+    expect(getSyncDirtyToken(profileId)).toBeNull();
+  } finally {
+    clearSyncSaveTimers(); configureSyncSaveHooks(previous);
+    if (before === null) localStorage.removeItem(dirtyKey); else localStorage.setItem(dirtyKey, before);
+  }
+});
+
+for (const active of [true, false]) it(`a later save from another tab wins over this pull's earlier journal (active: ${active})`, async () => {
+  const original = state.importedData;
+  const pull = await mergePulledImportedData(profileId, {contextNotes: 'incoming', entries: [entry('2026-09-02', {'lipids.apoB': .9})]});
+  original.contextNotes = 'this tab saved B';
+  expect(await saveImportedData()).toBe(true);
+  // A different JS realm shares encrypted storage and Web Locks, not this
+  // module's journal or the active profile object.
+  const peer = await read(); peer.contextNotes = 'other tab later saved C';
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  try {
+    if (!active) { state.currentProfile = 'other-profile'; state.importedData = createDefaultProfileData(); }
+    await persistPulledImportedData(pull.localKey, profileId, pull.merged, Date.now());
+    expect((await read()).contextNotes).toBe('other tab later saved C');
+    expect((await read()).entries.some(item => item.date === '2026-09-02')).toBe(true);
+    if (active) expect(state.importedData.contextNotes).toBe('other tab later saved C');
+  } finally { state.currentProfile = profileId; state.importedData = original; }
+});
+
+for (const deleted of [false, true]) it(`a saved historical restoration survives a pull before its row acknowledgement (query tombstone: ${deleted})`, async () => {
+  const item = {id: 'pending-restore', date: '2026-08-06', minutes: 10, updatedAt: Date.parse('2026-08-06T08:00:00Z')};
+  const clock = Date.now() - 1000;
+  (await import('../js/sync-delta-snapshot.js')).writeArrayVersions(profileId, 'sunSessions', {[item.id]: {hash: null, clock}});
+  state.importedData.sunSessions = [item];
+  expect(await saveImportedData()).toBe(true);
+  configureSyncDelta({getEvolu: () => ({getQueryRows: () => [{id: 'physical', profileId, arrayName: 'sunSessions', itemId: item.id,
+    payload: JSON.stringify(item), syncedAt: new Date(clock).toISOString(), isDeleted: deleted ? 1 : 0}], insert: () => {}, update: () => {}}), getItemRowQuery: () => 'query'});
+  try {
+    const pull = await mergePulledImportedData(profileId, null);
+    await persistPulledImportedData(pull.localKey, profileId, pull.merged, clock);
+    const stored = JSON.parse((await crypto.encryptedGetItem(key))!) as {sunSessions: unknown[]};
+    expect(stored.sunSessions).toEqual([item]);
+    expect(state.importedData.sunSessions).toEqual([item]);
+    expect((await import('../js/sync-delta-snapshot.js')).readArrayVersions(profileId, 'sunSessions')[item.id]?.hash).toBeNull();
+  } finally { configureSyncDelta({getEvolu: () => null, getItemRowQuery: () => null}); }
+});
 
 for (const failWrite of [0, 1, 2]) it(`keeps rapid queued note edits and deletion ordered when write ${failWrite} fails`, async () => {
   const originalWrite = crypto.encryptedSetItem;
@@ -100,6 +184,38 @@ it('uses the adopted baseline when another save starts during post-save hooks', 
   expect((await read()).notes).toEqual([{ date: '2026-09-17', text: 'Local note' }]);
   expect((await read()).contextNotes).toBe('after adoption');
   expect(state.importedData.notes!).toEqual((await read()).notes);
+});
+
+it.each([false, true])('adopts a completed save into a replacement active object without inventing a stale edit (new draft: %s)', async newDraft => {
+  const baseline = structuredClone(state.importedData);
+  let started!: () => void, release!: () => void;
+  const reading = new Promise<void>(resolve => { started = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const originalRead = crypto.encryptedGetItem;
+  let held = false;
+  vi.spyOn(crypto, 'encryptedGetItem').mockImplementation(async (...args) => {
+    if (args[0] === key && !held) { held = true; started(); await gate; }
+    return originalRead(...args);
+  });
+  state.importedData.contextNotes = 'committed local context edit';
+  const saving = saveImportedData();
+  await reading;
+  const replacement = structuredClone(baseline);
+  rememberProfileData(replacement, baseline);
+  if (newDraft) replacement.notes!.push({date: '2026-10-31', text: 'new unsaved replacement note'});
+  state.importedData = replacement;
+  release();
+  expect(await saving).toBe(true);
+  expect((await read()).contextNotes).toBe('committed local context edit');
+  expect(state.importedData).toBe(replacement);
+  expect(state.importedData.contextNotes).toBe('committed local context edit');
+  if (newDraft) {
+    expect(state.importedData.notes).toContainEqual({date: '2026-10-31', text: 'new unsaved replacement note'});
+    expect((await read()).notes).toEqual([]);
+    expect(await saveImportedData()).toBe(true);
+    expect((await read()).contextNotes).toBe('committed local context edit');
+    expect((await read()).notes).toContainEqual({date: '2026-10-31', text: 'new unsaved replacement note'});
+  }
 });
 
 it('merges independent additions, same-entry marker edits, and delete-versus-edit without resurrection', () => {
@@ -178,6 +294,45 @@ it('keeps a save queued behind an in-flight pull and preserves both changes', as
   expect(stored.entries.map(e => e.date)).toEqual(['2026-09-01', '2026-09-02']);
 });
 
+it('preserves a committed change-and-restore while an older scalar pull awaits persistence', async()=>{
+ const remote=structuredClone(state.importedData);remote.contextNotes='remote';remote.entries.push(entry('2026-09-02',{'lipids.apoB':.9}));
+ const pull=await mergePulledImportedData(profileId,remote);
+ state.importedData.contextNotes='intermediate';expect(await saveImportedData()).toBe(true);
+ state.importedData.contextNotes='original';expect(await saveImportedData()).toBe(true);
+ await persistPulledImportedData(key,profileId,pull.merged,Date.now());
+ expect((await read()).contextNotes).toBe('original');expect((await read()).entries).toHaveLength(2);
+});
+
+it('preserves a committed record deletion and restoration against an already prepared pull',async()=>{
+ const original=structuredClone(state.importedData.entries[0]!);
+ const remote=structuredClone(state.importedData);remote.entries.push(entry('2026-09-02',{'lipids.apoB':.9}));
+ const pull=await mergePulledImportedData(profileId,remote);
+ pull.merged.entries=pull.merged.entries.filter(item=>item.date!=='2026-09-01');
+ state.importedData.entries=[];expect(await saveImportedData()).toBe(true);
+ state.importedData.entries=[original];expect(await saveImportedData()).toBe(true);
+ await persistPulledImportedData(key,profileId,pull.merged,Date.now());
+ expect((await read()).entries.map(item=>item.date).sort()).toEqual(['2026-09-01','2026-09-02']);
+});
+
+it('retains a successful restore intent even when another writer already stored the same value',async()=>{
+ const original=structuredClone(state.importedData),remote=structuredClone(original);remote.contextNotes='remote';
+ const pull=await mergePulledImportedData(profileId,remote);
+ state.importedData.contextNotes='intermediate';expect(await saveImportedData()).toBe(true);
+ await crypto.encryptedSetItem(key,JSON.stringify(original));
+ state.importedData.contextNotes='original';expect(await saveImportedData()).toBe(true);
+ await persistPulledImportedData(key,profileId,pull.merged,Date.now());expect((await read()).contextNotes).toBe('original');
+});
+
+it('defers an overflowing local-commit journal without writing stale pull data and allows a fresh attempt',async()=>{
+ const remote=structuredClone(state.importedData);remote.contextNotes='remote';remote.entries.push(entry('2026-09-02',{'lipids.apoB':.9}));
+ const pull=await mergePulledImportedData(profileId,remote);
+ for(let i=0;i<9;i++){state.importedData.contextNotes=`local-${i}`;expect(await saveImportedData()).toBe(true);}
+ expect(await persistPulledImportedData(key,profileId,pull.merged,Date.now())).toMatchObject({retry:true});
+ expect((await read()).contextNotes).toBe('local-8');
+ const retry=await mergePulledImportedData(profileId,remote);state.importedData.contextNotes='after retry';expect(await saveImportedData()).toBe(true);
+ await persistPulledImportedData(key,profileId,retry.merged,Date.now());expect((await read()).contextNotes).toBe('after retry');expect((await read()).entries).toHaveLength(2);
+});
+
 it('reads newer stored fields even when the active tab started from an older baseline', async () => {
   const live = state.importedData; rememberProfileData(live);
   const otherTab = structuredClone(live); otherTab.entries.push(entry('2026-09-03', { 'lipids.apoB': 1.2 }));
@@ -193,6 +348,13 @@ it('reports success after durable persistence even when a post-save sync hook fa
   state.importedData.contextNotes = 'durable edit';
   expect(await saveImportedData()).toBe(true);
   expect((await read()).contextNotes).toBe('durable edit');
+});
+
+it('keeps a durable save successful if local-commit observation fails',async()=>{
+ const writes=await import('../js/profile-data-writes.js');
+ vi.spyOn(writes,'noteProfileDataCommit').mockImplementation(()=>{throw new Error('observation unavailable');});
+ state.importedData.contextNotes='durable observation failure';expect(await saveImportedData()).toBe(true);
+ expect((await read()).contextNotes).toBe('durable observation failure');
 });
 
 it('preserves split same-day panels while merging concurrent lab additions', () => {
@@ -241,17 +403,17 @@ it('keeps same-day specimen and collection context attached to each panel', () =
   expect(mergeProfileMutation(empty,{entries:[serum]},{entries:[saliva]}).entries).toEqual([saliva,serum]);
 });
 
-it('rejects ambiguous same-day panel conflicts without committing a guessed merge', async () => {
+it('rejects a stale reviewed lab date inside the locked save even after panels gain identities', async () => {
   state.importedData.entries = [entry('2026-09-01',{a:1}),entry('2026-09-01',{b:2})];
   expect(await saveImportedData()).toBe(true);
   const base = structuredClone(state.importedData), a = structuredClone(base), b = structuredClone(base);
   a.entries[0]!.markers.a=3; b.entries[1]!.markers.b=4;
   expect(await saveImportedDataForProfile(profileId,a,{baseData:base,forceProfileScope:true})).toBe(true);
-  expect(await saveImportedDataForProfile(profileId,b,{baseData:base,forceProfileScope:true})).toBe(false);
+  expect(await saveImportedDataForProfile(profileId,b,{baseData:base,forceProfileScope:true,expectedLabDateRecords:[{date:'2026-09-01',value:base.entries}]})).toBe(false);
   expect((await read()).entries).toEqual(a.entries);
 });
 
-for (const duringWrite of [false, true]) it(`a committed scoped answer stays successful when live panels conflict ${duringWrite ? 'during' : 'before'} storage`, async () => {
+for (const duringWrite of [false, true]) it(`a committed scoped answer rebases independent named panels ${duringWrite ? 'during' : 'before'} storage`, async () => {
   state.importedData.entries = [entry('2026-09-01', { a: 1 }), entry('2026-09-01', { b: 2 })];
   expect(await saveImportedData()).toBe(true);
   const base = structuredClone(state.importedData), intent = structuredClone(base), peer = structuredClone(base);
@@ -270,13 +432,13 @@ for (const duringWrite of [false, true]) it(`a committed scoped answer stays suc
   expect((await read()).biologyScoreAI!.test!.text).toBe('Saved interpretation');
   expect((await read()).entries).toEqual(peer.entries);
   expect(state.importedData.biologyScoreAI!.test!.text).toBe('Saved interpretation');
-  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 1 }, { b: 4 }]);
-  // The retained original baseline prevents a later save from hiding the conflict.
-  expect(await saveImportedData()).toBe(false);
-  expect((await read()).entries).toEqual(peer.entries);
+  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 4 }]);
+  // The peer edit is published, while the independent draft only persists on save.
+  expect(await saveImportedData()).toBe(true);
+  expect((await read()).entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 4 }]);
 });
 
-it('a committed pull preserves conflicting unsaved panels without rejecting after storage', async () => {
+it('a committed pull rebases independent named panels while retaining the unsaved draft', async () => {
   state.importedData.entries = [entry('2026-09-01', { a: 1 }), entry('2026-09-01', { b: 2 })];
   expect(await saveImportedData()).toBe(true);
   const pull = await mergePulledImportedData(profileId, null);
@@ -288,8 +450,9 @@ it('a committed pull preserves conflicting unsaved panels without rejecting afte
   });
   await expect(persistPulledImportedData(key, profileId, pull.merged, Date.now())).resolves.toBeDefined();
   expect((await read()).entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 2 }]);
-  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 1 }, { b: 4 }]);
-  expect(await saveImportedData()).toBe(false);
+  expect(state.importedData.entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 4 }]);
+  expect(await saveImportedData()).toBe(true);
+  expect((await read()).entries.map(e => e.markers)).toEqual([{ a: 3 }, { b: 4 }]);
 });
 
 it('wearable reconciliation leaves newer live notes intact until the pull commits', async () => {
@@ -460,6 +623,31 @@ it('guards observed goal arrays atomically and retains peer goals without publis
   const conflict = vi.fn();
   expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: 'healthGoals', value: base.healthGoals }, onContextFieldConflict: conflict })).toBe(false);
   expect(conflict).toHaveBeenCalledOnce(); expect(JSON.parse((await crypto.encryptedGetItem(key))!).healthGoals).toEqual(peer.healthGoals);
+});
+
+it.each([undefined, null])('accepts the first goal when durable empty goals are represented as %s', async initial => {
+  const base = structuredClone(state.importedData), stored = structuredClone(base);
+  if (initial === undefined) delete (stored as Partial<typeof stored>).healthGoals;
+  else Object.assign(stored, { healthGoals: null });
+  await crypto.encryptedSetItem(key, JSON.stringify(stored));
+  const next = structuredClone(base); next.healthGoals = [{ text: 'Improve my sleep', severity: 'mild' }];
+  expect(await saveImportedDataForProfile(profileId, next, { forceProfileScope: true, baseData: base,
+    expectedContextField: { key: 'healthGoals', value: [] } })).toBe(true);
+  const saved = JSON.parse((await crypto.encryptedGetItem(key))!);
+  expect(saved.healthGoals).toEqual(next.healthGoals);
+  expect(saved.entries).toEqual(base.entries);
+  expect(state.importedData.healthGoals).toEqual(next.healthGoals);
+});
+
+it('still rejects the first-goal proposal if a peer added a goal after the empty snapshot', async () => {
+  const base = structuredClone(state.importedData), next = structuredClone(base), peer = structuredClone(base);
+  next.healthGoals = [{ text: 'Improve my sleep' }]; peer.healthGoals = [{ text: 'Peer goal' }];
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const conflict = vi.fn();
+  expect(await saveImportedDataForProfile(profileId, next, { forceProfileScope: true, baseData: base,
+    expectedContextField: { key: 'healthGoals', value: [] }, onContextFieldConflict: conflict })).toBe(false);
+  expect(conflict).toHaveBeenCalledOnce();
+  expect(JSON.parse((await crypto.encryptedGetItem(key))!).healthGoals).toEqual(peer.healthGoals);
 });
 
 it('guards an observed lens inside the storage transaction and preserves a peer lens on conflict', async () => {
@@ -1111,4 +1299,31 @@ it('quiet background snapshot rejection still prevents every stale write', async
   expect(write).not.toHaveBeenCalled();
   expect(await crypto.encryptedGetItem(key)).toBe(before);
   expect(state.importedData.contextNotes).toBe('original');
+});
+
+it.each([false, true])('guards only the reviewed therapy record while preserving peer notes (changed target: %s)', async changeTarget => {
+  state.importedData.supplements = [{ id: 'reviewed-therapy', name: 'Example', type: 'supplement' }];
+  expect(await saveImportedData()).toBe(true);
+  const base = structuredClone(state.importedData), next = structuredClone(base), peer = structuredClone(base);
+  next.supplements[0]!.note = 'Accepted edit';
+  peer.notes.push({ date: '2026-10-23', text: 'Unrelated peer note' });
+  peer.supplements.push({ id: 'unrelated-therapy', name: 'Preserve peer therapy', type: 'supplement', schemaVersion: 2 });
+  if (changeTarget) peer.supplements[0]!.note = 'Other tab edit';
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const onContextFieldConflict = vi.fn();
+  expect(await saveImportedDataForProfile(profileId, next, { baseData: base, expectedProfileRecords: [{ key: 'supplements', id: 'reviewed-therapy', value: base.supplements[0] }], onContextFieldConflict })).toBe(!changeTarget);
+  const saved = JSON.parse((await crypto.encryptedGetItem(key))!) as typeof base;
+  expect(saved.notes).toContainEqual(peer.notes.at(-1));
+  expect(saved.supplements).toContainEqual(peer.supplements.at(-1));
+  expect(saved.supplements[0]!.note).toBe(changeTarget ? 'Other tab edit' : 'Accepted edit');
+  expect(onContextFieldConflict).toHaveBeenCalledTimes(changeTarget ? 1 : 0);
+});
+
+it('rejects a concurrent addition with the proposed new record identity', async () => {
+  const base = structuredClone(state.importedData), next = structuredClone(base), peer = structuredClone(base);
+  next.supplements = [{ id: 'new-therapy', name: 'Proposed' }];
+  peer.supplements = [{ id: 'new-therapy', name: 'Peer addition' }];
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  expect(await saveImportedDataForProfile(profileId, next, { baseData: base, expectedProfileRecords: [{ key: 'supplements', id: 'new-therapy', value: null }] })).toBe(false);
+  expect((await read()).supplements).toEqual(peer.supplements);
 });

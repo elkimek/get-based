@@ -5,6 +5,7 @@ import type { MarkerModalOptions, MarkerModalCalls, MarkerModalData, MarkerModal
 // marker-detail-modal-impl.js — Marker detail, manual entry, custom marker, and range modal flows
 
 import { state } from './state.js';
+import { isBuiltinMarkerKey } from './custom-marker-lifecycle.js';
 import { bindDetailModalSyncRefresh, getStatus, formatValue, safeMarkerId } from './utils.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate } from './marker-analysis.js';
@@ -17,7 +18,8 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { rememberModalTrigger, restoreModalTrigger } from './modal-trigger-memory.js';
 import { markerRangeSuggestionIssueUrl } from './marker-range-suggestions.js';
 import { getAlternateUnitForProfile } from './unit-profiles.js';
-import { buildMarkerHistoryMetadata } from './marker-detail-history.js';
+import { getManualOriginalForMarker } from './marker-detail-store.js';
+import { buildMarkerHistoryMetadata, markerHistorySamplePoints } from './marker-detail-history.js';
 import {
   BIO_AGE_BORTZ_INPUTS,
   BIO_AGE_PHENO_INPUTS,
@@ -171,15 +173,6 @@ bindDetailModalSyncRefresh('marker', refreshOpenMarkerDetailModalOnSync);
 const MARKER_HISTORY_DEFAULT_CAP = 3;
 const MARKER_HISTORY_EXPANDED_CAP = 40;
 
-function getManualValueForMarker(dotKey: string, date: unknown) {
-  const map = state.importedData.manualValues;
-  if (!map || typeof map !== 'object' || !dotKey || !date) return undefined;
-  const key = dotKey + ':' + (date as string);
-  if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) return map[key];
-  if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
-  return undefined;
-}
-
 // ═══════════════════════════════════════════════
 // DETAIL MODAL
 // ═══════════════════════════════════════════════
@@ -215,13 +208,16 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
   const dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : data.dateLabels;
   const r = (getEffectiveRange as (marker:unknown)=>MarkerModalRange)(marker);
   const modalPoints = (marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined)) as MarkerModalPoint[];
+  const dotKey = (getMarkerStorageDotKey as (marker:unknown,id:string)=>string|null)(marker, id);
+  if (!dotKey) return false;
+  const historyPoints = marker.singlePoint ? modalPoints.map(point => ({ ...point, entry: undefined, panelId: undefined, multipleSamples: false, sampleIndex: 0 })) : markerHistorySamplePoints(modalPoints, data.dates, state.importedData.entries || [], dotKey, state.unitSystem, state.importedData.customMarkers?.[dotKey]?.unit || null);
   const showAllHistory = !!opts.showAllHistory;
   const requestedHistoryLimit = Number.isFinite(opts.historyLimit)
     ? Math.max(MARKER_HISTORY_DEFAULT_CAP, Math.floor(opts.historyLimit as number))
     : MARKER_HISTORY_EXPANDED_CAP;
-  const expandedHistoryLimit = Math.min(modalPoints.length, requestedHistoryLimit);
-  const visibleHistoryPoints = showAllHistory ? modalPoints.slice(-expandedHistoryLimit) : modalPoints.slice(-MARKER_HISTORY_DEFAULT_CAP);
-  const hiddenHistoryCount = modalPoints.length - visibleHistoryPoints.length;
+  const expandedHistoryLimit = Math.min(historyPoints.length, requestedHistoryLimit);
+  const visibleHistoryPoints = showAllHistory ? historyPoints.slice(-expandedHistoryLimit) : historyPoints.slice(-MARKER_HISTORY_DEFAULT_CAP);
+  const hiddenHistoryCount = historyPoints.length - visibleHistoryPoints.length;
   const latestPoint = modalPoints[modalPoints.length - 1] || null;
   const prevPoint = modalPoints.length > 1 ? modalPoints[modalPoints.length - 2] : null;
   const latestRange = latestPoint ? (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, latestPoint.i) : r;
@@ -341,8 +337,6 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
       maximum: `${captureMarkerDetailText(formatValue(max))}`,
     } satisfies MarkerDetailRangeView);
   })();
-  const dotKey = (getMarkerStorageDotKey as (marker:unknown,id:string)=>string|null)(marker, id);
-  if (!dotKey) return false;
   let rangeInfo: RangeEditControl[] = [];
   const overrides = state.importedData?.refOverrides?.[dotKey] || {};
   const refEditable = (label: string, min: unknown, max: unknown, type: string) => {
@@ -441,29 +435,29 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
   const historyRows: HistoryRow[] = [];
   for (const point of visibleHistoryPoints) {
     const { v, i } = point;
-    const ri = (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);
+    const ri = point.multipleSamples ? { min: null, max: null } : (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);
     const hasPointRange = ri.min != null || ri.max != null;
     const s = hasPointRange ? getStatus(v, ri.min, ri.max) : 'unrated';
-    const sl = s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":s === 'unrated' ? 'No range' : "Unknown";
-    const phaseLabel = marker.phaseLabels && marker.phaseLabels[i];
+    const sl = point.multipleSamples ? 'No sample-specific range' : s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":s === 'unrated' ? 'No range' : "Unknown";
+    const phaseLabel = !point.multipleSamples && marker.phaseLabels && marker.phaseLabels[i];
     const phaseInfo = phaseLabel ? ({ kind: "phase", phase: `${phaseLabel}`, minimum: `${formatValue(ri.min)}`, maximum: `${formatValue(ri.max)}` } satisfies MarkerDetailHistoryView) : null;
     const rawDate = marker.singlePoint ? null : data.dates[i];
     const actionDate = rawDate == null ? 'null' : rawDate;
     const matchingNote = rawDate && state.importedData.notes ? state.importedData.notes.find(n => n.date === rawDate) : null;
     const noteIcon = matchingNote ? ({ kind: "date-note", actions: projectMarkerDetailAction('toggle-history-note'), text: `${captureMarkerDetailText(matchingNote.text)}` } satisfies MarkerDetailHistoryView) : null;
     const mvKey = dotKey + ':' + (rawDate as string);
-    const srcEntry = rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null;
+    const srcEntry = point.entry || (rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null);
     const src = srcEntry?.markerSources?.[dotKey];
     const { collection: collectionContextHtml, sources: sourceHtml } = buildMarkerHistoryMetadata(srcEntry, src, rawDate);
-    const manualVal = rawDate ? getManualValueForMarker(dotKey, rawDate) : undefined;
+    const manualVal = rawDate ? getManualOriginalForMarker(dotKey, rawDate, point.panelId) : undefined;
     const isManualSource = !!(src && src.file == null && !src.snapshotId);
     const isManual = isManualSource || (manualVal !== undefined && manualVal !== null);
     const canRevert = manualVal !== undefined && manualVal !== null && manualVal !== true;
     const manualBadge = canRevert
-      ? ({ kind: "manual-revert", actions: projectMarkerDetailAction('revert-marker-value', { id, date: actionDate }) } satisfies MarkerDetailHistoryView)
+      ? ({ kind: "manual-revert", actions: projectMarkerDetailAction('revert-marker-value', { id, date: actionDate, panelId: point.panelId }) } satisfies MarkerDetailHistoryView)
       : isManual ? ({ kind: "manual-badge" } satisfies MarkerDetailHistoryView) : null;
-    const deleteBtn = ({ kind: "delete-value", actions: projectMarkerDetailAction('delete-marker-value', { id, date: actionDate }) } satisfies MarkerDetailHistoryView);
-    const editAction = rawDate ? projectMarkerDetailAction('edit-marker-value', { id, date: actionDate, value: v }) : null;
+    const deleteBtn = ({ kind: "delete-value", actions: projectMarkerDetailAction('delete-marker-value', { id, date: actionDate, panelId: point.panelId }) } satisfies MarkerDetailHistoryView);
+    const editAction = rawDate ? projectMarkerDetailAction('edit-marker-value', { id, date: actionDate, value: v, panelId: point.panelId }) : null;
     // Per-value note (markerValueNotes keyed `dotKey:date`).
     const valueNote = rawDate ? state.importedData.markerValueNotes?.[mvKey] : null;
     const valueNoteHtml = rawDate
@@ -477,7 +471,7 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
       ? getAlternateUnitForProfile(dotKey, v, state.unitSystem)
       : null;
     const altLine = altVal ? ({ kind: "alternate-value", value: `${formatValue(altVal.value)}`, unit: `${captureMarkerDetailText(altVal.unit)}` } satisfies MarkerDetailHistoryView) : null;
-    historyRows.push({ kind: "row", status: `${s}`, deleteButton: deleteBtn, date: `${dates[i]}`, dateNote: noteIcon, source: sourceHtml,
+    historyRows.push({ kind: "row", status: `${s}`, deleteButton: deleteBtn, date: `${dates[i]}${point.multipleSamples ? ` · Sample ${point.sampleIndex + 1}` : ''}`, dateNote: noteIcon, source: sourceHtml,
       valueStatus: `${s}`, editAttributes: editAction, value: `${formatValue(v)}`, manualBadge: manualBadge, badgeStatus: `${s}`,
       statusLabel: `${sl}`, alternate: altLine, phase: phaseInfo, collection: collectionContextHtml,
       valueNote: valueNoteHtml,
@@ -486,19 +480,19 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
   let paging: HistoryPaging|null = null;
   if (hiddenHistoryCount > 0) {
     const nextHistoryLimit = showAllHistory
-      ? Math.min(modalPoints.length, expandedHistoryLimit + MARKER_HISTORY_EXPANDED_CAP)
+      ? Math.min(historyPoints.length, expandedHistoryLimit + MARKER_HISTORY_EXPANDED_CAP)
       : MARKER_HISTORY_EXPANDED_CAP;
     const showCount = showAllHistory
       ? Math.min(MARKER_HISTORY_EXPANDED_CAP, hiddenHistoryCount)
       : Math.min(MARKER_HISTORY_EXPANDED_CAP, hiddenHistoryCount);
     const historyButtonLabel = showAllHistory
       ? `Show ${showCount} older ${showCount === 1 ? 'value' : 'values'}`
-      : `View more history (${modalPoints.length} values)`;
+      : `View more history (${historyPoints.length} values)`;
     paging = ({ kind: "more",
       actions: projectMarkerDetailAction('show-detail-modal', { id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true }),
       label: `${historyButtonLabel}`,
     } satisfies MarkerDetailHistoryView);
-  } else if (showAllHistory && modalPoints.length > MARKER_HISTORY_DEFAULT_CAP) {
+  } else if (showAllHistory && historyPoints.length > MARKER_HISTORY_DEFAULT_CAP) {
     paging = ({ kind: "last-values", actions: projectMarkerDetailAction('show-detail-modal', { id, scrollToHistory: true }),
       count: `${MARKER_HISTORY_DEFAULT_CAP}`,
     } satisfies MarkerDetailHistoryView);
@@ -693,7 +687,7 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
   const actions = ({kind: 'actions', primary: primaryActions, notes: noteEditor, recommendations: recommendationMount} satisfies MarkerDetailChromeView);
   let deleteMarker: Extract<MarkerDetailChromeView,{kind:'delete-marker'}>|null = null;
   // Show delete link for custom markers only
-  if (state.importedData?.customMarkers?.[dotKey]) {
+  if (state.importedData?.customMarkers?.[dotKey] && !isBuiltinMarkerKey(dotKey)) {
     deleteMarker = ({kind: "delete-marker", actions: projectMarkerDetailAction('delete-custom-marker', { id })} satisfies MarkerDetailChromeView);
   }
   modal.innerHTML = renderMarkerDetailModal({header,rows:historyRows,paging,trend,bio,actions,deleteMarker});

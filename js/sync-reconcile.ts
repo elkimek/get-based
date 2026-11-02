@@ -109,5 +109,5 @@ export async function reconcileLocalStorageWithEvolu() {
   // Force-push so the next watchdog cycle can't lose us a clearly-needed
   // catch-up. Bypasses the _syncing guard if it was wedged from a prior
   // session - the same wedge that caused the divergence in the first place.
-  await _pushProfile(state.currentProfile, state.importedData, { force: true });
+  await _pushProfile(state.currentProfile, state.importedData, { force: true, skipUnchanged: true });
 }

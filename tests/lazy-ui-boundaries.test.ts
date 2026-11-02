@@ -14,6 +14,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const JS_ROOT = path.join(ROOT, 'js');
 
 const DEFERRED_UI_BOUNDARIES = [
+  ['js/components/EncryptionSettings.svelte.native.js', 'js/settings-protection-component.js', 'eager-action', 'tests/playwright/protection-lazy.spec.ts'],
+  ['js/components/BackupSettings.svelte.native.js', 'js/settings-protection-component.js', 'eager-action', 'tests/playwright/protection-lazy.spec.ts'],
+  ['js/components/PassphraseDialog.svelte.native.js', 'js/passphrase-component.js', 'eager-action', 'tests/playwright/passphrase-dialog.spec.ts'],
   ['js/dashboard-view-composition.js', 'js/dashboard-composition-loader.js', 'route-gated-render', 'tests/pwa/sveltekit-main-route-acceptance.spec.ts'],
   ['js/lens-pages.js', 'js/dashboard-composition-loader.js', 'route-gated-render', 'tests/pwa/sveltekit-main-route-acceptance.spec.ts'],
   ['js/recommendation-actions.js', 'js/dashboard-composition-loader.js', 'eager-action', 'tests/pwa/sveltekit-main-route-acceptance.spec.ts'],

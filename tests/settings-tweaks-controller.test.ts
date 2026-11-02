@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 // Actual controller/domain/runtime/modal/event-target/renderer. Only the chart
 // renderer boundary is replaced; frames/timers below are isolated unit stimuli.
 const chart = vi.hoisted(() => ({ refresh: vi.fn() }));
-vi.mock('../js/charts.js', () => ({ refreshChartThemeColors: chart.refresh }));
+vi.mock('../js/chart-theme-refresh.js', () => ({ refreshChartThemeColors: chart.refresh }));
 
 type Controller = typeof import('../js/settings-tweaks.js');
 type Theme = typeof import('../js/theme.js');

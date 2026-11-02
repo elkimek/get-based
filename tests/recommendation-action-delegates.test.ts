@@ -34,7 +34,8 @@ it('owns one eager close delegate shared by canonical and fixed-retry action ent
 it('retains the exact close action boundary in the eager owner while all Tips HTML remains cold', () => {
   const core = fs.readFileSync(path.join(ROOT, 'js/recommendation-action-delegates.ts'), 'utf8');
   const actions = fs.readFileSync(path.join(ROOT, 'js/recommendation-actions.ts'), 'utf8');
-  const runtime = fs.readFileSync(path.join(ROOT, 'js/views-runtime.ts'), 'utf8');
+  const runtime = fs.readFileSync(path.join(ROOT, 'js/navigation-views.ts'), 'utf8');
+  expect(fs.readFileSync(path.join(ROOT, 'js/views-runtime.ts'), 'utf8')).toContain("export * from './navigation-views.js'");
   expect(core).toContain("actionEl.closest('#detail-modal')");
   expect(core).toContain("actionEl.dataset.recommendationDetailAction === 'close'");
   expect(core).toContain('event.preventDefault();\n    closeRecommendationsModal();');

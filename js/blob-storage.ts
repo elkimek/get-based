@@ -8,7 +8,10 @@
 // pushes never write fresh state). IndexedDB has GB-scale quotas and
 // no equivalent silent-rejection failure mode.
 //
-// Scope: ONLY the `*-imported` keys move here, via shouldUseBlob().
+// Scope: imported profile blobs, proposal claims and the browser Knowledge Base
+// configuration commit receipt and private persona recovery journals use this store.
+// Claims need a committed cross-process read after the Web Lock, rather than
+// a renderer's asynchronously replicated localStorage snapshot.
 // Everything else stays in localStorage where the synchronous read
 // API and small payload sizes are a better fit.
 
@@ -70,6 +73,25 @@ export async function setBlob(key: string, value: unknown): Promise<void> {
     tx.onerror = () => reject(tx.error || req.error || new Error('Storage transaction failed'));
     req.onerror = () => reject(req.error);
   }));
+}
+
+/** Conditional journal writes/deletes share one IDB transaction, including the read. */
+export async function compareAndSwapBlob(key: string, expected: unknown, next: unknown | null): Promise<boolean> {
+  const expectedJSON = JSON.stringify(expected), db = await _openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite'), store = tx.objectStore(STORE_NAME), read = store.get(key);
+    let changed = false, failure: unknown;
+    read.onsuccess = () => {
+      try {
+        if (JSON.stringify(read.result ?? null) !== expectedJSON) return;
+        if (next === null) store.delete(key); else store.put(next, key);
+        changed = true;
+      } catch (error) { failure = error; tx.abort(); }
+    };
+    tx.oncomplete = () => resolve(changed);
+    tx.onabort = () => reject(failure || tx.error || new Error('Conditional storage write was aborted'));
+    tx.onerror = () => reject(failure || tx.error || new Error('Conditional storage write failed'));
+  });
 }
 
 export async function deleteBlob(key: string, options: { throwOnError?: boolean | undefined } = {}): Promise<void> {
@@ -134,5 +156,5 @@ export async function getBlobStorageSize(): Promise<number> {
 export function shouldUseBlob(key: unknown): boolean {
   return _idbAvailable
     && typeof key === 'string'
-    && (key.endsWith('-imported') || key.endsWith('-imported-corrupt'));
+    && (key.endsWith('-imported') || key.endsWith('-imported-corrupt') || /^labcharts-.+-(?:agent-draft-claims|persona-transaction)$/.test(key));
 }

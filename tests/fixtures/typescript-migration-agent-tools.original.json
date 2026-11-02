@@ -1,0 +1,790 @@
+{
+  "catalog": [
+    {
+      "name": "getbased_lab_context",
+      "description": "Read the user-approved getbased health context, including available lab summaries, context cards, supplements, and goals. Use for broad questions about labs, biomarkers, or health trends.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_section",
+      "description": "Read one section of the user-approved getbased health context. Omit section to list available section names. Section names are matched exactly, then by prefix.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Optional section name, such as hormones, lipids, biometrics, supplements, genetics, or wearables."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_search_markers",
+      "description": "Find biomarkers in the active getbased profile by display name, category, or stable marker key. Returns only markers that have recorded values.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Marker name, category, or key fragment to search for."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_marker_history",
+      "description": "Read dated values and ranges for one biomarker in the active getbased profile. Resolve an ambiguous name with getbased_search_markers first.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "marker": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Exact stable marker key or unambiguous display name."
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "marker"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_nutrition_summary",
+      "description": "Read aggregate meal and nutrient coverage for a requested time window. Individual meal names, notes, and photos are not returned.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "type": "string",
+            "enum": [
+              "7d",
+              "30d",
+              "3m",
+              "6m",
+              "1y",
+              "all"
+            ],
+            "description": "Time window. Defaults to 30d."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_wearable_series",
+      "description": "Read the user-enabled daily wearable series for the active profile over 7, 30, or 90 days.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "enum": [
+              7,
+              30,
+              90
+            ]
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_search_knowledge",
+      "description": "Search the active getbased Knowledge Base for user-provided sources relevant to a question.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_navigate",
+      "description": "Open a getbased view for the user. This changes only visible navigation state and never edits health data.",
+      "access": "navigate",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "dashboard",
+              "labs",
+              "biologyScores",
+              "genome",
+              "body",
+              "light",
+              "insight",
+              "recommendations",
+              "correlations",
+              "compare"
+            ]
+          },
+          "marker": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Optional stable marker key or unambiguous marker name to open."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_note",
+      "description": "Prepare a reviewable active-profile or marker note. This does not save anything; the user must approve the draft in getbased.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "marker"
+            ]
+          },
+          "marker": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "append",
+              "replace"
+            ]
+          }
+        },
+        "required": [
+          "scope",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_meal",
+      "description": "Prepare a reviewable manual meal entry. This does not save anything; the user must approve the draft in getbased.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "eatenAt": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "ISO-8601 date-time."
+          },
+          "mealType": {
+            "type": "string",
+            "enum": [
+              "breakfast",
+              "brunch",
+              "lunch",
+              "dinner",
+              "snack",
+              "drink",
+              "other"
+            ]
+          },
+          "energyKcal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "proteinG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "carbohydrateG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3000
+          },
+          "fatG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "fiberG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "fluidMl": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_biometric",
+      "description": "Prepare a reviewable manual weight, blood-pressure, or resting-pulse entry. This does not save anything until the user approves it.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "weight",
+              "bp",
+              "rhr"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "kg",
+              "lb",
+              "bpm"
+            ]
+          },
+          "systolic": {
+            "type": "number",
+            "minimum": 40,
+            "maximum": 300
+          },
+          "diastolic": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 200
+          },
+          "pulse": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 250
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "metric"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_supplement",
+      "description": "Prepare a reviewable supplement or medication entry. This does not save anything until the user approves it.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "supplement",
+              "medication"
+            ]
+          },
+          "dosage": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "startDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "codex": [
+    {
+      "type": "function",
+      "name": "getbased_lab_context",
+      "description": "Read the user-approved getbased health context, including available lab summaries, context cards, supplements, and goals. Use for broad questions about labs, biomarkers, or health trends.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_section",
+      "description": "Read one section of the user-approved getbased health context. Omit section to list available section names. Section names are matched exactly, then by prefix.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Optional section name, such as hormones, lipids, biometrics, supplements, genetics, or wearables."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_search_markers",
+      "description": "Find biomarkers in the active getbased profile by display name, category, or stable marker key. Returns only markers that have recorded values.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Marker name, category, or key fragment to search for."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_marker_history",
+      "description": "Read dated values and ranges for one biomarker in the active getbased profile. Resolve an ambiguous name with getbased_search_markers first.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "marker": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Exact stable marker key or unambiguous display name."
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "marker"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_nutrition_summary",
+      "description": "Read aggregate meal and nutrient coverage for a requested time window. Individual meal names, notes, and photos are not returned.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "type": "string",
+            "enum": [
+              "7d",
+              "30d",
+              "3m",
+              "6m",
+              "1y",
+              "all"
+            ],
+            "description": "Time window. Defaults to 30d."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_wearable_series",
+      "description": "Read the user-enabled daily wearable series for the active profile over 7, 30, or 90 days.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "enum": [
+              7,
+              30,
+              90
+            ]
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_search_knowledge",
+      "description": "Search the active getbased Knowledge Base for user-provided sources relevant to a question.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_navigate",
+      "description": "Open a getbased view for the user. This changes only visible navigation state and never edits health data.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "dashboard",
+              "labs",
+              "biologyScores",
+              "genome",
+              "body",
+              "light",
+              "insight",
+              "recommendations",
+              "correlations",
+              "compare"
+            ]
+          },
+          "marker": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Optional stable marker key or unambiguous marker name to open."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_note",
+      "description": "Prepare a reviewable active-profile or marker note. This does not save anything; the user must approve the draft in getbased.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "marker"
+            ]
+          },
+          "marker": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "append",
+              "replace"
+            ]
+          }
+        },
+        "required": [
+          "scope",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_meal",
+      "description": "Prepare a reviewable manual meal entry. This does not save anything; the user must approve the draft in getbased.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "eatenAt": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "ISO-8601 date-time."
+          },
+          "mealType": {
+            "type": "string",
+            "enum": [
+              "breakfast",
+              "brunch",
+              "lunch",
+              "dinner",
+              "snack",
+              "drink",
+              "other"
+            ]
+          },
+          "energyKcal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "proteinG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "carbohydrateG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3000
+          },
+          "fatG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "fiberG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "fluidMl": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_biometric",
+      "description": "Prepare a reviewable manual weight, blood-pressure, or resting-pulse entry. This does not save anything until the user approves it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "weight",
+              "bp",
+              "rhr"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "kg",
+              "lb",
+              "bpm"
+            ]
+          },
+          "systolic": {
+            "type": "number",
+            "minimum": 40,
+            "maximum": 300
+          },
+          "diastolic": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 200
+          },
+          "pulse": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 250
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "metric"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_supplement",
+      "description": "Prepare a reviewable supplement or medication entry. This does not save anything until the user approves it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "supplement",
+              "medication"
+            ]
+          },
+          "dosage": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "startDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

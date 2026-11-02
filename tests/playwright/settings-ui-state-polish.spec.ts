@@ -29,7 +29,7 @@ async function mounted(page: Page) {
     });
     const view = ai.mountAiSettings(document.querySelector<HTMLElement>('[data-ai-settings-host]')!,
       presentation.buildAiSettingsSnapshot({ enabled: true, hideProviders: false, provider: 'custom', backend: 'direct' }),
-      { pause: enabled => view.setEnabled(enabled), select: provider => view.setSelected(provider) });
+      { chatControls: enabled => view.setChatControlsEnabled(enabled), pause: enabled => view.setEnabled(enabled), select: provider => view.setSelected(provider) });
     await document.fonts.ready;
   });
 }

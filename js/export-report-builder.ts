@@ -463,7 +463,8 @@ function installReportBuilderDelegates() {
   document.addEventListener('input', event => { if (event.target instanceof Element && event.target.matches('#report-purpose')) handleReportBuilderChange(event); else if (event.target instanceof Element && event.target.matches('#report-ai-summary-text')) updateReportAIControls(event.target.closest<HTMLElement>('[data-report-builder-overlay]')!); });
 }
 
-export function openReportBuilder(presetId: unknown = DEFAULT_REPORT_PRESET) {
+export function openReportBuilder(presetId: unknown = DEFAULT_REPORT_PRESET, initialDateRange?: string) {
+  if (initialDateRange !== undefined && !REPORT_DATE_RANGE_OPTIONS.some(option => option.value === initialDateRange)) throw new Error('Choose a supported native report date range.');
   if (typeof document === 'undefined') return;
   const normalizedPresetId = (REPORT_PRESETS as Record<PropertyKey, unknown>)[presetId as PropertyKey] ? presetId : DEFAULT_REPORT_PRESET;
   closeReportBuilder();
@@ -474,6 +475,10 @@ export function openReportBuilder(presetId: unknown = DEFAULT_REPORT_PRESET) {
   if (!(overlay instanceof HTMLElement)) return;
   reportNoteSnapshots.set(overlay, { profile: state.currentProfile, data: state.importedData, notes: [...((state.importedData as {notes?: unknown[]}).notes || [])] });
   openAppendedModalOverlay(overlay, closeReportBuilder, { initialFocus: '.report-preset-btn.active', focusDelay: 50 });
+  if (initialDateRange !== undefined) {
+    const range = overlay.querySelector<HTMLSelectElement>('#report-date-range');
+    if (range) range.value = initialDateRange;
+  }
   updateReportBuilderSelectionState(overlay);
 }
 

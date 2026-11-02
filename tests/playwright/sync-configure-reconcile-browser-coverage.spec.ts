@@ -7,16 +7,18 @@ const openBlankPage = createBlankPage({
   status: 200, body: '<!doctype html><html><body><div id="notification-container"></div><div id="sync-indicator-slot"></div></body></html>',
 });
 
-test('sync configure browser coverage seeds local profiles through identity restore', async ({ page }) => {
+test('sync configure browser coverage stages local profiles before identity restore', async ({ page }) => {
   await openBlankPage(page, '/sync-configure-seed-browser-coverage');
 
   const results = await page.evaluate(async ({ configureUrl }) => {
-    const [configure, identity, runtime, actions, stateModule] = await Promise.all([
+    const [configure, identity, runtime, actions, stateModule, recovery, settings] = await Promise.all([
       ((import(configureUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sync-configure.js"), "configureSyncModules"> >),
       import('/js/sync-identity.js'),
       import('/js/sync-runtime.js'),
       import('/js/sync-actions.js'),
       import('/js/state.js'),
+      import('/js/sync-backup-restore-state.js'),
+      import('/js/sync-settings-state.js'),
     ]);
     const { state } = stateModule;
     const outcomes:Record<string,unknown> = {};
@@ -29,6 +31,8 @@ test('sync configure browser coverage seeds local profiles through identity rest
     const pushes:unknown[][] = [];
     const restored:unknown[] = [];
     const scheduledTimers:{delay:number;source:string}[] = [];
+    let stagedBeforeReset: string[] = [];
+    let publishingSuspended = false;
     let thrownError:unknown = null;
 
     try {
@@ -45,6 +49,7 @@ test('sync configure browser coverage seeds local profiles through identity rest
         lastUpdated: Date.now(),
       }];
       localStorage.setItem(identity.RESTORE_JOIN_PENDING_KEY, 'stale');
+      settings.setSyncEnabled(true);
 
       (configure.configureSyncModules as unknown as (deps:{enableSync?:()=>unknown}) => ReturnType<typeof configure.configureSyncModules>)({
         enableSync: () => true,
@@ -57,7 +62,11 @@ test('sync configure browser coverage seeds local profiles through identity rest
         isSyncing: () => false,
       });
       runtime.setSyncEvolu({
-        restoreAppOwner: async (mnemonic:unknown) => { restored.push(mnemonic); },
+        restoreAppOwner: async (mnemonic:unknown) => {
+          stagedBeforeReset = recovery.getPendingBackupRestoreProfileIds();
+          publishingSuspended = !settings.isSyncEnabled();
+          restored.push(mnemonic);
+        },
       });
 
       (window as unknown as {setTimeout:(fn:TimerHandler,delay?:number)=>number}).setTimeout = (fn, delay = 0) => {
@@ -69,15 +78,16 @@ test('sync configure browser coverage seeds local profiles through identity rest
 
       outcomes.restoreReturnsTrue = restoredOk === true;
       outcomes.restoreUsesRuntimeEvolu = restored[0]! === 'coverage seed mnemonic';
-      outcomes.configureSeedLocalProfilesPushesAllProfiles =
-        pushes.length === 1
-        && pushes[0]![0]! === 'seed-profile'
-        && pushes[0]![1]! === state.importedData
-        && (pushes[0]![2] as {force?:unknown}|null|undefined)?.force === true;
+      outcomes.configureSeedStagesProfilesWithoutPublishingThroughRetiringRuntime =
+        pushes.length === 0 && stagedBeforeReset.join(',') === 'seed-profile'
+        && recovery.getPendingBackupRestoreProfileIds().join(',') === 'seed-profile'
+        && publishingSuspended && !settings.isSyncEnabled()
+        && localStorage.getItem('labcharts-sync-enabled') === 'true'
+        && JSON.stringify(state.importedData) === JSON.stringify({entries: [{id: 'marker-1', value: 12}]});
       outcomes.configureSeedClearsRestoreJoinPending =
         localStorage.getItem(identity.RESTORE_JOIN_PENDING_KEY) === null;
       outcomes.configureSeedShowsSuccessNotification =
-        notificationText.includes('seeded this device');
+        notificationText.includes('reloading to publish this device');
       outcomes.configureSeedSchedulesReload =
         scheduledTimers.some(timer => (
           timer.delay === 500
@@ -88,6 +98,7 @@ test('sync configure browser coverage seeds local profiles through identity rest
     } finally {
       window.setTimeout = originalSetTimeout;
       runtime.clearSyncRuntimeState();
+      settings.setSyncPublishingSuspended(false);
       actions.configureSyncActions({
         pushProfile: async () => {},
         forcePull: () => {},
@@ -99,6 +110,7 @@ test('sync configure browser coverage seeds local profiles through identity rest
       (state as {importedData:unknown}).importedData = savedState.importedData;
       (state as {profiles:unknown}).profiles = savedState.profiles;
       localStorage.removeItem(identity.RESTORE_JOIN_PENDING_KEY);
+      localStorage.removeItem(recovery.SYNC_BACKUP_RESTORE_PENDING_KEY);
     }
     if (thrownError) throw thrownError;
 

@@ -39,7 +39,7 @@ export interface ReportHTMLFlag extends Omit<Partial<NativeFlag>,
   displayedRanges?: ReportHTMLRange[] | null;
   status: string; dateIndex?: unknown; date?: unknown;
 }
-export interface ReportHTMLMarker extends Omit<DeclaredFields<ActiveMarker>, 'name' | 'unit' | 'values'> {
+export interface ReportHTMLMarker extends Omit<DeclaredFields<ActiveMarker>, 'name' | 'unit' | 'values' | 'personalBaselines'> {
   name?: unknown; unit?: unknown; hidden?: unknown; values: Array<number | null | undefined>;
 }
 export interface ReportHTMLCategory extends Omit<DeclaredFields<ActiveCategory>, 'label' | 'icon' | 'singleDate' | 'markers'> {

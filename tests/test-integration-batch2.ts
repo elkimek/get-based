@@ -355,8 +355,31 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   console.log('16. Conversion coverage check');
 
+  // These new markers explicitly use the same whole-percent or unitless value
+  // in every profile. Verify that contract before adding them to the inventory.
+  const immuneIdentityKeys = [
+    'lymphocyteSubsets.cd3Pct', 'lymphocyteSubsets.cd4Pct',
+    'lymphocyteSubsets.cd8Pct', 'lymphocyteSubsets.cd19Pct', 'lymphocyteSubsets.nkCellsPct',
+    'calculatedRatios.cd4Cd8Ratio', 'calculatedRatios.lmr',
+  ];
+  const { UNIT_PROFILE_IDS, resolveMarkerUnitProfile, convertCanonicalToDisplay, convertDisplayToCanonical } = await import('../js/unit-profiles.js');
+  for (const key of immuneIdentityKeys) {
+    const [category, marker] = key.split('.');
+    const unit = key.endsWith('Pct') ? '%' : '';
+    assert(`${key} has an explicit canonical identity unit`, MARKER_SCHEMA[category!]!.markers[marker!]!.unit === unit);
+    for (const profile of UNIT_PROFILE_IDS) {
+      const resolved = resolveMarkerUnitProfile(key, profile);
+      assert(`${key} keeps its unit in ${profile}`, resolved.isIdentity && resolved.unit === unit);
+      for (const value of key.endsWith('Pct') ? [0.5,40] : [0.5,2]) {
+        assert(`${key} preserves ${value} in ${profile}`, convertCanonicalToDisplay(key,value,profile) === value);
+        assert(`${key} restores ${value} from ${profile}`, convertDisplayToCanonical(key,value,profile) === value);
+      }
+    }
+  }
+
   // Markers that DON'T need conversion (same unit US/SI or unitless)
   const noConvNeeded = new Set([
+    ...immuneIdentityKeys,
     // mmol/l electrolytes (= mEq/L for monovalent ions)
     'electrolytes.sodium', 'electrolytes.potassium', 'electrolytes.chloride',
     // Same unit in US

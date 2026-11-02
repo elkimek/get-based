@@ -15,6 +15,7 @@ import { TUMOR_MARKERS_CATEGORY } from './tumor-markers.js';
 import { COAGULATION_CATEGORY } from './coagulation.js';
 import { HEMATOLOGY_CATEGORY } from './hematology.js';
 import { DIFFERENTIAL_CATEGORY } from './differential.js';
+import { LYMPHOCYTE_SUBSETS_CATEGORY } from './lymphocyte-subsets.js';
 import { BONE_METABOLISM_CATEGORY } from './bone-metabolism.js';
 import { URINALYSIS_CATEGORY } from './urinalysis.js';
 import { CARDIAC_CATEGORY } from './cardiac.js';
@@ -40,6 +41,7 @@ export const MARKER_SCHEMA = {
   coagulation: COAGULATION_CATEGORY,
   hematology: HEMATOLOGY_CATEGORY,
   differential: DIFFERENTIAL_CATEGORY,
+  lymphocyteSubsets: LYMPHOCYTE_SUBSETS_CATEGORY,
   boneMetabolism: BONE_METABOLISM_CATEGORY,
   urinalysis: URINALYSIS_CATEGORY,
   cardiac: CARDIAC_CATEGORY,

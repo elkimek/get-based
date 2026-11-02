@@ -9,7 +9,8 @@ import { maybeShowChangelog } from './changelog.js';
 import { buildSidebar, renderProfileDropdown } from './nav.js';
 import { maybeShowBackupNudge } from './crypto.js';
 import { maybeShowLegalConsentGate } from './legal-consent.js';
-import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
+import { isSyncConfigured, primeSyncState } from './sync-settings-state.js';
+import { renderSyncIndicator } from './sync-ui.js';
 import { maybeShowAnalyticsConsent } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 import { updateChatNudgeRuntime } from './chat-runtime.js';
@@ -104,7 +105,8 @@ function populateFooterVersion() {
 
 function scheduleDeferredSyncAndCatalogWarmup() {
   requestAnimationFrame(() => setTimeout(() => {
-    initSync()
+    if (isSyncConfigured()) void import('./sync.js')
+      .then(module => module.initSync())
       .then(() => renderSyncIndicator())
       .catch(e => console.warn('[sync] deferred init failed:', e));
     void ensureDnaTablesForPersistedState();

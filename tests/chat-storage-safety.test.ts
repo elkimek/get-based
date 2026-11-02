@@ -211,6 +211,15 @@ describe('chat storage safety', () => {
     expect(message).not.toHaveProperty('agentDrafts');
   });
 
+  it.each([undefined, null, '', 'applied ', 'unknown-future-status'])('never reopens an unrecognized proposal status %s as pending', status => {
+    const [message] = normalizeChatMessages([{ role: 'assistant', content: 'Review', agentDrafts: [{
+      id: 'uncertain-goal', profileId: 'profile-1', kind: 'context', status,
+      payload: { card: 'healthGoals', baseline: '[]', changes: [{ field: 'goals', operation: 'add', record: { text: 'Reviewed goal' } }], reason: 'A reported goal.', evidence: 'I want a goal.' },
+    }] }]);
+    expect(message!.agentDrafts).toHaveLength(1);
+    expect(message!.agentDrafts![0]!.status).toBe('failed');
+  });
+
   it('clears invalid imported thread metadata while retaining opaque message extensions', () => {
     const [thread] = normalizeChatBackup({ threads: [{
       id: 't_safe', projectName: 42, pinned: 'true',

@@ -38,6 +38,9 @@ const reviewSrc = read('js/pdf-import-review.js');
 const reviewRuntimeSrc = read('js/pdf-import-review-runtime.js');
 const progressSrc = read('js/pdf-import-progress.js');
 const labEntrySrc = read('js/lab-entry.js');
+const reportStoreSrc = read('js/lab-report-store.js');
+const sampleSrc = read('js/lab-report-samples.js');
+const removalSrc = read('js/lab-report-mutations.js');
 read('js/profile.js');
 const profileDataMigrationsSrc = read('js/profile-data-migrations.js');
 const importCssSrc = read('css/import.css');
@@ -74,14 +77,13 @@ const importCssSrc = read('css/import.css');
   assert('new (custom) markers normalized',
     confirmBlock.includes('normalizeToSI(m.suggestedKey, m.value, m.unit, m)'));
   assert('confirmImport waits for async save before closing UI',
-    commitSrc.includes('export async function confirmImport') && /await\s+saveImportedData\([^)]*\)/.test(confirmBlock));
+    commitSrc.includes('export async function confirmImport') && /const saved = await commitLabReportWrite\([\s\S]{0,450}if \(!saved\) \{[\s\S]{0,150}return;[\s\S]{0,250}closeImportModal\(\)/.test(confirmBlock));
   assert('PDF import requests immediate sync push after durable save',
-    /await\s+saveImportedData\(\{\s*immediate:\s*true\s*\}\)/.test(confirmBlock));
+    reportStoreSrc.includes('await saveImportedDataForProfile(profileId, next, { immediate: true, forceProfileScope: true, baseData: base, canCommit: current,') && read('js/data-core.js').includes('(0, ports.onProfileSaved)(profileId, persisted, { immediate: true });'));
   assert('PDF import clears same-date entry tombstone when intentionally re-importing',
-    /findOrCreateLabEntry\(state\.importedData,\s*result\.date,\s*\{ now: importTs \}\)/.test(confirmBlock));
-  assert('PDF import rolls back in-memory state when durable save fails',
-    /const rollback = snapshotImportedData\(\)/.test(confirmBlock)
-      && /if \(!saved\) \{[\s\S]{0,200}restoreImportedDataSnapshot\(rollback\)/.test(confirmBlock));
+    confirmBlock.includes('entry = resolveImportSample(result, data, state.currentProfile, report, importTs);') && sampleSrc.includes("appendSample(data, entry);") && sampleSrc.includes("clearTombstone(data, 'entries', date);"));
+  assert('PDF import leaves observed data unchanged when private durable save fails',
+    confirmBlock.includes('const { base, next: data } = prepareLabReportWrite(observed);') && reportStoreSrc.includes('const base = structuredClone(profileDataBaseline(observed) || observed), next = structuredClone(base);') && /const saved = await commitLabReportWrite\([\s\S]{0,450}if \(!saved\) \{[\s\S]{0,150}return;/.test(confirmBlock));
   const jsonImportBlock = exportImportSrc.substring(exportImportSrc.indexOf('export function importDataJSON'), exportImportSrc.indexOf('function importContextField'));
   const restoreSrc = read('js/lab-entry-restore.js');
   assert('JSON import preserves markerSources.at instead of stamping wall-clock time',
@@ -165,14 +167,12 @@ const importCssSrc = read('css/import.css');
     /ensureMarkerSources\(entry\)\['diabetes\.homaIR'\][\s\S]{0,260}snapshotId:\s*sharedSnapshotId/.test(read('js/lab-entry.js')));
   assert('Settings Data does not classify a date row as legacy only because importedWith is missing',
     !/if \(isFullyManual \|\| !entry\.importedWith\)/.test(settingsDataSrc));
-  assert('Re-review tombstones an emptied old snapshot entry before deleting it',
-    /if \(isReReview\)[\s\S]{0,1500}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock.replace(/\s+/g, ' ')));
+  assert('Re-review retains its sample identity while replacing report markers',
+    confirmBlock.includes('const oldEntry = entry;') && !confirmBlock.includes("recordTombstone(data, 'entries'") && !confirmBlock.includes('deleteImportedArrayItems(data,') && confirmBlock.includes('entry.updatedAt = importTs;') && confirmBlock.includes('sourceSnapshotId: snapshotId'));
   assert('Re-review purges manual value overrides for removed old snapshot markers',
-    /if \(isReReview\)[\s\S]{0,1200}const manualValues = state\.importedData\.manualValues \|\| \{\}/.test(confirmBlock)
-      && /k\.endsWith\(':' \+ oldSnapshot\.date\)[\s\S]{0,120}removedKeys\.includes\(k\.split\(':'\)\[0\]\)[\s\S]{0,80}delete manualValues\[k\]/.test(confirmBlock));
-  assert('Re-review upserts a snapshot row when the original snapshot was concurrently deleted',
-    /if \(isReReview\)[\s\S]{0,260}clearTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapshotId\)/.test(confirmBlock)
-      && /if \(snapIdx >= 0\)[\s\S]{0,420}else \{[\s\S]{0,120}state\.importedData\.importSnapshots\.push\(\{[\s\S]{0,80}id:\s*snapshotId/.test(confirmBlock));
+    confirmBlock.includes('const manualValues = data.manualValues || {};') && /k\.endsWith\(':' \+ oldEntry\.date\) && removedKeys\.includes\(k\.split\(':'\)\[0\]\)/.test(confirmBlock) && confirmBlock.includes("!data.entries.some(row => row !== oldEntry && row.date === oldEntry.date && Object.hasOwn(row.markers || {}, k.split(':')[0]))") && confirmBlock.includes('manualValues[k] = null;'));
+  assert('Re-review refuses a concurrently deleted or changed source',
+    sampleSrc.includes("if (!report || report.id !== owner.sourceId || labPanelJSON(report) !== owner.source)") && sampleSrc.includes("throw new Error('The saved report changed during review.');") && confirmBlock.includes('entry = resolveImportSample(result, data, state.currentProfile, report, importTs);'));
   assert('Database bundle import merges importSnapshots into existing profiles',
     /Array\.isArray\(importData\.importSnapshots\)[\s\S]{0,260}ensureImportedArray\(current,\s*['"]importSnapshots['"]\)[\s\S]{0,700}appendImportedArrayItem\(current,\s*['"]importSnapshots['"],\s*snap\)/.test(exportImportSrc));
   assert('Import restore clears snapshot tombstones and updates newer duplicate snapshot ids',
@@ -182,23 +182,13 @@ const importCssSrc = read('css/import.css');
   assert('Existing profile migration backfills importSnapshots array',
     /if \(data\.importSnapshots === undefined\)\s+data\.importSnapshots = \[\]/.test(profileDataMigrationsSrc));
   assert('Import snapshots are tombstone-aware delta array records',
-    /importSnapshots:\s*\{[\s\S]{0,180}itemIdFn/.test(read('js/sync-delta-surface-config.js'))
-      && /recordTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapId\)/.test(confirmBlock)
-      && /deleteImportedArrayItems\(state\.importedData,\s*['"]importSnapshots['"]/.test(confirmBlock));
+    /importSnapshots:\s*\{[\s\S]{0,180}itemIdFn/.test(read('js/sync-delta-surface-config.js')) && removalSrc.includes("recordTombstone(data, 'importSnapshots', id);") && removalSrc.includes("deleteImportedArrayItems(data, 'importSnapshots', report => report.id === id);") && confirmBlock.includes('applyLabReportRemoval(data, snapId, profileSex).snapshot'));
   assert('Snapshot marker deletes use lab-entry tombstones and HOMA-IR recalculation',
-    /import \{[\s\S]{0,220}deleteLabEntryMarker,[\s\S]{0,220}from ['"]\.\/lab-entry\.js['"]/.test(commitSrc)
-      && /deleteLabEntryMarker\(oldEntry, key, \{ now: importTs \}\)/.test(confirmBlock)
-      && /deleteLabEntryMarker\(entry, key\)/.test(confirmBlock)
-      && !/delete\s+(?:oldEntry|entry)\.markers\[key\]/.test(confirmBlock));
+    commitSrc.includes("deleteLabEntryMarker,") && confirmBlock.includes('deleteLabEntryMarker(oldEntry, key, { now: importTs });') && removalSrc.includes('deleteLabEntryMarker(entry, key, { now: changedAt });') && !/delete\s+(?:oldEntry|entry)\.markers\[key\]/.test(confirmBlock + removalSrc));
   assert('Snapshot delete/re-review restores latest remaining same-date snapshot marker value',
-    /function findLatestRestorableSnapshotMarker/.test(confirmBlock)
-      && /s\.id !== excludedSnapshotId/.test(confirmBlock)
-      && /snapshotMarkerDotKey\(marker\) !== dotKey/.test(confirmBlock)
-      && /restoreLatestSnapshotMarkerForKey\(entry, snapshot, key\)/.test(confirmBlock)
-      && /restoreLatestSnapshotMarkerForKey\(oldEntry, oldSnapshot, key, importTs\)/.test(confirmBlock));
+    removalSrc.includes('function findLatestRestorableSnapshotMarker') && removalSrc.includes('s.id !== excludedSnapshotId && reportBelongsToLabSample(data, s, entry)') && removalSrc.includes('snapshotMarkerDotKey(marker) !== dotKey') && removalSrc.includes('restoreLatestSnapshotMarkerForKey(data, entry, snapshot, key, changedAt);') && confirmBlock.includes('restoreLatestSnapshotMarkerForKey(data, oldEntry, oldSnapshot, key, importTs);'));
   assert('Snapshot delete purges manual value overrides for removed snapshot markers',
-    /const manualValues = state\.importedData\.manualValues \|\| \{\}/.test(confirmBlock)
-      && /k\.endsWith\(':' \+ snapshot\.date\)[\s\S]{0,120}removedKeys\.includes\(k\.split\(':'\)\[0\]\)[\s\S]{0,80}delete manualValues\[k\]/.test(confirmBlock));
+    removalSrc.includes("!data.entries.some(row => row !== entry && row.date === entry.date && Object.hasOwn(row.markers || {}, key))") && removalSrc.includes('data.manualValues[`${key}:${entry.date}`] = null;'));
   assert('Legacy mixed-entry delete uses lab-entry tombstones and HOMA-IR recalculation',
     /import \{ deleteLabEntryMarker, isSnapshotDerivedHOMAIR \} from ['"]\.\/lab-entry\.js['"]/.test(persistenceSrc)
       && /deleteLabEntryMarker\(entry, k, \{ now \}\)/.test(removeBlock)

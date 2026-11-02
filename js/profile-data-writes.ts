@@ -3,10 +3,23 @@
 // older runtimes without Web Locks. Record arrays merge by stable identity.
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import type { SyncIdentityRecord } from './sync-delta-surface-config.js';
+import { validLabPanelId } from './lab-panel-identity.js';
+import { mergeLabPanelTombstones } from './lab-panel-deletions.js';
+import { mergeGeneticsSnpStates } from './genetics-snp-lifecycle.js';
+import { mergeGeneticsLifecycle } from './genetics-lifecycle.js';
+import { mergeCustomMarkerLifecycle } from './custom-marker-lifecycle.js';
+import { mergeLabOrdering } from './lab-ordering-core.js';
 type ProfileRows = Map<string | null, unknown>;
 interface ProfileRebase<T> { data: T; baseline: unknown; conflict: boolean; }
 const baselines = new WeakMap<object, unknown>();
 const queues = new Map<string, Promise<unknown>>();
+interface MutationProjection { before: Record<string, unknown>; after: Record<string, unknown> }
+interface MutationJournal { changes: MutationProjection[]; overflowed: boolean }
+const mutationJournals = new Map<string, Set<WeakRef<MutationJournal>>>();
+export interface ProfileMutationCapture {
+  rebase<T>(data: T, latest: unknown): {ok: true; data: T} | {ok: false};
+  release(): void;
+}
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
 // Live adoption preserves object identities and can change property insertion order.
 // Compare JSON values, not that incidental order, when detecting concurrent edits.
@@ -16,6 +29,67 @@ export const profileDataValuesEqual = (a: unknown, b: unknown) => canonicalJSON(
 const equal = profileDataValuesEqual;
 export class ProfileWriteConflict extends Error {}
 
+/** Observe local commits only while a pull owns this cursor. Keep changed
+ * top-level fields, not a full profile per save; defer after a bounded burst. */
+export function captureProfileMutations(profileId: string): ProfileMutationCapture {
+  const journal: MutationJournal = {changes: [], overflowed: false}, reference = new WeakRef(journal);
+  const observers = mutationJournals.get(profileId) ?? new Set<WeakRef<MutationJournal>>();
+  observers.add(reference); mutationJournals.set(profileId, observers);
+  return {
+    rebase<T>(data: T, latest: unknown) {
+      if (journal.overflowed) return {ok: false};
+      const tip: Record<string, unknown> = {}, current: Record<string, unknown> = {};
+      // These projections came from successful writes to this same profile;
+      // replay preserves the target shape while changing its recorded fields.
+      for (const change of journal.changes) {
+        data = mergeProfileMutation(change.before, change.after, data) as T;
+        for (const key of new Set([...Object.keys(change.before), ...Object.keys(change.after)])) {
+          if (Object.hasOwn(change.after, key)) tip[key] = change.after[key]; else delete tip[key];
+          if (object(latest) && Object.hasOwn(latest, key)) current[key] = latest[key]; else delete current[key];
+        }
+      }
+      // Another tab does not share this journal. Its later stored changes
+      // must win over the last locally observed commit, including deletions.
+      data = mergeProfileMutation(tip, current, data) as T;
+      return {ok: true, data};
+    },
+    release() {
+      observers.delete(reference);
+      if (!observers.size && mutationJournals.get(profileId) === observers) mutationJournals.delete(profileId);
+    },
+  };
+}
+
+export function noteProfileDataCommit(profileId: string, previous: string | null, committed: unknown): void {
+  const observers = mutationJournals.get(profileId);
+  if (!observers) return;
+  const journals: MutationJournal[] = [];
+  for (const reference of observers) {
+    const journal = reference.deref();
+    if (!journal) observers.delete(reference); else if (!journal.overflowed) journals.push(journal);
+  }
+  if (!observers.size) mutationJournals.delete(profileId);
+  if (!journals.length) return;
+  try {
+    const before: unknown = previous ? JSON.parse(previous) : {};
+    if (!object(before) || !object(committed)) throw new Error('Unknown profile mutation');
+    const change: MutationProjection = {before: {}, after: {}};
+    for (const key of new Set([...Object.keys(before), ...Object.keys(committed)])) {
+      if (['__proto__', 'constructor', 'prototype'].includes(key) || equal(before[key], committed[key])) continue;
+      if (Object.hasOwn(before, key)) change.before[key] = structuredClone(before[key]);
+      if (Object.hasOwn(committed, key)) change.after[key] = structuredClone(committed[key]);
+    }
+    if (!Object.keys(change.before).length && !Object.keys(change.after).length) return;
+    for (const journal of journals) {
+      if (journal.changes.length >= 8) { journal.changes = []; journal.overflowed = true; }
+      else journal.changes.push(change);
+    }
+  } catch {
+    // A failed observation must never turn a completed local save into failure.
+    for (const journal of journals) { journal.changes = []; journal.overflowed = true; }
+  }
+}
+
 export function rememberProfileData(data: unknown, persisted: unknown = data) {
   if (object(data)) baselines.set(data, structuredClone(persisted));
 }
@@ -23,20 +97,32 @@ export function rememberProfileData(data: unknown, persisted: unknown = data) {
 export function profileDataBaseline<T>(data: T): T | undefined { return baselines.get(data as object) as T | undefined; }
 
 export function mergeProfileMutation<T>(base: unknown, next: T, latest: unknown, path = ''): T {
+  if (path === 'labPanelTombstones') return mergeLabPanelTombstones(next, latest) as T;
+  if (path === 'geneticsSnpTombstones') return mergeGeneticsSnpStates(next, latest) as T;
+  if (path === 'geneticsLifecycle') return mergeGeneticsLifecycle(next, latest) as T;
+  if (path === 'customMarkerLifecycle') return mergeCustomMarkerLifecycle(next, latest) as T;
   if (equal(base, next)) return structuredClone(latest) as T;
+  if (path === 'labOrdering') return mergeLabOrdering(next, latest) as T;
   if (Array.isArray(next)) return mergeRecordArray(base, next, latest, path) as T;
   if (!object(next)) return structuredClone(next);
   base = object(base) ? base : {};
   const merged = object(latest) ? structuredClone(latest) : {};
   for (const key of new Set([...Object.keys(base as object), ...Object.keys(next)])) {
     if (['__proto__', 'constructor', 'prototype'].includes(key) || equal((base as Record<string, unknown>)[key], next[key])) continue;
-    if (!Object.hasOwn(next, key)) delete merged[key];
+    if (!Object.hasOwn(next, key)) {
+      if (!path && key === 'geneticsSnpTombstones') merged[key] = mergeGeneticsSnpStates((base as Record<string, unknown>)[key], merged[key]);
+      else if (!path && key === 'geneticsLifecycle') merged[key] = mergeGeneticsLifecycle((base as Record<string, unknown>)[key], merged[key]);
+      else if (!path && key === 'customMarkerLifecycle') merged[key] = mergeCustomMarkerLifecycle((base as Record<string, unknown>)[key], merged[key]);
+      else if (!path && key === 'labOrdering') merged[key] = mergeLabOrdering((base as Record<string, unknown>)[key], merged[key]);
+      else delete merged[key];
+    }
     else merged[key] = mergeProfileMutation((base as Record<string, unknown>)[key], next[key], merged[key], path ? `${path}.${key}` : key);
   }
   return merged as T;
 }
 
 function recordKey(item: unknown, path: string) {
+  if (path === 'entries.panels' && object(item) && validLabPanelId(item.panelId)) return item.panelId;
   if (path.startsWith('_deleted.') && typeof item === 'string') return item;
   return DELTA_ARRAY_CONFIG[path]?.itemIdFn?.(item as SyncIdentityRecord) || (object(item) && typeof item.id === 'string' ? item.id : null);
 }
@@ -80,6 +166,7 @@ function mergeEntryPanels(base: unknown[], next: unknown[], latest: unknown[]) {
   if (equal(base, next)) return latest;
   if (equal(base, latest) || equal(next, latest)) return next;
   if (!base.length) return [...latest, ...next.filter(panel => !latest.some(item => equal(item, panel)))];
+  if ([base, next, latest].every(panels => panels.every(panel => object(panel) && validLabPanelId(panel.panelId)))) return mergeRecordArray(base, next, latest, 'entries.panels');
   if (base.length === 1 && next.length === 1 && latest.length === 1) {
     return [mergeProfileMutation(base[0], next[0], latest[0], 'entries[]')];
   }

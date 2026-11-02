@@ -1,4 +1,6 @@
 import { bytesToBase64 as toBase64, _base64ToBytes as fromBase64 } from './base64.js';
+import { createPreparedLocalStorageValue } from './crypto-prepared-write.js';
+import { configurePersonaJournalProtection, recoverAllPersonaStorage } from './persona-storage-transaction.js';
 import { hasWhoopStorageDataToken } from './wearables-whoop-storage-contract.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 // crypto.ts — Encryption at rest, backup/restore, cross-tab sync
@@ -112,6 +114,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-.+-chat$/,
   /^labcharts-.+-chat-threads$/,
   /^labcharts-.+-agent-draft-claims$/,
+  /^labcharts-.+-app-control-.+$/,
   /^labcharts-.+-chat-t_.+$/,
   /^labcharts-.+-chatDraft_.+$/,
   /^labcharts-.+-chatPersonalityCustom$/,
@@ -331,6 +334,7 @@ export function isEncryptedObject(o: unknown): EncryptedEnvelopeCheck {
 const indexedDBCryptoDeps = {
   getEncryptionEnabled, encryptObject, isEncryptedObject, decryptObject,
 };
+configurePersonaJournalProtection({ enabled: getEncryptionEnabled, seal: encryptObject, open: decryptObject });
 export const getCashuWalletStoreCryptoDeps = () => ({
   ...indexedDBCryptoDeps,
   encryptedGetItem,
@@ -384,6 +388,13 @@ export async function encryptedSetCredentialItem(key: string, value: string) {
   localStorage.setItem(key, stored);
   updateKeyCache(key, value);
 }
+
+/** Native storage owners can prepare ciphertext before a synchronous guarded commit. */
+export const prepareEncryptedLocalStorageValue = createPreparedLocalStorageValue({
+  usesNativeWriter: key => isCredentialKey(key) || shouldUseBlob(key), isSensitiveKey,
+  encryptionEnabled: getEncryptionEnabled, sessionKey: () => _sessionKey,
+  encryptValue: async (key, value) => { const { iv, ciphertext } = await encrypt(key, value); return formatEncryptedValue(iv, ciphertext); },
+});
 
 export async function encryptedSetItem(key: string, value: string) {
   if (isCredentialKey(key)) return encryptedSetCredentialItem(key, value);
@@ -544,6 +555,7 @@ async function sensitiveBlobKeys() {
 
 async function migrateSensitiveKeys() {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
+  await recoverAllPersonaStorage();
   const blobKeys = await sensitiveBlobKeys();
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -567,6 +579,7 @@ async function migrateSensitiveKeys() {
 
 async function decryptAllSensitiveKeys() {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
+  await recoverAllPersonaStorage();
   const blobKeys = await sensitiveBlobKeys();
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);

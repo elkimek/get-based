@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { renderEmojiPicker } from './emoji-picker-presentation.js';
 import { getActiveData, saveImportedData } from './data.js';
+import { readNativeLabDisplay, commitNativeLabDisplay } from './lab-display-store.js';
 import { showDetailModal } from './marker-detail-modal.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
 import {
@@ -32,67 +33,68 @@ function _refreshActiveView(fallbackRoute: string, opts: { forceRoute?: string }
   (_navigate as typeof navigateCategoryCustomizationRuntime)(opts.forceRoute || state.currentView || fallbackRoute, data);
 }
 
+const renameDrafts = new WeakMap<typeof state.importedData, Map<string, string>>();
+function labelDrafts(root: typeof state.importedData) { let drafts = renameDrafts.get(root); if (!drafts) { drafts = new Map(); renameDrafts.set(root, drafts); } return drafts; }
+function labelEditorOwner() {
+  const profileId = state.currentProfile, root = state.importedData, view = state.currentView;
+  const modal = document.getElementById('detail-modal'), content = modal?.firstElementChild;
+  return { profileId, root, current: () => state.currentProfile === profileId && state.importedData === root && state.currentView === view && (!modal || modal.isConnected && modal.firstElementChild === content) };
+}
+function labelError(error: unknown, current: () => boolean) {
+  if (current()) showNotification(error instanceof Error ? error.message : 'The lab label could not be saved. Your data is kept.', 'error');
+}
 export async function renameCategory(categoryKey: string) {
-  const data = getActiveData();
-  const cat = data.categories[categoryKey];
-  if (!cat) return;
-  const currentLabel = cat.label;
-  const newLabel = await showCategoryCustomizationPrompt('Rename category:', {
-    defaultValue: currentLabel,
-    okLabel: 'Rename',
-  });
-  if (!newLabel || newLabel === currentLabel) return;
-  const trimmed = newLabel.trim();
-  if (!trimmed) return;
-  // Store label override
-  if (!state.importedData.categoryLabels) state.importedData.categoryLabels = {};
-  state.importedData.categoryLabels[categoryKey] = trimmed;
-  // Also update custom marker defs so sidebar picks it up
-  const cms = state.importedData.customMarkers || {};
-  for (const [k, def] of Object.entries(cms)) {
-    if (k.startsWith(categoryKey + '.')) def.categoryLabel = trimmed;
-  }
-  await saveImportedData();
-  _refreshActiveView(categoryKey, { forceRoute: categoryKey });
-  showNotification(`Category renamed to "${trimmed}"`, 'info');
+  const owner = labelEditorOwner(), drafts = labelDrafts(owner.root), key = `category:${categoryKey}`;
+  try {
+    while (owner.current()) {
+      const expected = await readNativeLabDisplay(owner.profileId, 'labCategories', categoryKey, owner.current);
+      const currentLabel = 'label' in expected.record ? expected.record.label : '';
+      const newLabel = await showCategoryCustomizationPrompt('Rename category:', { defaultValue: drafts.get(key) ?? currentLabel, okLabel: 'Rename' });
+      if (!newLabel || !newLabel.trim() || newLabel.trim() === currentLabel) { drafts.delete(key); return false; }
+      drafts.set(key, newLabel);
+      try { await commitNativeLabDisplay(owner.profileId, expected, { label: newLabel }, owner.current); }
+      catch (error) { labelError(error, owner.current); if (owner.current()) continue; return false; }
+      drafts.delete(key);
+      if (owner.current()) { try { _refreshActiveView(categoryKey, { forceRoute: categoryKey }); } catch { /* Label is already durable. */ } showNotification(`Category renamed to "${newLabel.trim()}"`, 'info'); }
+      return true;
+    }
+    return false;
+  } catch (error) { labelError(error, owner.current); return false; }
 }
-
 export async function renameMarker(id: string) {
-  const data = getActiveData();
-  const idx = id.indexOf('_');
-  const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
-  const marker = data.categories[catKey]?.markers[mKey];
-  if (!marker) return;
-  const newName = await showCategoryCustomizationPrompt('Rename marker:', {
-    defaultValue: marker.name,
-    okLabel: 'Rename',
-  });
-  if (!newName || newName === marker.name) return;
-  const trimmed = newName.trim();
-  if (!trimmed) return;
-  const dotKey = getMarkerStorageDotKey(marker, id);
-  if (!dotKey) return;
-  if (!state.importedData.markerLabels) state.importedData.markerLabels = {};
-  state.importedData.markerLabels[dotKey] = trimmed;
-  await saveImportedData();
-  _refreshActiveView(catKey);
-  showDetailModal(id);
-  showNotification(`Marker renamed to "${trimmed}"`, 'info');
+  const owner = labelEditorOwner(), data = getActiveData(), idx = id.indexOf('_');
+  if (idx < 1) return false;
+  const catKey = id.slice(0, idx), marker = data.categories[catKey]?.markers[id.slice(idx + 1)], dotKey = getMarkerStorageDotKey(marker, id);
+  if (!marker || !dotKey) return false;
+  const drafts = labelDrafts(owner.root), key = `marker:${dotKey}`;
+  try {
+    while (owner.current()) {
+      const expected = await readNativeLabDisplay(owner.profileId, 'markerDisplay', dotKey, owner.current);
+      const currentName = 'name' in expected.record ? expected.record.name : '';
+      const newName = await showCategoryCustomizationPrompt('Rename marker:', { defaultValue: drafts.get(key) ?? currentName, okLabel: 'Rename' });
+      if (!newName || !newName.trim() || newName.trim() === currentName) { drafts.delete(key); return false; }
+      drafts.set(key, newName);
+      try { await commitNativeLabDisplay(owner.profileId, expected, { name: newName }, owner.current); }
+      catch (error) { labelError(error, owner.current); if (owner.current()) continue; return false; }
+      drafts.delete(key);
+      if (owner.current()) { try { _refreshActiveView(catKey); await showDetailModal(id); } catch { /* Label is already durable. */ } showNotification(`Marker renamed to "${newName.trim()}"`, 'info'); }
+      return true;
+    }
+    return false;
+  } catch (error) { labelError(error, owner.current); return false; }
 }
-
-export function revertMarkerName(id: string) {
-  const idx = id.indexOf('_');
-  const data = getActiveData();
-  const marker = data.categories[id.slice(0, idx)]?.markers[id.slice(idx + 1)];
-  const dotKey = getMarkerStorageDotKey(marker, id);
-  if (!dotKey) return;
-  if (!state.importedData.markerLabels?.[dotKey]) return;
-  delete state.importedData.markerLabels[dotKey];
-  if (Object.keys(state.importedData.markerLabels).length === 0) delete state.importedData.markerLabels;
-  saveImportedData();
-  _refreshActiveView(id.slice(0, idx));
-  showDetailModal(id);
-  showNotification('Marker name reverted', 'info');
+export async function revertMarkerName(id: string) {
+  const owner = labelEditorOwner(), idx = id.indexOf('_'), data = getActiveData();
+  if (idx < 1) return false;
+  const marker = data.categories[id.slice(0, idx)]?.markers[id.slice(idx + 1)], dotKey = getMarkerStorageDotKey(marker, id);
+  if (!dotKey) return false;
+  try {
+    const expected = await readNativeLabDisplay(owner.profileId, 'markerDisplay', dotKey, owner.current);
+    if (!('hasNameOverride' in expected.record) || !expected.record.hasNameOverride) return false;
+    await commitNativeLabDisplay(owner.profileId, expected, { restore: ['name'] }, owner.current);
+    if (owner.current()) { try { _refreshActiveView(id.slice(0, idx)); await showDetailModal(id); } catch { /* Label is already durable. */ } showNotification('Marker name reverted', 'info'); }
+    return true;
+  } catch (error) { labelError(error, owner.current); return false; }
 }
 
 const EMOJI_CATEGORIES = [

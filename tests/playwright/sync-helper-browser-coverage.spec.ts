@@ -285,8 +285,8 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
       (syncDelta.configureSyncDelta as unknown as (options: {getEvolu:()=>unknown;getItemRowQuery:()=>unknown}) => ReturnType<typeof syncDelta.configureSyncDelta>)({
         getEvolu: () => ({
           getQueryRows: () => itemRows,
-          insert: (table:unknown, args:Record<string,unknown>) => { applied.push({ table, kind: 'insert', args }); },
-          update: (table:unknown, args:Record<string,unknown>) => { applied.push({ table, kind: 'update', args }); },
+          insert: (table:unknown, args:Record<string,unknown>, options?:{onComplete?:()=>void}) => { applied.push({ table, kind: 'insert', args });options?.onComplete?.(); },
+          update: (table:unknown, args:Record<string,unknown>, options?:{onComplete?:()=>void}) => { applied.push({ table, kind: 'update', args });options?.onComplete?.(); },
         }),
         getItemRowQuery: () => ({}),
       });
@@ -304,7 +304,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
         { date: '2026-06-02', markers: {} },
       ]);
       outcomes.arrayPlannerUpdatesInsertsAndTombstones =
-        entryPlan.ops.some(op => op.kind === 'update' && op.args.id === 'row-entry-live' && op.args.isDeleted === null)
+        entryPlan.ops.some(op => op.kind === 'update' && op.args.id === 'row-entry-live' && op.args.isDeleted === 0)
         && entryPlan.ops.some(op => op.kind === 'insert' && op.args.itemId === '2026-06-02')
         && entryPlan.ops.some(op => op.kind === 'tombstone' && op.args.id === 'row-entry-old');
 
@@ -358,7 +358,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
       outcomes.mapPlannerPreservesRawKeysAllowsClearsAndTombstones =
         glucoseOp?.kind === 'update'
         && glucoseOp.args.id === 'row-manual-glucose'
-        && glucoseOp.args.isDeleted === null
+        && glucoseOp.args.isDeleted === 0
         && parsePayload(glucoseOp).k === glucoseKey
         && parsePayload(glucoseOp).v === 7
         && nullOp?.kind === 'insert'
@@ -401,7 +401,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
         scalarUpdatePlan.ops.length === 1
         && scalarUpdatePlan.ops[0]!.kind === 'update'
         && scalarUpdatePlan.ops[0]!.args.id === 'row-cycle-latest'
-        && scalarUpdatePlan.ops[0]!.args.isDeleted === null
+        && scalarUpdatePlan.ops[0]!.args.isDeleted === 0
         && (parsePayload(scalarUpdatePlan.ops[0]!).v as {cycleLength?:unknown}).cycleLength === 28
         && scalarTombstonePlan.ops.length === 1
         && scalarTombstonePlan.ops[0]!.kind === 'tombstone'
@@ -447,7 +447,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
         plannedAt: Date.now(),
       };
       syncDelta.resetDeltaTelemetry(profileId);
-      pushDeltas.applyCommittedDeltas(
+      await pushDeltas.applyCommittedDeltas(
         profileId,
         JSON.stringify({ lightDevices: [{ id: 'device-committed' }] }),
         [{ arrayName: 'lightDevices', plan: committedPlan }],

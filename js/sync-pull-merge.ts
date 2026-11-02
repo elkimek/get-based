@@ -1,4 +1,8 @@
+import {compareSyncRows} from './sync-conflict-order.js';
 import type {ScalarVersions} from './sync-scalar-snapshot.js';
+import type {PulledArrayVersions} from './sync-delta-snapshot.js';
+import type {PulledMapSnapshots} from './sync-delta-merge.js';
+import type {ProfileMutationCapture} from './profile-data-writes.js';
 import type { ProfileData, NormalizedProfileData } from '../types/app-state.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
 import type { SyncProfileRow } from './sync-payload.js';
@@ -18,6 +22,7 @@ export interface SyncPullBaseline {
   readonly stored: MaybePulledData;
   readonly live: MaybePulledData;
   readonly baseline: MaybePulledData;
+  readonly mutations?: ProfileMutationCapture;
 }
 
 interface SyncPullMergeResult {
@@ -27,7 +32,7 @@ interface SyncPullMergeResult {
 
 // sync-pull-merge.js - inbound row recovery and importedData merge helpers.
 
-import { queueProfileDataWrite, profileDataBaseline, mergeProfileMutation, adoptProfileData, rebaseLiveProfileData, rememberProfileData } from './profile-data-writes.js';
+import { queueProfileDataWrite, captureProfileMutations, profileDataBaseline, mergeProfileMutation, adoptProfileData, rebaseLiveProfileData, rememberProfileData } from './profile-data-writes.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
@@ -38,7 +43,7 @@ import {
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
-import { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots } from './sync-delta.js';
+import { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots, acknowledgePulledArrayVersions, acknowledgePulledMapSnapshots } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 import { CONTEXT_REVIEW_RANGES } from './biology-score-context-contract.js';
 import { SYNC_PROFILE_FIELDS, selectSyncedProfile, syncedProfileMetadataClock } from './sync-profile-fields.js';
@@ -47,7 +52,7 @@ import { getSyncDirtyToken } from './sync-dirty-state.js';
 import { isSupersededProfileMetadata } from './sync-origin-state.js';
 import { sanitizeNutritionProfileData } from './nutrition-sync-sanitize.js';
 
-const pullBaselines = new WeakMap<object, { stored: MaybePulledData; live: MaybePulledData; observedAt: number; scalarVersions: ScalarVersions }>();
+const pullBaselines = new WeakMap<object, { stored: MaybePulledData; live: MaybePulledData; observedAt: number; scalarVersions: ScalarVersions; arrayVersions: PulledArrayVersions; mapSnapshots: PulledMapSnapshots; mutations?: ProfileMutationCapture }>();
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -90,9 +95,8 @@ export async function recoverSyncPullRows(rawRows: readonly (SyncProfileRow | nu
 export function dedupeSyncPullRows(enrichedRows: readonly RecoveredRow[] | null | undefined) {
   const byProfile = new Map<unknown, RecoveredRow>();
   for (const row of enrichedRows || []) {
-    const ts = row.syncedAt ? new Date(row.syncedAt as string).getTime() : 0;
     const prev = byProfile.get(row.profileId);
-    if (!prev || ts > (prev.syncedAt ? new Date(prev.syncedAt as string).getTime() : 0)) {
+    if (!prev || compareSyncRows(row,prev)>0) {
       byProfile.set(row.profileId, row);
     }
   }
@@ -104,7 +108,18 @@ export function dedupeSyncPullRows(enrichedRows: readonly RecoveredRow[] | null 
 }
 
 export async function prepareSyncPullRows(rawRows: readonly (SyncProfileRow | null | undefined)[] | null | undefined) {
-  return dedupeSyncPullRows(await recoverSyncPullRows(rawRows));
+  const complete: RecoveredRow[] = [];
+  for (const row of await recoverSyncPullRows(rawRows)) {
+    if (typeof row.dataJson !== 'string' || !row.dataJson) continue;
+    try {
+      const parsed = await parseSyncPayload(row.dataJson);
+      if (isMalformedPulledImportedData(parsed.importedData)) continue;
+      complete.push(row);
+    } catch (error) {
+      console.error('[sync] Pull failed for row:', error);
+    }
+  }
+  return dedupeSyncPullRows(complete);
 }
 
 
@@ -205,6 +220,7 @@ function preserveLocalOnlyProfileData(merged: PulledImportedData, localImported:
 }
 
 export function captureSyncPullBaseline(profileId: string): Promise<SyncPullBaseline> {
+  const mutations = captureProfileMutations(profileId);
   return queueProfileDataWrite(profileId, async () => {
     const rawStored = await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true });
     const active = isActiveProfileDataOwner(profileId, state.importedData);
@@ -212,8 +228,9 @@ export function captureSyncPullBaseline(profileId: string): Promise<SyncPullBase
       stored: rawStored ? JSON.parse(rawStored) as PulledImportedData : null,
       live: active ? structuredClone(state.importedData || null) : null,
       baseline: active ? structuredClone(profileDataBaseline(state.importedData)) : null,
+      mutations,
     };
-  });
+  }).catch(error => { mutations.release(); throw error; });
 }
 
 export async function mergePulledImportedData(profileId: string, importedData: PulledImportedData | null, options: { debug?: (...args: unknown[]) => unknown; remoteUpdated?: number; earlyBaseline?: SyncPullBaseline; scalarClocks?: Record<string, number> | undefined } = {}) {
@@ -223,7 +240,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
   // Public helper callers retain their existing capture behavior. The receive
   // pipeline supplies its earlier origin so saves during decode stay edits,
   // even if a fast successful push already cleared their dirty token.
-  const { stored, live, baseline } = options.earlyBaseline ?? await captureSyncPullBaseline(profileId);
+  const { stored, live, baseline, mutations } = options.earlyBaseline ?? await captureSyncPullBaseline(profileId);
   const localImportedForMerge = live && baseline && stored
     ? mergeProfileMutation(baseline, live, stored) : (live || stored);
   const localImportedBeforeMerge = importedDataSnapshot(localImportedForMerge);
@@ -256,13 +273,15 @@ export async function mergePulledImportedData(profileId: string, importedData: P
     : (importedData || {});
 
   const scalarVersions: ScalarVersions = Object.create(null);
+  const arrayVersions: PulledArrayVersions = Object.create(null);
+  const mapSnapshots: PulledMapSnapshots = Object.create(null);
   // Overlay rows after the blob. A newer canonical blob protects only items
   // it contains; local delete intent and newer row tombstones still win.
   try {
     merged = await _mergeItemRowsIntoImported(profileId, merged, {
       baselineImported: importedData,
       baselineSyncedAt: remoteUpdated,
-      scalarClocks: options.scalarClocks, localImported: localImportedForMerge, scalarVersions,
+      scalarClocks: options.scalarClocks, localImported: localImportedForMerge, scalarVersions, arrayVersions, mapSnapshots,
     }) || merged;
   } catch (e) {
     console.warn('[sync] per-row overlay merge failed (blob still applied):', getErrorMessage(e, e));
@@ -293,7 +312,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
     && localHasRowsRemoteLacks(importedData, localImportedForMerge);
   const localDataChanged = !importedDataMatches(localImportedBeforeMerge, merged);
 
-  pullBaselines.set(merged, { stored, live, observedAt, scalarVersions });
+  pullBaselines.set(merged, { stored, live, observedAt, scalarVersions, arrayVersions, mapSnapshots, ...(mutations ? {mutations} : {}) });
   return {
     localKey,
     localImportedForMerge,
@@ -315,12 +334,15 @@ export async function persistPulledImportedData(localKey: string, profileId: str
     // Rebase edits committed while the row overlay was running, under the same
     // lock as ordinary saves. Local changes since the pull began take priority.
     let committed = baseline ? mergeProfileMutation(baseline.stored || {}, latest || {}, merged) : structuredClone(merged);
+    const replayed = baseline?.mutations?.rebase(committed, latest);
+    if (replayed && !replayed.ok) return {needsRebroadcast: false, retry: true};
+    if (replayed?.ok) committed = replayed.data;
     const liveDataBeforeWrite = isActiveProfileDataOwner(profileId, state.importedData) ? state.importedData : null;
     const liveBeforeWrite = liveDataBeforeWrite ? structuredClone(liveDataBeforeWrite) : null;
     // A profile activated after the early snapshot still owns unsaved edits.
     // Compare them with that live object's remembered origin, never with its
     // already-edited value; retain the early stored origin for durable saves.
-    const liveBaseline = baseline && (baseline.live ?? (liveBeforeWrite ? profileDataBaseline(state.importedData) : null));
+    const liveBaseline = baseline && (liveBeforeWrite ? profileDataBaseline(state.importedData) ?? baseline.live : null);
     if (liveBaseline && liveBeforeWrite) committed = mergeProfileMutation(liveBaseline, liveBeforeWrite, committed);
     preserveFreshLocalBiologyScoreAI(committed, latest, null);
     migrateProfileData(committed as ProfileData);
@@ -339,8 +361,10 @@ export async function persistPulledImportedData(localKey: string, profileId: str
       invalidateActiveDataCache();
     }
     await acknowledgePulledScalarSnapshots(profileId, committed, observedAt, baseline?.scalarVersions);
+    acknowledgePulledArrayVersions(profileId, committed, baseline?.arrayVersions);
+    acknowledgePulledMapSnapshots(profileId, committed, observedAt, baseline?.mapSnapshots);
     return { needsRebroadcast };
-  });
+  }).finally(() => { pullBaselines.get(merged)?.mutations?.release(); });
 }
 
 export async function mergePulledProfile(profileId: string, profile: unknown, remoteUpdated = 0) {

@@ -155,7 +155,7 @@ export async function initSync() {
       setSyncAppOwnerError(null);
       const restoreNotice = consumeSyncRestoreNotice();
       if (restoreNotice) showNotification(restoreNotice, 'success', 6000);
-      scheduleOwnerStorageRefresh(0);
+      scheduleOwnerStorageRefresh();
       dbg('Owner resolved');
     }).catch(e => {
       // Don't silently swallow - Settings > Data shows "Resolving..." while

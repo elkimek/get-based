@@ -5,6 +5,7 @@ import type { ProfileData } from '../types/app-state.js';
 
 // Persisted scalars remain opaque: the original readers coerce them at use sites.
 interface CyclePeriodInput {
+  endDateKnown?: boolean; flowKnown?: boolean;
   startDate: string; endDate?: string | null; flow?: string | null;
   symptoms?: string[] | null; confidence?: unknown; source?: unknown; notes?: unknown;
 }
@@ -367,9 +368,9 @@ export function openMenstrualCycleEditor(): void | false | Promise<void | false>
   const coverage = getCycleImportSummarySectionView(mc);
   const periodViews = periods.map(p => ({
     startDate: p.startDate,
-    dateLabel: `${fmtCycleDate(p.startDate, { month: 'short', day: 'numeric', year: 'numeric' })} - ${fmtCycleDate(p.endDate, { month: 'short', day: 'numeric', year: 'numeric' })}`,
+    dateLabel: `${fmtCycleDate(p.startDate, { month: 'short', day: 'numeric', year: 'numeric' })} - ${p.endDateKnown === false ? 'end not reported' : fmtCycleDate(p.endDate, { month: 'short', day: 'numeric', year: 'numeric' })}`,
     deleteAriaLabel: `Delete period starting ${fmtCycleDate(p.startDate)}`,
-    flowClass: flowClass(p.flow), flow: p.flow, symptoms: p.symptoms, notes: p.notes,
+    flowClass: flowClass(p.flow), flow: p.flowKnown === false ? 'flow not reported' : p.flow, symptoms: p.symptoms, notes: p.notes,
   }));
   const today = new Date().toISOString().slice(0, 10);
   const defaultEnd = new Date(Date.now() + (((mc.periodLength || 5) as number) - 1) * 86400000).toISOString().slice(0, 10);
@@ -585,9 +586,9 @@ export function projectMenstrualCycleSection(data: ActiveData | ProfileData | nu
     if (periods.length > 0) {
       const periodViews: CycleOverviewPeriodView[] = [];
       for (const p of periods) {
-        const dateLabel = `${fmtCycleDate(p.startDate)}-${fmtCycleDate(p.endDate || p.startDate)}`;
+        const dateLabel = `${fmtCycleDate(p.startDate)}-${p.endDateKnown === false ? 'end not reported' : fmtCycleDate(p.endDate || p.startDate)}`;
         periodViews.push({
-          dateLabel: literal(dateLabel), flowClass: flowClass(p.flow), flow: literal(p.flow || 'moderate'),
+          dateLabel: literal(dateLabel), flowClass: flowClass(p.flow), flow: literal(p.flowKnown === false ? 'flow not reported' : p.flow || 'moderate'),
           symptoms: (p.symptoms && p.symptoms.length) ? p.symptoms.map(literal) : [],
           notes: p.notes ? literal(p.notes) : null,
         });

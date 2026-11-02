@@ -20,7 +20,7 @@ import { getProfileSyncBlockReason } from './profile-sync-policy.js';
 export { cleanStorage } from './sync-storage-cleanup.js';
 export { onChatSaved, onDataSaved, onProfileSaved } from './sync-save-hooks.js';
 
-export interface SyncPushOptions { force?: boolean; completeSnapshot?: boolean; allowTombstoneResurrection?: boolean }
+export interface SyncPushOptions { force?: boolean; skipUnchanged?: boolean; completeSnapshot?: boolean; allowTombstoneResurrection?: boolean }
 export interface SyncPushResult { ok?: boolean; skipped?: boolean; reason?: string; error?: unknown }
 type PushProfile = (profileId: string | null | undefined, data: unknown, options?: SyncPushOptions) => Promise<SyncPushResult | null | undefined | void>;
 
@@ -89,7 +89,7 @@ async function pushCurrentProfileWhenIdle() {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
     result = await pushCurrentProfile();
-    if (result?.reason !== 'in-flight') return result;
+    if (result?.reason !== 'in-flight' && result?.reason !== 'superseded') return result;
     // A pull can schedule a union rebroadcast just before it resolves. If
     // that timer wins the race with this manual push, wait for it instead of
     // reporting a false failure (or asking the user to press Sync again).

@@ -1,5 +1,6 @@
-import type { LabEntryDraft } from './lab-entry.js';
+import { mergeCustomMarkerRemovalState, customMarkerRemovalNeedsRebroadcast } from './custom-marker-lifecycle.js';
 import type { LabMergeData } from './data-merge-lab-entries.js';
+import { mergeLabOrdering, labOrderingNeedsRebroadcast } from './lab-ordering-core.js';
 
 type SyncRecord = Record<string, unknown>;
 type TimestampMeta = Record<string, Record<string, unknown> | null | undefined>;
@@ -22,12 +23,16 @@ type Tombstones = ReadonlySet<unknown> | Iterable<unknown> | null | undefined;
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
 import { _isAllowlistSafeId } from './sync-delta-id.js';
 import { getLabEntryMarkerTombstones } from './lab-entry.js';
+import { filterRemovedLabPanels, mergeLabPanelTombstones } from './lab-panel-deletions.js';
+import { mergeGeneticsSnpStates, mergeGeneticsCallMaps, reconcileGeneticsSnpState, geneticsStateNeedsRebroadcast } from './genetics-snp-lifecycle.js';
+import { mergeGeneticsLifecycle, mergeGeneticsMetadata } from './genetics-lifecycle.js';
 import {
   FRESH_LOCAL_LAB_ENTRY_TTL_MS,
   compareRecordFreshness,
   hasExplicitTimestamp,
   mergeLabEntriesByDate,
   mergeLabEntry,
+  labPanelPeerIndex,
   normalizeTimestamp,
   pickFresherRecord,
   pickTimestamp,
@@ -139,14 +144,15 @@ function mergePlainMap(localMap: unknown, remoteMap: unknown): SyncRecord | unde
 }
 
 function preserveLocalGeneticsSnps(local: MergeData, remote: MergeData, out: MergeData) {
-  const localSnps = local?.genetics?.snps;
-  const remoteGenetics = remote?.genetics;
-  if (!localSnps || typeof localSnps !== 'object' || Array.isArray(localSnps)) return;
-  if (Object.keys(localSnps).length === 0) return;
-  if (!remoteGenetics || typeof remoteGenetics !== 'object' || Array.isArray(remoteGenetics)) return;
-  if (Object.prototype.hasOwnProperty.call(remoteGenetics, 'snps')) return;
-  if (!out.genetics || typeof out.genetics !== 'object' || Array.isArray(out.genetics)) return;
-  out.genetics = { ...out.genetics, snps: { ...localSnps } };
+  const states = mergeGeneticsSnpStates(local.geneticsSnpTombstones, remote.geneticsSnpTombstones);
+  const lifecycle = mergeGeneticsLifecycle(local.geneticsLifecycle, remote.geneticsLifecycle);
+  if (local.geneticsLifecycle != null || remote.geneticsLifecycle != null) out.geneticsLifecycle = lifecycle;
+  if (local.geneticsSnpTombstones != null || remote.geneticsSnpTombstones != null) out.geneticsSnpTombstones = states;
+  if (local.genetics && typeof local.genetics === 'object' || remote.genetics && typeof remote.genetics === 'object') {
+    out.genetics = mergeGeneticsMetadata(local.genetics, remote.genetics, lifecycle);
+    if (local.genetics?.snps || remote.genetics?.snps) out.genetics.snps = mergeGeneticsCallMaps(local.genetics?.snps, remote.genetics?.snps, states, lifecycle);
+  }
+  reconcileGeneticsSnpState(out);
 }
 
 
@@ -489,9 +495,13 @@ export function mergeImportedData<Data extends MergeData>(local: Data | null | u
   // Start from a shallow clone of remote — picks up new keys + LWW for
   // non-id-keyed scalars and arrays.
   const out: MergeData = { ...remote };
+  if (local.labOrdering != null || remote.labOrdering != null) out.labOrdering = mergeLabOrdering(local.labOrdering, remote.labOrdering);
   preserveLocalGeneticsSnps(local, remote, out);
 
-  const mergedEntries = mergeLabEntriesByDate(local.entries, remote.entries);
+  const panelTombs = mergeLabPanelTombstones(local.labPanelTombstones, remote.labPanelTombstones);
+  if (Object.keys(panelTombs).length || local.labPanelTombstones || remote.labPanelTombstones) out.labPanelTombstones = panelTombs;
+  const mergedEntries = mergeLabEntriesByDate(Array.isArray(local.entries) ? filterRemovedLabPanels(local.entries, panelTombs) : local.entries,
+    Array.isArray(remote.entries) ? filterRemovedLabPanels(remote.entries, panelTombs) : remote.entries);
   if (mergedEntries) out.entries = mergedEntries;
 
   for (const field of LOCAL_WINS_MAP_FIELDS) {
@@ -612,7 +622,7 @@ export function mergeImportedData<Data extends MergeData>(local: Data | null | u
     setAt(out, path, merged);
   }
 
-  return out as Data;
+  return mergeCustomMarkerRemovalState(local, remote, out) as Data;
 }
 
 // True iff `local` has anything `remote` doesn't reflect — used after a
@@ -636,16 +646,16 @@ export function mergeImportedData<Data extends MergeData>(local: Data | null | u
 export function localHasRowsRemoteLacks(local: OptionalMergeData, remote: OptionalMergeData) {
   if (!local || typeof local !== 'object') return false;
   if (!remote || typeof remote !== 'object') return true; // no remote, all local is news
+  if (customMarkerRemovalNeedsRebroadcast(local, remote)) return true;
+  if (labOrderingNeedsRebroadcast(local.labOrdering, remote.labOrdering)) return true;
+  if (geneticsStateNeedsRebroadcast(local, remote)) return true;
+  const localPanelTombs = mergeLabPanelTombstones(local.labPanelTombstones, null), remotePanelTombs = mergeLabPanelTombstones(remote.labPanelTombstones, null);
+  for (const [key, value] of Object.entries(localPanelTombs)) if (value.deletedAt > (remotePanelTombs[key]?.deletedAt || 0) || value.restoredAt > (remotePanelTombs[key]?.restoredAt || 0)) return true;
   if (Array.isArray(local.entries)) {
-    const remoteEntries = new Map<unknown, LabEntryDraft>();
-    if (Array.isArray(remote.entries)) {
-      for (const entry of remote.entries) {
-        if (entry?.date) remoteEntries.set(entry.date, entry);
-      }
-    }
+    const remoteEntries = mergeLabEntriesByDate(remote.entries, []) || [];
     for (const entry of local.entries) {
       if (!entry?.date) continue;
-      const remoteEntry = remoteEntries.get(entry.date);
+      const remoteEntry = remoteEntries[labPanelPeerIndex(remoteEntries, entry)];
       if (!remoteEntry) return true;
       const localMarkers = entry.markers && typeof entry.markers === 'object' ? entry.markers : {};
       const remoteMarkers = remoteEntry.markers && typeof remoteEntry.markers === 'object' ? remoteEntry.markers : {};

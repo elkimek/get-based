@@ -6,12 +6,12 @@ import { loadScriptOnce, showNotification } from './utils.js';
 import {
   clearSyncDisableStorage,
 } from './sync-disable-cleanup.js';
-import { getPendingBackupRestoreProfileIds } from './sync-backup-restore-state.js';
+import { fingerprintBackupRestoreOwner, getPendingBackupRestoreProfileIds, stageBackupRestorePending, type BackupRestoreStage } from './sync-backup-restore-state.js';
 import { scheduleSyncRuntimeReload } from './sync-runtime.js';
-import { setSyncEnabled } from './sync-settings-state.js';
+import { setSyncEnabled, setSyncPublishingSuspended } from './sync-settings-state.js';
 
 interface SyncAppOwner { id?: unknown; mnemonic?: string }
-interface SyncEvolu { restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown }
+interface SyncEvolu { appOwner?: Promise<SyncAppOwner | null | undefined>; restoreAppOwner: (mnemonic: string, options?: { reload?: boolean }) => unknown }
 
 declare const qrcode: QRCodeFactory | undefined;
 
@@ -20,7 +20,8 @@ let _qrCodeLoad: Promise<QRCodeFactory> | null = null;
 let _getAppOwner: () => SyncAppOwner | null = () => null;
 let _getAppOwnerError: () => unknown = () => null;
 let _getEvolu: () => SyncEvolu | null = () => null;
-let _seedLocalProfiles: () => Promise<unknown> = async () => {};
+let _seedLocalProfiles: (options: {ownerFingerprint: string}) => Promise<BackupRestoreStage | void> = async () => {};
+let _pendingRecoveryRollback: {runtime: SyncEvolu; recovery: BackupRestoreStage} | null = null;
 
 export const RESTORE_JOIN_PENDING_KEY = 'labcharts-sync-restore-join-pending';
 export const RESTORE_NOTICE_KEY = 'labcharts-sync-restore-notice';
@@ -39,7 +40,7 @@ export function consumeSyncRestoreNotice() {
     kind = sessionStorage.getItem(RESTORE_NOTICE_KEY) || '';
     sessionStorage.removeItem(RESTORE_NOTICE_KEY);
   } catch {}
-  if (kind === 'seed-local') return 'Sync identity restored and this device’s data was republished.';
+  if (kind === 'seed-local') return 'Sync identity restored. Publishing this device’s data…';
   if (kind === 'join') return 'Joined existing sync identity. Syncing data from your other device…';
   return null;
 }
@@ -187,14 +188,49 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
     showNotification('Sync is still starting. Wait a moment and try again.', 'error');
     return false;
   }
+  if (_pendingRecoveryRollback) {
+    if (_pendingRecoveryRollback.runtime === evolu) {
+      if (!_pendingRecoveryRollback.recovery.rollback()) {
+        showNotification('Sync recovery progress could not be restored. Your local data is retained. Retry after browser storage is available.', 'error');
+        return false;
+      }
+      setSyncPublishingSuspended(false);
+    }
+    _pendingRecoveryRollback = null;
+  }
   const normalizedMnemonic = normalizeMnemonic(mnemonic);
-  const previousMnemonic = normalizeMnemonic(currentAppOwner()?.mnemonic || '');
+  const previousOwner = currentAppOwner();
+  const previousMnemonic = normalizeMnemonic(previousOwner?.mnemonic || '');
   const identityChanged = !previousMnemonic || previousMnemonic !== normalizedMnemonic;
   setRestoreNotice(options?.seedLocal ? 'seed-local' : 'join');
+  let recovery: BackupRestoreStage | void = undefined;
+  let ownerRestored = false;
+  const shouldStageRecovery = !!options?.seedLocal || getPendingBackupRestoreProfileIds().length > 0;
+  // Ordinary joins also retire this runtime. Receiving the new owner's data
+  // before the controlled reload can start views which navigation will abort.
+  if (setSyncPublishingSuspended(true)) return false;
+  if (shouldStageRecovery) {
+    try {
+      // Confirm durable recovery before resetting the owner or its database.
+      const ownerFingerprint = await fingerprintBackupRestoreOwner(normalizedMnemonic);
+      if (currentEvolu() !== evolu) return false;
+      recovery = options?.seedLocal
+        ? await _seedLocalProfiles({ownerFingerprint})
+        : stageBackupRestorePending(getPendingBackupRestoreProfileIds(), {ownerFingerprint});
+    } catch {
+      if (currentEvolu() !== evolu) return false;
+      setSyncPublishingSuspended(false);
+      clearRestoreNotice();
+      showNotification('Could not save sync recovery progress. Your identity and local data are unchanged. Free browser storage, then retry.', 'error');
+      return false;
+    }
+    if (currentEvolu() !== evolu) { recovery?.rollback(); return false; }
+  }
   try {
     // Keep Evolu 7 from reloading before join/seed finalization. Evolu 8 also
     // accepts this option; GetBased schedules the controlled reload below.
     await evolu.restoreAppOwner(normalizedMnemonic, { reload: false });
+    ownerRestored = true;
     if (currentEvolu() !== evolu) return false;
     if (identityChanged) {
       const reset = await import('./clear-all-profile-reset.js');
@@ -219,10 +255,9 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
       clearSyncDisableStorage();
     }
     if (options?.seedLocal) {
+      // The retiring owner/query cache stays suspended until the reload.
       setRestoreJoinPending(false);
-      await _seedLocalProfiles();
-      if (currentEvolu() !== evolu) return false;
-      showNotification('Restored mnemonic and seeded this device — reloading…', 'success');
+      showNotification('Restored mnemonic — reloading to publish this device’s data…', 'success');
     } else {
       // This device is joining an existing owner. On first pull, old local
       // tombstones from the previous owner must not veto the source device's
@@ -235,6 +270,31 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
     return true;
   } catch {
     if (currentEvolu() !== evolu) return false;
+    if (recovery && !ownerRestored) {
+      // Query the SDK rather than the app's cached owner: v8 can have changed
+      // its durable identity before a replacement-runtime failure is reported.
+      let actualOwner = currentAppOwner();
+      try { if (evolu.appOwner) actualOwner = await evolu.appOwner || null; } catch { actualOwner = null; }
+      if (currentEvolu() !== evolu) return false;
+      if (actualOwner && typeof actualOwner.id === 'string' && actualOwner.id && actualOwner.id === previousOwner?.id) {
+        if (!recovery.rollback()) {
+          _pendingRecoveryRollback = {runtime: evolu, recovery};
+          clearRestoreNotice();
+          showNotification('Sync recovery progress could not be restored. Your local data is retained. Retry after browser storage is available.', 'error');
+          return false;
+        }
+      } else {
+        clearRestoreNotice();
+        showNotification('Sync identity startup did not finish. Your local data is retained. Reload to finish recovery.', 'error');
+        return false;
+      }
+    }
+    if (shouldStageRecovery && ownerRestored) {
+      clearRestoreNotice();
+      showNotification('Sync identity startup did not finish. Your local data is retained. Reload to finish recovery.', 'error');
+      return false;
+    }
+    setSyncPublishingSuspended(false);
     clearRestoreNotice();
     console.error('[sync] Restore failed: invalid or unavailable identity');
     showNotification('Invalid mnemonic', 'error');

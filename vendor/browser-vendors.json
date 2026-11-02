@@ -2,6 +2,16 @@
   "schemaVersion": 2,
   "runtimes": [
     {
+      "package": "@noble/hashes",
+      "version": "2.2.0",
+      "integrity": "sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==",
+      "entry": "scripts/vendor-entries/sha256.js",
+      "output": "vendor/sha256.js",
+      "format": "es",
+      "minified": true,
+      "sha256": "8a24200c9a3b4e6b020fa89885e19a90555459860ed8e37e527bc5a2a4998739"
+    },
+    {
       "package": "@noble/curves",
       "version": "2.2.0",
       "integrity": "sha512-T/BoHgFXirb0ENSPBquzX0rcjXeM6Lo892a2jlYJkqk83LqZx0l1Of7DzlKJ6jkpvMrkHSnAcgb5JegL8SeIkQ==",

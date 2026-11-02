@@ -1,4 +1,5 @@
 export interface CategoryMarkerReader {
+  personalBaselines?: Array<import('../js/marker-baseline.js').MarkerBaseline|null>;
   values: unknown[];
   name?: unknown; unit?: unknown;
   refMin?: unknown; refMax?: unknown; optimalMin?: unknown; optimalMax?: unknown;

@@ -1,7 +1,8 @@
 // Setup writes capture one profile and publish defaults/skin only after atomic storage success.
 import { state } from './state.js';
-import { saveImportedDataForProfile, notifyProfileDataContextChanged } from './data.js';
-import { profileDataBaseline, profileDataValuesEqual, rebaseLiveProfileData, adoptProfileData, rememberProfileData } from './profile-data-writes.js';
+import { commitSunSetupWrite } from './sun-setup-store.js';
+import { retainSunSetupHistory } from './sun-setup-mutations.js';
+import { profileDataBaseline, profileDataValuesEqual } from './profile-data-writes.js';
 import { isProfileReadBlocked } from './profile-load-safety.js';
 import { SKIN_TYPE } from './constants.js';
 import { FITZPATRICK_ROMAN } from './sun-defaults-model.js';
@@ -36,6 +37,7 @@ export function createSunSetupSession() {
   const ticket = captureSunSetupIdentity();
   const profile = state.currentProfile, origin = state.importedData;
   const base = structuredClone(profileDataBaseline(origin) || origin);
+  const source = structuredClone(origin);
   const observedDefaults = structuredClone(origin?.sunDefaults || {});
   const observedLight = structuredClone(origin?.lightCircadian ?? null);
   let retired = false, saving = false, committed = false, lastResult: SunSetupSaveResult | null = null;
@@ -60,21 +62,12 @@ export function createSunSetupSession() {
         draft.lightCircadian = structuredClone(observedLight || defaultLightContext());
         draft.lightCircadian.skinType = SKIN_TYPE[values.skinIdx]!;
       }
-      const saved = await saveImportedDataForProfile(profile, draft, { forceProfileScope: true, baseData: base,
-        expectedContextFields: [
-          { key: 'sunDefaults', value: base.sunDefaults ?? null },
-          ...(values ? [{ key: 'lightCircadian' as const, value: base.lightCircadian ?? null }] : []),
-        ], onContextFieldConflict: () => { conflict = true; },
-      });
-      if (!saved) return finish(conflict ? 'conflict' : 'failed');
+      if (values) retainSunSetupHistory(draft, source, now ?? Date.now());
+      const fields = values ? ['sunDefaults', 'lightCircadian'] as const : ['sunDefaults'] as const;
+      const result = await commitSunSetupWrite(profile, origin, base, source, draft, fields, fields);
+      conflict = result.conflict;
+      if (!result.saved) return finish(conflict ? 'conflict' : 'failed');
       committed = true;
-      try {
-        if (state.currentProfile !== profile || state.importedData !== origin) {
-          const result = rebaseLiveProfileData(base, origin, profileDataBaseline(draft) || draft);
-          adoptProfileData(origin, result.data); rememberProfileData(origin, result.baseline);
-        }
-        if (state.currentProfile === profile) notifyProfileDataContextChanged(profile);
-      } catch { /* Storage committed; view refresh cannot undo it. */ }
       return finish('saved');
     } catch { return finish('failed'); }
     finally { saving = false; }

@@ -12,6 +12,80 @@ const CHAT_PRESENTATION_PATHS = [
   '/css/chat-redesign-open.css',
 ];
 
+test('a profile handoff cancels Chat opening while presentation is loading', async ({ page }) => {
+  let stylesheetRoute: import('@playwright/test').Route | undefined;
+  await page.route('**/css/chat-onboarding.css*', route => { stylesheetRoute = route; });
+  await page.goto('/app', {waitUntil: 'load'});
+  await page.evaluate(async () => {
+    (window as Window & {__chatOpenResult?: ReturnType<typeof import('../../js/chat-panel.js').openChatPanel>}).__chatOpenResult = (await import('/js/chat-panel.js')).openChatPanel();
+  });
+  await expect.poll(() => !!stylesheetRoute).toBe(true);
+  await page.evaluate(async () => { (await import('/js/state.js')).state.currentProfile = 'replacement-profile'; });
+  await stylesheetRoute!.fulfill({status: 200, contentType: 'text/css', body: ''});
+  expect(await page.evaluate(() => (window as Window & {__chatOpenResult?: ReturnType<typeof import('../../js/chat-panel.js').openChatPanel>}).__chatOpenResult)).toBe(false);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('labcharts-replacement-profile-')))).toEqual([]);
+});
+
+test('an already withdrawn background Chat request stays cold and preserves its caller reservation', async ({page}) => {
+  await page.goto('/app', {waitUntil: 'load'});
+  const opened = await page.evaluate(async () => {
+    document.body.classList.add('chat-autostart-reserved');
+    return (await import('/js/chat-panel.js')).openChatPanel(undefined, {canOpen: () => false});
+  });
+  expect(opened).toBe(false);
+  await expect(page.locator('link[data-chat-presentation-stylesheet]')).toHaveCount(0);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
+  await expect(page.locator('body')).toHaveClass(/chat-autostart-reserved/);
+});
+
+test('a foreground Sync popover cancels background Chat during presentation loading', async ({page}) => {
+  let stylesheetRoute: import('@playwright/test').Route | undefined;
+  await page.route('**/css/chat-onboarding.css*', route => { stylesheetRoute = route; });
+  await page.goto('/app', {waitUntil: 'load'});
+  await page.evaluate(async () => {
+    const panel = await import('/js/chat-panel.js');
+    (window as Window & {__chatOpenResult?: ReturnType<typeof panel.openChatPanel>}).__chatOpenResult = panel.openChatPanel(undefined, {canOpen: () => !document.getElementById('sync-popover')});
+  });
+  await expect.poll(() => !!stylesheetRoute).toBe(true);
+  await page.evaluate(() => { const popover=document.createElement('div');popover.id='sync-popover';document.body.append(popover);document.body.classList.add('chat-autostart-reserved'); });
+  await stylesheetRoute!.fulfill({status: 200, contentType: 'text/css', body: ''});
+  expect(await page.evaluate(() => (window as Window & {__chatOpenResult?: Promise<boolean>}).__chatOpenResult)).toBe(false);
+  await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
+  await expect(page.locator('body')).toHaveClass(/chat-autostart-reserved/);
+  await page.evaluate(() => {document.getElementById('sync-popover')!.remove();document.body.classList.remove('chat-autostart-reserved');});
+  expect(await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel())).toBe(true);
+  await expect(page.locator('#chat-panel')).toHaveClass(/open/);
+});
+
+for (const newerOpen of [false, true]) {
+  test(`profile handoff after Chat becomes visible retires only its own opening (newer open: ${newerOpen})`, async ({ page }) => {
+    await page.goto('/app', {waitUntil: 'load'});
+    const result = await page.evaluate(async newerOpen => {
+      const panel = await import('/js/chat-panel.js');
+      const {state} = await import('/js/state.js');
+      const originalProfile = state.currentProfile;
+      const read = Storage.prototype.getItem;
+      let switched = false;
+      let next: ReturnType<typeof panel.openChatPanel> | undefined;
+      Storage.prototype.getItem = function(key) {
+        if (!switched && key === `labcharts-${originalProfile}-chatPersonalityCustom`) {
+          switched = true;
+          state.currentProfile = 'replacement-profile';
+          if (newerOpen) next = panel.openChatPanel();
+        }
+        return read.call(this, key);
+      };
+      try {
+        const first = await panel.openChatPanel();
+        const second = next ? await next : null;
+        return {switched, first, second, visible: document.getElementById('chat-panel')!.classList.contains('open')};
+      } finally { Storage.prototype.getItem = read; }
+    }, newerOpen);
+    expect(result).toEqual({switched: true, first: false, second: newerOpen ? true : null, visible: newerOpen});
+  });
+}
+
 test('Chat presentation stays cold until the panel opens and preserves cascade order', async ({ page }) => {
   let stylesheetRoute: import("@playwright/test").Route | undefined;
   let stylesheetRequests = 0;

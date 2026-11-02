@@ -30,7 +30,7 @@ it('plans array inserts, resurrecting updates, tombstones, unsafe-id skips, and 
     expect(plan.ops.find(op => op.kind === 'update')?.args).toMatchObject({
       id: 'row-existing',
       itemId: 'sun-1',
-      isDeleted: null,
+      isDeleted: 0,
     });
     expect(plan.ops.find(op => op.kind === 'insert')?.args).toMatchObject({ itemId: 'sun-2' });
     expect(plan.ops.find(op => op.kind === 'tombstone')?.args).toMatchObject({ id: 'row-gone', isDeleted: 1 });
@@ -103,7 +103,7 @@ it('plans keyed-map sanitized keys, explicit null clears, row-derived SNPs, and 
         id: 'scalar-row-new',
         arrayName: 'menstrualCycle',
         itemId: 'menstrualCycle',
-        isDeleted: null,
+        isDeleted: 0,
       },
     });
     expect(JSON.parse(scalarPlan.ops[0]!.args.payload!)).toEqual({ v: { cycleLength: 28 } });
@@ -220,7 +220,7 @@ it('plans representative arrays, maps, and scalars, strips genetics SNPs from sc
     });
 
     const debug = vi.fn();
-    applyCommittedDeltas(PROFILE_ID, 'payload-json', deltaPlans, deltaOpCount, debug);
+    await applyCommittedDeltas(PROFILE_ID, 'payload-json', deltaPlans, deltaOpCount, debug);
 
     expect(fake.calls.insert.filter(call => call.table === 'itemRow').length).toBe(deltaOpCount);
     expect(JSON.parse(localStorage.getItem(deltaKey(PROFILE_ID, 'sunSessions'))!)).toHaveProperty('sun-1');
@@ -240,7 +240,7 @@ it('keeps a partially failed surface eligible for retry while continuing later m
   const plan = await _planArrayDelta(PROFILE_ID, 'sunSessions', items);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(fake.evolu, 'insert').mockImplementationOnce(() => { throw new Error('first row failed'); });
-  applyCommittedDeltas(PROFILE_ID, 'blob', [{ arrayName: 'sunSessions', plan }], plan.ops.length, vi.fn());
+  await applyCommittedDeltas(PROFILE_ID, 'blob', [{ arrayName: 'sunSessions', plan }], plan.ops.length, vi.fn());
   expect(fake.itemRows.map(row => row.itemId)).toEqual(['succeeded']);
   expect(localStorage.getItem(deltaKey(PROFILE_ID, 'sunSessions'))).toBeNull();
   expect(localStorage.getItem(`${deltaKey(PROFILE_ID, 'sunSessions')}-meta`)).toBeNull();
@@ -248,6 +248,6 @@ it('keeps a partially failed surface eligible for retry while continuing later m
   expect(retry.ops.map(op => [op.kind, op.args.itemId])).toEqual([
     ['insert', 'failed'], ['update', 'succeeded'],
   ]);
-  applyCommittedDeltas(PROFILE_ID, 'blob', [{ arrayName: 'sunSessions', plan: retry }], retry.ops.length, vi.fn());
+  await applyCommittedDeltas(PROFILE_ID, 'blob', [{ arrayName: 'sunSessions', plan: retry }], retry.ops.length, vi.fn());
   expect(JSON.parse(localStorage.getItem(deltaKey(PROFILE_ID, 'sunSessions'))!)).toEqual(retry.next);
 });

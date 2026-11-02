@@ -18,7 +18,7 @@ import { deleteCycleDB } from './cycle-store.js';
 import { deleteWearablesDB } from './wearables-store.js';
 
 const PROFILE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
-const PROFILE_BLOB_KEY_RE = /^labcharts-([A-Za-z0-9_-]{1,128})-imported(?:-corrupt)?$/;
+const PROFILE_BLOB_KEY_RE = /^labcharts-([A-Za-z0-9_-]{1,128})-(?:imported(?:-corrupt)?|agent-draft-claims|persona-transaction)$/;
 const PROFILE_DATABASE_RE = /^(?:labcharts-(?:wearables|cycle)|getbased-nutrition)-([A-Za-z0-9_-]{1,128})$/;
 const ALTERNATE_LOCAL_PREFIXES = [
   'labcharts-onboard-provider-skipped-',
@@ -136,6 +136,11 @@ export async function clearProfileStorage(profileId: string) {
       profileStorageKey(profileId, 'imported-corrupt'),
       { throwOnBlobError: true },
     ),
+    cleanupDeps.encryptedRemoveItem(
+      profileStorageKey(profileId, 'agent-draft-claims'),
+      { throwOnBlobError: true },
+    ),
+    cleanupDeps.encryptedRemoveItem(profileStorageKey(profileId, 'persona-transaction'), { throwOnBlobError: true }),
   ]);
 
   // Prefix cleanup covers chat messages even when an encrypted/corrupt thread

@@ -6,7 +6,7 @@ import type { ProfileData } from '../../types/app-state.js';
 import type { BackupSnapshot } from '../../js/backup.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 const originalNote = 'Retain the original synthetic note.';

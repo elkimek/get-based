@@ -1,10 +1,12 @@
 import {afterEach, expect, it, vi} from 'vitest';
 import {bindSyncSubscriptions, clearSyncSubscriptionTimers, configureSyncSubscriptions, type SyncSubscriptionClient} from '../js/sync-subscriptions.js';
 import {getSyncDisplayState, getSyncStatus, getSyncStatusNotice, resetSyncStatus, updateSyncStatus, type OwnerReplicationStatus, type DevicePersistenceStatus} from '../js/sync-state.js';
+import * as relayHealth from '../js/sync-relay-health.js';
 
-afterEach(() => {clearSyncSubscriptionTimers(); resetSyncStatus();});
+afterEach(() => {clearSyncSubscriptionTimers(); resetSyncStatus(); vi.restoreAllMocks();});
 
 it('keeps replication, database persistence and owner-storage push confirmation independent', () => {
+  const quota = vi.spyOn(relayHealth, 'scheduleOwnerStorageRefresh').mockImplementation(() => {});
   let ownerStatus!: (status: OwnerReplicationStatus) => void;
   let persistence!: (status: DevicePersistenceStatus) => void;
   let error!: Parameters<SyncSubscriptionClient['subscribeError']>[0];
@@ -19,6 +21,7 @@ it('keeps replication, database persistence and owner-storage push confirmation 
   bindSyncSubscriptions({evolu: client, profileQuery: {}, tombstoneQuery: {}, itemRowQuery: {}});
   updateSyncStatus({relay: 'connected', push: 'pending', pushStartedAt: Date.now()});
   ownerStatus({type: 'Synced'});
+  expect(quota).toHaveBeenCalledTimes(1);
   expect(getSyncStatus().push).toBe('pending'); expect(getSyncDisplayState(true)).toBe('syncing');
   expect(getSyncStatus().pushConfirmedAt).toBeNull();
   persistence('Unknown'); expect(getSyncStatusNotice(getSyncStatus())).toContain('may clear');
@@ -26,11 +29,13 @@ it('keeps replication, database persistence and owner-storage push confirmation 
   persistence('Persisted'); expect(getSyncStatusNotice(getSyncStatus())).toBeNull();
   ownerStatus({type: 'Offline'}); expect(getSyncDisplayState(true)).toBe('offline');
   ownerStatus({type: 'Error', error: {type: 'ProtocolQuotaError', at: 100}});
+  expect(quota).toHaveBeenCalledTimes(1);
   expect(getSyncDisplayState(true)).toBe('error'); expect(getSyncStatusNotice(getSyncStatus())).toContain('Relay storage is full');
   persistence('NotPersisted'); expect(getSyncStatusNotice(getSyncStatus())).toContain('temporary');
   expect(getSyncStatusNotice(getSyncStatus())).toContain('Relay storage is full');
   persistence('Persisted');
   ownerStatus({type: 'Synced'}); expect(getSyncStatus().push).toBe('pending');
+  expect(quota).toHaveBeenCalledTimes(2);
   error({type: 'DatabaseHeldError'}); expect(getSyncDisplayState(true)).toBe('error');
   expect(getSyncStatusNotice(getSyncStatus())).toContain('restart the browser');
   error(null); expect(getSyncDisplayState(true)).toBe('syncing');

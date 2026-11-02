@@ -6,8 +6,8 @@ export interface DeltaQueryClient {
   getQueryRows(query: unknown): readonly DeltaItemRow[] | null | undefined;
 }
 export interface DeltaMutationClient extends DeltaQueryClient {
-  insert(table: 'itemRow', args: unknown): unknown;
-  update(table: 'itemRow', args: unknown): unknown;
+  insert(table: 'itemRow', args: unknown, options?: {onComplete?: () => void}): unknown;
+  update(table: 'itemRow', args: unknown, options?: {onComplete?: () => void}): unknown;
 }
 export interface DeltaQueryOptions<Client extends DeltaQueryClient = DeltaQueryClient> {
   getEvolu?: (() => Client | null | undefined) | undefined;

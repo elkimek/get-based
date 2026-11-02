@@ -48,9 +48,14 @@ vi.mock('../js/pdf-import-persistence.js', async importOriginal => ({
 
 import { state } from '../js/state.js';
 import { handleBatchPDFs, type BatchPDFOutcome } from '../js/pdf-import.js';
+import { readAutoImportFeedConfig, saveAutoImportFeedUrl } from '../js/auto-import-feed.js';
+import { checkAutoImportFeed, configureAutoImportFeedRuntimeDeps } from '../js/auto-import-feed-runtime.js';
+import { importDispatch } from '../js/pdf-import-progress.js';
 
 let previousProfile: string;
+let previousFeedDeps: ReturnType<typeof configureAutoImportFeedRuntimeDeps> | undefined;
 beforeEach(() => {
+  localStorage.clear();
   previousProfile = state.currentProfile;
   state.currentProfile = 'alpha';
   pii.available = false;
@@ -58,8 +63,12 @@ beforeEach(() => {
   pii.review.mockReset();
 });
 afterEach(() => {
+  if (previousFeedDeps) configureAutoImportFeedRuntimeDeps(previousFeedDeps);
+  previousFeedDeps = undefined;
+  importDispatch.busy = false;
   state.currentProfile = previousProfile;
   vi.useRealTimers();
+  localStorage.clear();
 });
 
 async function outcomeOf(): Promise<BatchPDFOutcome[]> {
@@ -100,5 +109,41 @@ describe('batch privacy review outcomes', () => {
   it('keeps a cancel with no local model configured as an explicit skip', async () => {
     pii.review.mockResolvedValue('cancel');
     expect(await outcomeOf()).toEqual(['skipped']);
+  });
+
+  it.each(['stream failure', 'unreachable model', 'review unavailable'])('offers a report again after %s, then persists a deliberate skip', async failure => {
+    const feed = 'https://reports.example.test/feed.json';
+    const fetchFeed = vi.fn(async (input: RequestInfo | URL) => String(input) === feed
+      ? new Response(JSON.stringify({ items: [{ id: 'report-1', title: 'Report', url: '/report.pdf' }] }), { headers: { 'content-type': 'application/json' } })
+      : new Response(new TextEncoder().encode('%PDF-1.4\n%%EOF\n'), { headers: { 'content-type': 'application/pdf' } }));
+    previousFeedDeps = configureAutoImportFeedRuntimeDeps({
+      fetch: fetchFeed,
+      confirm: async () => true,
+      notify: vi.fn(),
+      loadImportUI: async () => ({ handleBatchPDFs }),
+      isImportRunning: () => false,
+    });
+    saveAutoImportFeedUrl('alpha', feed);
+    pii.available = failure === 'stream failure';
+    pii.localModelConfigured = failure === 'unreachable model';
+    pii.review.mockResolvedValue(failure === 'unreachable model' ? 'cancel' : '\u0000pii-review-unavailable');
+    vi.useFakeTimers();
+    const check = async () => {
+      const pending = checkAutoImportFeed({ interactive: true });
+      await vi.runAllTimersAsync();
+      return pending;
+    };
+    expect(await check()).toBe('started');
+    expect(readAutoImportFeedConfig('alpha')).toMatchObject({ doneIds: [], failedIds: ['report-1'] });
+    expect(pii.review).toHaveBeenCalledTimes(1);
+
+    pii.available = true;
+    pii.review.mockResolvedValue('cancel');
+    expect(await check()).toBe('started');
+    expect(pii.review).toHaveBeenCalledTimes(2);
+    expect(readAutoImportFeedConfig('alpha')).toMatchObject({ doneIds: ['report-1'], failedIds: [] });
+    expect(await check()).toBe('none');
+    expect(pii.review).toHaveBeenCalledTimes(2);
+    expect(fetchFeed).toHaveBeenCalledTimes(5); // Three feed checks, two PDF downloads.
   });
 });

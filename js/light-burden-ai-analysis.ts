@@ -38,8 +38,7 @@ type RawVerdictEngine<T> = Omit<AIVerdictEngine<T>, 'analyze' | 'refresh'> & {an
 
 function _getEnv(data: ProfileData = state.importedData) {
   if (!data) return null;
-  if (!data.lightEnvironment) data.lightEnvironment = { rooms: [], screens: [] };
-  return data.lightEnvironment as BurdenEnvironment;
+  return (data.lightEnvironment || null) as BurdenEnvironment | null;
 }
 
 const _SOURCE_LABELS: Record<string, string> = {

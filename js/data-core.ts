@@ -1,4 +1,8 @@
+import { applyBaseMarkerRanges } from './marker-range-core.js';
+import { customMarkerState } from './custom-marker-core.js';
+import { applyLabOrderingToView } from './lab-ordering-view.js';
 // Canonical data projection and serialized profile saves, with explicit service ports.
+import { buildMarkerBaselines } from './marker-baseline.js';
 import type { ProfileData as ImportedDataRecord } from '../types/app-state.js';
 import type { LabEntry, LabCollectionContext } from '../types/lab-data.js';
 import type { ActiveData, ActiveCategory, ActiveMarker, MarkerViewRange } from './data-view-types.js';
@@ -131,6 +135,7 @@ export function createDataCore(ports: DataCorePorts) {
       entriesLength: Array.isArray(entries) ? entries.length : 0,
       customMarkers: importedData.customMarkers || null,
       markerPlacements: importedData.markerPlacements || null,
+      labOrdering: importedData.labOrdering || null,
       refOverrides: importedData.refOverrides || null,
       categoryLabels: importedData.categoryLabels || null,
       categoryIcons: importedData.categoryIcons || null,
@@ -203,6 +208,11 @@ export function createDataCore(ports: DataCorePorts) {
   function persistProfileSnapshot(profileId: string, source: ImportedDataRecord, options: ProfileSaveOptions) {
     const intent = structuredClone(source);
     const expectedFields = structuredClone([...(options.expectedContextFields || []), ...(options.expectedContextField ? [options.expectedContextField] : [])]);
+    const expectedRecords = structuredClone(options.expectedProfileRecords || []);
+    const expectedMapEntries = structuredClone(options.expectedProfileMapEntries || []);
+    const expectedCustomMarkers = structuredClone(options.expectedCustomMarkerStates || []);
+    const expectedLabDates = structuredClone(options.expectedLabDateRecords || []);
+    const expectedLabPanels = structuredClone(options.expectedLabPanelRecords || []);
     const previousSave = options.activeSave && pendingProfileSaves.get(source);
     const snapshot: ProfileSaveSnapshot = { baseline: options.baseData, base: options.baseData ? structuredClone(options.baseData) : null, intent, committed: false, profileId };
     if (options.activeSave) pendingProfileSaves.set(source, snapshot);
@@ -215,29 +225,69 @@ export function createDataCore(ports: DataCorePorts) {
       const base = snapshot.base;
       let persisted;
       let changed;
+      let mutationBefore: string | null = null;
       try {
+        if (options.canCommit && !options.canCommit()) return false;
         if ((0, ports.isProfileReadBlocked)(profileId)) return false;
         const key = (0, ports.profileStorageKey)(profileId, 'imported');
         const previous = await (0, ports.encryptedGetItem)(key, { throwOnDecryptError: true });
+        mutationBefore = previous;
         // Explicit restores must retry if their reviewed snapshot changed.
         if (options.expectedData !== undefined && previous !== options.expectedData) {
           if (options.notifyOnStaleSnapshot === false) return false;
           throw new ports.ProfileWriteConflict('Stale import');
         }
-        const stored = previous != null && (base || options.expectedContextNotes !== undefined || expectedFields.length > 0) ? JSON.parse(previous) : {};
+        const stored = previous != null && (base || options.expectedContextNotes !== undefined || expectedFields.length > 0 || expectedRecords.length > 0 || expectedMapEntries.length > 0 || expectedLabDates.length > 0 || expectedCustomMarkers.length > 0) ? JSON.parse(previous) : {};
+        for (const expected of expectedCustomMarkers) if (!ports.profileDataValuesEqual(customMarkerState(stored, expected.markerKey), expected.value)) {
+          try { options.onContextFieldConflict?.(); } catch { /* The write still fails closed. */ }
+          throw new ports.ProfileWriteConflict('The reviewed custom marker changed');
+        }
         // Notes drafts can outlive a view/profile load. Check their observed
         // value inside the same locked read/merge/write that commits the edit.
         if (options.expectedContextNotes !== undefined && String(stored.contextNotes || '') !== options.expectedContextNotes) {
           try { options.onContextNotesConflict?.(String(stored.contextNotes || '')); } catch { /* Observation cannot bypass the conflict guard. */ }
           throw new ports.ProfileWriteConflict('Context notes changed since this edit');
         }
-        // Legacy profiles omit an empty Lens; it has the same string contract as ''.
+        // Fresh/legacy profiles omit empty Goals and Lens. Match their editor
+        // defaults while still rejecting any actual intervening field change.
         for (const expectedField of expectedFields) {
-          const contextValue = expectedField.key === 'interpretiveLens' ? stored.interpretiveLens ?? '' : stored[expectedField.key] ?? null;
-          const observedContextValue = expectedField.key === 'interpretiveLens' ? expectedField.value ?? '' : expectedField.value;
+          const hasDefault = expectedField.key === 'interpretiveLens' || expectedField.key === 'healthGoals';
+          const empty = expectedField.key === 'healthGoals' ? [] : '';
+          const contextValue = stored[expectedField.key] ?? (hasDefault ? empty : null);
+          const observedContextValue = hasDefault ? expectedField.value ?? empty : expectedField.value;
           if (!ports.profileDataValuesEqual(contextValue, observedContextValue)) {
             try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
             throw new ports.ProfileWriteConflict('Context field changed since this edit');
+          }
+        }
+        for (const expected of expectedRecords) {
+          const records: unknown = stored[expected.key];
+          const matches = (Array.isArray(records) ? records : []).filter(row => ports.getConfiguredArrayItemId(expected.key, row) === expected.id);
+          if (records != null && !Array.isArray(records) || matches.length > 1 || !ports.profileDataValuesEqual(matches[0] ?? null, expected.value)) {
+            try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
+            throw new ports.ProfileWriteConflict('The reviewed record changed');
+          }
+        }
+        for (const expected of expectedMapEntries) {
+          const map: unknown = stored[expected.key];
+          if (map != null && (typeof map !== 'object' || Array.isArray(map))
+            || !ports.profileDataValuesEqual((map as Record<string, unknown> | null | undefined)?.[expected.id] ?? null, expected.value)) {
+            try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
+            throw new ports.ProfileWriteConflict('The reviewed map entry changed');
+          }
+        }
+        for (const expected of expectedLabDates) {
+          const entries: unknown = stored.entries;
+          if (entries != null && !Array.isArray(entries) || !ports.profileDataValuesEqual((Array.isArray(entries) ? entries : []).filter(row => row?.date === expected.date), expected.value)
+            || expected.deletion && !ports.profileDataValuesEqual(ports.labDateDeletionState(stored, expected.date), expected.deletion)) {
+            try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
+            throw new ports.ProfileWriteConflict('The reviewed lab date changed');
+          }
+        }
+        for (const expected of expectedLabPanels) {
+          if (!ports.profileDataValuesEqual(ports.labSampleIdentityRows(stored, expected.panelId), expected.value)) {
+            try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
+            throw new ports.ProfileWriteConflict('The reviewed lab sample identity changed');
           }
         }
         const latest = base ? stored : {};
@@ -254,16 +304,29 @@ export function createDataCore(ports: DataCorePorts) {
         (0, ports.migrateProfileData)(persisted);
         const value = JSON.stringify(persisted);
         changed = previous !== value;
+        if (options.canCommit && !options.canCommit()) return false;
         if (changed) await (0, ports.encryptedSetItem)(key, value);
         snapshot.committed = true;
       } catch (e) {
         return failedProfileSave(e);
       }
+      try {
+        if (changed) (0, ports.noteProfileDataCommit)(profileId, mutationBefore, persisted);
+        else if (base && !(0, ports.profileDataValuesEqual)(base, intent)) {
+          (0, ports.noteProfileDataCommit)(profileId, JSON.stringify(base), intent);
+        }
+      } catch { /* Observation cannot turn a durable save into a failed save. */ }
       // Storage has committed. Adoption and hooks cannot turn it into a failed save.
       try {
         const live = ports.state.currentProfile === profileId ? ports.state.importedData : null;
         if (live && (options.activeSave || base)) {
-          const result = (0, ports.rebaseLiveProfileData)(options.activeSave ? intent : (0, ports.profileDataBaseline)(live) || base, live, persisted);
+          // A reload may install another object for this same profile while
+          // the save awaits storage. Its own origin distinguishes a stale
+          // loaded value from a new unsaved edit; this save's intent belongs
+          // only to the object it captured.
+          const liveBase = options.activeSave && live === source
+            ? intent : (0, ports.profileDataBaseline)(live) || base;
+          const result = (0, ports.rebaseLiveProfileData)(liveBase, live, persisted);
           if (persisted.biologyScoreAI) result.data.biologyScoreAI = persisted.biologyScoreAI;
           (0, ports.adoptProfileData)(live, result.data);
           (0, ports.rememberProfileData)(live, result.baseline);
@@ -274,7 +337,9 @@ export function createDataCore(ports: DataCorePorts) {
       } catch (e) {
         if ((0, ports.isDebugMode)()) console.warn('Live profile refresh failed after data was persisted:', e);
       }
-      if (!changed && options.activeSave) return true;
+      // A pull may have persisted this live intent while the save waited for
+      // its lock. It still needs an upload marker even without another write.
+      if (!changed && options.activeSave && (!base || (0, ports.profileDataValuesEqual)(base, intent))) return true;
       try {
         (0, ports.broadcastDataChanged)(profileId);
         (0, ports.scheduleAutoBackup)();
@@ -282,7 +347,10 @@ export function createDataCore(ports: DataCorePorts) {
         if (options.activeSave && ports.state.currentProfile === profileId) {
           dataContextDeps.invalidateLabContextCache?.();
           (0, ports.onDataSaved)(options);
-        } else if (!options?.skipSync) (0, ports.onProfileSaved)(profileId, persisted);
+        } else if (!options?.skipSync) {
+          if (options.immediate) (0, ports.onProfileSaved)(profileId, persisted, { immediate: true });
+          else (0, ports.onProfileSaved)(profileId, persisted);
+        }
       } catch (e) {
         if ((0, ports.isDebugMode)()) console.warn('Post-save hook failed after data was persisted:', e);
       }
@@ -321,44 +389,8 @@ export function createDataCore(ports: DataCorePorts) {
 
     (0, ports.mergeCustomMarkerDefinitions)(data, ports.state.importedData?.customMarkers || {});
 
-    // Apply sex-specific reference ranges
-    if (ports.state.profileSex === 'female') {
-      for (const cat of Object.values(data.categories)) {
-        for (const marker of Object.values(cat.markers)) {
-          if (marker.refMin_f !== undefined) marker.refMin = marker.refMin_f;
-          if (marker.refMax_f !== undefined) marker.refMax = marker.refMax_f;
-        }
-      }
-    }
-
-    // Merge optimal ranges into markers
-    for (const [fullKey, opt] of Object.entries(ports.OPTIMAL_RANGES)) {
-      const [catKey, markerKey] = fullKey.split('.') as [string, string];
-      const cat = data.categories[catKey];
-      if (cat && cat.markers[markerKey]) {
-        const marker = cat.markers[markerKey];
-        marker.optimalMin = ports.state.profileSex === 'female' && opt.optimalMin_f !== undefined
-          ? opt.optimalMin_f : opt.optimalMin;
-        marker.optimalMax = ports.state.profileSex === 'female' && opt.optimalMax_f !== undefined
-          ? opt.optimalMax_f : opt.optimalMax;
-      }
-    }
-
-    // Apply user range overrides (ref + optimal, after schema defaults are set)
     const refOverrides = (ports.state.importedData?.refOverrides || {}) as Record<string, MarkerRangeOverride>;
-    for (const [fullKey, ovr] of Object.entries(refOverrides)) {
-      const [catKey, markerKey] = fullKey.split('.') as [string, string];
-      const cat = data.categories[catKey];
-      if (cat && cat.markers[markerKey]) {
-        const m = cat.markers[markerKey];
-        if ('refMin' in ovr) m.refMin = ovr.refMin;
-        if ('refMax' in ovr) m.refMax = ovr.refMax;
-        if ('refMin' in ovr || 'refMax' in ovr) m.referenceRangeSource = ovr.refSource || 'custom';
-        if ('optimalMin' in ovr) m.optimalMin = ovr.optimalMin;
-        if ('optimalMax' in ovr) m.optimalMax = ovr.optimalMax;
-        if ('optimalMin' in ovr || 'optimalMax' in ovr) m.optimalRangeSource = ovr.optimalSource || 'custom';
-      }
-    }
+    applyBaseMarkerRanges(data.categories, ports.state.profileSex, ports.OPTIMAL_RANGES, refOverrides);
 
     // Apply user category label + icon overrides
     const catLabels = (ports.state.importedData?.categoryLabels || {}) as Record<string, string>;
@@ -594,9 +626,21 @@ export function createDataCore(ports: DataCorePorts) {
       refOverrides,
     });
     applyUnitConversion(data, ports.state.unitSystem);
+    // Derive from full history before UI date filtering; never persist this
+    // descriptive comparison or use it to replace clinical/optimal ranges.
+    for (const category of Object.values(data.categories)) {
+      for (const marker of Object.values(category.markers)) {
+        if (!marker.singlePoint && !category.singlePoint) {
+          const baselines = buildMarkerBaselines(marker.values, data.dates);
+          if (baselines.some(Boolean)) marker.personalBaselines = baselines;
+          else delete marker.personalBaselines;
+        }
+      }
+    }
     // Values, calculations, and unit conversions always run against immutable
     // storage dotkeys. Category placement is a final view projection only.
     (0, ports.applyMarkerPlacements)(data.categories, ports.state.importedData || {});
+    applyLabOrderingToView(data.categories, ports.state.importedData?.labOrdering);
     _activeDataCache = data;
     _activeDataCacheMeta = cacheMeta;
     return data;
@@ -708,6 +752,7 @@ export function createDataCore(ports: DataCorePorts) {
           filteredCat.markers[mKey] = {
             ...marker,
             values: indices.map(i => marker.values[i] as number | null),
+            ...(marker.personalBaselines && { personalBaselines: indices.map(i => marker.personalBaselines![i] ?? null) }),
             ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges![i]) }),
             ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels![i]) }),
             ...(marker.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => marker.phaseDisplayLabels![i]) }),

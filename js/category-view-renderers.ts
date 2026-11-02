@@ -10,6 +10,7 @@ import { getChartColors } from './theme.js';
 import { ensureChartJs, formatChartTickValue } from './health-data-loader.js';
 import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
+import { baselineForDate, projectMarkerBaseline } from './marker-baseline.js';
 
 const categoryRendererDelegateRoots = new WeakSet<CategoryDelegateRoot>();
 const STACKED_SNAPSHOT_UNIT_LENGTH = 12;
@@ -171,7 +172,12 @@ export function projectCategoryChartCard(id: string, marker: CategoryMarkerReade
     ? `${markerName}. ${statusLabel}. Latest ${latestDisplay}${latestUnit ? ` ${latestUnit}` : ''}, ${latestDateLabel}. ${rangeAria}.${trendBadge ? ` ${trend.label}.` : ''}`
     : `${markerName}. No values. ${rangeAria}.`;
   const nameTitle=categoryLiteral(markerName),name=categoryLiteral(markerName);
-  const accessibleLabel=categoryLiteral(cardLabel),latestValue=categoryLiteral(latestDisplay);
+  const baselineDate = chartDates[latestIdx];
+  const baseline = typeof baselineDate === 'string' && Object.prototype.hasOwnProperty.call(marker, 'personalBaselines')
+    ? baselineForDate(marker, latestIdx, baselineDate) : null;
+  const baselineSummary = projectMarkerBaseline(baseline, String(latestUnit), formatValue);
+  const baselineLabel = baselineSummary && baseline ? ` Personal baseline ${baselineSummary.value}, median of ${baseline.count} prior draws. ${baselineSummary.comparison}.` : '';
+  const accessibleLabel=categoryLiteral(cardLabel + baselineLabel),latestValue=categoryLiteral(latestDisplay);
   const unit=latestVal!==null&&latestUnit?categoryLiteral(latestUnit):null;
   const latestMetadata=categoryLiteral(latestMeta),rangeLabel=categoryLiteral(rangeAria);
   const ranges=rangeRows.map(row=>{

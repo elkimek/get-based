@@ -12,6 +12,8 @@ let chat: ChatMocks, deps: DependencyMocks;
 beforeEach(() => {
   vi.resetAllMocks();
   state.currentProfile = 'a';
+  state.currentThreadId = null;
+  state.chatHistory = [];
   (state as { importedData: unknown }).importedData = { entries: [] };
   (state as { chatThreads: unknown }).chatThreads = [{ id: 'a-thread' }];
   state.nutritionSummary = { profile: 'a' };
@@ -110,4 +112,48 @@ it.each(['recovery', 'migration', 'summary'])('stops refresh when the same profi
   await refreshProfileWearables('a', {});
   expect(mocks.stale).not.toHaveBeenCalled();
   if (stage !== 'summary') expect(deps.syncWearableSummary).not.toHaveBeenCalled();
+});
+
+it.each(['hydration', 'module', 'personalities', 'threads'])('preserves newly claimed chat while profile initialization awaits %s', async stage => {
+  const profile = state.importedData;
+  const history = [{ role: 'assistant' as const, content: 'New review awaiting approval' }];
+  const threads = [{ id: 'new-review', name: 'New review', createdAt: '2026-11-01', updatedAt: '2026-11-01', messageCount: 1 }];
+  const claim = () => { state.chatHistory = history; state.chatThreads = threads; state.currentThreadId = 'new-review'; };
+  if (stage === 'hydration') deps.hydrateNutritionSummary.mockImplementation(async () => claim());
+  if (stage === 'module') mocks.load.mockImplementation(async () => { claim(); return chat; });
+  if (stage === 'personalities') chat.loadCustomPersonalities.mockImplementation(async () => claim());
+  if (stage === 'threads') chat.loadChatThreads.mockImplementation(async () => { claim(); return true; });
+  await reloadProfileRuntimeShell('a');
+  expect(chat.loadChatHistory).not.toHaveBeenCalled();
+  expect(chat.ensureActiveThread).not.toHaveBeenCalled();
+  expect(state.chatHistory).toBe(history);
+  expect(state.chatHistory).toEqual([{ role: 'assistant', content: 'New review awaiting approval' }]);
+  expect(state.chatThreads).toBe(threads);
+  expect(state.currentThreadId).toBe('new-review');
+  expect(state.importedData).toBe(profile);
+  expect(deps.navigate).toHaveBeenCalledExactlyOnceWith('dashboard');
+  expect(deps.renderProfileButton).toHaveBeenCalledOnce();
+});
+it.each(['thread', 'message', 'replacement'])('does not restore history over an already claimed %s', async claim => {
+  if (claim === 'thread') state.currentThreadId = 'new-thread';
+  if (claim === 'message') state.chatHistory.push({ role: 'user', content: 'New message' });
+  const history = state.chatHistory;
+  if (claim === 'replacement') deps.hydrateNutritionSummary.mockImplementation(async () => { state.chatHistory = []; });
+  await reloadProfileRuntimeShell('a');
+  expect(chat.loadCustomPersonalities).not.toHaveBeenCalled();
+  expect(chat.loadChatThreads).not.toHaveBeenCalled();
+  expect(chat.loadChatHistory).not.toHaveBeenCalled();
+  if (claim !== 'replacement') expect(state.chatHistory).toBe(history);
+  expect(deps.navigate).toHaveBeenCalledExactlyOnceWith('dashboard');
+});
+it('restores the normal stored conversation when empty chat remains unclaimed', async () => {
+  chat.ensureActiveThread.mockImplementation(() => { state.currentThreadId = 'a-thread'; });
+  chat.loadChatThreads.mockResolvedValue(true);
+  await reloadProfileRuntimeShell('a');
+  expect(chat.loadCustomPersonalities).toHaveBeenCalledOnce();
+  expect(chat.loadChatThreads).toHaveBeenCalledOnce();
+  expect(chat.ensureActiveThread).toHaveBeenCalledOnce();
+  expect(chat.loadChatHistory).toHaveBeenCalledOnce();
+  expect(state.currentThreadId).toBe('a-thread');
+  expect(deps.renderProfileButton).toHaveBeenCalledOnce();
 });

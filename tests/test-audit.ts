@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { sourceFunctionHasInitializer } from './helpers/native-source-contracts.js';
+import { sourceFunctionHasInitializer, sourceFunctionHasStatement, sourceFunctionReturnsChainContaining, sourceFactoryPropertyHasInitializer, sourceFunctionVariableCallHasArgument } from './helpers/native-source-contracts.js';
 import { deviceLibraryClasses } from '../js/light-device-library-classes.js';
 import { deviceSetupClasses } from '../js/light-device-setup-classes.js';
 import { dataModuleSource } from './helpers/data-module-source.js';
@@ -202,7 +202,7 @@ const viewsRuntimePublicExport = /export\s*\{([^}]+)\}\s*from\s*['"]\.\/views-ru
 const viewsRuntimePublicNames = new Set(
   (viewsRuntimePublicExport?.[1] || '').split(',').map(name => name.trim()),
 );
-const categoryViewsRouteAuditSrc = viewsRuntimeAuditSrc.replace(/(correlations: data => showCategoryPresentationRoute\()\s*'correlations',\s*'Correlations',/, "$1\n      'correlations',\n      'Correlations',");
+const navigationViewsAuditSrc = read('js/navigation-views.js');
 const dashboardCoreAuditSrc = read('css/dashboard-core.css');
 const dashboardDataAuditSrc = read('css/dashboard-data.css');
 const sharedControlsAuditSrc = read('styles.css');
@@ -217,12 +217,27 @@ assert('category views CSS lazy-load anchor preserves the original cascade posit
   indexSrc.indexOf('data-category-views-stylesheet-anchor') <
     indexSrc.indexOf('href="css/context-profile.css"'));
 assert('category, compare, and correlations routes wait for category presentation',
-  categoryViewsRouteAuditSrc.includes("category: (category, data) => showCategoryPresentationRoute(") &&
-  categoryViewsRouteAuditSrc.includes("showCategoryPresentationRoute('compare'") &&
-  categoryViewsRouteAuditSrc.includes("'correlations',\n      'Correlations',") &&
-  categoryViewsRouteAuditSrc.includes('() => isCategoryViewsStylesheetLoaded() && (!needsCharts || isChartsModuleLoaded())') &&
-  categoryViewsRouteAuditSrc.includes('loadCategoryViewsStylesheet(),') &&
-  /function showPreparedRoute[^\n]*\{[\s\S]{0,800}return prepare\(\)\s*\.then\(async[^\n]*\{[\s\S]{0,300}await render\(\.\.\.args\)/.test(viewsRuntimeAuditSrc) &&
+  viewsRuntimeAuditSrc.includes("export * from './navigation-views.js'") &&
+  sourceFactoryPropertyHasInitializer(navigationViewsAuditSrc, '_navigate', 'createNavigate', ['routeHandlers', 'category'],
+    `(category, data) => showPreparedRoute(category, 'Category',
+      () => !!getLoadedCategoryPageBody() && isCategoryViewsStylesheetLoaded() && isChartsModuleLoaded(),
+      () => Promise.all([loadCategoryPage(), loadCategoryViewsStylesheet(), loadChartsModule()]),
+      () => getLoadedCategoryPageBody().showCategory(category, data))`) &&
+  sourceFactoryPropertyHasInitializer(navigationViewsAuditSrc, '_navigate', 'createNavigate', ['routeHandlers', 'compare'],
+    `data => showCategoryPresentationRoute('compare', 'Compare', () => showCompare(data))`) &&
+  sourceFactoryPropertyHasInitializer(navigationViewsAuditSrc, '_navigate', 'createNavigate', ['routeHandlers', 'correlations'],
+    `data => showCategoryPresentationRoute('correlations', 'Correlations', () => showCorrelations(data), { charts: true })`) &&
+  sourceFunctionHasInitializer(navigationViewsAuditSrc, 'showCategoryPresentationRoute', 'needsCharts', 'options.charts === true') &&
+  sourceFunctionHasStatement(navigationViewsAuditSrc, 'showCategoryPresentationRoute',
+    `return showPreparedRoute(route, label,
+      () => isCategoryViewsStylesheetLoaded() && (!needsCharts || isChartsModuleLoaded()),
+      () => Promise.all([loadCategoryViewsStylesheet(), ...(needsCharts ? [loadChartsModule()] : [])]), render);`, 'last') &&
+  sourceFunctionReturnsChainContaining(navigationViewsAuditSrc, 'showPreparedRoute', `prepare().then(async () => {
+    if (state.currentView !== route || !ownsView()) return false;
+    if (await render(...args) === false || state.currentView !== route || !ownsView()) return false;
+    syncMobileBottomNav(route);
+    return true;
+  })`) &&
   ['navigate', 'showCategory', 'showCompare', 'showCorrelations'].every(name => viewsRuntimePublicNames.has(name)));
 assert('dashboard-owned category primitives remain eager',
   dashboardCoreAuditSrc.includes('.category-header { margin-bottom: 24px; }') &&
@@ -303,7 +318,7 @@ const clientListSrc = read('js/client-list-impl.js');
 const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const wearablesRuntimeAuditSrc = read('js/wearables-runtime.js');
 const cycleRuntimeAuditSrc = read('js/cycle-runtime.js');
-const cycleViewsAuditSrc = viewsRuntimeAuditSrc;
+const cycleViewsAuditSrc = navigationViewsAuditSrc;
 const themeAuditSrc = read('js/theme.js');
 const extraThemeBootstrapSrc = read('js/extra-theme-bootstrap.js');
 const extraThemesAuditSrc = read('themes-extra.css');
@@ -671,16 +686,26 @@ assert('category-customization.js owns rename/icon helpers',
   /export async function renameMarker/.test(categoryCustomizationSrc) &&
   /export function changeCategoryIcon/.test(categoryCustomizationSrc) &&
   /export function showEmojiPicker/.test(categoryCustomizationSrc));
-assert('category rename rejects whitespace-only labels after trim',
-  /export async function renameCategory[^{]*\{[\s\S]{0,700}const trimmed = newLabel\.trim\(\);\s*if\s*\(\s*!trimmed\s*\)\s*return/.test(categoryCustomizationSrc));
-assert('marker rename rejects whitespace-only labels after trim',
-  /export async function renameMarker[^{]*\{[\s\S]{0,700}const trimmed = newName\.trim\(\);\s*if\s*\(\s*!trimmed\s*\)\s*return/.test(categoryCustomizationSrc));
+const categoryRenameSource = categoryCustomizationSrc.slice(categoryCustomizationSrc.indexOf('export async function renameCategory'), categoryCustomizationSrc.indexOf('export async function renameMarker'));
+const markerRenameSource = categoryCustomizationSrc.slice(categoryCustomizationSrc.indexOf('export async function renameMarker'), categoryCustomizationSrc.indexOf('export async function revertMarkerName'));
+assert('category rename rejects whitespace-only labels before the durable command',
+  /if\s*\(\s*!newLabel\s*\|\|\s*!newLabel\.trim\(\)/.test(categoryRenameSource)
+    && categoryRenameSource.indexOf('!newLabel.trim()') < categoryRenameSource.indexOf('await commitNativeLabDisplay'));
+assert('marker rename rejects whitespace-only labels before the durable command',
+  /if\s*\(\s*!newName\s*\|\|\s*!newName\.trim\(\)/.test(markerRenameSource)
+    && markerRenameSource.indexOf('!newName.trim()') < markerRenameSource.indexOf('await commitNativeLabDisplay'));
 assert('category customization refreshes the active view with fresh data',
-  /function _refreshActiveView[^{]*\{[\s\S]{0,300}const data = getActiveData\(\);[\s\S]{0,200}const buildSidebar = _buildSidebar \|\| getFallbackBuildSidebar\(\);[\s\S]{0,200}buildSidebar\?\.\(data\);[\s\S]{0,200}_navigate\(opts\.forceRoute \|\| state\.currentView \|\| fallbackRoute, data\)/.test(categoryCustomizationSrc) &&
-  viewsRuntimeAuditSrc.includes('configureCategoryCustomization({ navigate, buildSidebar });') &&
+  sourceFunctionHasStatement(categoryCustomizationSrc, '_refreshActiveView', 'const data = getActiveData();') &&
+  sourceFunctionHasStatement(categoryCustomizationSrc, '_refreshActiveView', 'const buildSidebar = _buildSidebar || getFallbackBuildSidebar();') &&
+  sourceFunctionHasStatement(categoryCustomizationSrc, '_refreshActiveView', 'buildSidebar?.(data);') &&
+  sourceFunctionHasStatement(categoryCustomizationSrc, '_refreshActiveView', '_navigate(opts.forceRoute || state.currentView || fallbackRoute, data);', 'last') &&
+  navigationViewsAuditSrc.includes('configureCategoryCustomization({ navigate, buildSidebar });') &&
   viewsRuntimePublicNames.has('navigate'));
-assert('marker rename refreshes the backing view before reopening modal',
-  /export async function renameMarker[^{]*\{[\s\S]{0,900}await saveImportedData\(\);\s*_refreshActiveView\(catKey\);\s*showDetailModal\(id\)/.test(categoryCustomizationSrc));
+assert('marker rename commits durably under the original owner before refreshing or reopening',
+  markerRenameSource.includes('await commitNativeLabDisplay(owner.profileId, expected, { name: newName }, owner.current)')
+    && markerRenameSource.indexOf('await commitNativeLabDisplay') < markerRenameSource.indexOf('_refreshActiveView(catKey)')
+    && markerRenameSource.indexOf('_refreshActiveView(catKey)') < markerRenameSource.indexOf('await showDetailModal(id)')
+    && markerRenameSource.includes('if (owner.current())') && !markerRenameSource.includes('saveImportedData()'));
 
 // ═══════════════════════════════════════
 // 3c. Exhaustive HTML sink review ratchet
@@ -1198,7 +1223,7 @@ const cycleEditorViewSrc = read('js/components/CycleEditorPresentation.svelte');
 const cycleAuthoredFiles = fs.readdirSync(path.join(ROOT, 'js/components'))
   .filter(name => /^Cycle[A-Za-z]+\.svelte$/.test(name));
 const cycleAuthoredSources = cycleAuthoredFiles.map(name => read(`js/components/${name}`));
-assert('Cycle stats filters periods with endDate', cycleSummarySrc.includes('filter(p => p.endDate)'));
+assert('Cycle stats filters periods with a known endDate', sourceFunctionVariableCallHasArgument(cycleSummarySrc, 'calculateCycleStats', 'periodLengths', 'filter', 'p => p.endDate && p.endDateKnown !== false'));
 assert('Period length guards empty array', cycleSummarySrc.includes('if (periodLengths.length > 0)'));
 assert('Cycle renderer no longer uses supplement UI classes',
   !/supp-(timeline-header|add-btn|form-row|form-field|list)/.test(cycleSrc));

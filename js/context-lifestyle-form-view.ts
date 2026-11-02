@@ -13,7 +13,8 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 import { createLifestyleFormSession } from './context-lifestyle-form-session.js';
 import { lifestyleDraft, lifestyleFormModel } from './context-lifestyle-form-model.js';
-import type { LifestyleFormKey } from './context-lifestyle-form-model.js';
+import type { LifestyleFormKey, LifestyleDraft } from './context-lifestyle-form-model.js';
+import { profileDataValuesEqual } from './profile-data-writes.js';
 let afterCommit: (message: string) => void = message => { showNotification(message, 'success'); };
 export function configureLifestyleFormView(callback?: (message: string) => void): void {
   if (callback) afterCommit = callback;
@@ -25,6 +26,7 @@ interface View {
   title: string;
   overlay: HTMLElement;
   session: ReturnType<typeof createLifestyleFormSession>;
+  initialDraft: LifestyleDraft;
   component: ReturnType<typeof Form>;
   observer: MutationObserver;
   saving: boolean;
@@ -44,6 +46,17 @@ function dispose(owned: View): void {
   flushSync();
 }
 function current(owned: View): boolean { return view === owned && owned.root.isConnected && owned.overlay.classList.contains('show') && owned.session.current(); }
+export function hasLifestyleFormDraft(key: string): boolean {
+  const owned = view;
+  return !!owned && owned.key === key && current(owned) && (owned.saving || owned.confirming || owned.launching || !profileDataValuesEqual(owned.initialDraft, owned.component.readDraft()));
+}
+export function refreshLifestyleFormAfterContextChange(key: string): void {
+  const owned = view;
+  if (!owned || owned.key !== key || !current(owned) || hasLifestyleFormDraft(key)) return;
+  const data = state.importedData, model = lifestyleFormModel(owned.key, data, state.profileSex, { latitude: owned.key === 'lightCircadian' ? getLatitudeFromLocation() : null, unitSystem: state.unitSystem, mealsPaused: owned.key === 'diet' && doesNutritionContextOverrideTypicalMeals(state.nutritionSummary, data) });
+  owned.session.retire(); owned.session = createLifestyleFormSession(owned.key); owned.initialDraft = lifestyleDraft(model, data);
+  owned.component.refresh(model, owned.initialDraft, owned.key === 'interpretiveLens' ? !!data.interpretiveLens : data[owned.key] != null); flushSync();
+}
 function close(owned: View): void {
   if (!current(owned)) return;
   closeModalOverlay(owned.overlay);
@@ -142,11 +155,12 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
     if (view)
       dispose(view);
     const session = createLifestyleFormSession(key), model = lifestyleFormModel(key, origin, state.profileSex, { latitude: key === 'lightCircadian' ? getLatitudeFromLocation() : null, unitSystem: state.unitSystem, mealsPaused: key === 'diet' && doesNutritionContextOverrideTypicalMeals(state.nutritionSummary, origin) });
+    const initialDraft = lifestyleDraft(model, origin);
     prepareContextFormDialog(modal, model.title, 'lifestyle-form-title');
     let owned: View;
     const component = mount(Form, {
       target: modal, props: {
-        model, initial: lifestyleDraft(model, origin), hasCurrent: key === 'interpretiveLens' ? !!origin.interpretiveLens : origin[key] != null,
+        model, initial: initialDraft, hasCurrent: key === 'interpretiveLens' ? !!origin.interpretiveLens : origin[key] != null,
         current: () => !!owned && current(owned), save: () => { void save(owned, false); },
         clear: () => {
           void (async () => {
@@ -174,7 +188,7 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
       dispose(owned);
     });
     owned = {
-      key, root, modal, title: model.title, overlay, session, component, observer, saving: false, confirming: false, launching: false, message: model.message, afterCommit: key === 'interpretiveLens' ? finishInterpretiveLens : afterCommit
+      key, root, modal, title: model.title, overlay, session, initialDraft, component, observer, saving: false, confirming: false, launching: false, message: model.message, afterCommit: key === 'interpretiveLens' ? finishInterpretiveLens : afterCommit
     };
     view = owned;
     openModalOverlay(overlay);

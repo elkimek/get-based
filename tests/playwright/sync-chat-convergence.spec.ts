@@ -1,6 +1,7 @@
 interface ChatSyncFixture {seed(id:string): Promise<ReturnType<typeof import('../../js/sync-payload.js').buildSyncPayload> extends Promise<infer T> ? T : ReturnType<typeof import('../../js/sync-payload.js').buildSyncPayload>>;pull(wire:string|undefined):Promise<void>;deleteThread(id:string):Promise<void>;reconcile(wire:string|undefined):Promise<void>;snapshot():ReturnType<typeof import('../../js/sync-payload-collectors.js').collectChatData>;wire():string|undefined;pushes():number}
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from '@playwright/test';
+import { gunzipSync } from 'node:zlib';
 
 // Three independent browser stores with synthetic replica snapshots. The real
 // app push/pull paths run; this deliberately does not contact a production relay.
@@ -106,7 +107,11 @@ test('startup repairs chat-only divergence with no local edit', async ({ browser
     await page.evaluate(() => (window as unknown as Window & {chatSyncRegression: ChatSyncFixture}).chatSyncRegression.reconcile(JSON.stringify({ _v: 4 })));
     expect(await page.evaluate(() => (window as unknown as Window & {chatSyncRegression: ChatSyncFixture}).chatSyncRegression.pushes())).toBe(1);
     const wire = await page.evaluate(() => (window as unknown as Window & {chatSyncRegression: ChatSyncFixture}).chatSyncRegression.wire());
-    expect((JSON.parse(wire as string) as {chatData:{threads:{id?:unknown}[]}}).chatData.threads[0]!.id).toBe('retained');
+    expect(wire).toEqual(expect.any(String));
+    // Clocked snapshots can exceed the gzip threshold. Decode independently
+    // of the app codec while retaining the exact chat-content assertion.
+    const json = wire!.startsWith('GZ|v1|') ? gunzipSync(Buffer.from(wire!.slice(6), 'base64')).toString('utf8') : wire!;
+    expect((JSON.parse(json) as {chatData:{threads:{id?:unknown}[]}}).chatData.threads[0]!.id).toBe('retained');
   } finally { await context.close(); }
 });
 

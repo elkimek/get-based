@@ -28,7 +28,7 @@ describe('stable built-in marker identity contract', () => {
     const identityDotKeys = BUILTIN_MARKER_IDENTITIES.map(identity => identity.currentDotKey);
     const ids = BUILTIN_MARKER_IDENTITIES.map(identity => identity.id);
 
-    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(198);
+    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(210);
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(identityDotKeys).size).toBe(identityDotKeys.length);
     expect(new Set(identityDotKeys)).toEqual(new Set(schemaDotKeys));
@@ -40,9 +40,9 @@ describe('stable built-in marker identity contract', () => {
       .update(JSON.stringify(BUILTIN_MARKER_IDENTITIES.map(identity => identity.id).sort()))
       .digest('hex');
 
-    // Adding combined eGFR extends the identity set; existing ids are unchanged.
+    // Adding lymphocyte subsets and ratios extends the set; existing ids are unchanged.
     // A marker move changes currentDotKey, not this checksum or its marker id.
-    expect(checksum).toBe('80f03ee8f254682428f44ec6417e80b5e4782793fcf52da5d16889e3327fe04c');
+    expect(checksum).toBe('403f957a0f9b0a1b4773afb98e1464c4fcadd14aa036aefcfb04af1703515ff3');
   });
 
   it('keeps authored and generated identity catalogs aligned and immutable at runtime', () => {

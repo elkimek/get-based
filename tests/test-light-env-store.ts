@@ -26,16 +26,18 @@ const {
   updateScreen,
 } = await import('../js/light-env-store.js');
 
+const { saveImportedData } = await import('../js/data.js');
 const originalCurrentProfile = state.currentProfile;
 state.currentProfile = 'light-env-store-test';
 const originalImportedData = state.importedData;
 
-function reset(seed: Record<string, unknown> = {}) {
+async function reset(seed: Record<string, unknown> = {}) {
   state.importedData = Object.assign({ entries: [] }, seed) as unknown as typeof originalImportedData;
+  assert('fixture seed is durably saved', await saveImportedData() === true);
 }
 
 console.log('%c 1. Environment and room mutations ', 'font-weight:bold;color:#f59e0b');
-reset();
+await reset();
 const env = getEnvironment();
 assert('getEnvironment lazily initializes rooms and screens',
   env && Array.isArray(env!.rooms) && Array.isArray(env!.screens));
@@ -44,7 +46,7 @@ state.importedData = null as unknown as typeof state.importedData;
 assert('getEnvironment returns null without importedData',
   getEnvironment() === null);
 
-reset({ sunDefaults: { homeLight: 'led-warm' } });
+await reset({ sunDefaults: { homeLight: 'led-warm' } });
 const roomId = await addRoom('Bedroom');
 const room = getEnvironment()!.rooms![0]!;
 assert('addRoom persists defaults and returns id',
@@ -150,10 +152,11 @@ assert('light-env no longer persists room/screen mutations directly',
   !/saveImportedData\(/.test(uiSrc)
     && !/deleteImportedArrayItems\(/.test(uiSrc)
     && !/state\.importedData\.lightEnvironment\s*=/.test(uiSrc));
-assert('light-env-store owns synced persistence for rooms and screens',
-  /saveImportedData\(/.test(storeSrc)
-    && /deleteImportedArrayItems\(state\.importedData, 'lightEnvironment\.rooms'/.test(storeSrc)
-    && /deleteImportedArrayItems\(state\.importedData, 'lightEnvironment\.screens'/.test(storeSrc));
+assert('light-env-store stages canonical shared room and screen commands',
+  storeSrc.includes('captureLightEnvironmentWrite(observed)')
+    && storeSrc.includes('commitLightEnvironmentWrite(profileId, observed, base, source, next, authorized)')
+    && storeSrc.includes('mutateLightEnvironment(next, resource, id, operation')
+    && !storeSrc.includes('deleteImportedArrayItems(state.importedData'));
 
 state.importedData = originalImportedData;
 state.currentProfile = originalCurrentProfile;

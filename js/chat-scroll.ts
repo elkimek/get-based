@@ -48,6 +48,24 @@ export function isChatNearLatest(container: HTMLElement) {
   return container.scrollHeight - container.scrollTop - container.clientHeight < NEAR_LATEST_PX;
 }
 
+/** Capture before rendering: replacing transcript nodes can clamp scrollTop to zero. */
+export function captureChatScrollPosition(container: HTMLElement) {
+  const scrollState = getScrollState(container);
+  return { top: container.scrollTop, followingLatest: scrollState.scrollingToLatest || isChatNearLatest(container),
+    hasNewContent: scrollState.hasNewContent };
+}
+
+/** Restore the reader's intent after the DOM has settled, never from its temporary height. */
+export function restoreChatScrollPosition(container: HTMLElement, position: ReturnType<typeof captureChatScrollPosition>, hasNewContent = false) {
+  if (position.followingLatest) { followChatLatest(container, { behavior: 'auto' }); return; }
+  const scrollState = getScrollState(container);
+  scrollState.followingLatest = false;
+  scrollState.scrollingToLatest = false;
+  scrollState.hasNewContent = position.hasNewContent || hasNewContent;
+  container.scrollTop = position.top;
+  refreshLatestButton(container);
+}
+
 /**
  * Keep following new transcript content when the reader is already at the
  * bottom. Otherwise, surface the control without changing their position.

@@ -257,6 +257,7 @@ rs999999\t1\t100\tAG
       type: 'manual',
       label: 'Clinical manual override',
     });
+    check('synthetic manual override is durably saved before importing', await (await import('/js/data.js')).saveImportedData());
     await dna.handleDNAFile(textFile(validContent, 'ancestry-confirm.txt'));
     const importConfirmReady = await waitFor(() => document.querySelector('[data-dna-action="confirm-import"]') != null);
     overlay = document.getElementById('dna-modal-overlay');
@@ -437,13 +438,26 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     check('mtDNA remove action is a semantic button', document.querySelector('[data-dna-action="delete-mtdna"]')?.tagName === 'BUTTON');
 
     document.querySelector<HTMLElement>('[data-dna-action="delete-mtdna"]')?.click();
-    await wait();
+    await waitFor(() => state.importedData.genetics?.mtdna == null);
     check('deleteMtDNAData removes mtdna only', state.importedData.genetics?.mtdna == null && state.importedData.genetics?.snps != null);
 
     await dna.setManualHaplogroup('bad');
     check('invalid manual haplogroup not stored', state.importedData.genetics?.mtdna == null);
     await dna.setManualHaplogroup('u5a');
     check('manual haplogroup preserves canonical mixed-case subclade', state.importedData.genetics?.mtdna?.haplogroup === 'U5a' && state.importedData.genetics.mtdna.source === 'manual');
+    const previousGenome = structuredClone(state.importedData.genetics);
+    const priorImportGenomes: Array<typeof previousGenome> = [];
+    const imported = (event: Event) => { priorImportGenomes.push((event as CustomEvent<import('../../js/genetics-import-events.js').GeneticsImported>).detail.previousData.genetics); };
+    globalThis.addEventListener('labcharts-genetics-imported', imported);
+    try {
+      await dna.handleMtDNAFile(textFile(jText, 'replacement-mtdna.txt'));
+      document.querySelector<HTMLElement>('[data-dna-action="confirm-mtdna-import"]')?.click();
+      const replaced = await waitFor(() => dnaRuntime.getPendingMtDnaImport() == null && state.importedData.genetics?.mtdna?.haplogroup === 'J');
+      check('maternal replacement retains the previous manual evidence', replaced && JSON.stringify(state.importedData.genetics?.mtdnaHistory) === JSON.stringify([previousGenome?.mtdna]));
+      check('maternal import event retains its independent before snapshot', JSON.stringify(priorImportGenomes) === JSON.stringify([previousGenome]));
+      const saved = JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(profileId, 'imported')))!) as typeof state.importedData;
+      check('maternal replacement and evidence history are durable', JSON.stringify(saved.genetics) === JSON.stringify(state.importedData.genetics));
+    } finally { globalThis.removeEventListener('labcharts-genetics-imported', imported); }
     dna.ensureHaplogroupTable();
     check('haplogroup list exported', Array.isArray(dna.HAPLOGROUP_LIST) && dna.HAPLOGROUP_LIST.includes('J'));
 

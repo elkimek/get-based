@@ -13,22 +13,22 @@ export const DETAILED_REVIEW_GROUPS = Object.freeze(NUTRIENT_GROUPS.filter(group
 })));
 export const NUTRITION_PHOTO_PRIVACY = 'Sent only when you choose Analyze photo. Full-size originals are not saved; resized copies stay with the meal. First cloud use asks for approval.';
 
-export function projectNutritionMealModel(selection: ReturnType<typeof getMealAISelection>, models: ReturnType<typeof listNutritionVisionModels>, checkingLocal: boolean, price: string, analysisKind: unknown = 'meal-photo') {
-  const selectedValue = selection.usesAutomatic ? '' : JSON.stringify({ provider: selection.provider, model: selection.model });
-  const choices = models.filter(model => model.provider === selection.provider);
+export function projectNutritionMealModel(selection: ReturnType<typeof getMealAISelection>, models: ReturnType<typeof listNutritionVisionModels>, checkingLocal: boolean, price: string, analysisKind: unknown = 'meal-photo', automatic = selection) {
+  const selectedValue = selection.usesAutomatic ? '' : selection.routeValue || JSON.stringify({ provider: selection.provider, model: selection.model });
+  const choices = models;
   return {
     purpose: analysisKind === 'nutrition-label' ? 'Label model' : 'Photo model',
     accessibleLabel: analysisKind === 'nutrition-label' ? 'Nutrition label analysis model' : 'Meal photo analysis model',
-    selectedValue, automatic: selection.usesAutomatic, available: selection.available,
-    automaticLabel: `${selection.fallback ? 'Automatic fallback' : 'Follow chat assistant'} · ${selection.modelDisplay}`,
+    selectedValue, automatic: selection.usesAutomatic, available: selection.available, automaticAvailable: automatic.available,
+    automaticLabel: `${automatic.fallback ? 'Automatic fallback' : 'Follow chat assistant'} · ${automatic.modelDisplay}`,
     savedChoice: selectedValue && !choices.some(model => model.value === selectedValue) ? `${selection.modelDisplay} · saved choice` : '',
-    options: choices.map(model => ({ value: model.value, label: model.modelDisplay })),
+    options: choices.map(model => ({ value: model.value, label: `${model.modelDisplay} · ${model.providerDisplay}` })),
     provider: selection.providerDisplay, price,
     status: selection.available ? selection.adapter === 'codex' ? 'Connected' : selection.local ? 'Local' : 'Ready'
       : selection.local && checkingLocal ? 'Checking…' : 'Unavailable',
   };
 }
-export type NutritionMealModelView = ReturnType<typeof projectNutritionMealModel>;
+export type NutritionMealModelView = Omit<ReturnType<typeof projectNutritionMealModel>, 'automaticAvailable'> & { automaticAvailable?: boolean };
 export function projectNutritionEditor(options: NutritionEditorRenderOptions, now: string, available: boolean, debug: boolean, model: NutritionMealModelView) {
   const { editingMealId = '', reusedMealId = '', returnTo = '', returnMealId = '', returnMealOrigin = 'history' } = options;
   return {
@@ -36,6 +36,7 @@ export function projectNutritionEditor(options: NutritionEditorRenderOptions, no
     subtitle: editingMealId ? 'Update the saved meal.' : reusedMealId ? 'Adjust the time or portions.' : 'Use a photo, scan a label, or enter values manually.',
     backAction: returnTo === 'history' ? 'return-history' : returnTo === 'detail' && returnMealId ? 'return-detail' : '',
     returnMealId: String(returnMealId), returnMealOrigin: String(returnMealOrigin),
+    canAttachReferencePhotos: !!editingMealId,
     saveLabel: editingMealId ? 'Save changes' : 'Save meal', now, available, debug, model,
   };
 }

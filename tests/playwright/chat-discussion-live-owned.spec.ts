@@ -2,7 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 
-type CallOptions = Parameters<typeof import('../../js/chat-continuation.js').callChatAPIWithContinuation>[0];
+type CallOptions = Parameters<typeof import('../../js/direct-chat-tools.js').callDirectChatWithTools>[0];
 type RoundResult = Awaited<ReturnType<typeof import('../../js/chat-discussion-turns.js').runDiscussionContinuation>>;
 type ChatMessage = (typeof import('../../js/state.js').state.chatHistory)[number];
 interface LiveFixture {
@@ -28,9 +28,9 @@ test.beforeEach(async ({ context, page }) => {
     export * from '/js/lens.js?discussion-live-original';
     export function hasLens() { return false; }
   `);
-  await routeJavaScript(page, '**/js/chat-continuation.js', `
-    export * from '/js/chat-continuation.js?discussion-live-original';
-    export function callChatAPIWithContinuation(options) { return globalThis.discussionLiveFixture.reply(options); }
+  await routeJavaScript(page, '**/js/direct-chat-tools.js', `
+    export * from '/js/direct-chat-tools.js?discussion-live-original';
+    export function callDirectChatWithTools(options) { return globalThis.discussionLiveFixture.reply(options); }
   `);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/app');

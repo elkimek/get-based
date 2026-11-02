@@ -19,8 +19,8 @@ function section(source: string, start: string, end: string) {
   return startIdx >= 0 && endIdx > startIdx ? source.slice(startIdx, endIdx) : '';
 }
 
-const editorSrc = section(emfEditorSrc, 'export const emfEditorState', 'export function showEMFImportPreview(parsed)');
-const importPreviewSrc = section(emfEditorSrc, 'export function showEMFImportPreview(parsed)', 'function projectComparisonView(sorted)');
+const editorSrc = section(emfEditorSrc, 'export const emfEditorState', 'export function showEMFImportPreview(');
+const importPreviewSrc = section(emfEditorSrc, 'export function showEMFImportPreview(', 'function projectComparisonView(sorted)');
 const comparisonStart = emfEditorSrc.indexOf('function projectComparisonView(sorted)');
 const compareSrc = comparisonStart >= 0 ? emfEditorSrc.slice(comparisonStart) : '';
 const comparisonOwnerSrc = readRepositorySource('js/components/EMFComparison.svelte', 'utf8');
@@ -48,7 +48,7 @@ assert('EMF interpretation modal renders no inline event attributes',
   interpretationSrc.length > 0 && !inlineHandlerRe.test(interpretationSrc) && !/\son[a-z]+\s*=|\bon:[a-z]+|\{on[a-z]+\}/.test(emfPresentationSrc));
 assert('EMF editor imports shared tag toggle instead of inline global handler',
   emfEditorSrc.includes("import { toggleCtxTag } from './context-card-editor-ui.js';") &&
-    migratedEditorSurface.includes("if (action === 'toggle-tag') { toggleCtxTag(actionElement); return; }"));
+    section(emfEditorSrc, "if (action === 'toggle-tag')", "if (action === 'view-photo')").includes("toggleCtxTag(actionElement);") && section(emfEditorSrc, "if (action === 'toggle-tag')", "if (action === 'view-photo')").includes("persistEMFEditorInputs()"));
 assert('EMF editor genuine owners escape literal data and avoid raw child HTML/action string codecs',
   genuineEditorOwners.includes('data-emf-action="toggle-tag"') && genuineEditorOwners.includes('data-emf-assessment-id={') &&
     !genuineEditorOwners.includes('{@html') && !emfEditorSrc.includes('function emfActionAttrs') &&
@@ -60,7 +60,7 @@ assert('EMF editor installs idempotent click change and keydown delegates',
     emfEditorSrc.includes("document.addEventListener('keydown', handleEMFEditorKeydown)") &&
     emfEditorSrc.includes('installEMFEditorDelegates();'));
 assert('EMF editor delegates are scoped to #detail-modal',
-  emfEditorSrc.includes("return !!element.closest('#detail-modal');") &&
+  emfEditorSrc.includes("emfEditorIdentity().modal") && emfEditorSrc.includes("return !!modal && modal === element.closest('#detail-modal');") &&
     emfEditorSrc.includes('!isEMFEditorTarget(actionElement)'));
 assert('EMF editor close path preserves save and lightbox cleanup',
   emfEditorSrc.includes('function closeEMFEditorModal()') &&

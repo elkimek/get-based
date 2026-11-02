@@ -46,6 +46,7 @@ export function makeEvolu({
       }
       if (failItemRows) throw new Error('item insert failed');
       itemRows.push({ id: `item-row-${itemRows.length + 1}`, ...args });
+      options.onComplete?.();
     },
     update(table: string, args: SyncFixtureRow, options: { onComplete?: () => void } = {}) {
       calls.update.push({ table, args });
@@ -61,6 +62,7 @@ export function makeEvolu({
       const idx = itemRows.findIndex(row => row.id === args.id);
       if (idx >= 0) itemRows[idx] = { ...itemRows[idx], ...args };
       else itemRows.push({ ...args });
+      options.onComplete?.();
     },
   };
   return { evolu, calls, profileRows, itemRows };

@@ -1,3 +1,5 @@
+import type { MarkerBaseline } from './marker-baseline.js';
+
 /** Numeric marker projection used by custom-marker and calculated-marker helpers. */
 export type MarkerValues = Array<number | null | undefined>;
 export interface MarkerViewRange {
@@ -10,6 +12,8 @@ export interface MarkerViewDefinition {
   refMin?: number | null | undefined;
   refMax?: number | null | undefined;
   values?: MarkerValues;
+  /** Inputs used by an automatic value at each date; @ keys are context sources. */
+  contextDependencies?: readonly (readonly string[])[];
   custom?: boolean;
   contextRefRanges?: Array<MarkerViewRange | null | undefined>;
   contextRangeLabels?: Array<string | null | undefined>;
@@ -24,6 +28,8 @@ export interface MarkerViewCategory {
   icon: string;
   singlePoint?: boolean;
   group?: string | null;
+  /** Stable source permission group, independent of an editable display label. */
+  contextGroup?: string;
   markers: Record<string, MarkerViewDefinition>;
 }
 export interface MarkerViewData {
@@ -31,6 +37,7 @@ export interface MarkerViewData {
 }
 export interface CustomMarkerViewDefinition extends MarkerViewDefinition {
   categoryLabel?: string;
+  contextGroup?: string;
   icon?: string | undefined;
   singlePoint?: boolean;
   group?: string | null;
@@ -39,6 +46,8 @@ export interface CustomMarkerViewDefinition extends MarkerViewDefinition {
 /** Populated marker projection consumed by ranges, charts, chat, and reports. */
 export interface ActiveMarker extends MarkerViewDefinition {
   values: Array<number | null>;
+  contextSampleCount?: number | null;
+  personalBaselines?: Array<MarkerBaseline | null>;
   optimalMin?: number | null | undefined;
   optimalMax?: number | null | undefined;
   refMin_f?: number | null;
@@ -70,6 +79,8 @@ export interface ActiveData extends MarkerViewData {
   categories: Record<string, ActiveCategory>;
   dates: string[];
   dateLabels: string[];
+  /** AI-only projection: derivation must not recreate a withheld marker. */
+  contextExcludedMarkers?: readonly string[];
   entryContextByDate?: Record<string, import('../types/lab-data.js').LabCollectionContext>;
   phaseLabels?: Array<string | null | undefined>;
   phaseDisplayLabels?: Array<string | null | undefined>;

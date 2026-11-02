@@ -4,6 +4,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { sourcePath } from '../scripts/source-files.js';
 import { fileURLToPath } from 'node:url';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
+import { queueProfileDataWrite } from '../js/profile-data-writes.js';
 // test-light-tools.js — Pure helpers re-exported by light-tools.js:
 // computeRowBanding (flicker FFT), cameraLockStatusLine, saveMeasurement
 // persistence + spectrum auto-fill, getMeasurementsForRoom, deleteMeasurement.
@@ -24,7 +25,7 @@ const tools = await import('../js/light-tools.js');
     computeRowBanding,
     cameraLockStatusLine,
     configureLightTools,
-    getMeasurements, getMeasurementsForRoom, saveMeasurement, deleteMeasurement,
+    getMeasurements, getMeasurementsForRoom, saveMeasurement, deleteMeasurement, normalizeLightMeasurements,
     clearLuxCalibration, isLuxCalibrationConfirmed, loadLuxCalibration, lockCameraForMeasurement,
     normalizeGoldenHourMinutes, saveLuxCalibration,
     } = tools;
@@ -63,8 +64,14 @@ const tools = await import('../js/light-tools.js');
     };
 
   const orig = state.importedData;
-  function reset(seed = {}) {
+  const { saveImportedData } = await import('../js/data.js');
+  const { encryptedSetItem } = await import('../js/crypto.js');
+  const { profileStorageKey } = await import('../js/profile.js');
+  state.currentProfile = 'light-tools-native-test';
+  async function reset(seed = {}) {
     (state as { importedData: unknown }).importedData = Object.assign({ entries: [] }, seed);
+    await encryptedSetItem(profileStorageKey(state.currentProfile, 'imported'), JSON.stringify(state.importedData));
+    assert('fixture seed saves canonically', await saveImportedData() === true);
   }
 
   // ─── 1. computeRowBanding shape ──────────────────────────────────────
@@ -198,11 +205,11 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
   // ─── 5. getMeasurements lazy init + saveMeasurement ─────────────────
   console.log('%c 5. Measurement persistence ', 'font-weight:bold;color:#f59e0b');
 
-    reset();
+    await reset();
     assert('getMeasurements lazily initializes empty list',
       Array.isArray(getMeasurements()) && getMeasurements().length === 0);
 
-    reset({
+    await reset({
       lightMeasurements: [
         { id: 'old-lux', tool: 'lux', roomId: 'r1', value: 100, capturedAt: 1000 },
         { id: 'new-lux', tool: 'lux', roomId: 'r1', value: 300, capturedAt: 2000 },
@@ -215,14 +222,19 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
       migrated.length === 3 && migrated.some(m => m.id === 'new-lux') && !migrated.some(m => m.id === 'old-lux'));
     assert('getMeasurements preserves audit walkthrough history during collapse',
       migrated.filter(m => m.tool === 'audit').length === 2);
+    await normalizeLightMeasurements();
     assert('getMeasurements tombstones collapsed rows for sync',
       state.importedData._deleted?.lightMeasurements?.includes('old-lux'));
 
-    reset();
+    // Reading the legacy rows schedules their migration save. Finish that real
+    // queued write before replacing the active object for the next fixture.
+    await queueProfileDataWrite(state.currentProfile, () => {});
+    await reset();
 
   const m1 = await saveMeasurement('lux', 350, { roomId: 'r1', label: 'desk' });
   assert('saveMeasurement returns a stamped entry',
     m1 && m1.id && m1.tool === 'lux' && m1.value === 350);
+  if (!m1) throw new Error('The native baseline reading did not save.');
   assert('Measurement carries capturedAt timestamp',
     Number.isFinite(m1.capturedAt) && m1.capturedAt > 0);
   assert('Measurement carries default confidence (0.7)',
@@ -345,7 +357,7 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
       lightAiSaveHooksSrc.includes('suggestRoomSourceFromSpectrum') &&
       lightAiSaveHooksSrc.includes('refreshLightEnvironmentAssessment') &&
       lightAiSaveHooksSrc.includes('solarZenithAngle') &&
-      lightToolsUiHooksSrc.includes("import { navigate } from './views-runtime.js';") &&
+      lightToolsUiHooksSrc.includes("import { navigate } from './navigation-views.js';") &&
       lightToolsUiHooksSrc.includes('configureLightTools({ navigate })') &&
       appLightSunSrc.includes('configureLightTools({ navigate });') &&
       !appUiShellSrc.includes("import './light-tools-ui-hooks.js';") &&

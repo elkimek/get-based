@@ -1,5 +1,6 @@
 import { configureRuntimeDependencies, type RuntimeDependencyUpdates } from './runtime-callbacks.js';
 import type { DevicePersistenceStatus, OwnerReplicationStatus, SyncStatus } from './sync-state.js';
+import { scheduleOwnerStorageRefresh } from './sync-relay-health.js';
 
 interface SubscriptionRow { id?: unknown; profileId?: unknown; syncedAt?: unknown; updatedAt?: unknown; isDeleted?: unknown; }
 export interface SyncSubscriptionClient {
@@ -182,6 +183,7 @@ export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, ite
       if (status.type === 'Error') partial.lastError = {type: status.error.type, at: status.error.at};
       // A reconciled transport never confirms our persisted owner-storage push.
       subscriptionDependencies.updateSyncStatus(partial);
+      if (status.type === 'Synced') scheduleOwnerStorageRefresh();
     }));
   }
   if (evolu.subscribeDevicePersistence) {

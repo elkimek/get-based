@@ -73,7 +73,7 @@ it('dismisses a refreshed category immediately without calling detached old-trig
   expect(currentFocus).toHaveBeenCalledTimes(1);
 });
 
-it('keeps row containment, native checkbox persistence and outside-click focus ownership', () => {
+it('keeps row containment, native checkbox persistence and outside-click focus ownership', async () => {
   const {trigger, menu} = controls();trigger.click();
   const afterDelegates = vi.fn();document.addEventListener('click', afterDelegates);
   try {
@@ -81,7 +81,7 @@ it('keeps row containment, native checkbox persistence and outside-click focus o
     expect(input.checked).toBe(true);
     expect(menu.classList.contains('open')).toBe(true);
     expect(afterDelegates).not.toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledTimes(1));
     expect(localStorage.getItem('labcharts-chart-layers-dismiss-contract-noteOverlay')).toBe('on');
     const outside = document.getElementById('outside')!;outside.focus();outside.click();
     expect(menu.classList.contains('open')).toBe(false);

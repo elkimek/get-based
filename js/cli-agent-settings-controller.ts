@@ -21,6 +21,8 @@ interface CliControllerPorts {
   connect(agent: string, options: AgentConnectionOptions): Promise<unknown>;
   discover(options: { refresh: true }): Promise<DiscoveredAgent[]>;
   models(options: AgentHostConnection & { target: string }): Promise<unknown[]>;
+  target(agent: string): string;
+  cacheModels(models: unknown[], agent: string, target: string): unknown;
   save(settings: { agent: string }): Promise<unknown>;
   control(options: AgentHostConnection & { action: CompanionAction }): Promise<Record<string, unknown>>;
   setBackend(value: string): unknown;
@@ -121,16 +123,22 @@ export function createCliAgentSettingsController(ports: CliControllerPorts) {
         await ports.connect(agent, { isCurrent: () => scope.current() && scope.connectionCurrent() });
         if (!scope.current()) return;
         connected = ports.connection();
+        const target = ports.target(agent);
+        const models = await ports.models({ ...connected, agent, target });
+        if (!scope.current() || !connectionMatches(connected) || ports.target(agent) !== target) return;
+        if (!models.length) throw new Error('This CLI agent has no available models. Check its model connection and try again.');
         await ports.save({ agent });
         if (!scope.view.isCurrent() || !connectionMatches(connected)
-          || ports.context().agent !== agent || ports.context().backend !== scope.context.backend) return;
+          || ports.context().agent !== agent || ports.context().target !== target || ports.context().backend !== scope.context.backend) return;
         ports.resetModels();
+        // The composer must know this agent's image capabilities before the
+        // selected backend is announced. Settings may close immediately after.
+        ports.cacheModels(models, agent, target);
         ports.setBackend('codex');
         ports.notify('CLI agent selected for chat', 'success');
         await ports.refresh();
       } catch (error) {
         if (!scope.current() || !(connected ? connectionMatches(connected) : scope.connectionCurrent())) return;
-        ports.setBackend('direct');
         ports.notify(error instanceof Error ? error.message : 'CLI agent could not connect.', 'error', 9000);
         await ports.refresh();
       }

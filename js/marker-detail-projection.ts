@@ -14,5 +14,5 @@ export function projectMarkerDetailAction(action:MarkerDetailActionName,fields:M
  const actual=arguments.length===1?markerDetailActionAttrs(action):markerDetailActionAttrs(action,forwarded);
  const expected=[`data-marker-detail-action="${escapeAttr(action)}"`,...Object.entries(captured).map(([name,value])=>`data-marker-detail-${name.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())}="${escapeAttr(value)}"`)].join(' ');
  if(actual!==expected)throw new Error('Unqualified native Marker Detail action');
- return {action,id:captured.id??null,date:captured.date??null,type:captured.type??null,field:captured.field??null,value:captured.value??null,dotKey:captured.dotKey??null,showAllHistory:captured.showAllHistory??null,historyLimit:captured.historyLimit??null,scrollToHistory:captured.scrollToHistory??null};
+ return {action,id:captured.id??null,date:captured.date??null,panelId:captured.panelId??null,type:captured.type??null,field:captured.field??null,value:captured.value??null,dotKey:captured.dotKey??null,showAllHistory:captured.showAllHistory??null,historyLimit:captured.historyLimit??null,scrollToHistory:captured.scrollToHistory??null};
 }

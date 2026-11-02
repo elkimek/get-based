@@ -1,10 +1,37 @@
+import sampleButtonEdits from '../fixtures/marker-history-no-sample-button-inverse.json' with { type: 'json' };
+import customMarkerEdits from '../fixtures/custom-marker-lifecycle-controller-inverse.json' with { type: 'json' };
+import markerRangeEdits from '../fixtures/marker-range-controller-inverse.json' with { type: 'json' };
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import labPanelEdits from '../fixtures/lab-panel-controller-inverse.json' with { type: 'json' };
 
 // Finite inverses for reviewed later typed-view/style passes. Every input byte,
 // exact replacement and restored intermediate hash is required; original oracles
 // retain their separate immutable hashes in the consuming tests.
 const records = [
+  // Baseline accessibility additions reverse exactly before the original style-port proof.
+{
+  "file": "js/category-view-renderers.ts",
+  "currentSHA256": "c2d1458c786e13c6822cfa80637e4051cc46d9b1a0b5568ec5c5b70b2d41035c",
+  "previousSHA256": "3d8621d317c23a33967618eb4e81027e5c273bf91d6b4b7999eb28ffa962aa60",
+  "edits": [
+    {
+      "start": 1308,
+      "before": ".js';\nimport { baselineForDate, projectMarkerBaseline } from './marker-baseline",
+      "after": ""
+    },
+    {
+      "start": 10700,
+      "before": "baselineDate = chartDates[latestIdx];\n  const baseline = typeof baselineDate === 'string' && Object.prototype.hasOwnProperty.call(marker, 'personalBaselines')\n    ? baselineForDate(marker, latestIdx, baselineDate) : null;\n  const baselineSummary = projectMarkerBaseline(baseline, String(latestUnit), formatValue);\n  const baselineLabel = baselineSummary && baseline ? ` Personal baseline ${baselineSummary.value}, median of ${baseline.count} prior draws. ${baselineSummary.comparison}.` : '';\n  const ",
+      "after": ""
+    },
+    {
+      "start": 11237,
+      "before": "Label + baseline",
+      "after": ""
+    }
+  ]
+},
   {
     "file": "js/marker-detail-editing.ts",
     "currentSHA256": "2684c2d004979d68fd1e9a914f4d51878f869f87d587d82d2ce5bada526530e5",
@@ -443,6 +470,46 @@ const records = [
 ] as const;
 const sha = (source: string) => createHash('sha256').update(source).digest('hex');
 export function restoreReviewedMigrationSource(file: string, source: string): string {
+  // The requested removal of whole-sample UI is qualified before restoring earlier immutable controllers.
+  const sampleButton = sampleButtonEdits.find(row => row.file === file);
+  if (sampleButton) {
+    assert.equal(sha(source), sampleButton.currentSHA256, 'Complete marker controller after sample-button removal: ' + file);
+    for (const edit of [...sampleButton.edits].reverse()) {
+      assert.equal(source.slice(edit.start, edit.start + edit.before.length), edit.before, 'Exact sample-button removal anchor: ' + file);
+      source = source.slice(0, edit.start) + edit.after + source.slice(edit.start + edit.before.length);
+    }
+    assert.equal(sha(source), sampleButton.restoredSHA256, 'Exact earlier marker controller retained after sample-button removal: ' + file);
+  }
+  // Native persistence/ownership changes have their own domain and browser proof.
+  const customMarker = customMarkerEdits.find(row => row.file === file);
+  if (customMarker) {
+    assert.equal(sha(source), customMarker.currentSHA256, 'All native custom marker controller bytes qualified: ' + file);
+    for (const edit of [...customMarker.edits].reverse()) {
+      assert.equal(source.slice(edit.start, edit.start + edit.before.length), edit.before, 'Exact custom marker lifecycle controller anchor: ' + file);
+      source = source.slice(0, edit.start) + edit.after + source.slice(edit.start + edit.before.length);
+    }
+    assert.equal(sha(source), customMarker.restoredSHA256, 'Native custom marker lifecycle inverse retains prior controller bytes: ' + file);
+  }
+  // Qualify the later exact-sample feature separately before restoring the
+  // immutable migration oracle. Current behavior has its own domain/browser tests.
+  const markerRange = markerRangeEdits.find(row => row.file === file);
+  if (markerRange) {
+    assert.equal(sha(source), markerRange.currentSHA256, 'All native range editing source bytes qualified: ' + file);
+    for (const edit of [...markerRange.edits].reverse()) {
+      assert.equal(source.slice(edit.start, edit.start + edit.before.length), edit.before, 'Exact native range controller anchor: ' + file);
+      source = source.slice(0, edit.start) + edit.after + source.slice(edit.start + edit.before.length);
+    }
+    assert.equal(sha(source), markerRange.restoredSHA256, 'Native range ownership and validation inverses retain prior controller bytes: ' + file);
+  }
+  const labPanel = labPanelEdits.find(row => row.file === file);
+  if (labPanel) {
+    assert.equal(sha(source), labPanel.currentSHA256, 'All exact-sample controller source bytes qualified: ' + file);
+    for (const edit of [...labPanel.edits].reverse()) {
+      assert.equal(source.slice(edit.start, edit.start + edit.before.length), edit.before, 'Exact reviewed sample feature replacement');
+      source = source.slice(0, edit.start) + edit.after + source.slice(edit.start + edit.before.length);
+    }
+    assert.equal(sha(source), labPanel.previousSHA256, 'Exact source before sample-specific result editing: ' + file);
+  }
   if (file === 'js/marker-detail-modal-impl.ts') {
     // Invert only the separately reviewed external modal-initiator repair.
     assert.equal(sha(source), 'e1bd8757dcd7b136972c62d6d76b2330e8936fb2624346dfe9c372be4f5efb4b', 'Complete reviewed modal initiator source');

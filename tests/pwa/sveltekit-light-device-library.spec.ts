@@ -4,7 +4,7 @@ import {expect,test,type Page} from '@playwright/test';
 import {createDefaultProfileData} from '../../js/profile.js';
 import {DEVICE_ENGINE_VERSION} from '../../js/light-device-session-engine.js';
 import type {ProfileData} from '../../types/app-state.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {lightDeviceCatalogRoute} from '../helpers/light-device-catalog-fixture.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';

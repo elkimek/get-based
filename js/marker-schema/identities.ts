@@ -217,6 +217,18 @@ const IDENTITY_ROWS: MarkerIdentityRow[] = [
   ['phenoAge', 'calculatedRatios.phenoAge'],
   ['bortzAge', 'calculatedRatios.bortzAge'],
   ['biologicalAge', 'calculatedRatios.biologicalAge'],
+  ['cd3', 'lymphocyteSubsets.cd3'],
+  ['cd4', 'lymphocyteSubsets.cd4'],
+  ['cd8', 'lymphocyteSubsets.cd8'],
+  ['cd19', 'lymphocyteSubsets.cd19'],
+  ['nkCells', 'lymphocyteSubsets.nkCells'],
+  ['cd3Pct', 'lymphocyteSubsets.cd3Pct'],
+  ['cd4Pct', 'lymphocyteSubsets.cd4Pct'],
+  ['cd8Pct', 'lymphocyteSubsets.cd8Pct'],
+  ['cd19Pct', 'lymphocyteSubsets.cd19Pct'],
+  ['nkCellsPct', 'lymphocyteSubsets.nkCellsPct'],
+  ['cd4Cd8Ratio', 'calculatedRatios.cd4Cd8Ratio'],
+  ['lmr', 'calculatedRatios.lmr'],
 ];
 
 for (const row of IDENTITY_ROWS) {

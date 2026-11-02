@@ -8,6 +8,7 @@ export interface RelayHealthVerdict { verdict: 'unknown' | 'healthy' | 'wedged';
 interface RelayHealthDependencies {
   getAppOwner: () => SyncAppOwner | null;
   getSyncRelay: () => string | null;
+  isOwnerProvisional: () => boolean;
   onQuotaThreshold: ((quota: RelayQuotaEstimate) => void) | null;
 }
 interface OwnerStorageReply { storedBytes?: unknown; quotaBytes?: unknown; messageCount?: unknown; lastWriteToken?: unknown; }
@@ -16,15 +17,17 @@ interface CompactOwnerReply { afterStoredBytes?: unknown; error?: unknown; [key:
 // sync-relay-health.ts - relay quota, self-service, and push persistence checks
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
+import { getSyncStatus } from './sync-state.js';
 
 const relayHealthDependencies: RelayHealthDependencies = {
   getAppOwner: () => null,
   getSyncRelay: () => null,
+  isOwnerProvisional: () => false,
   onQuotaThreshold: null,
 };
 
-export function configureRelayHealth({ getAppOwner, getSyncRelay, onQuotaThreshold }: RuntimeDependencyUpdates<RelayHealthDependencies> = {}) {
-  configureRuntimeDependencies(relayHealthDependencies, { getAppOwner, getSyncRelay, onQuotaThreshold });
+export function configureRelayHealth({ getAppOwner, getSyncRelay, isOwnerProvisional, onQuotaThreshold }: RuntimeDependencyUpdates<RelayHealthDependencies> = {}) {
+  configureRuntimeDependencies(relayHealthDependencies, { getAppOwner, getSyncRelay, isOwnerProvisional, onQuotaThreshold });
 }
 
 function _appOwner() {
@@ -133,11 +136,24 @@ async function _signSelfRequest(context: string) {
   return { ownerId, timestamp, signature };
 }
 
+let authenticatedStorageOwner: string | null = null;
+function canProbeOwnerStorage(base: string | null) {
+  // Joining first creates a throwaway owner which has no relay write key.
+  if (relayHealthDependencies.isOwnerProvisional()) return false;
+  const key = JSON.stringify([base, _appOwner()?.id]);
+  const replication = getSyncStatus().replication;
+  if (replication === 'Synced') authenticatedStorageOwner = key;
+  // Only defer the first in-progress handshake. Once registered, quota reads
+  // remain independent of later sync activity and offline/error diagnostics.
+  return !['Syncing', 'NoRelays'].includes(replication || '') || authenticatedStorageOwner === key;
+}
+
 export async function fetchOwnerStorageFromRelay() {
   const base = _getSelfBaseUrl();
-  if (!base) return null;
+  if (!base || !canProbeOwnerStorage(base)) return null;
   try {
     const { ownerId, timestamp, signature } = await _signSelfRequest('storage');
+    if (String(_appOwner()?.id) !== ownerId || _getSelfBaseUrl() !== base) return null;
     const url = `${base}/self/owner-storage?ownerId=${encodeURIComponent(ownerId)}&timestamp=${timestamp}&signature=${signature}`;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 5000);
@@ -150,6 +166,7 @@ export async function fetchOwnerStorageFromRelay() {
     if (!r.ok) return null;
     const body = await r.json() as OwnerStorageReply | null;
     if (!body || typeof body.storedBytes !== 'number') return null;
+    if (String(_appOwner()?.id) !== ownerId || _getSelfBaseUrl() !== base) return null;
     _setRelayQuotaBytes(body.storedBytes, body.quotaBytes);
     return {
       storedBytes: body.storedBytes,
@@ -167,6 +184,7 @@ let _ownerStorageRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 // the relay's actual storedBytes and configured quota shortly afterward.
 export function scheduleOwnerStorageRefresh(delayMs = 1500) {
   if (!_appOwner()?.id) return;
+  if (!canProbeOwnerStorage(_getSelfBaseUrl())) return;
   if (_ownerStorageRefreshTimer !== null) return;
   _ownerStorageRefreshTimer = setTimeout(() => {
     _ownerStorageRefreshTimer = null;

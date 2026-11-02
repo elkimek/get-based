@@ -1,7 +1,6 @@
 import {projectDashboardWidgetFrame, renderDashboardWidgetFrame, type DashboardWidgetEntry} from './dashboard-widget-presentation.js';
 // dashboard-widget-controls.js - dashboard widget controls, picker, and layout actions
 
-import { dashboardBiometricSelectionKey } from './dashboard-widgets.js';
 import {projectDashboardActionBar} from './dashboard-action-bar-presentation.js';
 import {renderDashboardActionBar} from './dashboard-action-bar-rendering.js';
 import { escapeAttr, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
@@ -24,6 +23,8 @@ import {
 } from './dashboard-widget-runtime.js';
 
 import type {ControlsDependencies, ControlsPreferences, ControlsMarkerOption, ControlsBiometricOption, ControlsEventReader} from '../types/dashboard-widget-controls.js';
+import { afterDashboardPreferenceCommit, writeDashboardPreferenceRaw } from './dashboard-preference-store.js';
+import { runNativeDashboardPreferenceAction } from './dashboard-native-commands.js';
 
 const DASHBOARD_WIDGET_KEYBOARD_ACTIONS = new Set([
   'open-biometric-manual-log',
@@ -71,8 +72,9 @@ export function createDashboardWidgetControls(deps: unknown) {
     saveDashboardBiometricSelection,
     getDashboardBiometricMetricOrder,
     getDashboardBiometricTile,
-    rerenderDashboardFromWidgetChange,
+    rerenderDashboardFromWidgetChange: renderDashboardAfterChange,
   } = deps as ControlsDependencies;
+  const rerenderDashboardFromWidgetChange = () => afterDashboardPreferenceCommit(renderDashboardAfterChange);
 
   function isOrganizeMode() {
     return organizeMode;
@@ -102,11 +104,11 @@ export function createDashboardWidgetControls(deps: unknown) {
 
   function scrollDashboardWidgetIntoView(id: unknown) {
     if (!id || typeof document === 'undefined') return;
-    requestAnimationFrame(() => {
+    afterDashboardPreferenceCommit(() => requestAnimationFrame(() => {
       const widgets = ([...document.querySelectorAll<HTMLElement>('.dashboard-widget[data-widget-id]')]);
       const el = widgets.find(node => node.dataset.widgetId === id);
       el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-    });
+    }));
   }
 
   function getDashboardViewportTargetWidgetId() {
@@ -189,9 +191,13 @@ export function createDashboardWidgetControls(deps: unknown) {
     if (empty) empty.hidden = visible > 0;
   }
 
-  function handleDashboardWidgetAction(actionEl: HTMLElement, event: unknown) {
+  function handleDashboardWidgetAction(actionEl: HTMLElement, event: unknown, preferenceOwned = false) {
     const action = actionEl.dataset.dashboardWidgetAction || '';
     const id = actionEl.dataset.dashboardWidgetId || '';
+    if (!preferenceOwned && ['reset-widgets', 'move-widget', 'hide-widget', 'show-widget', 'add-marker-widget', 'add-biometric-metric', 'reset-layout', 'remove-biometric-metric'].includes(action)) {
+      void runNativeDashboardPreferenceAction(() => handleDashboardWidgetAction(actionEl, event, true), () => actionEl.isConnected);
+      return;
+    }
     if (action === 'toggle-organize') {
       toggleDashboardOrganizeMode();
     } else if (action === 'open-picker') {
@@ -313,7 +319,10 @@ export function createDashboardWidgetControls(deps: unknown) {
     if (!target || typeof target.closest !== 'function') return;
     const dropEl = target.closest<HTMLElement>('[data-dashboard-widget-drop-id]');
     if (!dropEl) return;
-    dropDashboardWidget(event, dropEl.dataset.dashboardWidgetDropId || '');
+    (event as ControlsEventReader).preventDefault();
+    const dragging = draggingWidgetId, source = (event as ControlsEventReader).dataTransfer?.getData('text/plain') || dragging;
+    const captured = { preventDefault: () => {}, dataTransfer: { getData: () => source } };
+    void runNativeDashboardPreferenceAction(() => dropDashboardWidget(captured, dropEl.dataset.dashboardWidgetDropId || ''), () => dropEl.isConnected && draggingWidgetId === dragging);
   }
 
   function installDashboardWidgetControlDelegates() {
@@ -370,8 +379,10 @@ export function createDashboardWidgetControls(deps: unknown) {
 
   function addDashboardWidgetFromLens(id: unknown) {
     showDashboardWidget(id);
-    if (state.currentView && state.currentView !== 'dashboard') (navigateDashboardRoute as (route:unknown)=>ReturnType<typeof navigateDashboardRoute>)(state.currentView);
-    showNotification('Added to Dashboard', 'success');
+    afterDashboardPreferenceCommit(() => {
+      if (state.currentView && state.currentView !== 'dashboard') (navigateDashboardRoute as (route:unknown)=>ReturnType<typeof navigateDashboardRoute>)(state.currentView);
+      showNotification('Added to Dashboard', 'success');
+    });
   }
 
   function removeDashboardWidgetFromLens(id: unknown) {
@@ -379,9 +390,11 @@ export function createDashboardWidgetControls(deps: unknown) {
     const prefs = getDashboardWidgetPrefs();
     if (!prefs.hidden.includes(id)) prefs.hidden.push(id);
     saveDashboardWidgetPrefs(prefs);
-    if (state.currentView === 'dashboard') rerenderDashboardFromWidgetChange();
-    else if (state.currentView) (navigateDashboardRoute as (route:unknown)=>ReturnType<typeof navigateDashboardRoute>)(state.currentView);
-    showNotification('Removed from Dashboard', 'info');
+    afterDashboardPreferenceCommit(() => {
+      if (state.currentView === 'dashboard') rerenderDashboardFromWidgetChange();
+      else if (state.currentView) (navigateDashboardRoute as (route:unknown)=>ReturnType<typeof navigateDashboardRoute>)(state.currentView);
+      showNotification('Removed from Dashboard', 'info');
+    });
   }
 
   function addDashboardMarkerWidget(markerId: unknown) {
@@ -439,9 +452,8 @@ export function createDashboardWidgetControls(deps: unknown) {
 
   function resetDashboardWidgets() {
     resetDashboardWidgetPrefs();
-    localStorage.removeItem(dashboardBiometricSelectionKey());
-    organizeMode = false;
-    rerenderDashboardFromWidgetChange();
+    writeDashboardPreferenceRaw('biometrics', null);
+    afterDashboardPreferenceCommit(() => { organizeMode = false; rerenderDashboardFromWidgetChange(); });
   }
 
   function clearDashboardWidgets() {
@@ -449,8 +461,7 @@ export function createDashboardWidgetControls(deps: unknown) {
       order: [...getAvailableDashboardFixedWidgetIds()],
       hidden: [...getAvailableDashboardFixedWidgetIds()],
     });
-    organizeMode = false;
-    rerenderDashboardFromWidgetChange();
+    afterDashboardPreferenceCommit(() => { organizeMode = false; rerenderDashboardFromWidgetChange(); });
   }
 
   function openDashboardWidgetPickerOverlay(html: string, options: Parameters<typeof openAppendedModalOverlay>[2] = {}) {
@@ -483,7 +494,7 @@ export function createDashboardWidgetControls(deps: unknown) {
 
   function closeDashboardWidgetPicker() {
     const overlay = document.getElementById('dashboard-widget-picker-overlay');
-    if (overlay) removeModalOverlay(overlay);
+    afterDashboardPreferenceCommit(() => { if (overlay?.isConnected && document.getElementById('dashboard-widget-picker-overlay') === overlay) removeModalOverlay(overlay); });
   }
 
   function startDashboardWidgetDrag(event: unknown, id: unknown, dragEl: unknown = (event as ControlsEventReader).currentTarget) {
@@ -516,6 +527,8 @@ export function createDashboardWidgetControls(deps: unknown) {
   installDashboardWidgetControlDelegates();
 
   return {
+    runPreferenceAction: runNativeDashboardPreferenceAction,
+    getDashboardMarkerWidgetOptions,
     isOrganizeMode,
     renderDashboardControlButtons,
     projectDashboardControlButtons,

@@ -99,8 +99,10 @@ export function createSyncSaveHooks({
         return;
       }
       try {
-        const result = await (0, syncSaveHooksDeps.pushProfile)(profileId, importedData);
-        if ((result as { skipped?: unknown } | null | undefined)?.skipped && attempt < 60) scheduleAISettingsPush(profileId, importedData, attempt + 1);
+        const result = await (0, syncSaveHooksDeps.pushProfile)(profileId, importedData) as {ok?: unknown; skipped?: unknown} | null | undefined;
+        // A successful unchanged receipt is terminal, just like a commit.
+        // Only an unsuccessful skipped attempt still needs a retry.
+        if (result?.skipped && result.ok !== true && attempt < 60) scheduleAISettingsPush(profileId, importedData, attempt + 1);
       } catch {}
     }, attempt === 0 ? 250 : 1000);
   }
@@ -191,7 +193,7 @@ export function createSyncSaveHooks({
     }).catch(() => {});
   }
 
-  function onProfileSaved(profileId: string | null | undefined, importedData: unknown = null) {
+  function onProfileSaved(profileId: string | null | undefined, importedData: unknown = null, options: { immediate?: unknown } = {}) {
     if (!profileId) return;
     if (!(0, syncSaveHooksDeps.isSyncConfigured)()) return;
     if (isProfileSyncBlocked(profileId)) return;
@@ -199,6 +201,12 @@ export function createSyncSaveHooks({
     if (!(0, syncSaveHooksDeps.isSyncEnabled)()) return;
     const prev = _profileSyncTimers.get(profileId);
     if (prev) clearTimeout(prev);
+    if (options.immediate) {
+      _profileSyncTimers.delete(profileId);
+      if (importedData && typeof importedData === 'object') scheduleProfilePush(profileId, importedData);
+      else void readProfileImportedData(profileId).then(data => scheduleProfilePush(profileId, data)).catch(() => {});
+      return;
+    }
     const timer = setTimeout(async () => {
       if (_profileSyncTimers.get(profileId) === timer) _profileSyncTimers.delete(profileId);
       if (!(0, syncSaveHooksDeps.isSyncEnabled)()) return;

@@ -11,6 +11,8 @@ import {escapeHTML, escapeAttr} from '../js/utils.js';
 import {renderMarkerDetailHistory, renderMarkerDetailEditor} from '../js/marker-detail-results-presentation.js';
 import {captureMarkerDetailText, projectMarkerDetailAction} from '../js/marker-detail-projection.js';
 import {markerDetailActionAttrs} from '../js/marker-detail-actions.js';
+import {validateMarkerRange} from '../js/marker-range-core.js';
+import {profileDataValuesEqual} from '../js/profile-data-writes.js';
 import type {HistoryCollection, HistorySource} from '../js/marker-detail-view.js';
 
 // Genuine emitted original/candidate functions run with explicit service ports.
@@ -31,6 +33,29 @@ function source(owner: 'history' | 'editing', original: boolean): string {
   return fs.readFileSync(new URL(original ? './fixtures/marker-detail-original-marker-detail-'+owner+'.js.txt'
     : '../js/marker-detail-'+owner+'.js', import.meta.url), 'utf8');
 }
+it.each(['invalid', 'reversed', 'profile', 'units', 'range', 'root'] as const)('keeps native range input and performs no write after a %s conflict', async boundary => {
+  document.body.innerHTML = '<span class="ref-editable"><b id="range-entry">Edit</b></span>';
+  const saves: unknown[] = [], notices: unknown[] = [];
+  const owned = { currentProfile: 'native-range', unitSystem: 'EU', importedData: { refOverrides: {} as Record<string, unknown> }, markerRegistry: { controlled: { refMin: 4, refMax: 8 } } };
+  const context = vm.createContext({ document, Element, structuredClone, renderMarkerDetailEditor, captureMarkerDetailText, projectMarkerDetailAction,
+    state: owned, validateMarkerRange, profileDataValuesEqual, getMarkerStorageDotKey: () => 'biochemistry.glucose',
+    convertDisplayToSI: (_key: string, value: number) => value, saveRefRangeOverride: (...args: unknown[]) => { saves.push(args); return true; },
+    navigateMarkerDetailRuntime: () => {}, buildMarkerDetailSidebarRuntime: () => {}, showNotification: (...args: unknown[]) => notices.push(args) });
+  const api = new vm.Script(script(source('editing', false)) + '\n({configureMarkerDetailEditing,editRefRange,saveRefRange})').runInContext(context) as {
+    configureMarkerDetailEditing(value: object): void; editRefRange(id: string, type: string, event: { target: Element }): void; saveRefRange(id: string, type: string): Promise<void>;
+  };
+  api.configureMarkerDetailEditing({ showDetailModal: () => {} }); api.editRefRange('controlled', 'ref', { target: document.getElementById('range-entry')! });
+  const min = document.getElementById('ref-edit-min') as HTMLInputElement, max = document.getElementById('ref-edit-max') as HTMLInputElement;
+  min.value = boundary === 'invalid' ? '5.1trailing' : boundary === 'reversed' ? '9' : '5'; max.value = '8';
+  if (boundary === 'profile') owned.currentProfile = 'retired';
+  if (boundary === 'units') owned.unitSystem = 'US';
+  if (boundary === 'range') owned.importedData.refOverrides['biochemistry.glucose'] = { refMin: 3 };
+  if (boundary === 'root') owned.importedData = { refOverrides: {} };
+  const before = min.value;
+  await api.saveRefRange('controlled', 'ref');
+  expect(saves).toEqual([]); expect(notices).toHaveLength(1); expect(notices[0]).toEqual([expect.any(String), 'error']);
+  expect(min.value).toBe(before); expect(max.value).toBe('8'); expect(document.querySelector('.ref-edit-form')).not.toBeNull();
+});
 function reviewedFragment(html: string, branch: number): string {
   const host = document.createElement('div'); host.innerHTML = html;
   const nodes = [...host.childNodes], positions = [0, 1, nodes.length - 2, nodes.length - 1];
@@ -126,7 +151,8 @@ describe('Marker Detail unchanged metadata and reference editor services', () =>
       const attributes = (action: string, fields: Record<string, unknown>) => {calls.push(['attributes', action, Object.entries(fields)]); return markerDetailActionAttrs(action, fields);};
       const context = vm.createContext({document,Element,escapeHTML,escapeAttr,renderMarkerDetailEditor,captureMarkerDetailText,
         projectMarkerDetailAction: (...args: Parameters<typeof projectMarkerDetailAction>) => {attributes(args[0], Object.fromEntries(Object.entries(args[1] || {}))); return projectMarkerDetailAction(...args);},
-        state:{markerRegistry:{controlled:{refMin:4,refMax:8,optimalMin:5,optimalMax:7}}},
+        structuredClone, validateMarkerRange, profileDataValuesEqual,
+        state:{currentProfile:'range-controller',unitSystem:'EU',importedData:{refOverrides:{}},markerRegistry:{controlled:{refMin:4,refMax:8,optimalMin:5,optimalMax:7}}},
         getMarkerStorageDotKey: () => 'biochemistry.glucose', markerDetailActionAttrs: attributes,navigateMarkerDetailRuntime: (category: string) => calls.push(['navigate',category]),buildMarkerDetailSidebarRuntime: () => {},
         convertDisplayToSI: (key: string,value: number) => {calls.push(['convert',key,value]);return value*2;},
         saveRefRangeOverride: async (key: string,type: string,range: {min:number|null;max:number|null}) => {calls.push(['save',key,type,range.min,range.max]);return true;},
@@ -141,7 +167,7 @@ describe('Marker Detail unchanged metadata and reference editor services', () =>
       const html = original ? form.outerHTML : '<span class="ref-edit-form">' + reviewedFragment(form.innerHTML, 0) + '</span>';
       const minimum=document.getElementById('ref-edit-min') as HTMLInputElement,maximum=document.getElementById('ref-edit-max') as HTMLInputElement;
       expect(document.activeElement).toBe(minimum); expect(minimum.defaultValue).toBe(label==='Optimal'?'5':'4');expect(maximum.defaultValue).toBe(label==='Optimal'?'7':'8');
-      minimum.value=' 6 ';maximum.value='not a number';
+      minimum.value=' 6 ';maximum.value='';
       const enter=new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});minimum.dispatchEvent(enter);
       // The real asynchronous save continuation drains naturally before its downstream assertions.
       await new Promise<void>(resolve => setImmediate(resolve)); expect(enter.defaultPrevented).toBe(true);

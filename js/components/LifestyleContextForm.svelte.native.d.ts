@@ -3,6 +3,6 @@ import type { LifestyleDraft, LifestyleFormModel } from '../context-lifestyle-fo
 declare const component: Component<{
   model: LifestyleFormModel; initial: LifestyleDraft; hasCurrent: boolean; current(): boolean;
   save(): void; clear(): void; close(): void; back(): void; openEMF(): void; openLightSetup(): void;
-}, { readDraft(): LifestyleDraft; report(message: string, busy: boolean, label?: string): void }>;
+}, { readDraft(): LifestyleDraft; refresh(model: LifestyleFormModel, draft: LifestyleDraft, filled: boolean): void; report(message: string, busy: boolean, label?: string): void }>;
 export default component;
 export { mount, unmount, flushSync } from 'svelte';
