@@ -181,7 +181,9 @@ assert('dashboard organize mode disables dense grid packing',
   'dropDashboardWidget',
 ].forEach(name => {
   assert(`${name} remains forwarded through dashboard composition`,
-    compositionSrc.includes(`${name}: (...args) => dashboardWidgetControls.${name}(...args)`));
+    compositionSrc.includes(['moveDashboardWidget', 'hideDashboardWidget', 'showDashboardWidget', 'addDashboardMarkerWidget', 'addDashboardBiometricMetric', 'dropDashboardWidget'].includes(name)
+      ? `${name}: (...args) => { void dashboardWidgetControls.runPreferenceAction(() => dashboardWidgetControls.${name}(...args)); }`
+      : `${name}: (...args) => dashboardWidgetControls.${name}(...args)`));
 });
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

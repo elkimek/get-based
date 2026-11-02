@@ -6,13 +6,13 @@ export interface CyclePeriod extends Record<string, unknown> {
   id: unknown;
   startDate: string;
   endDate: string;
-  flow: CycleFlow;
+  flow: CycleFlow | '';
   symptoms: string[];
   source: string;
   confidence: unknown;
   updatedAt: unknown;
 }
-interface PeriodDates { startDate: string; endDate?: string | null; flow?: string | null }
+interface PeriodDates { startDate: string; endDate?: string | null; flow?: string | null; endDateKnown?: unknown; flowKnown?: unknown }
 interface NormalizeOptions { defaultSource?: string; defaultUpdatedAt?: string }
 interface PeriodInput extends Record<string, unknown> { bleeding?: { flow?: unknown } }
 interface IntervalRecord { days: number; from: string; to: string }
@@ -163,6 +163,7 @@ function regularityFromIntervals(intervals: readonly number[]) {
 }
 
 function periodLength(period: PeriodDates) {
+  if (period.endDateKnown === false) return null;
   const days = diffDays(period.startDate, period.endDate || period.startDate);
   return days == null ? null : days + 1;
 }
@@ -225,9 +226,9 @@ export function normalizeCyclePeriod(period: unknown, {
   const startDate = (period.startDate || period.start || period.date) as string;
   if (!safeDate(startDate)) return null;
   const rawEnd = (period.endDate || period.end || startDate) as string;
-  const endDate = safeDate(rawEnd) && (rawEnd >= startDate) ? rawEnd : startDate;
+  const endDate = period.endDateKnown === false ? '' : safeDate(rawEnd) && (rawEnd >= startDate) ? rawEnd : startDate;
   const source = String(period.source || defaultSource || 'manual').trim() || 'manual';
-  const flow = normalizeCycleFlow(period.flow || period.bleeding?.flow) || 'moderate';
+  const flow = period.flowKnown === false ? '' : normalizeCycleFlow(period.flow || period.bleeding?.flow) || 'moderate';
   const symptoms = uniqStrings(Array.isArray(period.symptoms) ? period.symptoms : []);
   return {
     ...period,
@@ -302,7 +303,7 @@ export function calculateCycleStats(periods: PeriodDates[] | null | undefined) {
   if (!periods || periods.length === 0) return result;
   const sorted = periods.slice().sort((a, b) => a.startDate.localeCompare(b.startDate));
 
-  const periodLengths = sorted.filter(p => p.endDate).map(p => {
+  const periodLengths = sorted.filter(p => p.endDate && p.endDateKnown !== false).map(p => {
     const start = new Date(p.startDate + 'T00:00:00');
     const end = new Date(p.endDate + 'T00:00:00');
     return Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1;
@@ -312,7 +313,7 @@ export function calculateCycleStats(periods: PeriodDates[] | null | undefined) {
     result.periodLength = clamp(avgPeriod, 2, 10);
   }
 
-  const recent = sorted.slice(-6).filter(p => p.flow);
+  const recent = sorted.slice(-6).filter(p => p.flow && p.flowKnown !== false);
   if (recent.length > 0) {
     const counts: Record<string, number> = {};
     for (const p of recent) counts[p.flow!] = (counts[p.flow!] || 0) + 1;
@@ -350,6 +351,7 @@ export function buildCycleHistorySummary(periods: unknown) {
     ? intervals.filter(i => i.to >= cutoff).map(i => i.days)
     : [];
   const heavyRecent = recentPeriods.filter(p => p.flow === 'heavy').length;
+  const knownFlowCount = recentPeriods.filter(p => p.flowKnown !== false && p.flow).length;
   const avgRecent = mean(recentIntervals);
   const avgLastYear = mean(lastYearIntervals);
   const avgAll = mean(intervalDays);
@@ -357,7 +359,7 @@ export function buildCycleHistorySummary(periods: unknown) {
     recent12: {
       avgCycle: avgRecent == null ? null : Math.round(avgRecent),
       range: recentIntervals.length ? [Math.min(...recentIntervals), Math.max(...recentIntervals)] : null,
-      heavyRate: recentPeriods.length ? round(heavyRecent / recentPeriods.length, 2) : null,
+      heavyRate: knownFlowCount ? round(heavyRecent / knownFlowCount, 2) : null,
       variability: variabilityLabel(recentIntervals),
     },
     last12Months: {

@@ -1,4 +1,3 @@
-import { profileDataBaseline } from './profile-data-writes.js';
 import type { GenotypeEntry } from './dna-genotype.js';
 import type { SnpAnnotation, SnpCatalog } from './dna-evidence.js';
 import type { DnaProfileData, GeneticsData, PendingDnaImport, SnpSource, StoredSnpCall } from './dna-runtime.js';
@@ -16,9 +15,12 @@ interface ManualSnpRow { rsid: string; genotype: string; note: string; error?: s
 // dna.js — DNA storage, context assembly, and UI orchestration
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { hashString, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
+import { geneticsCatalogSignature, resolveGeneticsAPOE, recalculateGenetics, upsertGeneticsWithCatalog } from './genetics-mutations.js';
+import { prepareGeneticsWrite, commitGeneticsWrite } from './genetics-record-store.js';
+import { mergeGeneticsSnpStates, geneticsSnpRemoved, geneticsSnpAllowed, geneticsSnpMutationTime } from './genetics-snp-lifecycle.js';
 import { publishGeneticsImport } from './genetics-import-events.js';
-import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged } from './data.js';
+import { removeGeneticsScope, beginGeneticsMutation, stampGeneticsRecord, geneticsScopeRemoved } from './genetics-lifecycle.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { initDnaActionDelegates } from './dna-actions.js';
 import { configureDnaModuleBridge } from './dna-runtime-bridge.js';
@@ -32,7 +34,7 @@ import {
   toggleGeneticsCollapse,
   toggleGeneticsExpand,
 } from './dna-ui.js';
-import { findGenotypeInfo as findGenotypeInfoImpl, findGenotypeMatch, findSnpHint as findSnpHintImpl, normalizeGenotype, sortAlleles } from './dna-genotype.js';
+import { findGenotypeInfo as findGenotypeInfoImpl, findGenotypeMatch, findSnpHint as findSnpHintImpl } from './dna-genotype.js';
 import {
   detectDNAFile,
   isDNAFile,
@@ -41,7 +43,7 @@ import {
   parseDNAFileWithTable,
 } from './dna-parser.js';
 import {
-  cacheDnaSnpTable, clearPendingDnaImport, captureDnaImportOrigin, isPendingDnaImportCurrent,
+  cacheDnaSnpTable, clearPendingDnaImport, captureDnaImportOrigin, captureDnaReviewOrigin, isPendingDnaImportCurrent,
   confirmDnaDeleteDialog, getPendingDnaImport,
   isDnaLabImportRunning, logDnaDebugError, logDnaDebugWarn,
   loadGeneticsStylesheetForAction,
@@ -111,17 +113,7 @@ export function ensureSNPTable() {
 // card can flag "catalog grew since your import — re-import to include
 // new SNPs". Hash catches swap/replace cases that a raw size compare misses.
 function _catalogSignature(snpTable: SnpCatalog | null | undefined) {
-  if (!snpTable) return null;
-  const rsids = Object.keys(snpTable).filter(k => k.startsWith('rs')).sort();
-  const canonicalize = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(canonicalize);
-    if (value && typeof value === 'object') {
-      return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalize((value as Record<string, unknown>)[key])]));
-    }
-    return value;
-  };
-  const catalogContent = rsids.map(rsid => [rsid, canonicalize(snpTable[rsid])]);
-  return { size: rsids.length, hash: hashString(JSON.stringify(catalogContent)) };
+  return geneticsCatalogSignature(snpTable);
 }
 
 // Returns { matches: { rsid: { genotype, gene, variant, effect, note } }, source, totalLines, coverage }
@@ -160,15 +152,7 @@ export function findSnpHint<Hint>(entry: GenotypeEntry<unknown, Hint> | null | u
 // so we use the diploid genotype pair, not per-allele pairing.
 // ε2: rs429358=T, rs7412=T | ε3: rs429358=T, rs7412=C | ε4: rs429358=C, rs7412=C
 function resolveAPOE(matches: Record<string, Pick<StoredSnpCall, 'genotype'>>) {
-  const g429 = matches.rs429358?.genotype;
-  const g7412 = matches.rs7412?.genotype;
-  if (!g429 || !g7412 || g429.length !== 2 || g7412.length !== 2) return null;
-  const key = `${sortAlleles(g429)}|${sortAlleles(g7412)}`;
-  const table: Record<string, string> = {
-    'TT|CC': '\u03B53/\u03B53', 'CT|CC': '\u03B53/\u03B54', 'CC|CC': '\u03B54/\u03B54',
-    'TT|CT': '\u03B52/\u03B53', 'CT|CT': '\u03B52/\u03B54', 'TT|TT': '\u03B52/\u03B52',
-  };
-  return table[key] || null;
+  return resolveGeneticsAPOE(matches);
 }
 
 // ═══════════════════════════════════════════════
@@ -189,13 +173,7 @@ function snpEffectCounts(readMatches: () => Record<string, StoredSnpCall>, apoeR
 }
 
 function recalculateGeneticsSummary(genetics: GeneticsData | null | undefined) {
-  if (!genetics) return;
-  const apoe = resolveAPOE(genetics.snps || {});
-  const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set<string>();
-  genetics.effects = snpEffectCounts(() => genetics.snps || {}, apoeRsids);
-  genetics.coverage = { found: Object.keys(genetics.snps || {}).length, total: Object.keys(_snpTable || {}).filter(k => k.startsWith('rs')).length };
-  if (apoe) genetics.apoe = apoe;
-  else delete genetics.apoe;
+  recalculateGenetics(genetics, _snpTable);
 }
 
 function getCuratedSnpOverrides(genetics: GeneticsData | null | undefined) {
@@ -205,73 +183,35 @@ function getCuratedSnpOverrides(genetics: GeneticsData | null | undefined) {
 }
 
 function prepareRawDnaImportResult(profileData: DnaProfileData | null | undefined, parseResult: PendingDnaImport) {
-  const curatedOverrides = getCuratedSnpOverrides(profileData?.genetics);
+  const restoresRemovedGenome = geneticsScopeRemoved(profileData?.geneticsLifecycle, 'genome');
+  const states = mergeGeneticsSnpStates(profileData?.geneticsSnpTombstones, null);
+  const raw = Object.entries(parseResult.matches || {}), allowed = raw.filter(([id]) => !geneticsSnpRemoved(states, id));
+  const suppressedRemovedCount = raw.length - allowed.length;
+  const curatedOverrides = restoresRemovedGenome ? {} : getCuratedSnpOverrides(profileData?.genetics);
   const preservedOverrideCount = Object.keys(curatedOverrides).length;
-  if (preservedOverrideCount === 0) return parseResult;
-  const matches = { ...(parseResult.matches || {}), ...curatedOverrides };
+  if (preservedOverrideCount === 0 && suppressedRemovedCount === 0 && !restoresRemovedGenome) return parseResult;
+  const matches = Object.fromEntries(Object.entries({ ...Object.fromEntries(allowed), ...curatedOverrides }).filter(([id]) => !geneticsSnpRemoved(states, id)));
   return {
     ...parseResult,
     matches,
     coverage: { ...(parseResult.coverage || {}), found: Object.keys(matches).length } as PendingDnaImport['coverage'],
     rawMatchedCount: Number(parseResult.coverage?.found) || Object.keys(parseResult.matches || {}).length,
     preservedOverrideCount,
+    suppressedRemovedCount,
+    restoresRemovedGenome,
   };
 }
 
-export function upsertGeneticsSnp(profileData: DnaProfileData, rsidInput: unknown, genotypeInput: unknown, source: SnpSource = {}): UpsertSnpResult {
-  const previousGenetics = profileData.genetics || null;
-  const hadStoredSnps = Object.keys(previousGenetics?.snps || {}).length > 0;
-  const previousCatalogVersion = previousGenetics?.catalogVersion;
-  const rsid = String(rsidInput || '').trim().toLowerCase();
-  const genotype = normalizeGenotype(genotypeInput);
-  if (!/^rs\d+$/.test(rsid)) return { ok: false, error: 'Enter a valid rsID, e.g. rs1801133.' };
-  if (!genotype) return { ok: false, error: 'Enter an allele genotype such as CT, or a supported repeat such as 6/7.' };
-  const entry = _snpTable?.[rsid];
-  if (!entry) return { ok: false, error: 'This SNP is not in the getbased health SNP catalog yet.' };
-  const match = findGenotypeMatch(entry, genotype);
-  if (!match) return { ok: false, error: 'That genotype does not match this SNP catalog entry.' };
-  if (!profileData.genetics) {
-    profileData.genetics = { source: 'Manual SNPs', importDate: new Date().toISOString().slice(0, 10), coverage: { found: 0, total: 0 }, effects: {}, snps: {}, catalogVersion: _catalogSignature(_snpTable) };
-  }
-  if (!profileData.genetics.snps) profileData.genetics.snps = {};
-  const sourceMeta = {
-    type: source.type || 'manual',
-    label: source.label || source.fileName || 'Manual entry',
-    fileName: source.fileName || null,
-    rawText: source.rawText || null,
-    addedAt: source.addedAt || new Date().toISOString(),
-  };
-  profileData.genetics.snps![rsid] = {
-    genotype,
-    normalizedGenotype: match.key,
-    gene: entry.gene,
-    variant: entry.variant,
-    category: entry.category || null,
-    markers: entry.markers || [],
-    effect: match.info.effect,
-    valence: match.info.valence,
-    evidence: entry.evidence,
-    relevance: entry.relevance,
-    note: match.info.note,
-    source: sourceMeta,
-  };
-  if (!hadStoredSnps || !profileData.genetics.source) {
-    profileData.genetics.source = sourceMeta.label || profileData.genetics.source || 'Manual SNPs';
-  }
-  profileData.genetics.importDate = new Date().toISOString().slice(0, 10);
-  // A manual/report addition does not mean the user's existing raw file was
-  // reprocessed against the newest catalog. Preserve its prior signature so
-  // a genuine catalog-staleness prompt is not accidentally cleared.
-  if (!hadStoredSnps) profileData.genetics.catalogVersion = _catalogSignature(_snpTable);
-  else if (previousCatalogVersion) profileData.genetics.catalogVersion = previousCatalogVersion;
-  else delete profileData.genetics.catalogVersion;
-  recalculateGeneticsSummary(profileData.genetics);
-  return { ok: true, rsid, snp: profileData.genetics.snps[rsid]! };
+export function upsertGeneticsSnp(profileData: DnaProfileData, rsidInput: unknown, genotypeInput: unknown, source: SnpSource = {}, options: { restoreGenome?: boolean } = {}): UpsertSnpResult {
+  return upsertGeneticsWithCatalog(profileData, rsidInput, genotypeInput, source, _snpTable, Date.now(), { restoreRemoved: source.type == null || source.type === 'manual', restoreGenome: !!options.restoreGenome });
 }
 
-export function saveGeneticsData(profileData: DnaProfileData, parseResult: Pick<PendingDnaImport, 'matches' | 'source'> & Partial<Pick<PendingDnaImport, 'coverage'>>) {
+export function saveGeneticsData(profileData: DnaProfileData, parseResult: Pick<PendingDnaImport, 'matches' | 'source'> & Partial<Pick<PendingDnaImport, 'coverage'>>, options: { restoreRemovedGenome?: boolean } = {}) {
+  const writtenAt = beginGeneticsMutation(profileData, 'snp', Date.now(), !!options.restoreRemovedGenome);
   const previous = profileData.genetics || null;
   const preservedMtDna = previous?.mtdna ? JSON.parse(JSON.stringify(previous.mtdna)) : null;
+  const maternalHistory = previous?.mtdnaHistory ? structuredClone(previous.mtdnaHistory) : null;
+  const states = mergeGeneticsSnpStates(profileData.geneticsSnpTombstones, null);
   const preservedAddedSnps = getCuratedSnpOverrides(previous);
   // Count effects for quick display (avoids needing SNP table at render time)
   const apoe = resolveAPOE(parseResult.matches);
@@ -282,9 +222,11 @@ export function saveGeneticsData(profileData: DnaProfileData, parseResult: Pick<
     coverage: parseResult.coverage,
     effects,
     snps: {},
-    catalogVersion: _catalogSignature(_snpTable),
+    catalogVersion: _catalogSignature(_snpTable), updatedAt: writtenAt,
   };
+  stampGeneticsRecord(profileData, profileData.genetics);
   for (const [rsid, data] of Object.entries(parseResult.matches)) {
+    if (geneticsSnpRemoved(states, rsid)) continue;
     profileData.genetics.snps![rsid] = {
       genotype: data.genotype,
       normalizedGenotype: data.normalizedGenotype || findGenotypeMatch(_snpTable?.[rsid], data.genotype)?.key || data.genotype,
@@ -297,16 +239,19 @@ export function saveGeneticsData(profileData: DnaProfileData, parseResult: Pick<
       evidence: data.evidence || _snpTable?.[rsid]?.evidence,
       relevance: data.relevance || _snpTable?.[rsid]?.relevance,
       note: data.note,
+      updatedAt: geneticsSnpMutationTime(profileData, rsid, previous?.snps?.[rsid]),
     };
+    stampGeneticsRecord(profileData, profileData.genetics.snps![rsid]!);
   }
   for (const [rsid, stored] of Object.entries(preservedAddedSnps)) {
     // Manual and report-derived calls are explicit user-curated overrides.
     // Keep them authoritative when a later raw-file import contains the same
     // rsID; otherwise re-importing can silently replace a clinically reported
     // genotype with a consumer-file call.
-    profileData.genetics.snps![rsid] = stored;
+    if (geneticsSnpAllowed(states, rsid, stored)) profileData.genetics.snps![rsid] = stored;
   }
   if (preservedMtDna) profileData.genetics.mtdna = preservedMtDna;
+  if (maternalHistory) profileData.genetics.mtdnaHistory = maternalHistory;
   if (apoe) {
     profileData.genetics.apoe = apoe;
   }
@@ -314,7 +259,7 @@ export function saveGeneticsData(profileData: DnaProfileData, parseResult: Pick<
 }
 
 export function deleteGeneticsData(profileData: DnaProfileData) {
-  delete profileData.genetics;
+  removeGeneticsScope(profileData, 'genome');
 }
 
 // Returns a one-line user-facing hint or null. "May" wording — the user's
@@ -459,7 +404,8 @@ export function buildGeneticsContext(genetics: GeneticsData | null | undefined, 
 
   if (lines.length === 0) return '';
   const headerParts: string[] = [];
-  if (genetics.source) headerParts.push(genetics.source);
+  // Stored source labels can be private filenames or paths. They stay in the
+  // ordinary UI/evidence store, not in model context.
   if (genetics.snps) headerParts.push(`${Object.keys(genetics.snps).length} SNPs`);
   if (genetics.mtdna) headerParts.push(`mtDNA ${genetics.mtdna.haplogroup}`);
   return `GENETICS (${headerParts.join(', ')}):\n${lines.map(l => '- ' + l).join('\n')}`;
@@ -500,7 +446,9 @@ export function parseManualSnpRows(singleRsid: unknown, singleGenotype: unknown,
 }
 
 export async function saveManualSnpFromModal() {
+  const origin = captureDnaImportOrigin();
   await loadSNPTable();
+  if (!origin.current()) return;
   const rsid = (document.getElementById('manual-snp-rsid') as HTMLInputElement | null)?.value || '';
   const genotype = (document.getElementById('manual-snp-genotype') as HTMLInputElement | null)?.value || '';
   const bulk = (document.getElementById('manual-snp-bulk') as HTMLTextAreaElement | null)?.value || '';
@@ -508,8 +456,7 @@ export async function saveManualSnpFromModal() {
   const rows = parseManualSnpRows(rsid, genotype, bulk);
   if (rows.length === 0) { showNotification('Add at least one rsID + genotype pair.', 'error'); return; }
 
-  const originalData = state.importedData;
-  const draftData = JSON.parse(JSON.stringify(originalData || {}));
+  const { base, next: draftData } = prepareGeneticsWrite(origin.data);
   const accepted: UpsertSnpResult[] = [], errors: string[] = [];
   for (const [index, row] of rows.entries()) {
     if (row.error) { errors.push(`Line ${index + 1}: ${row.error}`); continue; }
@@ -519,8 +466,8 @@ export async function saveManualSnpFromModal() {
     else accepted.push(result);
   }
   if (accepted.length === 0) { showNotification(errors.slice(0, 3).join(' · ') || 'Could not save SNPs', 'error', 7000); return; }
-  state.importedData = draftData;
-  if (!await saveImportedData()) { state.importedData = originalData; return; }
+  if (!await commitGeneticsWrite(origin.profileId, origin.data, base, draftData, origin.current)) return;
+  if (!origin.current()) return;
   closeModalOverlay('dna-modal-overlay');
   const errorSuffix = errors.length ? ` (${errors.length} skipped)` : '';
   showNotification(`Saved ${accepted.length} SNP${accepted.length === 1 ? '' : 's'}${errorSuffix}`, errors.length ? 'info' : 'success', 5000);
@@ -542,7 +489,7 @@ export async function importSnpReport() {
 }
 
 export async function handleSnpReportFile(file: File) {
-  const origin = captureDnaImportOrigin();
+  const origin = captureDnaReviewOrigin();
   if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return false; }
   if (!await loadGeneticsStylesheetForAction() || !origin.current()) return false;
   _dnaImportRunning = true;
@@ -557,8 +504,9 @@ export async function handleSnpReportFile(file: File) {
       text = await file.text();
     }
     if (!origin.current()) { _dnaImportRunning = false; return false; }
-    const result: ReturnType<typeof parseClinicalSnpReportText> & { mergeSnps?: boolean } = parseClinicalSnpReportText(text, { source: file.name, fileName: file.name, type: 'pdf-report' });
+    const result: ReturnType<typeof parseClinicalSnpReportText> & { mergeSnps?: boolean; restoresRemovedGenome?: boolean } = parseClinicalSnpReportText(text, { source: file.name, fileName: file.name, type: 'pdf-report' });
     result.mergeSnps = true;
+    result.restoresRemovedGenome = geneticsScopeRemoved(origin.data.geneticsLifecycle, 'genome');
     if (Object.keys(result.matches).length === 0) {
       showNotification('No catalog SNP results found in this report. Add the SNP manually.', 'error');
       _dnaImportRunning = false;
@@ -581,7 +529,7 @@ export async function handleSnpReportFile(file: File) {
 let _dnaImportRunning = false;
 
 export async function handleDNAFile(file: File) {
-  const origin = captureDnaImportOrigin();
+  const origin = captureDnaReviewOrigin();
   if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return false; }
   if (isDnaLabImportRunning()) { showNotification('Lab import in progress — wait for it to finish', 'info'); return false; }
   if (!await loadGeneticsStylesheetForAction() || !origin.current()) return false;
@@ -596,6 +544,10 @@ export async function handleDNAFile(file: File) {
     }
     if (!origin.current()) { _dnaImportRunning = false; return false; }
     const result = prepareRawDnaImportResult(origin.data, parsedResult);
+    if (!Object.keys(result.matches).length) {
+      showNotification('These calls were explicitly removed. Restore a reported genotype manually or through chat before importing it again.', 'info');
+      _dnaImportRunning = false; return false;
+    }
     showDNAImportPreview(result);
     return true;
   } catch (e) {
@@ -611,17 +563,16 @@ export async function confirmDNAImport() {
   if (!result) return;
   if (!isPendingDnaImportCurrent(result)) { clearPendingDnaImport(); _dnaImportRunning = false; return; }
   const origin = captureDnaImportOrigin();
-  const profileId = state.currentProfile;
-  const originalData = state.importedData;
-  const baseline = profileDataBaseline(originalData);
-  const draftData = JSON.parse(JSON.stringify(originalData || {}));
+  const profileId = origin.profileId, originalData = structuredClone(origin.data);
+  const { base, next: draftData } = prepareGeneticsWrite(origin.data);
   if (result.mergeSnps) {
     for (const [rsid, snp] of Object.entries(result.matches || {})) {
-      const saved = upsertGeneticsSnp(draftData, rsid, snp.genotype, snp.source || { type: 'report-text', label: result.source });
+      const saved = upsertGeneticsSnp(draftData, rsid, snp.genotype, snp.source || { type: 'report-text', label: result.source }, { restoreGenome: !!result.restoresRemovedGenome });
       if (!saved.ok) { showNotification((saved as Extract<UpsertSnpResult, { ok: false }>).error || `Could not save ${rsid}`, 'error'); _dnaImportRunning = false; return; }
     }
-  } else saveGeneticsData(draftData, result);
-  if (!await saveImportedDataForProfile(profileId, draftData, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })) {
+  } else saveGeneticsData(draftData, result, { restoreRemovedGenome: !!result.restoresRemovedGenome });
+  const authorized = () => origin.current() && getPendingDnaImport() === result && isPendingDnaImportCurrent(result);
+  if (!await commitGeneticsWrite(profileId, origin.data, base, draftData, authorized)) {
     _dnaImportRunning = false;
     return;
   }
@@ -630,7 +581,6 @@ export async function confirmDNAImport() {
     if (getPendingDnaImport() === result) clearPendingDnaImport();
     return;
   }
-  if (!baseline) state.importedData = draftData;
   clearPendingDnaImport();
   closeModalOverlay('dna-modal-overlay');
 
@@ -643,8 +593,7 @@ export async function confirmDNAImport() {
   const savedSnpCount = savedSnpEntries.length;
   showNotification(`Genome updated from ${result.source}: ${savedSnpCount} SNP calls available`, 'success');
 
-  notifyProfileDataContextChanged(profileId);
-  publishGeneticsImport({ profileId, previousData: originalData, data: state.importedData, source: result.source, kind: 'snps' });
+  publishGeneticsImport({ profileId, ownerData: origin.data, previousData: originalData, data: state.importedData, source: result.source, kind: 'snps' });
   updateDnaChatNudge();
 
   // Refresh sidebar (genetics nav count) AND dashboard. Without the
@@ -713,14 +662,16 @@ export {
 /// matches the rest of the app's modal styling and respects PWA/file
 /// contexts where the native confirm prompt would feel out of place.
 export async function confirmDeleteDNA() {
-  if (await confirmDnaDeleteDialog()) {
-    const originalData = JSON.parse(JSON.stringify(state.importedData || {}));
-    deleteGeneticsData(state.importedData);
-    if (!await saveImportedData()) {
-      state.importedData = originalData;
+  const origin = captureDnaImportOrigin(), reviewed = captureDnaReviewOrigin();
+  const { base, next } = prepareGeneticsWrite(origin.data);
+  if (await confirmDnaDeleteDialog() && reviewed.current()) {
+    deleteGeneticsData(next);
+    if (!await commitGeneticsWrite(origin.profileId, origin.data, base, next, reviewed.current)) {
+      if (!origin.current()) return;
       showNotification('Could not save genetic data deletion. Try again after the app finishes loading.', 'error');
       return;
     }
+    if (!origin.current()) return;
     refreshDnaShell('dashboard');
   }
 }

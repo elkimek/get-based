@@ -1,3 +1,4 @@
+import { createWearableFetchScope } from './wearable-fetch-scope.js';
 import type { WearableDailyRow, WearableRequestError } from './wearable-data-types.js';
 
 interface CivilDate { year?: unknown; month?: unknown; day?: unknown; date?: CivilDate | null }
@@ -199,9 +200,10 @@ async function fetchReconciled(type: string, filterForRange: (start: string, end
   return out;
 }
 
-async function safeMetric(label: string, request: () => Promise<GooglePoint[]>, authorizationState: { denied: number }): Promise<GooglePoint[]> {
-  try { return await request(); }
+async function safeMetric(label: string, request: () => Promise<GooglePoint[]>, authorizationState: { denied: number; requests: ReturnType<typeof createWearableFetchScope> }): Promise<GooglePoint[]> {
+  try { const result = await request(); authorizationState.requests.success(); return result; }
   catch (error) {
+    authorizationState.requests.failure(error);
     const status = getErrorStatus(error);
     if (status === 401) throw error;
     // Google lets people grant only a subset of the requested health scopes.
@@ -248,7 +250,7 @@ function emptyRow(date: string, sourceFamily: string): GoogleDailyRow {
 export async function fetchGoogleHealthDailyRange(accessToken: string, startDate: string, endDate: string, options: { dataSourceFamily?: string } = {}) {
   const sourceFamily = options.dataSourceFamily || DEFAULT_SOURCE_FAMILY;
   const endExclusive = addDaysIso(endDate, 1);
-  const authorizationState = { denied: 0 };
+  const authorizationState = { denied: 0, requests: createWearableFetchScope() };
   const metricRequestCount = 11;
   const [steps, heartRate, weight, bodyFat, hrv, rhr, oxygen, respiratory, temperature, vo2max, sleep] = await Promise.all([
     safeMetric('steps', () => fetchDailyRollups('steps', accessToken, startDate, endDate, sourceFamily), authorizationState),
@@ -268,6 +270,7 @@ export async function fetchGoogleHealthDailyRange(accessToken: string, startDate
     error.status = 403;
     throw error;
   }
+  authorizationState.requests.assertSuccessful();
 
   const byDate = new Map<string, GoogleDailyRow>();
   const ensure = (date: string | null) => {

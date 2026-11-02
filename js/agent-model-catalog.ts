@@ -2,6 +2,7 @@ export interface AgentReasoningEffort { reasoningEffort: string; description: st
 export interface AgentModel {
   id: string; model: string; displayName: string; description: string; isDefault: boolean;
   defaultReasoningEffort: string; supportedReasoningEfforts: AgentReasoningEffort[]; inputModalities: string[];
+  supportsTools?: boolean;
 }
 
 // Cached, capability-bearing model catalog reported by a local CLI adapter.
@@ -78,6 +79,7 @@ function normalizeModel(value: unknown): AgentModel | null {
     defaultReasoningEffort: boundedString(row.defaultReasoningEffort, 40),
     supportedReasoningEfforts: normalizeEfforts(row.supportedReasoningEfforts),
     inputModalities: normalizeInputModalities(row.inputModalities),
+    ...(typeof row.supportsTools === 'boolean' ? { supportsTools: row.supportsTools } : {}),
   };
 }
 
@@ -85,8 +87,12 @@ function isNormalizedModel(model: AgentModel | null): model is AgentModel {
   return model !== null;
 }
 
+/** Normalize a metadata read without publishing another connection's catalog. */
+export function normalizeAgentModelCatalog(models: unknown): AgentModel[] {
+  return Array.isArray(models) ? models.slice(0, 500).map(normalizeModel).filter(isNormalizedModel) : [];
+}
 export function cacheAgentModelCatalog(models: unknown, agentId = '', targetId = 'local'): AgentModel[] {
-  const normalized = Array.isArray(models) ? models.map(normalizeModel).filter(isNormalizedModel).slice(0, 500) : [];
+  const normalized = normalizeAgentModelCatalog(models);
   localStorage.setItem(AGENT_MODEL_CATALOG_KEY, JSON.stringify(normalized));
   const owner = boundedString(agentId, 40);
   if (owner) {
@@ -132,4 +138,14 @@ export function agentModelSupports(modelId: string, modality: string, models: Ag
 export function getAgentModelDisplay(modelId: string, models: AgentModel[] = getCachedAgentModelCatalog()): string {
   const model = resolveAgentModel(modelId, models);
   return model?.displayName || modelId || 'CLI default';
+}
+
+/** Feature hints use the selected CLI's advertised scale; they never rewrite preferences. */
+export function resolveAgentFeatureEffort(hint: string | undefined, configured: string, modelId: string, models: AgentModel[]) {
+  if (hint === undefined) return configured;
+  if (hint === '') return '';
+  const model = resolveAgentModel(modelId, models), choices = model?.supportedReasoningEfforts.map(value => value.reasoningEffort) || [];
+  if (choices.includes(hint)) return hint;
+  if (['none', 'off', 'minimal'].includes(hint)) return ['none', 'off', 'minimal', 'low'].find(value => choices.includes(value)) || '';
+  return choices.includes(configured) ? configured : '';
 }

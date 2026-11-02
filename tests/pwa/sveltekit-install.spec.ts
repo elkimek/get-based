@@ -3,7 +3,7 @@ import os from 'node:os';
 import {mkdtemp, rm} from 'node:fs/promises';
 import {chromium, expect, test, type CDPSession} from '@playwright/test';
 import {headlessBrowserEnvironment} from '../../scripts/headless-browser-environment.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 
 interface TargetRow {targetId:string;type:string;url:string}
 interface RuntimeReply {id?:number;error?:unknown;result?:{exceptionDetails?:unknown;result?:{value?:unknown}}}

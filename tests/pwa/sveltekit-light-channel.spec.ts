@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import { expect, test, type Page, type Request } from '@playwright/test';
 import { createDefaultProfileData } from '../../js/profile.js';
 import { DEVICE_ENGINE_VERSION } from '../../js/light-device-session-engine.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';
 import { installOfflineStartupDiagnostics, captureOfflineRouteFailureDiagnostics } from '../helpers/offline-launch-diagnostics.js';

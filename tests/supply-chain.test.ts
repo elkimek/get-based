@@ -39,6 +39,7 @@ describe('supply-chain inventory', () => {
       '@evolu/common v8',
       '@evolu/web v8',
       '@evolu/sqlite-wasm v8',
+      '@noble/hashes',
     ]);
   });
 
@@ -102,8 +103,9 @@ describe('supply-chain inventory', () => {
     });
     const resolved = snapshot.manifests['vendor/components.json'].resolved;
 
-    expect(Object.keys(resolved)).toHaveLength(17);
+    expect(Object.keys(resolved)).toHaveLength(18);
     expect((resolved['@noble/curves'] as { package_url?: unknown } | null | undefined)?.package_url).toBe('pkg:npm/%40noble/curves@2.2.0');
+    expect(resolved['@noble/hashes']).toEqual({ package_url: 'pkg:npm/%40noble/hashes@2.2.0', relationship: 'direct', scope: 'runtime' });
     expect(resolved['@phala/dcap-qvl']).toEqual({
       package_url: 'pkg:npm/%40phala/dcap-qvl@0.6.3',
       relationship: 'direct',

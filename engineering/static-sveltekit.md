@@ -58,10 +58,35 @@ Raw compatibility bootstraps and Knowledge Base/voice workers retain their
 transitive emitted ESM dependencies. The
 [raw asset collector](../scripts/raw-module-assets.mts) discovers that closure from
 runtime syntax; [static asset policy](../scripts/static-build-assets.mts) verifies
-it against the declared worker shell. Missing emissions or undeclared dependencies
+it against the declared worker shell. Source-module entries under `/js/` and
+`/shared/` are retained only when that raw graph requires them; bundled copies
+are not downloaded a second time. Missing emissions or undeclared dependencies
 fail the build. Do not keep a worker entry while dropping its independently loaded
 children. Optional provider/attestation vendors must remain behind their feature
 boundary rather than becoming startup dependencies.
+
+Copied `/data/*.json` assets remove only whitespace outside strings, preserving
+number spellings, field order, duplicate keys and all string contents. Canonical
+source files and asset URLs remain unchanged.
+
+The client build combines a closed list of already-eager data contracts and
+helpers into one startup chunk. Strict entry signatures remain enabled, with
+source and emitted dependency-closure checks. The production contract requires
+exactly those owners, one emitted chunk, no chunk dependencies and static startup reachability; optional features remain separate.
+
+Current static acceptance uses SHA256-shaped release identities so it exercises
+the production retry-proof guard. The original server remains unchanged for
+historical parity fixtures.
+
+The Kit retry producer uses two independent builds to qualify duplicate lazy
+entries before replacing their import targets. JavaScript bodies, export/import
+namespaces, source-map mappings/source bodies and Vite resource ownership must
+agree; only the declared retry query and each sidecar's physical target label
+are normalized. Hidden source-map sidecars remain published. Parent imports are
+rewritten before content hashing, and the map mode salts immutable filenames.
+The worker serves only the exact declared canonical body for the selected client
+build's retry URL, retaining its separate module identity without a redirect or
+an extra cached body. Corrupt or missing proof falls back to the original request.
 
 Startup reads encrypted Sun configuration through
 [`sun-uvdata-config.ts`](../js/sun-uvdata-config.ts), after encryption is ready,

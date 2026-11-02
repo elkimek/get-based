@@ -713,6 +713,19 @@ does not establish a fresh whole-project combined measurement.
 
 ## Release and integration evidence
 
+Report privacy contracts in [`pii-redaction.test.ts`](../tests/pii-redaction.test.ts)
+cover conventional Czech/English fictional names, short and lowercase labeled
+identities, exact clinical-row preservation and report-local identifier keys.
+Both local-model transports retain the same captured profile hints and key
+through finalization without storing it. The review contracts in
+[`pii-review-presentation.test.ts`](../tests/pii-review-presentation.test.ts)
+require Send to use the finalized result and its actual character count.
+[`pii-scroll-sync.test.ts`](../tests/pii-scroll-sync.test.ts) covers proportional
+scrolling and echo suppression; the real-browser
+[`pii-browser-coverage.spec.ts`](../tests/playwright/pii-browser-coverage.spec.ts)
+retains configuration, sanitizer and editable-review checks. These synthetic
+checks do not establish recognition of every real report layout or language.
+
 Opening CLI Settings and an explicit rescan must refresh installed versions through the separately installed Companion. Ordinary discovery keeps its short unused-port deadline; only an identified Companion receives the longer bounded refresh request. Version probes run asynchronously and concurrently against each configured executable and its launcher arguments, without ACP/gateway arguments, authentication checks, client restarts or gateway enumeration. Failed probes clear stale version text. Browser refresh failures retain the already discovered agents and their original discovery credential with version text cleared; explicit caller cancellation still discards the result. Concurrent refreshes share work, and discovery origin/credential boundaries remain unchanged. [Version probes](../tests/local-agent-version-refresh.test.ts), [host discovery](../tests/agent-host-service.test.ts), [browser discovery](../tests/agent-chat-settings.test.ts) and [Settings presentation](../tests/cli-companion-ui.test.ts) cover this contract.
 
 Codex turn failures must reach the browser as errors rather than empty or partial

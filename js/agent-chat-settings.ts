@@ -101,7 +101,7 @@ export function getAgentHostTarget(agentId = getAgentHostAgent()) {
   return normalizeTargetId(localStorage.getItem(scopedAgentSettingKey(TARGET_KEY, agentId)) || 'local');
 }
 
-export async function saveAgentChatSettings(settings: AgentChatSettings) {
+function persistAgentSelection(settings: Pick<AgentChatSettings, 'agent' | 'target' | 'model' | 'effort'>) {
   const previousAgent = getAgentHostAgent();
   const previousTarget = getAgentHostTarget(previousAgent);
   const previousModel = getAgentHostModel();
@@ -110,9 +110,6 @@ export async function saveAgentChatSettings(settings: AgentChatSettings) {
   const nextTarget = settings.target === undefined
     ? (nextAgent === previousAgent ? previousTarget : getAgentHostTarget(nextAgent))
     : normalizeTargetId(settings.target);
-  if (settings.endpoint !== undefined) {
-    localStorage.setItem(ENDPOINT_KEY, normalizeAgentHostEndpoint(settings.endpoint));
-  }
   if (nextAgent !== previousAgent) {
     const previousModelKey = scopedAgentSettingKey(MODEL_KEY, previousAgent);
     const previousEffortKey = scopedAgentSettingKey(EFFORT_KEY, previousAgent);
@@ -150,8 +147,47 @@ export async function saveAgentChatSettings(settings: AgentChatSettings) {
     localStorage.setItem(scopedAgentTargetSettingKey(EFFORT_KEY, nextAgent, nextTarget), effort);
     localStorage.setItem(scopedAgentModelEffortKey(nextAgent, nextTarget, targetModel), effort);
   }
+}
+/** Synchronous selection-only publication for a validated native command. */
+export function saveAgentSelectionSettings(settings: Pick<AgentChatSettings, 'agent' | 'target' | 'model' | 'effort'>) {
+  persistAgentSelection(settings);
+  globalThis.dispatchEvent?.(new CustomEvent('getbased:agent-host-settings-changed'));
+}
+export async function saveAgentChatSettings(settings: AgentChatSettings) {
+  if (settings.endpoint !== undefined) localStorage.setItem(ENDPOINT_KEY, normalizeAgentHostEndpoint(settings.endpoint));
+  persistAgentSelection(settings);
   if (settings.token !== undefined) await encryptedSetCredentialItem(AGENT_HOST_TOKEN_KEY, settings.token.trim());
   globalThis.dispatchEvent?.(new CustomEvent('getbased:agent-host-settings-changed'));
+}
+
+export function getAgentModelEffort(model: string, agent = getAgentHostAgent(), target = getAgentHostTarget(agent)) {
+  return (localStorage.getItem(scopedAgentModelEffortKey(agent, target, model)) || '').trim().slice(0, 40);
+}
+/** Read saved choices without temporarily selecting another agent or target. */
+export function getSavedAgentSelection(agent: string, target: string) {
+  const active = agent === getAgentHostAgent() && target === getAgentHostTarget(agent);
+  const model = active ? getAgentHostModel() : (localStorage.getItem(scopedAgentTargetSettingKey(MODEL_KEY, agent, target)) || '').trim();
+  const effort = active ? getAgentHostEffort() : (localStorage.getItem(scopedAgentModelEffortKey(agent, target, model))
+    ?? localStorage.getItem(scopedAgentTargetSettingKey(EFFORT_KEY, agent, target)) ?? '').trim();
+  return { model, effort };
+}
+/** Non-secret keys written by saveAgentChatSettings when changing recipients. */
+export function getAgentConnectionStorageKeys(agent: string, target: string, model: string) {
+  const previous = getAgentHostAgent(), previousTarget = getAgentHostTarget(previous);
+  return [...new Set([AGENT_KEY, scopedAgentSettingKey(TARGET_KEY, agent), MODEL_KEY, EFFORT_KEY,
+    scopedAgentSettingKey(MODEL_KEY, previous), scopedAgentSettingKey(EFFORT_KEY, previous),
+    scopedAgentModelEffortKey(previous, previousTarget, getAgentHostModel()),
+    scopedAgentTargetSettingKey(MODEL_KEY, agent, target), scopedAgentTargetSettingKey(EFFORT_KEY, agent, target),
+    scopedAgentModelEffortKey(agent, target, model)])];
+}
+/** Exact non-secret selection keys touched by a model/effort command. */
+export function getAgentSelectionStorageKeys(model: string) {
+  const agent = getAgentHostAgent(), target = getAgentHostTarget(agent);
+  return [...new Set([
+    ...(target === 'local' ? [MODEL_KEY, EFFORT_KEY] : []),
+    scopedAgentTargetSettingKey(MODEL_KEY, agent, target), scopedAgentTargetSettingKey(EFFORT_KEY, agent, target),
+    scopedAgentModelEffortKey(agent, target, getAgentHostModel()), scopedAgentModelEffortKey(agent, target, model),
+  ])];
 }
 
 export function hasAgentChatConnection() {
@@ -186,8 +222,9 @@ export async function discoverLocalChatAgents(options: AgentDiscoveryOptions & {
   // server can expose its own temporary host, but service-level controls such
   // as restart belong to the installed companion on the standard loopback
   // port. The bounded probe also lets a current host replace a legacy result.
-  const companions = await discoverLoopbackAgentHosts({ refresh: options.refresh, signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: options.requiredAgentId }).catch(() => []);
-  return runtime.mergeDiscoveredAgents(direct, companions);
+  const companions = await discoverLoopbackAgentHosts({ refresh: options.refresh, signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: options.requiredAgentId,
+    requiredToolContractVersion: options.requiredToolContractVersion }).catch(() => []);
+  return runtime.mergeDiscoveredAgents(direct, companions, options.requiredToolContractVersion);
 }
 
 export async function connectDetectedAgent(agentId = getAgentHostAgent(), options: AgentConnectionOptions = {}) {
@@ -196,19 +233,22 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
   assertCurrent();
   const runtime = await import('./agent-host-discovery.js');
   assertCurrent();
-  const savedToken = getAgentHostToken();
+  const savedToken = getAgentHostToken(), savedEndpoint = getAgentHostEndpoint();
+  const requiredEndpoint = options.requiredEndpoint ? normalizeAgentHostEndpoint(options.requiredEndpoint) : '';
+  const permittedEndpoint = (endpoint: string) => !requiredEndpoint || normalizeAgentHostEndpoint(endpoint) === requiredEndpoint;
+  const onConnected = options.persistConnection === false ? async () => {} : saveAgentChatSettings;
   const requiredCapabilities = runtime.normalizeRequiredCapabilities(options.requiredCapabilities);
   let agents: DiscoveredAgent[] = [];
   try {
     agents = await discoverLocalChatAgents({ ...options, requiredAgentId: agentId });
   } catch { /* use a saved local host or direct companion scan below */ }
-  const candidates = agents.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required');
+  const candidates = agents.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required' && permittedEndpoint(agent.endpoint));
   const knownAgent = agents.find(agent => agent.id === agentId);
-  if (savedToken && knownAgent?.status !== 'login_required'
-    && !candidates.some(agent => agent.endpoint === getAgentHostEndpoint())) {
+  if (savedToken && knownAgent?.status !== 'login_required' && permittedEndpoint(savedEndpoint)
+    && !candidates.some(agent => agent.endpoint === savedEndpoint)) {
     candidates.push(runtime.normalizeDiscoveredAgent({
       id: agentId, name: agentId, status: 'available', compatible: true,
-      endpoint: getAgentHostEndpoint(), token: savedToken,
+      endpoint: savedEndpoint, token: savedToken,
     }));
   }
   let lastError: unknown = null;
@@ -217,25 +257,28 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
     try {
       return await runtime.connectAgentHostCandidate({
         candidate, requiredCapabilities, requiredTextFeatureTarget: options.requiredTextFeatureTarget, signal: options.signal,
+        requiredToolContractVersion: options.requiredToolContractVersion,
         attempts: candidate.status === 'starting' ? 12 : 1,
         normalizeEndpoint: normalizeAgentHostEndpoint,
-        onConnected: saveAgentChatSettings,isCurrent:options.isCurrent,
+        onConnected,isCurrent:options.isCurrent,
       });
     } catch (error) { assertCurrent(); lastError = error; }
   }
   // A dev server can keep advertising an older child process while a newer
   // standalone companion is already available on the next bounded port.
   assertCurrent();
-  const recovered = await discoverLoopbackAgentHosts({ signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: agentId });
+  const recovered = await discoverLoopbackAgentHosts({ signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: agentId,
+    requiredToolContractVersion: options.requiredToolContractVersion });
   assertCurrent();
-  for (const candidate of recovered.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required')) {
+  for (const candidate of recovered.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required' && permittedEndpoint(agent.endpoint))) {
     assertCurrent();
     if (candidates.some(existing => existing.endpoint === candidate.endpoint && existing.token === candidate.token)) continue;
     try {
       return await runtime.connectAgentHostCandidate({
         candidate, requiredCapabilities, requiredTextFeatureTarget: options.requiredTextFeatureTarget, signal: options.signal, attempts: 1,
+        requiredToolContractVersion: options.requiredToolContractVersion,
         normalizeEndpoint: normalizeAgentHostEndpoint,
-        onConnected: saveAgentChatSettings,isCurrent:options.isCurrent,
+        onConnected,isCurrent:options.isCurrent,
       });
     } catch (error) { assertCurrent(); lastError = error; }
   }

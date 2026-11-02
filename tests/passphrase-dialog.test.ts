@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { configureCryptoUi, showPassphraseModal, showEnableEncryptionModal, changePassphrase, maybeShowEncryptionNudge, maybeShowBackupNudge } from '../js/crypto-ui.js';
-import { disposePassphraseDialog } from '../js/passphrase-component.js';
+import { disposePassphraseDialog, preparePassphrasePresentation } from '../js/passphrase-component.js';
 import { flushSync } from '../js/components/PassphraseDialog.svelte.native.js';
 const backup = vi.hoisted(()=>({ download:vi.fn(), folder:vi.fn(()=>({ supported:false,folderName:null,permissionLost:false,lastBackup:null })) }));
 vi.mock('../js/backup.js',()=>({exportEncryptedBackup:backup.download, getFolderBackupState:backup.folder, getAutoBackupSnapshots:vi.fn(async()=>[]), importEncryptedBackup:vi.fn(),restoreAutoBackup:vi.fn(),MAX_SNAPSHOTS:5}));
 const ports = { prepare:vi.fn(async (_value:string)=>{}), migrate:vi.fn(async()=>{}), unlock:vi.fn(async (_value:string)=>{}),
   change:vi.fn(async (_old:string,_next:string)=>{}), erase:vi.fn(async()=>{}),clear:vi.fn(),reload:vi.fn() };
 let previous: ReturnType<typeof configureCryptoUi>;
+beforeAll(async () => { await preparePassphrasePresentation(); });
 beforeEach(()=>{
   document.body.replaceChildren();localStorage.clear();vi.clearAllMocks();
   ports.prepare.mockResolvedValue(undefined);ports.migrate.mockResolvedValue(undefined);ports.unlock.mockResolvedValue(undefined);ports.change.mockResolvedValue(undefined);ports.erase.mockResolvedValue(undefined);

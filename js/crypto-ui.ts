@@ -8,6 +8,7 @@ import { getErrorMessage } from './caught-error.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 import { getBackupSettingsSnapshot, getBackupSnapshotRows } from './settings-protection-view.js';
 import { disposeSettingsProtection, getBackupSettingsView, refreshEncryptionSettings, refreshBackupSettings } from './settings-protection-component.js';
+import { state } from './state.js';
 export { disposeSettingsProtection };
 import {
   isDataProtectionStylesheetLoaded,
@@ -254,11 +255,12 @@ export function renderBackupSection(): string {
 }
 
 export async function loadBackupSnapshots(): Promise<void> {
+  const profile = state.currentProfile;
   hydrateProtectionSettings();
   const view = getBackupSettingsView();
   if (!view) return;
   const snapshots = await getAutoBackupSnapshots();
-  if (getBackupSettingsView() !== view) return;
+  if (state.currentProfile !== profile || getBackupSettingsView() !== view) return;
   view.setSnapshots(getBackupSnapshotRows(snapshots, MAX_SNAPSHOTS));
 }
 

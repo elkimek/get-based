@@ -21,7 +21,15 @@ export function chunkText(text: unknown, maxSize = 800, overlap = 50, minSize = 
     let end = Math.min(pos + maxSize, source.length);
     if (end < source.length) {
       for (const sep of ['\n\n', '\n', '. ', ' ']) {
-        const idx = source.lastIndexOf(sep, end);
+        // Only starts beyond the minimum-size boundary are eligible. Search
+        // that small window, retaining matches that straddle the nominal end.
+        // Prefix-wide lastIndexOf becomes quadratic on long single-line text.
+        let idx: number;
+        if (Number.isSafeInteger(pos) && Number.isSafeInteger(end) && end >= pos && Number.isSafeInteger(minSize) && minSize >= 0) {
+          const first = pos + minSize + 1;
+          const local = source.slice(first, end + sep.length).lastIndexOf(sep);
+          idx = local < 0 ? -1 : first + local;
+        } else idx = source.lastIndexOf(sep, end);
         if (idx > pos + minSize) { end = idx + sep.length; break; }
       }
     }

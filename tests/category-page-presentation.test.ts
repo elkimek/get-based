@@ -19,7 +19,7 @@ vi.mock('../js/data.js',async()=>{const range=await import('../js/lab-date-range
 });});
 vi.mock('../js/health-data-loader.js',()=>({createLineChart:(...args:unknown[])=>{runtime.trace.push(['create-chart',args[0],args[2],args[3],args[4],args[5]]);if(runtime.throwAt==='chart')throw new Error('chart-native');}}));
 vi.mock('../js/chart-card-recs.js',()=>({loadChartCardRecs:()=>{runtime.trace.push('load-recommendations');}}));
-vi.mock('../js/category-page-runtime.js',()=>({primeCategoryPageCatalogCache:()=>{runtime.trace.push('prime-catalog');},getCategoryPageCatalogSlots:()=>{runtime.trace.push('catalog-slots');return {'chemistry.first':true};}}));
+vi.mock('../js/category-page-runtime.js',async importOriginal=>({...await importOriginal<typeof import('../js/category-page-runtime.js')>(),primeCategoryPageCatalogCache:()=>{runtime.trace.push('prime-catalog');},getCategoryPageCatalogSlots:()=>{runtime.trace.push('catalog-slots');return {'chemistry.first':true};}}));
 vi.mock('../js/category-glyphs.js',()=>({
  getCategoryGlyphCode:(key:string)=>{runtime.trace.push(['category-glyph',key]);if(runtime.throwAt==='glyph')throw new SyntaxError('glyph-native');return runtime.glyphValue??key;},
 }));
@@ -126,7 +126,13 @@ const scenarios:Scenario[]=[
  * feature children. This preserves every controller callback/fault assertion
  * while separately qualifying those children against their native receipts. */
 function normalize(receipt:ReturnType<typeof capture>){return {...categoryNativeDOM(receipt) as ReturnType<typeof capture>,assignment:receipt.assignment.map(row=>{const write=row as {id:string;raw:string};return {id:write.id,dom:categoryRawDOM(write.raw)};})};}
-for(const scenario of scenarios)it('preserves complete native Category page '+scenario.name,()=>{const before=capture(nativeController,scenario),after=capture(candidate,scenario);expect(normalize(after)).toEqual(normalize(before));
+for(const scenario of scenarios)it((scenario.name==='switch-other'?'rejects an unsupported category layout while retaining the historical fallback receipt: ':'preserves complete native Category page ')+scenario.name,()=>{const before=capture(nativeController,scenario),after=capture(candidate,scenario);
+ // The finite native layout contract deliberately retired the old unknown=>charts fallback.
+ // Keep running that original controller; qualify the complete current receipt against no mutation.
+ if(scenario.name==='switch-other'){
+  expect(before.assignment.length).toBeGreaterThan(0);
+  expect(normalize(after)).toEqual(normalize(capture({...nativeController,switchView:()=>{}},scenario)));
+ }else expect(normalize(after)).toEqual(normalize(before));
  if(scenario.name==='outside-3m')expect(before.assignment).toEqual(expect.arrayContaining([expect.objectContaining({raw:expect.stringContaining('No results in the last 3 months')})]));
  if(scenario.name==='charts-no-data')expect(before.assignment).toEqual(expect.arrayContaining([expect.objectContaining({raw:expect.stringContaining('No Data Available')})]));
  if(scenario.name==='native-port-coercion')expect(before.trace).toContainEqual(['coercion','label','string']);

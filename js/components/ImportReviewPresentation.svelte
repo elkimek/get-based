@@ -12,6 +12,15 @@
   <div class={classes('import-review-summary')}>
     <div class={classes('import-review-file')}><span class={classes('import-review-label')}>File</span><strong class={classes('import-review-file-name')}>{view.fileName}</strong></div>
     <div class={classes('import-review-file')}><span class={classes('import-review-label')}>Collection date</span><input class={classes('import-collection-control')} type="date" id="import-manual-date" value={view.date} data-import-review-action="manual-date" aria-label="Collection date"></div>
+    {#if view.samples && (view.samples.options.length || view.samples.locked)}
+      <div class={classes('import-review-file')}><span class={classes('import-review-label')}>Sample destination</span><select class={classes('import-collection-control')} id="import-sample-destination" data-import-review-action="sample-destination" aria-label="Sample destination" disabled={view.samples.locked}>
+        {#if view.samples.locked}<option value={view.samples.value} selected>Collection linked to this report</option>{:else}
+          <option value="" selected={!view.samples.value}>Choose a sample…</option>
+          <option value="new" selected={view.samples.value === 'new'}>Separate new collection</option>
+          {#each view.samples.options as sample}<option value={sample.value} selected={view.samples.value === sample.value}>{sample.label}</option>{/each}
+        {/if}
+      </select><small class={classes('import-review-time-help')}>{view.samples.locked ? 'Collection date changes move every result in this sample, including results from other reports.' : 'Choose the collection this report describes. Existing results may be replaced; collection details apply to every result in that sample.'}</small></div>
+    {/if}
     <div class={classes('import-review-file')}><span class={classes('import-review-label')}>Collection time</span><input class={classes('import-collection-control')} type="time" id="import-sample-time" value={view.sampleTime} data-import-review-action="manual-sample-time" aria-label="Blood collection time"><small class={classes('import-review-time-help')}>Draw time only — not received, processed, or report time.</small></div>
     <div class={classes('import-review-file')}><span class={classes('import-review-label')}>Fasting status</span><select class={classes('import-collection-control')} id="import-fasting" data-import-review-action="manual-fasting" aria-label="Fasting status">
       <option value="unknown" selected={view.fasting === null}>Unknown</option><option value="fasting" selected={view.fasting === true}>Fasting</option><option value="not-fasting" selected={view.fasting === false}>Not fasting</option>

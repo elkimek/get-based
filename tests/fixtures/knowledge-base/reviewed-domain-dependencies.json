@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "scope": "Reviewed native storage-safety changes; original public HTML and worker regression fixtures remain immutable.",
+  "dependencies": {
+    "js/lens-local.ts": {
+      "reason": "Restart retired workers, recover request queues and guard native library identity.",
+      "hashes": {
+        "js/lens-local.ts": {
+          "original": "e1e8e03abc493b98abf64e05882cdcdc9f23d740cab903913983471867a2dd6c",
+          "reviewed": "0960ed1bc9943ddd6d83661363491210520e094f73d500984ed8ab67156a66d5"
+        },
+        "js/lens-local.js": {
+          "original": "60a26111f7e3d3b1cd440b15960eeeadf855ecad26a72bbefe835a8eb9d94bd9",
+          "reviewed": "4c44efdd581da900e11fb93ec8536ab90c208acc6928b8d31d338d3a21c6e43a"
+        }
+      }
+    },
+    "js/lens-local-protocol.ts": {
+      "reason": "Type the native review/confirmation protocol and uncertain-save receipts.",
+      "hashes": {
+        "js/lens-local-protocol.ts": {
+          "original": "607b439c8f0c0d8a8898aaa5d17543a3a00900c5146c9708c41f7dc9085f8e23",
+          "reviewed": "1c7cb21a96c9d83cac3b579f16fba15a7beb8ada083dfea7ca47c7e0b095711a"
+        },
+        "js/lens-local-protocol.js": {
+          "original": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "reviewed": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+        }
+      }
+    },
+    "js/lens-local-worker.ts": {
+      "reason": "Serialize native storage work and refresh source identity while holding ownership.",
+      "hashes": {
+        "js/lens-local-worker.ts": {
+          "original": "ca278743ea9668b4db7d24f6fb64bdaeee8cebd74b75cdfe05f7ff6ef2f29daa",
+          "reviewed": "b5704accc1f6e23c35d317a8f6c982a17db42143da1fbe8e4a4700fe17d9c17e"
+        },
+        "js/lens-local-worker.js": {
+          "original": "03dfda3a7910e28a2aa7fdb7582f343045541f01cfbafdb6c4d75d0fadb85763",
+          "reviewed": "5b4739fae6709541acf596de3a3dad6d90aac992963f521651e712b74e3acc0e"
+        }
+      }
+    },
+    "js/lens-local-library-registry.ts": {
+      "reason": "Preserve registry extensions and commit registry ownership before physical cleanup.",
+      "hashes": {
+        "js/lens-local-library-registry.ts": {
+          "original": "0d1c168bcd89fa5e391cde0326e81629590456f2b639772debac9ebf35853aba",
+          "reviewed": "8100868325be671d3c14f530b0fa8c225e4cf1bdc3a560fbd2319db42834acde"
+        },
+        "js/lens-local-library-registry.js": {
+          "original": "e8ceb7a920780d895fcef978c5807e940fe1016fffd5c3552a9bca27c69590a8",
+          "reviewed": "9ee5b7ca1fedad3e261091aadf389e6ec926b9a7c2b5d12b8c39eb202d36f751"
+        }
+      }
+    },
+    "js/lens-local-store.ts": {
+      "reason": "Verify complete transfers and validate generation writes before committing.",
+      "hashes": {
+        "js/lens-local-store.ts": {
+          "original": "2c5c50cfd99cf469d526821ca6fef1b08e30a081758a410551aec6e71e46f437",
+          "reviewed": "a514f8dfac0f89f25780e0855a0f842dfac6317445e26cd2f5de5264f3e94546"
+        },
+        "js/lens-local-store.js": {
+          "original": "c30192cadd10c4c88c3b4860bfcacabf3f52b82d70c96e26aa00f1a6eeabd0d6",
+          "reviewed": "dba1cf24727eac6e957a029f370f983a3eff332c5599d94f650d4f3fd83953be"
+        }
+      }
+    },
+    "js/lens-local-ingest.ts": {
+      "reason": "Retain document extension metadata when replacing content.",
+      "hashes": {
+        "js/lens-local-ingest.ts": {
+          "original": "afb70e0ab15d475f028e6187a81e60e99794831566fa36ecf827b3b15c822d23",
+          "reviewed": "8769df65551c4ae8c9d929c9e2f039e6adbffc908c56291391172b0ef93e81f8"
+        },
+        "js/lens-local-ingest.js": {
+          "original": "8af593a0a206e46e9037bdc2df8a00b1a56240a7c18c3ddad74960f04565c27d",
+          "reviewed": "e3717594e49b4c58a87740ad85b1c711d18788ede1b87040514249627d01ef80"
+        }
+      }
+    },
+    "js/lens-local-utils.ts": {
+      "reason": "Bound separator scans while preserving exact chunk boundaries.",
+      "hashes": {
+        "js/lens-local-utils.ts": {
+          "original": "1defc338d2ddb48c08526f6cb1a51f6d52e41f691aecd782d49c8525b1d64bdf",
+          "reviewed": "453e5c8ab9ad95d7ced538dad95f4872e171b0931b5a8f91428a6f86ade59905"
+        },
+        "js/lens-local-utils.js": {
+          "original": "1a65e943a994e4377d5de52285f820abf3440785fbced35b81e459204880ce1b",
+          "reviewed": "b1d720eb3845d374641871ff9de21710b4562cf270e4c1e90a7c8021720346af"
+        }
+      }
+    }
+  }
+}

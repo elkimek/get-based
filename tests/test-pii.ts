@@ -83,9 +83,9 @@ try {
 
   assert('Patient name replaced', !lcOut.includes('Robert Johnson'), `name still present`);
   assert('DOB replaced', !lcOut.includes('05/15/1980'), `DOB still present`);
-  // Age regex replaces the value — check it changed (may randomly match, so verify the line was touched)
+  // Age remains accurate for downstream interpretation.
   const ageLineOut = lcOut.split('\n').find(l => l.startsWith('Age:'));
-  assert('Age line processed', ageLineOut != null && lcResult.replacements > 0, `age line: ${ageLineOut}`);
+  assert('Age preserved', ageLineOut === 'Age: 43', `age line: ${ageLineOut}`);
   assert('Specimen ID replaced', !lcOut.includes('0123456789'), `specimen ID still present`);
   assert('Accession No replaced', !lcOut.includes('9876543210'), `accession still present`);
   assert('Account No replaced', !lcOut.includes('1234567890'), `account still present`);

@@ -24,7 +24,7 @@ function actions(){return chatModelPickerActions(menu())!;}
 // The view's version is intentionally private; real handlers supply it from
 // their bound rendered state, so exercise actual buttons/range controls.
 function choose(value:string){const button=[...menu().querySelectorAll<HTMLButtonElement>('[data-chat-model-value]')].find(button=>button.dataset.chatModelValue===value)!;button.click();}
-async function settled(){await Promise.resolve();await Promise.resolve();await Promise.resolve();}
+async function settled(){await Promise.resolve();await Promise.resolve();await Promise.resolve();await new Promise(resolve=>setTimeout(resolve,0));}
 function deferred<T>(){let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>resolve=done);return {promise,resolve};}
 beforeEach(async()=>{
   vi.clearAllMocks();vi.mocked(hasPendingAttachments).mockReturnValue(false);vi.mocked(connectDetectedAgent).mockResolvedValue({} as Awaited<ReturnType<typeof connectDetectedAgent>>);vi.mocked(listAgentModels).mockResolvedValue([]);
@@ -79,7 +79,7 @@ it('lets the latest CLI model choice win when catalog replies arrive in reverse 
   const catalog=await import('../js/agent-model-catalog.js');catalog.cacheAgentModelCatalog(['first','second'].map(id=>({id,model:id,displayName:id,inputModalities:['text']})),'codex');refreshChatModelControls();
   const first=deferred<Awaited<ReturnType<typeof listAgentModels>>>(),second=deferred<Awaited<ReturnType<typeof listAgentModels>>>();vi.mocked(listAgentModels).mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
   choose('first');await settled();choose('second');await settled();
-  second.resolve([]);await settled();first.resolve([]);await settled();
+  second.resolve([{id:'second',model:'second',displayName:'Second',inputModalities:['text'],supportedReasoningEfforts:[],defaultReasoningEffort:'',description:'',isDefault:false}]);await settled();first.resolve([]);await settled();
   expect(localStorage.getItem('labcharts-agent-host-model')).toBe('second');
 });
 it('rejects replaced local discovery results and allows the new context to refresh independently',async()=>{

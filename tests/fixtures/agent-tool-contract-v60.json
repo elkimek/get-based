@@ -1,0 +1,1938 @@
+{
+  "catalog": [
+    {
+      "name": "getbased_lab_context",
+      "description": "Read the user-approved getbased health context, including available lab summaries, context cards, supplements, and goals. Use for broad questions about labs, biomarkers, or health trends.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_section",
+      "description": "Read one section of the user-approved getbased health context. Omit section to list available section names. Section names are matched exactly, then by prefix.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Optional section name, such as hormones, lipids, biometrics, supplements, genetics, or wearables."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_search_markers",
+      "description": "Find biomarkers by display name, category or stable key. By default searches recorded results. For a new or missing result, set includeUnrecorded: true to search enabled marker definitions and allowed input units, including markers never recorded. Definition search returns no personal result values.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Marker name, category, or key fragment to search for."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "includeUnrecorded": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_marker_history",
+      "description": "Read dated values and ranges for one biomarker in the active getbased profile. Defaults to the native selected lab timeline range; explicit from/to dates override that view filter. An empty selected range stays empty. Resolve an ambiguous name with getbased_search_markers first.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "marker": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Exact stable marker key or unambiguous display name."
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "marker"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_nutrition_summary",
+      "description": "Read aggregate meal and nutrient coverage for a requested time window. Individual meal names, notes, and photos are not returned.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "type": "string",
+            "enum": [
+              "7d",
+              "30d",
+              "3m",
+              "6m",
+              "1y",
+              "all"
+            ],
+            "description": "Time window. Defaults to 30d."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_wearable_series",
+      "description": "Read the user-enabled daily wearable series for the active profile over 7, 30, or 90 days.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "enum": [
+              7,
+              30,
+              90
+            ]
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_search_knowledge",
+      "description": "Search the active getbased Knowledge Base for user-provided sources relevant to a question. Omit limit to use the saved excerpt preference; supply it only for an explicitly requested override.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_read_context_card",
+      "description": "Read an enabled Insight context card, Medical History, Health Goals, Menstrual Cycle, or Interpretive Lens, including current answers, indexed records, and allowed fields. Omit card to list supported targets. Read before proposing changes; the returned snapshotId is required by getbased_draft_context.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "type": "string",
+            "enum": [
+              "diet",
+              "sleepRest",
+              "exercise",
+              "stress",
+              "loveLife",
+              "environment",
+              "lightCircadian",
+              "diagnoses",
+              "healthGoals",
+              "menstrualCycle",
+              "interpretiveLens"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_read_data",
+      "description": "List supported editable resources, list/search bounded records, or read one exact record and its allowed fields before editing it. For a new supplement, dated note, meal, drink, or manual reading use create: true. For existing collection records first list IDs, then read recordId. Singleton health targets and profile details need no ID. Returns a required snapshotId; no writes occur.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "enum": [
+              "supplements",
+              "nutritionTargets",
+              "datedNotes",
+              "profileNotes",
+              "profile",
+              "meals",
+              "manualReadings",
+              "markerNotes",
+              "markerValueNotes",
+              "labResults",
+              "labSamples",
+              "labReports",
+              "geneticVariants",
+              "maternalHaplogroup",
+              "lightRooms",
+              "lightScreens",
+              "lightDevices",
+              "lightDeviceSessions",
+              "lightMeasurements",
+              "lightAudits",
+              "sunSetup",
+              "sunSessions",
+              "emfAssessments",
+              "emfRooms",
+              "emfMeasurements"
+            ]
+          },
+          "recordId": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "create": {
+            "type": "boolean"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_data",
+      "description": "Prepare a reviewed health-record change from getbased_read_data. Use resource-specific operations and fields from that read. patch is a JSON object encoded as a string, never a storage path. Preserve unspecified fields. Supplements support edits, removal, pause/stop/restart and changeDose with dated history. Include exact user evidence and reason. Only the user can Apply; this tool never commits.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "enum": [
+              "supplements",
+              "nutritionTargets",
+              "datedNotes",
+              "profileNotes",
+              "profile",
+              "meals",
+              "manualReadings",
+              "markerNotes",
+              "markerValueNotes",
+              "labResults",
+              "labSamples",
+              "geneticVariants",
+              "maternalHaplogroup",
+              "lightRooms",
+              "lightScreens",
+              "lightDevices",
+              "lightDeviceSessions",
+              "lightMeasurements",
+              "lightAudits",
+              "sunSetup",
+              "sunSessions",
+              "emfAssessments",
+              "emfRooms",
+              "emfMeasurements"
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "remove",
+              "revert",
+              "reset",
+              "start",
+              "pause",
+              "resume",
+              "stop",
+              "restart",
+              "changeDose",
+              "setCoverage",
+              "setSunscreen",
+              "rotateSides"
+            ]
+          },
+          "patch": {
+            "type": "string",
+            "maxLength": 16000
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "resource",
+          "snapshotId",
+          "operation",
+          "patch",
+          "reason",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_navigate",
+      "description": "Open a declared native view or editor when requested. Opening never saves health records, enters credentials, grants permissions or performs an import. Explicit correlation and history commands save native preferences and report their actual outcome with guarded Undo. Existing dialogs and unsaved editors must be closed by the user first. category needs its exact category key; contextEditor needs card. lightDevice, sunSession and deviceSession need an exact recordId from a corresponding data read. nutritionEditor opens a new meal, or an exact existing meal with recordId; emfAssessment opens the list or an exact assessment. nutritionHistory accepts meals or trends subview. healthImport opens the existing health-file menu for human file selection. reportBuilder opens native report review, optionally subview clinician/full/lifestyle/personal and range. profileShare opens review for the active profile; optional recordId must equal that profile. lightTools opens the native launcher; the human selects a tool and grants permissions. wearablesSettings with exact recordId and fresh wearables.sources snapshotId opens the native source Update now control; the human starts refresh. dataSettings offers native export and backup download controls. Native editors keep their own Save and Cancel controls. Opening does not generate a report, export or share.",
+      "access": "navigate",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "dashboard",
+              "labs",
+              "biologyScores",
+              "genome",
+              "body",
+              "nutrition",
+              "supplements",
+              "light",
+              "insight",
+              "recommendations",
+              "correlations",
+              "compare",
+              "aiSettings",
+              "displaySettings",
+              "voiceSettings",
+              "privacySettings",
+              "dataSettings",
+              "wearablesSettings",
+              "agentSettings",
+              "category",
+              "contextEditor",
+              "nutritionHistory",
+              "wearableDetail",
+              "nutritionEditor",
+              "nutritionTargets",
+              "fluidLog",
+              "lightDevices",
+              "lightDevice",
+              "sunSession",
+              "deviceSession",
+              "lightAssessment",
+              "emfAssessment",
+              "knowledgeBase",
+              "healthImport",
+              "reportBuilder",
+              "profileShare",
+              "lightTools"
+            ]
+          },
+          "marker": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Optional stable marker key or unambiguous marker name to open."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "card": {
+            "type": "string",
+            "enum": [
+              "diet",
+              "sleepRest",
+              "exercise",
+              "stress",
+              "loveLife",
+              "environment",
+              "lightCircadian",
+              "diagnoses",
+              "healthGoals",
+              "menstrualCycle",
+              "interpretiveLens"
+            ]
+          },
+          "recordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "subview": {
+            "type": "string",
+            "enum": [
+              "meals",
+              "trends",
+              "clinician",
+              "full",
+              "lifestyle",
+              "personal"
+            ],
+            "description": "nutritionHistory tab or reportBuilder template. No other destination accepts subview."
+          },
+          "range": {
+            "type": "string",
+            "enum": [
+              "all",
+              "3m",
+              "6m",
+              "1y"
+            ],
+            "description": "labs/category: native session timeline filter. reportBuilder: initial report date range for human review. No records are deleted or saved."
+          },
+          "firstDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Compare only: exact permitted date from labs.comparison. Requires snapshotId. Omit to preserve the other side."
+          },
+          "secondDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Compare only: exact permitted date from labs.comparison. Requires snapshotId."
+          },
+          "swapDates": {
+            "type": "boolean",
+            "description": "Compare only: true swaps the two selected dates. Requires snapshotId; cannot combine with firstDate or secondDate."
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Fresh matching labs.comparison, labs.correlations, history.views or wearables.sources snapshot, required for that native command."
+          },
+          "correlation": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 9000,
+            "description": "Correlations only: JSON patch containing exact markers/therapies IDs, native preset, and/or declared view fields from labs.correlations. Saves native workspace preferences directly. Requires snapshotId; separate from undoId."
+          },
+          "history": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 9000,
+            "description": "History view command JSON from history.views. nutritionHistory: nutritionRange/nutritionView; wearableDetail: exact permitted metricId and optional wearableRange. Requires snapshotId; separate from undoId/subview. Saves only stated native presentation preferences."
+          },
+          "undoId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Exact current Undo ID from labs.correlations/history.views or its native receipt, plus a fresh matching snapshotId and declared view. Never infer or replay an imported ID."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_note",
+      "description": "Prepare a reviewable general profile or marker note, for an explicit note request or information without a supported structured home. Never use this as a substitute for a Health Goal, medical/family-history record, period observation, or supported context answer: read its context card and use getbased_draft_context. This does not save anything; the user must approve it.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "marker"
+            ]
+          },
+          "marker": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "append",
+              "replace"
+            ]
+          }
+        },
+        "required": [
+          "scope",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_context",
+      "description": "Propose changes from a prior getbased_read_context_card snapshot when the user shares new personal context, goals, medical/family history, or cycle observations, even without asking to save. Include exact supporting words and a reason. Nothing saves until Apply. Use value/values for ordinary fields; empty values clear. For record fields use operation add/update/remove, record for add/update, and the read index for update/remove. Patch only supplied record properties. Never treat a relative as the user or age at death as age at onset. For a period start supply startDate only; do not invent an end date or flow.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "type": "string",
+            "enum": [
+              "diet",
+              "sleepRest",
+              "exercise",
+              "stress",
+              "loveLife",
+              "environment",
+              "lightCircadian",
+              "diagnoses",
+              "healthGoals",
+              "menstrualCycle",
+              "interpretiveLens"
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "changes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "values": {
+                  "type": "array",
+                  "maxItems": 30,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 160
+                  }
+                },
+                "operation": {
+                  "type": "string",
+                  "enum": [
+                    "add",
+                    "update",
+                    "remove"
+                  ]
+                },
+                "index": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "record": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "severity": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "status": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "since": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "relative": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "condition": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "note": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "flow": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "notes": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "onsetAge": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 120
+                    },
+                    "symptoms": {
+                      "type": "array",
+                      "maxItems": 30,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 160
+                      }
+                    },
+                    "clearFields": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      "description": "For an update, clear these optional record properties; required identity fields cannot be cleared."
+                    }
+                  }
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "card",
+          "snapshotId",
+          "changes",
+          "reason",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_meal",
+      "description": "Compatibility shortcut for a basic new meal. Prefer getbased_read_data with resource meals and getbased_draft_data for meals, hydration, ingredients, corrections, photos or check-ins. This does not save anything; the user must approve the draft in getbased.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "eatenAt": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "ISO-8601 date-time."
+          },
+          "mealType": {
+            "type": "string",
+            "enum": [
+              "breakfast",
+              "brunch",
+              "lunch",
+              "dinner",
+              "snack",
+              "drink",
+              "other"
+            ]
+          },
+          "energyKcal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "proteinG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "carbohydrateG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3000
+          },
+          "fatG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "fiberG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "fluidMl": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_biometric",
+      "description": "Compatibility shortcut for manual weight, blood pressure or pulse. Reads the exact date/metric and prepares the same guarded add/update as manualReadings. Weight requires an explicit unit. An explicitly reported BP plus pulse is reviewed and saved together. Prefer read_data/draft_data for corrections or body methods. Nothing saves until approval.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "weight",
+              "bp",
+              "rhr"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "kg",
+              "lb",
+              "bpm"
+            ]
+          },
+          "systolic": {
+            "type": "number",
+            "minimum": 40,
+            "maximum": 300
+          },
+          "diastolic": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 200
+          },
+          "pulse": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 250
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "metric"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_draft_supplement",
+      "description": "Compatibility shortcut for a supplement or medication. Reads an unambiguous matching record or prepares a new exact record review. Unreported schedules stay unknown. Different historical start dates require explicit period/restart operations. Nothing saves until approval.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "supplement",
+              "medication"
+            ]
+          },
+          "dosage": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "startDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_app_actions",
+      "description": "Discover declared app controls, their parameters, scope and review requirements. Use only for an explicit request about operating getbased or changing saved preferences. Ordinary conversation needs no app action.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_read_app",
+      "description": "Read declared app state or a bounded prior-conversation search. No changes are saved and no review card is created. For a supported saved change, call getbased_request_app after this read; only its successful pending_user_approval result creates a card. Conversation search requires an explicit historical question and returns quoted excerpts with native source links. Other actions return non-secret state and review snapshots.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "conversations.search",
+              "wearables.sources",
+              "profiles",
+              "profile.selection",
+              "display.preferences",
+              "labs.comparison",
+              "labs.correlations",
+              "labs.overlays",
+              "history.views",
+              "assistant.models",
+              "assistant.selection",
+              "assistant.connections",
+              "assistant.connection"
+            ]
+          },
+          "profileId": {
+            "type": "string",
+            "maxLength": 160,
+            "description": "Exact ID from profiles, required only for a profile.selection snapshot. This never reads target health data into the tool result."
+          },
+          "connectionId": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Optional exact ID from assistant.connections; required for an assistant.connection review snapshot. assistant.models reads this saved connection without switching it."
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getbased_request_app",
+      "description": "Prepare an exact app-control review card. This NEVER executes or saves the change. The user must choose Apply after this reply. Use only for a stated persistent preference or explicit app command, never a one-answer conversion or hypothetical question. Quote the accepted human message as evidence.",
+      "access": "draft",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "profile.selection",
+              "display.preferences",
+              "labs.overlays",
+              "assistant.selection",
+              "assistant.connection"
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "parameters": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 9000,
+            "description": "JSON object with only declared app_actions fields. No code, paths, credentials or inferred preferences."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "action",
+          "snapshotId",
+          "parameters",
+          "reason",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "codex": [
+    {
+      "type": "function",
+      "name": "getbased_lab_context",
+      "description": "Read the user-approved getbased health context, including available lab summaries, context cards, supplements, and goals. Use for broad questions about labs, biomarkers, or health trends.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_section",
+      "description": "Read one section of the user-approved getbased health context. Omit section to list available section names. Section names are matched exactly, then by prefix.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "Optional section name, such as hormones, lipids, biometrics, supplements, genetics, or wearables."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_search_markers",
+      "description": "Find biomarkers by display name, category or stable key. By default searches recorded results. For a new or missing result, set includeUnrecorded: true to search enabled marker definitions and allowed input units, including markers never recorded. Definition search returns no personal result values.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Marker name, category, or key fragment to search for."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "includeUnrecorded": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_marker_history",
+      "description": "Read dated values and ranges for one biomarker in the active getbased profile. Defaults to the native selected lab timeline range; explicit from/to dates override that view filter. An empty selected range stays empty. Resolve an ambiguous name with getbased_search_markers first.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "marker": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Exact stable marker key or unambiguous display name."
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "marker"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_nutrition_summary",
+      "description": "Read aggregate meal and nutrient coverage for a requested time window. Individual meal names, notes, and photos are not returned.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "type": "string",
+            "enum": [
+              "7d",
+              "30d",
+              "3m",
+              "6m",
+              "1y",
+              "all"
+            ],
+            "description": "Time window. Defaults to 30d."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_wearable_series",
+      "description": "Read the user-enabled daily wearable series for the active profile over 7, 30, or 90 days.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "enum": [
+              7,
+              30,
+              90
+            ]
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_search_knowledge",
+      "description": "Search the active getbased Knowledge Base for user-provided sources relevant to a question. Omit limit to use the saved excerpt preference; supply it only for an explicitly requested override.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_read_context_card",
+      "description": "Read an enabled Insight context card, Medical History, Health Goals, Menstrual Cycle, or Interpretive Lens, including current answers, indexed records, and allowed fields. Omit card to list supported targets. Read before proposing changes; the returned snapshotId is required by getbased_draft_context.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "type": "string",
+            "enum": [
+              "diet",
+              "sleepRest",
+              "exercise",
+              "stress",
+              "loveLife",
+              "environment",
+              "lightCircadian",
+              "diagnoses",
+              "healthGoals",
+              "menstrualCycle",
+              "interpretiveLens"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_read_data",
+      "description": "List supported editable resources, list/search bounded records, or read one exact record and its allowed fields before editing it. For a new supplement, dated note, meal, drink, or manual reading use create: true. For existing collection records first list IDs, then read recordId. Singleton health targets and profile details need no ID. Returns a required snapshotId; no writes occur.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "enum": [
+              "supplements",
+              "nutritionTargets",
+              "datedNotes",
+              "profileNotes",
+              "profile",
+              "meals",
+              "manualReadings",
+              "markerNotes",
+              "markerValueNotes",
+              "labResults",
+              "labSamples",
+              "labReports",
+              "geneticVariants",
+              "maternalHaplogroup",
+              "lightRooms",
+              "lightScreens",
+              "lightDevices",
+              "lightDeviceSessions",
+              "lightMeasurements",
+              "lightAudits",
+              "sunSetup",
+              "sunSessions",
+              "emfAssessments",
+              "emfRooms",
+              "emfMeasurements"
+            ]
+          },
+          "recordId": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "create": {
+            "type": "boolean"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_data",
+      "description": "Prepare a reviewed health-record change from getbased_read_data. Use resource-specific operations and fields from that read. patch is a JSON object encoded as a string, never a storage path. Preserve unspecified fields. Supplements support edits, removal, pause/stop/restart and changeDose with dated history. Include exact user evidence and reason. Only the user can Apply; this tool never commits.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "enum": [
+              "supplements",
+              "nutritionTargets",
+              "datedNotes",
+              "profileNotes",
+              "profile",
+              "meals",
+              "manualReadings",
+              "markerNotes",
+              "markerValueNotes",
+              "labResults",
+              "labSamples",
+              "geneticVariants",
+              "maternalHaplogroup",
+              "lightRooms",
+              "lightScreens",
+              "lightDevices",
+              "lightDeviceSessions",
+              "lightMeasurements",
+              "lightAudits",
+              "sunSetup",
+              "sunSessions",
+              "emfAssessments",
+              "emfRooms",
+              "emfMeasurements"
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "remove",
+              "revert",
+              "reset",
+              "start",
+              "pause",
+              "resume",
+              "stop",
+              "restart",
+              "changeDose",
+              "setCoverage",
+              "setSunscreen",
+              "rotateSides"
+            ]
+          },
+          "patch": {
+            "type": "string",
+            "maxLength": 16000
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "resource",
+          "snapshotId",
+          "operation",
+          "patch",
+          "reason",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_navigate",
+      "description": "Open a declared native view or editor when requested. Opening never saves health records, enters credentials, grants permissions or performs an import. Explicit correlation and history commands save native preferences and report their actual outcome with guarded Undo. Existing dialogs and unsaved editors must be closed by the user first. category needs its exact category key; contextEditor needs card. lightDevice, sunSession and deviceSession need an exact recordId from a corresponding data read. nutritionEditor opens a new meal, or an exact existing meal with recordId; emfAssessment opens the list or an exact assessment. nutritionHistory accepts meals or trends subview. healthImport opens the existing health-file menu for human file selection. reportBuilder opens native report review, optionally subview clinician/full/lifestyle/personal and range. profileShare opens review for the active profile; optional recordId must equal that profile. lightTools opens the native launcher; the human selects a tool and grants permissions. wearablesSettings with exact recordId and fresh wearables.sources snapshotId opens the native source Update now control; the human starts refresh. dataSettings offers native export and backup download controls. Native editors keep their own Save and Cancel controls. Opening does not generate a report, export or share.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "dashboard",
+              "labs",
+              "biologyScores",
+              "genome",
+              "body",
+              "nutrition",
+              "supplements",
+              "light",
+              "insight",
+              "recommendations",
+              "correlations",
+              "compare",
+              "aiSettings",
+              "displaySettings",
+              "voiceSettings",
+              "privacySettings",
+              "dataSettings",
+              "wearablesSettings",
+              "agentSettings",
+              "category",
+              "contextEditor",
+              "nutritionHistory",
+              "wearableDetail",
+              "nutritionEditor",
+              "nutritionTargets",
+              "fluidLog",
+              "lightDevices",
+              "lightDevice",
+              "sunSession",
+              "deviceSession",
+              "lightAssessment",
+              "emfAssessment",
+              "knowledgeBase",
+              "healthImport",
+              "reportBuilder",
+              "profileShare",
+              "lightTools"
+            ]
+          },
+          "marker": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Optional stable marker key or unambiguous marker name to open."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "card": {
+            "type": "string",
+            "enum": [
+              "diet",
+              "sleepRest",
+              "exercise",
+              "stress",
+              "loveLife",
+              "environment",
+              "lightCircadian",
+              "diagnoses",
+              "healthGoals",
+              "menstrualCycle",
+              "interpretiveLens"
+            ]
+          },
+          "recordId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "subview": {
+            "type": "string",
+            "enum": [
+              "meals",
+              "trends",
+              "clinician",
+              "full",
+              "lifestyle",
+              "personal"
+            ],
+            "description": "nutritionHistory tab or reportBuilder template. No other destination accepts subview."
+          },
+          "range": {
+            "type": "string",
+            "enum": [
+              "all",
+              "3m",
+              "6m",
+              "1y"
+            ],
+            "description": "labs/category: native session timeline filter. reportBuilder: initial report date range for human review. No records are deleted or saved."
+          },
+          "firstDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Compare only: exact permitted date from labs.comparison. Requires snapshotId. Omit to preserve the other side."
+          },
+          "secondDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Compare only: exact permitted date from labs.comparison. Requires snapshotId."
+          },
+          "swapDates": {
+            "type": "boolean",
+            "description": "Compare only: true swaps the two selected dates. Requires snapshotId; cannot combine with firstDate or secondDate."
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Fresh matching labs.comparison, labs.correlations, history.views or wearables.sources snapshot, required for that native command."
+          },
+          "correlation": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 9000,
+            "description": "Correlations only: JSON patch containing exact markers/therapies IDs, native preset, and/or declared view fields from labs.correlations. Saves native workspace preferences directly. Requires snapshotId; separate from undoId."
+          },
+          "history": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 9000,
+            "description": "History view command JSON from history.views. nutritionHistory: nutritionRange/nutritionView; wearableDetail: exact permitted metricId and optional wearableRange. Requires snapshotId; separate from undoId/subview. Saves only stated native presentation preferences."
+          },
+          "undoId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Exact current Undo ID from labs.correlations/history.views or its native receipt, plus a fresh matching snapshotId and declared view. Never infer or replay an imported ID."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_note",
+      "description": "Prepare a reviewable general profile or marker note, for an explicit note request or information without a supported structured home. Never use this as a substitute for a Health Goal, medical/family-history record, period observation, or supported context answer: read its context card and use getbased_draft_context. This does not save anything; the user must approve it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "marker"
+            ]
+          },
+          "marker": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "append",
+              "replace"
+            ]
+          }
+        },
+        "required": [
+          "scope",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_context",
+      "description": "Propose changes from a prior getbased_read_context_card snapshot when the user shares new personal context, goals, medical/family history, or cycle observations, even without asking to save. Include exact supporting words and a reason. Nothing saves until Apply. Use value/values for ordinary fields; empty values clear. For record fields use operation add/update/remove, record for add/update, and the read index for update/remove. Patch only supplied record properties. Never treat a relative as the user or age at death as age at onset. For a period start supply startDate only; do not invent an end date or flow.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "type": "string",
+            "enum": [
+              "diet",
+              "sleepRest",
+              "exercise",
+              "stress",
+              "loveLife",
+              "environment",
+              "lightCircadian",
+              "diagnoses",
+              "healthGoals",
+              "menstrualCycle",
+              "interpretiveLens"
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "changes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "values": {
+                  "type": "array",
+                  "maxItems": 30,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 160
+                  }
+                },
+                "operation": {
+                  "type": "string",
+                  "enum": [
+                    "add",
+                    "update",
+                    "remove"
+                  ]
+                },
+                "index": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "record": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "severity": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "status": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "since": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "relative": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "condition": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "note": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "flow": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "notes": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "onsetAge": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 120
+                    },
+                    "symptoms": {
+                      "type": "array",
+                      "maxItems": 30,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 160
+                      }
+                    },
+                    "clearFields": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      "description": "For an update, clear these optional record properties; required identity fields cannot be cleared."
+                    }
+                  }
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "card",
+          "snapshotId",
+          "changes",
+          "reason",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_meal",
+      "description": "Compatibility shortcut for a basic new meal. Prefer getbased_read_data with resource meals and getbased_draft_data for meals, hydration, ingredients, corrections, photos or check-ins. This does not save anything; the user must approve the draft in getbased.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "eatenAt": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "ISO-8601 date-time."
+          },
+          "mealType": {
+            "type": "string",
+            "enum": [
+              "breakfast",
+              "brunch",
+              "lunch",
+              "dinner",
+              "snack",
+              "drink",
+              "other"
+            ]
+          },
+          "energyKcal": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "proteinG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "carbohydrateG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3000
+          },
+          "fatG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "fiberG": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "fluidMl": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_biometric",
+      "description": "Compatibility shortcut for manual weight, blood pressure or pulse. Reads the exact date/metric and prepares the same guarded add/update as manualReadings. Weight requires an explicit unit. An explicitly reported BP plus pulse is reviewed and saved together. Prefer read_data/draft_data for corrections or body methods. Nothing saves until approval.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "weight",
+              "bp",
+              "rhr"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "kg",
+              "lb",
+              "bpm"
+            ]
+          },
+          "systolic": {
+            "type": "number",
+            "minimum": 40,
+            "maximum": 300
+          },
+          "diastolic": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 200
+          },
+          "pulse": {
+            "type": "number",
+            "minimum": 20,
+            "maximum": 250
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "metric"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_draft_supplement",
+      "description": "Compatibility shortcut for a supplement or medication. Reads an unambiguous matching record or prepares a new exact record review. Unreported schedules stay unknown. Different historical start dates require explicit period/restart operations. Nothing saves until approval.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "supplement",
+              "medication"
+            ]
+          },
+          "dosage": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "startDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Calendar date in YYYY-MM-DD format."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_app_actions",
+      "description": "Discover declared app controls, their parameters, scope and review requirements. Use only for an explicit request about operating getbased or changing saved preferences. Ordinary conversation needs no app action.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_read_app",
+      "description": "Read declared app state or a bounded prior-conversation search. No changes are saved and no review card is created. For a supported saved change, call getbased_request_app after this read; only its successful pending_user_approval result creates a card. Conversation search requires an explicit historical question and returns quoted excerpts with native source links. Other actions return non-secret state and review snapshots.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "conversations.search",
+              "wearables.sources",
+              "profiles",
+              "profile.selection",
+              "display.preferences",
+              "labs.comparison",
+              "labs.correlations",
+              "labs.overlays",
+              "history.views",
+              "assistant.models",
+              "assistant.selection",
+              "assistant.connections",
+              "assistant.connection"
+            ]
+          },
+          "profileId": {
+            "type": "string",
+            "maxLength": 160,
+            "description": "Exact ID from profiles, required only for a profile.selection snapshot. This never reads target health data into the tool result."
+          },
+          "connectionId": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Optional exact ID from assistant.connections; required for an assistant.connection review snapshot. assistant.models reads this saved connection without switching it."
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "type": "function",
+      "name": "getbased_request_app",
+      "description": "Prepare an exact app-control review card. This NEVER executes or saves the change. The user must choose Apply after this reply. Use only for a stated persistent preference or explicit app command, never a one-answer conversion or hypothetical question. Quote the accepted human message as evidence.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "profile.selection",
+              "display.preferences",
+              "labs.overlays",
+              "assistant.selection",
+              "assistant.connection"
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "parameters": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 9000,
+            "description": "JSON object with only declared app_actions fields. No code, paths, credentials or inferred preferences."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "action",
+          "snapshotId",
+          "parameters",
+          "reason",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

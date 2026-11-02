@@ -23,11 +23,13 @@ export interface StoredProfileRecord {
   [key: string]: unknown;
 }
 export interface ProfileListStoreDeps {
+  encryptedGetItem: typeof encryptedGetItem;
   encryptedSetItem: typeof encryptedSetItem;
   showNotification: typeof showNotification;
 }
 
 const profileListStoreDeps: ProfileListStoreDeps = {
+  encryptedGetItem,
   encryptedSetItem,
   showNotification,
 };
@@ -35,7 +37,7 @@ const profileListStoreDeps: ProfileListStoreDeps = {
 const profileSnapshotOrigins = new WeakMap<object, StoredProfileRecord[]>();
 
 export function configureProfileListStoreDeps(deps: Partial<ProfileListStoreDeps> = {}) {
-  return configureRuntimeFunctions(profileListStoreDeps, deps, ["encryptedSetItem","showNotification"]);
+  return configureRuntimeFunctions(profileListStoreDeps, deps, ["encryptedGetItem","encryptedSetItem","showNotification"]);
 }
 
 function cloneProfileRecord(profile: StoredProfileRecord): StoredProfileRecord {
@@ -180,9 +182,26 @@ async function migrateProfiles(profiles: StoredProfileRecord[]) {
 let profileWriteTail = Promise.resolve();
 
 function enqueueProfileWrite<T>(operation: () => Promise<T>): Promise<T> {
-  const result = profileWriteTail.catch(() => {}).then(operation);
+  const result = profileWriteTail.catch(() => {}).then(() => (globalThis as { navigator?: { locks?: { request?: LockManager['request'] } } }).navigator?.locks?.request
+    ? navigator.locks.request('getbased-profile-list', operation) : operation());
   profileWriteTail = result.then(() => {}, () => {});
   return result;
+}
+
+async function readDurableProfiles(): Promise<StoredProfileRecord[]> {
+  const raw = await profileListStoreDeps.encryptedGetItem('labcharts-profiles', { throwOnDecryptError: true });
+  const profiles: unknown = raw === null ? [] : JSON.parse(raw);
+  if (!Array.isArray(profiles) || profiles.some(profile => !profile || typeof profile !== 'object' || typeof profile.id !== 'string')
+    || new Set(profiles.map(profile => profile.id)).size !== profiles.length) throw new Error('The saved profile list needs review before editing.');
+  return cloneProfiles(profiles);
+}
+
+/** Refresh a read snapshot under the same lock used by metadata writers. */
+export function readCurrentProfiles() {
+  return enqueueProfileWrite(async () => {
+    state.profiles = await readDurableProfiles();
+    return getProfiles();
+  });
 }
 
 async function persistProfiles(profiles: StoredProfileRecord[]) {
@@ -203,14 +222,14 @@ export async function saveProfiles(profiles: StoredProfileRecord[]) {
   const base = getProfileSnapshotOrigin(profiles) || getProfiles();
   const desired = cloneProfiles(profiles);
   await enqueueProfileWrite(async () => {
-    const rebased = rebaseProfiles(base, desired, getProfiles());
+    const rebased = rebaseProfiles(base, desired, await readDurableProfiles());
     await persistProfiles(rebased);
   });
 }
 
 export function mutateProfiles<T>(mutate: (profiles: StoredProfileRecord[]) => { changed: boolean; value: T }): Promise<T> {
   return enqueueProfileWrite(async () => {
-    const profiles = getProfiles();
+    const profiles = await readDurableProfiles();
     const result = mutate(profiles);
     if (result.changed) await persistProfiles(profiles);
     return result.value;

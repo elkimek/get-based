@@ -35,6 +35,7 @@ describe('agent chat client', () => {
       endpoint: 'http://127.0.0.1:8324',
       token: 'secret-token',
       prompt: 'How are my lipids?',
+      applicationContext: '{"proposalReviewStatus":[{"id":"old-card","status":"discarded","reviewActions":[]}]}',
       tools: [],
       toolRuntime,
       onStream,
@@ -50,6 +51,8 @@ describe('agent chat client', () => {
       webSearches: [],
     });
     expect(onStream).toHaveBeenLastCalledWith('ApoB improved.');
+    const sent = JSON.parse((fetchMock.mock.calls as [unknown, { body: string }][])[0]![1].body);
+    expect(sent.prompt).toBe('How are my lipids?'); expect(sent.applicationContext).toContain('"status":"discarded"');
     expect(toolRuntime.execute).toHaveBeenCalledWith({
       tool: 'getbased_section', namespace: null, arguments: { section: 'lipids' },
     });
@@ -68,6 +71,11 @@ describe('agent chat client', () => {
     await expect(streamAgentTurn({ endpoint: 'http://127.0.0.1:8324', token: 'test-token', prompt: 'Synthetic report', tools: [] }))
       .rejects.toThrow(finishReason === 'failed' ? 'could not complete' : 'interrupted');
     expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it.each(['failed','error','cancelled','stop'])('rejects an empty %s turn instead of reporting completion', async finishReason => {
+    vi.stubGlobal('fetch',vi.fn(async () => ndjsonResponse([{type:'done',finishReason}])));
+    await expect(streamAgentTurn({endpoint:'http://127.0.0.1:8324',token:'synthetic-token',prompt:'Hello',tools:[]})).rejects.toThrow(finishReason === 'stop' ? 'empty response' : finishReason === 'failed' ? 'could not complete' : 'did not complete');
   });
 
   it('rejects non-loopback endpoints before sending health data', async () => {

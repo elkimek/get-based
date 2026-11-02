@@ -55,8 +55,10 @@ export function configureLightDeviceSetup(deps: Partial<LightDeviceSetupDeps> = 
   Object.assign(setupDeps, deps);
 }
 
-export async function openAddDeviceDialog() {
+export async function openAddDeviceDialog(options: { isCurrent?: () => boolean } = {}): Promise<void | false> {
+  if (options.isCurrent?.() === false) return false;
   const { presets, types } = await setupDeps.loadPresets();
+  if (options.isCurrent?.() === false) return false;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);

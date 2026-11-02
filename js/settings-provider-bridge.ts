@@ -1,3 +1,4 @@
+import { CHAT_CONTROLS_KEY, isChatControlEnabled, setChatControlsEnabled } from './chat-control-settings.js';
 import { mountAiSettings,getAiSettingsView,disposeAiSettings,setAiSettingsSelection } from './ai-settings-component.js';
 import { buildAiSettingsSnapshot } from './ai-settings-presentation.js';
 import { AI_PROVIDER_IDS,type AiProviderId } from './ai-settings-contract.js';
@@ -88,8 +89,8 @@ export function renderAIProviderPanelBridge(): string { return '<div data-ai-pro
 export function hydrateAiSettings(hideProviders: boolean, onSelect?: (provider:AiProviderId,button:HTMLButtonElement) => unknown): void {
   const host = document.querySelector<HTMLElement>('[data-ai-settings-host]');
   if (!host?.isConnected) return;
-  const view = mountAiSettings(host,buildAiSettingsSnapshot({ enabled:!isAIPaused(),hideProviders,provider:getAIProvider(),backend:getChatBackend() }),{
-    pause:toggleAIPauseBridge,select:onSelect || (provider => provider === 'cli' ? showCLIAgentProviderBridge() : switchAIProviderBridge(provider)),
+  const view = mountAiSettings(host,buildAiSettingsSnapshot({ enabled:!isAIPaused(),chatControlsEnabled:isChatControlEnabled(),hideProviders,provider:getAIProvider(),backend:getChatBackend() }),{
+    pause:toggleAIPauseBridge,chatControls:toggleChatControlsBridge,select:onSelect || (provider => provider === 'cli' ? showCLIAgentProviderBridge() : switchAIProviderBridge(provider)),
   });
   const panel = view.getProviderHost();
   if (panel) panel.innerHTML = getChatBackend() === 'codex' ? renderCLIAgentProviderPanel() : renderAIProviderPanelBridge();
@@ -138,12 +139,17 @@ if (typeof globalThis.addEventListener === 'function') {
   });
 }
 
-export function toggleAIPauseBridge(enabled: unknown): void {
+let pauseRequest = 0;
+export async function toggleAIPauseBridge(enabled: unknown): Promise<void> {
   const view = getAiSettingsView(); if (!view) return;
-  try { setAiSettingsEnabled(enabled); view.setPauseError(''); }
-  catch { if (view.isCurrent()) view.setPauseError('AI features could not be updated. Try again.'); }
-  finally { if (view.isCurrent()) { try { view.setEnabled(!isAIPaused()); } catch { view.setEnabled(view.getSnapshot().enabled); } } }
+  const request = ++pauseRequest, current = () => view.isCurrent() && request === pauseRequest;
+  try { await setAiSettingsEnabled(enabled, undefined, { canCommit: current }); if (current()) view.setPauseError(''); }
+  catch { if (current()) view.setPauseError('AI features could not be updated. Try again.'); }
+  finally { if (current()) { try { view.setEnabled(!isAIPaused()); } catch { view.setEnabled(view.getSnapshot().enabled); } } }
 }
+if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('getbased:assistant-preferences-changed', () => {
+  try { const view = getAiSettingsView(); if (view) { view.setEnabled(!isAIPaused()); view.setPauseError(''); } } catch { /* Reopening settings rereads the saved value. */ }
+});
 
 export function testPIIOllamaConnectionBridge() {
   return loadProviderPanels().then(providerPanels => providerPanels.testPIIOllamaConnection());
@@ -185,3 +191,19 @@ globalThis.addEventListener?.('storage', event => {
   if (!(event as Event & { key?: unknown }).key || (['labcharts-ai-provider', 'labcharts-chat-backend'] as readonly unknown[]).includes((event as Event & { key?: unknown }).key)) syncWalletFunding();
 });
 syncWalletFunding();
+
+let controlsRequest = 0;
+export async function toggleChatControlsBridge(enabled: boolean): Promise<void> {
+  const view = getAiSettingsView(); if (!view) return;
+  const request = ++controlsRequest, current = () => view.isCurrent() && request === controlsRequest;
+  try { await setChatControlsEnabled(enabled, current); if (current()) view.setChatControlsError(''); }
+  catch { if (current()) view.setChatControlsError('Chat controls could not be updated. Check storage and try again.'); }
+  finally { if (current()) view.setChatControlsEnabled(isChatControlEnabled()); }
+}
+function refreshChatControlSetting() {
+  const view = getAiSettingsView(); if (view) { view.setChatControlsEnabled(isChatControlEnabled()); view.setChatControlsError(''); }
+}
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('getbased:chat-controls-changed', refreshChatControlSetting);
+  globalThis.addEventListener('storage', event => { if (event.key === CHAT_CONTROLS_KEY || event.key === null) refreshChatControlSetting(); });
+}

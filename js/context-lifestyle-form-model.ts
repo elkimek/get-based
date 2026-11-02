@@ -109,6 +109,7 @@ export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex
     case 'environment': {
       const assessments = data.emfAssessment?.assessments;
       const emf = emfAssessmentLauncherView(Array.isArray(assessments) ? assessments : []);
+      const choices = (key: 'emf' | 'emfMitigation', native: readonly string[]) => [...new Set([...native, ...(Array.isArray(data.environment?.[key]) ? data.environment[key].filter(value => typeof value === 'string' && value.trim()) : [])])];
       return {
         key, title: 'Environment & Exposures', message: 'Environment', mismatch: null,
         subtitle: 'Your location, air, water, work, and home environment can add context to health and lab patterns.',
@@ -130,8 +131,8 @@ export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex
             summaryPrefix: emf.count ? `${emf.count} saved assessment${emf.count === 1 ? '' : 's'}` : '',
             summaryFields: [{ key: 'emf' }, { key: 'emfMitigation' }],
             fields: emf.hasAssessments ? [] : [
-              tags('emf', 'env-emf', 'EMF exposure', options.ENV_EMF),
-              tags('emfMitigation', 'env-emf-mit', 'EMF mitigation', options.ENV_EMF_MITIGATION)
+              tags('emf', 'env-emf', 'EMF exposure', choices('emf', options.ENV_EMF)),
+              tags('emfMitigation', 'env-emf-mit', 'EMF mitigation', choices('emfMitigation', options.ENV_EMF_MITIGATION))
             ] },
           { title: 'Home and exposures', fallback: 'Optional lighting, air, toxins, and building', fields: [
             single('homeLight', 'env-light', 'Home/work lighting', options.ENV_HOME_LIGHT),

@@ -90,6 +90,7 @@ test('marker detail store browser coverage persists manual values notes ranges a
         markerNotes: {},
         refOverrides: {},
       };
+      if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not persist marker-detail fixture');
       const entry = state.importedData.entries[0]!;
 
       await store.saveManualMarkerValue({

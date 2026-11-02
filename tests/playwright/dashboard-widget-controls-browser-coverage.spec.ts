@@ -21,6 +21,10 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
     const outcomes: Record<string, unknown> = {};
     const fixture = document.getElementById('fixture');
     const calls: unknown[][] = [];
+    const settlePreferenceCommands = async () => {
+      const { state } = await import('/js/state.js'), { profileStorageKey } = await import('/js/profile.js');
+      await navigator.locks.request(profileStorageKey(state.currentProfile || 'default', 'dashboard-presentation-lock'), () => {});
+    };
     const previousContextCardsRuntime: ReturnType<typeof contextCardsRuntime.configureContextCardsRuntimeCallbacks>|null = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
       triggerDNAFilePicker: () => calls.push(['dna']),
     });
@@ -206,6 +210,7 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
         && !picker.querySelector<HTMLElement>('button[onclick]');
 
       (markerOptions[0])!.click();
+      await settlePreferenceCommands();
       outcomes.addMarkerWidgetDelegateUpdatesPrefsAndClosesPicker =
         prefs.order.includes('marker_lipids_apob')
         && !document.getElementById('dashboard-widget-picker-overlay')
@@ -216,6 +221,7 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
       const weightOption = [...document.querySelectorAll<HTMLOptionElement>('.dashboard-biometric-widget-option')]
         .find(option => option.textContent.includes('Weight'));
       weightOption?.click();
+      await settlePreferenceCommands();
       outcomes.addBiometricMetricDelegateSelectsMetricAndShowsWearables =
         selectedBiometrics.includes('weight')
         && prefs.order.includes('wearables')
@@ -280,6 +286,7 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
       const dropEvent = new DragEvent('drop', { bubbles: true, cancelable: true });
       Object.defineProperty(dropEvent, 'dataTransfer', { value: delegateDataTransfer });
       (document.getElementById('drop-notes'))!.dispatchEvent(dropEvent);
+      await settlePreferenceCommands();
       const notesIndex = prefs.order.indexOf('notes');
       outcomes.dragDelegatesReorderPrefsOnlyInOrganizeMode =
         delegateDragStore.get('text/plain') === 'summary'

@@ -220,6 +220,7 @@ export function withdrawAIRouteConfirmations() {
 }
 
 function purposeCopy(kind: string) {
+  if (kind === 'connection-selection') return 'selecting this AI destination for future requests';
   if (kind === 'report') return 'generating an AI overview from the report facts and questions you selected';
   if (kind === 'activation') return 'activating this AI connection';
   if (kind === 'meal-photo') return 'analyzing the selected meal photos and any details you entered';
@@ -452,11 +453,12 @@ function requestRouteConfirmation(details: ConsentDetails, kind: string) {
 
 function requestRemoteSensitiveDataApproval(details: ConsentDetails, kind: string) {
   const activating = kind === 'activation';
+  const selecting = kind === 'connection-selection';
   return showPrompt({
     id: 'cloud-ai-consent-overlay',
     kicker: activating ? 'AI connection' : 'Remote AI privacy',
-    title: activating ? `Activate ${details.label}?` : 'Approve sensitive-data processing',
-    description: activating
+    title: selecting ? `Select ${details.label}?` : activating ? `Activate ${details.label}?` : 'Approve sensitive-data processing',
+    description: selecting ? 'Selecting a connection sends no conversation content. Before saving it for future requests, review the destination and its processing approval.' : activating
       ? `The connection check succeeded. Before getbased sends profile or request content, approve ${details.label} as this AI destination.`
       : `For ${purposeCopy(kind)}, getbased is ready to send data ${details.route}. Recipient: ${details.label}. Nothing is sent until you approve.`,
     points: [
@@ -466,7 +468,7 @@ function requestRemoteSensitiveDataApproval(details: ConsentDetails, kind: strin
     ],
     statement: `I approve sending relevant sensitive data to ${details.label} for AI and voice processing, including later automatic insights.`,
     cancelLabel: activating ? 'Not now' : 'Keep data on this device',
-    approveLabel: activating ? 'Allow & activate' : 'Approve & send',
+    approveLabel: selecting ? 'Approve & select' : activating ? 'Allow & activate' : 'Approve & send',
     links: () => projectPolicyLinks(details),
     onApprove: () => storeRemoteApproval(details),
   });
@@ -482,6 +484,7 @@ function processingApprovalSatisfied(provider: string, options: AIProcessingOpti
   return hasCloudAIConsent(provider, {
     endpoint: details.endpoint,
     modelId: options.modelId,
+    agentId: options.agentId,
   });
 }
 
@@ -489,7 +492,7 @@ function processingApprovalSatisfied(provider: string, options: AIProcessingOpti
  * Provider-neutral first-use gate. The transparency record is separate from
  * route confirmation and remote sensitive-data approval records.
  */
-export function requestAIProcessingApproval(provider: string, { kind = 'text', endpoint = '', modelId = '' }: AIProcessingApprovalOptions = {}) {
+export function requestAIProcessingApproval(provider: string, { kind = 'text', endpoint = '', modelId = '', agentId }: AIProcessingApprovalOptions = {}) {
   if (isAppExtensionAICredentialOwned(provider)) {
     return (async () => {
       if (!hasAcknowledgedAITransparency()) {
@@ -499,7 +502,7 @@ export function requestAIProcessingApproval(provider: string, { kind = 'text', e
         interactive: kind !== 'automatic-insight' });
     })();
   }
-  const options = { endpoint, modelId };
+  const options = { endpoint, modelId, agentId };
   const initialDetails = cloudAIConsentDetails(provider, options);
   const promptKey = initialDetails.boundary === 'same-device'
     ? 'transparency'
@@ -510,7 +513,7 @@ export function requestAIProcessingApproval(provider: string, { kind = 'text', e
     const needsDestination = details.boundary === 'private-network'
       ? !hasAIRouteConfirmation(provider, { endpoint: details.endpoint })
       : details.boundary === 'remote'
-        ? !hasCloudAIConsent(provider, { endpoint: details.endpoint, modelId })
+        ? !hasCloudAIConsent(provider, { endpoint: details.endpoint, modelId, agentId })
         : false;
     if (needsTransparency && needsDestination) return requestCombinedDestinationActivation(details, kind);
     if (needsTransparency && !await showAITransparencyPrompt()) return false;

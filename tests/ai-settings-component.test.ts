@@ -4,7 +4,7 @@ import { disposeAiSettings, getAiSettingsView, mountAiSettings } from '../js/ai-
 import { buildAiSettingsSnapshot } from '../js/ai-settings-presentation.js';
 import type { AiSettingsActions } from '../js/ai-settings-contract.js';
 
-function mounted(options: { backend?: string; provider?: string; hideProviders?: boolean } = {}, actions: AiSettingsActions = { pause: vi.fn(), select: vi.fn() }) {
+function mounted(options: { backend?: string; provider?: string; hideProviders?: boolean } = {}, actions: AiSettingsActions = { pause: vi.fn(), select: vi.fn(), chatControls: vi.fn() }) {
   const host = document.createElement('section');
   document.body.append(host);
   const snapshot = buildAiSettingsSnapshot({ enabled: true, backend: options.backend || 'direct', provider: options.provider || 'venice', hideProviders: options.hideProviders || false });
@@ -24,7 +24,7 @@ it('renders the seven provider contracts with exactly one active selection', () 
   expect(document.querySelectorAll('img:not([alt=""])')).toHaveLength(0);
 });
 it('owns dispatch once, forwards the actual button and suppresses legacy delegates', () => {
-  const select = vi.fn(), pause = vi.fn(); mounted({}, { select, pause });
+  const select = vi.fn(), pause = vi.fn(); mounted({}, { select, pause, chatControls: vi.fn() });
   const click = vi.fn(), change = vi.fn();
   document.body.addEventListener('click',click); document.body.addEventListener('change',change);
   const button = document.querySelector<HTMLButtonElement>('[data-provider="cli"]')!;
@@ -54,7 +54,7 @@ it('honors extension provider visibility while keeping feature controls availabl
   expect(document.querySelector('#ai-pause-toggle')).not.toBeNull();
 });
 it('rejects retained actions and refreshes after a replacement or close', () => {
-  const select = vi.fn(), pause = vi.fn(), old = mounted({}, { select, pause });
+  const select = vi.fn(), pause = vi.fn(), old = mounted({}, { select, pause, chatControls: vi.fn() });
   const button = old.host.querySelector<HTMLButtonElement>('[data-provider="cli"]')!;
   const checkbox = old.host.querySelector<HTMLInputElement>('#ai-pause-toggle')!;
   const next = mounted({ provider: 'openrouter' });
@@ -62,4 +62,16 @@ it('rejects retained actions and refreshes after a replacement or close', () => 
   expect(select).not.toHaveBeenCalled(); expect(pause).not.toHaveBeenCalled();
   expect(next.view.getSnapshot().activeProvider).toBe('openrouter'); expect(next.view.getSnapshot().enabled).toBe(true);
   disposeAiSettings(); expect(next.view.isCurrent()).toBe(false); expect(getAiSettingsView()).toBeNull();
+});
+
+it('owns an independent chat controls switch without disturbing provider edits', () => {
+  const chatControls = vi.fn(), pause = vi.fn(); const { view } = mounted({}, { chatControls, pause, select: vi.fn() });
+  const provider = view.getProviderHost()!, secret = document.createElement('input'); secret.value = 'UNSAVED'; provider.append(secret);
+  const toggle = document.querySelector<HTMLInputElement>('#chat-controls-toggle')!;
+  expect(toggle.checked).toBe(true); expect(toggle.getAttribute('aria-describedby')).toBe('chat-controls-help'); toggle.click();
+  expect(chatControls).toHaveBeenCalledExactlyOnceWith(false); expect(pause).not.toHaveBeenCalled();
+  expect(toggle.checked).toBe(true); view.setChatControlsEnabled(false); view.setChatControlsError('Storage blocked');
+  expect(toggle.checked).toBe(false); expect(document.body.textContent).toContain('Storage blocked');
+  expect(provider.firstElementChild).toBe(secret); expect(secret.value).toBe('UNSAVED');
+  expect(document.querySelector<HTMLInputElement>('#ai-pause-toggle')!.checked).toBe(true);
 });

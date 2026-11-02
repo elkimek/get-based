@@ -17,6 +17,8 @@ interface ContextSettingsProfile {
 interface ContextSourceOptions {
   defaultValue?: unknown;
   legacyKey?: string | null | undefined;
+  data?: ContextSettingsProfile;
+  profileId?: string;
 }
 
 export const CONTEXT_SOURCE_IDS = Object.freeze({
@@ -167,8 +169,8 @@ export function getContextSourceSlug(idOrSlug: string) {
   return def?.slug || String(idOrSlug || '');
 }
 
-export function getContextSourceStorageKey(idOrSlug: string) {
-  return `labcharts-${getActiveProfileId()}-ai-ctx-${getContextSourceSlug(idOrSlug)}`;
+export function getContextSourceStorageKey(idOrSlug: string, profileId = getActiveProfileId()) {
+  return `labcharts-${profileId}-ai-ctx-${getContextSourceSlug(idOrSlug)}`;
 }
 
 function hasUnsafeContextSourceSlugChars(slug: string) {
@@ -219,8 +221,8 @@ export function ensureContextSourceSettings(data: ContextSettingsProfile | null 
   return normalized;
 }
 
-function getProfileContextSourceValue(idOrSlug: string) {
-  const settings = getProfileContextSourceSettings();
+function getProfileContextSourceValue(idOrSlug: string, data = state.importedData as ContextSettingsProfile) {
+  const settings = getProfileContextSourceSettings(data);
   if (!settings) return null;
   const slug = getContextSourceSlug(idOrSlug);
   if (!Object.prototype.hasOwnProperty.call(settings, slug)) return null;
@@ -228,10 +230,10 @@ function getProfileContextSourceValue(idOrSlug: string) {
   return value === true || value === false ? value : null;
 }
 
-function getStoredContextSourceValue(idOrSlug: string, legacyKey: string | null = null) {
+function getStoredContextSourceValue(idOrSlug: string, legacyKey: string | null = null, profileId = getActiveProfileId()) {
   const storage = getStorage();
   if (!storage) return null;
-  const local = storage.getItem(getContextSourceStorageKey(idOrSlug));
+  const local = storage.getItem(getContextSourceStorageKey(idOrSlug, profileId));
   if (local === 'off') return false;
   if (local === 'on') return true;
   if (legacyKey) {
@@ -300,9 +302,9 @@ export function isContextSourceEnabled(idOrSlug: string, options: ContextSourceO
   const def = getDefinition(idOrSlug);
   const defaultValue = options.defaultValue ?? def?.defaultEnabled ?? true;
   const legacyKey = options.legacyKey ?? def?.legacyKey ?? null;
-  const profileValue = getProfileContextSourceValue(idOrSlug);
+  const profileValue = getProfileContextSourceValue(idOrSlug, options.data);
   if (profileValue === true || profileValue === false) return profileValue;
-  const storedValue = getStoredContextSourceValue(idOrSlug, legacyKey);
+  const storedValue = getStoredContextSourceValue(idOrSlug, legacyKey, options.profileId);
   if (storedValue === true || storedValue === false) return storedValue;
   return defaultValue !== false;
 }

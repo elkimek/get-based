@@ -2,7 +2,7 @@ import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { getDecodedToken } from '@cashu/cashu-ts';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { prepareStaticWallet, seedStaticWalletMints } from './wallet-static-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 const mint = 'https://mint.minibits.cash/Bitcoin', other = 'https://mint.other.test';

@@ -105,8 +105,13 @@ it('the Dashboard-only leaf boundary excludes the umbrella and editor/history/be
     if (seen.has(file)) return; seen.add(file);
     for (const relative of runtimeImports(file)) {
       if (!relative.startsWith('.')) continue;
-      const resolved = path.resolve(path.dirname(file), relative).replace(/\.js$/, '.ts');
-      if (fs.existsSync(resolved)) walk(resolved); else throw new Error('Missing canonical dependency: ' + resolved);
+      const runtime = path.resolve(path.dirname(file), relative), resolved = runtime.replace(/\.js$/, '.ts');
+      if (fs.existsSync(resolved)) walk(resolved);
+      else if (runtime === path.resolve('vendor/sha256.js')) {
+        const inventory = JSON.parse(fs.readFileSync('vendor/components.json', 'utf8')) as { components: { name: string; version: string; files: string[] }[] };
+        expect(inventory.components.find(component => component.name === '@noble/hashes')).toMatchObject({ version: '2.2.0', files: ['vendor/sha256.js'] });
+        walk(runtime); // Follow the actual qualified external bundle too; never hide its imports.
+      } else throw new Error('Missing canonical dependency: ' + resolved);
     }
   }
   walk(path.resolve('js/components/NutritionDashboard.svelte'));

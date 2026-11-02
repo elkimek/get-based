@@ -3,7 +3,7 @@
 import { escapeAttr } from './utils.js';
 
 type MarkerIdAction = (id: string) => unknown;
-type MarkerDatedAction = (id: string, date: string) => unknown;
+type MarkerDatedAction = (id: string, date: string, panelId?: string) => unknown;
 export interface MarkerDetailOptions { showAllHistory?: boolean; scrollToHistory?: boolean; historyLimit?: number; returnFocus?: HTMLElement }
 export interface MarkerDetailActions {
   closeModal?: () => unknown;
@@ -16,7 +16,7 @@ export interface MarkerDetailActions {
   openMarkerPlacementModal?: MarkerIdAction;
   saveMarkerPlacement?: MarkerIdAction;
   restoreMarkerPlacement?: MarkerIdAction;
-  editMarkerValue?: (id: string, date: string, value: number, event: Event) => unknown;
+  editMarkerValue?: (id: string, date: string, value: number, event: Event, panelId?: string) => unknown;
   deleteMarkerValue?: MarkerDatedAction;
   revertMarkerValue?: MarkerDatedAction;
   editValueNote?: MarkerDatedAction;
@@ -82,6 +82,7 @@ function handleMarkerDetailAction(actionEl: HTMLElement, event: MarkerDetailEven
   const action = actionEl.dataset.markerDetailAction || '';
   const id = actionEl.dataset.markerDetailId || '';
   const date = actionEl.dataset.markerDetailDate || '';
+  const panelId = actionEl.dataset.markerDetailPanelId || undefined;
   const dotKey = actionEl.dataset.markerDetailDotKey || '';
   const type = actionEl.dataset.markerDetailType || '';
 
@@ -116,11 +117,11 @@ function handleMarkerDetailAction(actionEl: HTMLElement, event: MarkerDetailEven
     actionEl.closest('.marker-history-row')?.querySelector('.mv-note-text')?.classList.toggle('show');
   } else if (action === 'edit-marker-value') {
     const value = numberAttr(actionEl, 'markerDetailValue');
-    if (value != null) void actions.editMarkerValue?.(id, date, value, event);
+    if (value != null) void actions.editMarkerValue?.(id, date, value, event, panelId);
   } else if (action === 'delete-marker-value') {
-    void actions.deleteMarkerValue?.(id, date);
+    void actions.deleteMarkerValue?.(id, date, panelId);
   } else if (action === 'revert-marker-value') {
-    void actions.revertMarkerValue?.(id, date);
+    void actions.revertMarkerValue?.(id, date, panelId);
   } else if (action === 'edit-value-note') {
     void actions.editValueNote?.(id, date);
   } else if (action === 'delete-value-note') {

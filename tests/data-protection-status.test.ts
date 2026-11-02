@@ -1,10 +1,10 @@
 import { afterEach, expect, it, vi } from 'vitest';
 vi.mock('../js/backup.js', () => ({ getFolderBackupState: vi.fn() }));
 vi.mock('../js/crypto.js', () => ({ getEncryptionEnabled: vi.fn() }));
-vi.mock('../js/sync.js', () => ({ isSyncEnabled: vi.fn() }));
+vi.mock('../js/sync-settings-state.js', () => ({ isSyncEnabled: vi.fn() }));
 import { getFolderBackupState } from '../js/backup.js';
 import { getEncryptionEnabled } from '../js/crypto.js';
-import { isSyncEnabled } from '../js/sync.js';
+import { isSyncEnabled } from '../js/sync-settings-state.js';
 import { getDataProtectionStatus } from '../js/data-protection-status.js';
 import { protectionCards } from '../js/data-protection-picker-model.js';
 afterEach(() => vi.resetAllMocks());

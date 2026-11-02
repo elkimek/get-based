@@ -2,7 +2,7 @@ import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page, BrowserContext } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import {openStaticSettings} from './settings-entry.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
@@ -90,7 +90,9 @@ test('first Display open and cold launch work offline while retaining local and 
     });
     server.state.offline = true;
     await display(page); await page.locator('#settings-tab-display [data-unit="US"]').click();
+    await expect(page.locator('#settings-tab-display [data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
     await page.locator('#settings-tab-display [data-alt-units="on"]').click();
+    await expect(page.locator('#settings-tab-display [data-alt-units="on"]')).toHaveAttribute('aria-pressed', 'true');
     await page.close(); const cold = await context.newPage();
     await cold.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(cold); await display(cold);
     await expect(cold.locator('#settings-tab-display [data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
@@ -117,14 +119,14 @@ test('failed update retains the app and Later defers activation until explicit o
     const other = await context.newPage();
     await other.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(other);
     await expect.poll(() => other.evaluate(() => localStorage.getItem('kit-update-retained'))).toBe('retained');
-    server.state.buildId = 'kit-test-b'; server.state.failPath = '/css/settings.css';
+    server.state.buildId = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'; server.state.failPath = '/css/settings.css';
     const failed = await page.evaluate(async () => {
       const registration = (await navigator.serviceWorker.getRegistration())!;
       const failed = new Promise<string>(resolve => registration.addEventListener('updatefound', () => {
         const worker = registration.installing!; worker.addEventListener('statechange', () => { if (worker.state === 'redundant') resolve(worker.state); });
       }, { once: true })); await registration.update(); return failed;
     });
-    expect(failed).toBe('redundant'); expect(await identity(page)).toBe('kit-test-a');
+    expect(failed).toBe('redundant'); expect(await identity(page)).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     await expect(page.locator('#version-update-banner')).toHaveCount(0);
     await expect.poll(() => page.evaluate(async () => (await navigator.serviceWorker.getRegistration())!.installing?.state ?? 'none'), { timeout: 30_000 }).toBe('none');
     server.state.failPath = '';
@@ -133,26 +135,26 @@ test('failed update retains the app and Later defers activation until explicit o
       await updates.checkForAppVersionUpdate(await navigator.serviceWorker.getRegistration(), navigator.serviceWorker, window, { force: true });
     });
     await expect(page.locator('#version-update-banner')).toBeVisible({ timeout: 30_000 });
-    await page.locator('[data-version-update-action="dismiss"]').click(); expect(await identity(page)).toBe('kit-test-a');
+    await page.locator('[data-version-update-action="dismiss"]').click(); expect(await identity(page)).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     await page.reload({ waitUntil: 'load' }); await ready(page);
     expect(await page.evaluate(() => localStorage.getItem('kit-update-retained'))).toBe('retained');
     await expect(page.locator('#version-update-banner')).toBeVisible(); server.state.offline = true;
     await page.locator('[data-version-update-action="apply"]').click();
-    await expect.poll(() => identity(page).catch(() => ''), { timeout: 30_000 }).toBe('kit-test-b'); await ready(page); await display(page);
+    await expect.poll(() => identity(page).catch(() => ''), { timeout: 30_000 }).toBe('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'); await ready(page); await display(page);
     await expect(page.locator('#settings-tab-display [data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => localStorage.getItem('kit-update-retained'))).toBe('retained');
     await expect(other.locator('#version-update-banner')).toContainText('Reload');
-    expect(await identity(other)).toBe('kit-test-a');
+    expect(await identity(other)).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     expect(await other.evaluate(async () => {
       const url = '/js/bundle-legacy-probe-AAA.js';
       const module: unknown = await import(url);
       return (module as { legacyProbe?: unknown }).legacyProbe;
     })).toBe('old-tab-code');
-    expect(await page.evaluate(() => caches.keys())).toContain('labcharts-vbuild-kit-test-a');
+    expect(await page.evaluate(() => caches.keys())).toContain('labcharts-vbuild-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     await other.locator('[data-version-update-action="apply"]').click();
-    await expect.poll(() => identity(other).catch(() => ''), { timeout: 30_000 }).toBe('kit-test-b'); await ready(other); await display(other);
+    await expect.poll(() => identity(other).catch(() => ''), { timeout: 30_000 }).toBe('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'); await ready(other); await display(other);
     await expect(other.locator('#settings-tab-display [data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(async () => { expect(await page.evaluate(() => caches.keys())).toEqual(['labcharts-vbuild-kit-test-b']); }).toPass({ timeout: 10_000 });
+    await expect(async () => { expect(await page.evaluate(() => caches.keys())).toEqual(['labcharts-vbuild-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']); }).toPass({ timeout: 10_000 });
     await noCspErrors(page, errors); await noCspErrors(other, errors);
   } finally { await server.close(); }
 });

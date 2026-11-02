@@ -113,7 +113,7 @@ assert('Light environment modal shell actions are wired through startup hooks',
     envShellHooksSrc.includes('loadLightSunUI,') &&
     !envShellHooksSrc.includes("from './light-tools.js'") &&
     envShellHooksSrc.includes("import { closeModalOverlay } from './modal-lifecycle.js';") &&
-    envShellHooksSrc.includes("import { navigate } from './views-runtime.js';") &&
+    envShellHooksSrc.includes("import { navigate } from './navigation-views.js';") &&
     envShellHooksSrc.includes('configureLightEnvironmentLoaderDeps({ navigate });') &&
     envShellHooksSrc.includes('.then(module => module.openLightEnvironmentAssessment())') &&
     envShellHooksSrc.includes('loadLightSunUI()') &&

@@ -48,3 +48,10 @@ it('renders independently named native actions with escaped metadata and stable 
   expect(host.textContent).toContain('<Date>'); expect(host.textContent).toContain('<Body>');
   expect(host.querySelector('.sun-chip')?.getAttribute('aria-label')).toBe('<Vitamin>, this session <30 IU-eq. Open channel details.');
 });
+
+it('shows why incomplete live exposure has no numeric estimate', () => {
+  expect(initialSessionReadouts({ calculationStatus: 'needs-inputs', safety: { medFraction: 1 } })[0]?.values).toEqual(['Exposure details needed for estimates']);
+  expect(initialSessionReadouts({ exposureSegments: [{ calculationStatus: 'pending' }] })[0]?.values).toEqual(['Earlier exposure incomplete — estimates unavailable']);
+  expect(liveSessionReadouts(live(), { iu: 300, ratePerMin: 20 }, 10, 'Exposure details needed for estimates')).toHaveLength(1);
+  expect(liveSessionReadouts(live(), { iu: 300, ratePerMin: 20 }, 10, 'Exposure details needed for estimates')[0]?.values).toEqual(['Exposure details needed for estimates']);
+});

@@ -652,7 +652,7 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
     getAssistantExecutionRoute: vi.fn((): Record<string, unknown> => ({ adapter: 'direct' })),
     isPersonalAgentTarget: vi.fn(() => false),
     callCodexAgent: vi.fn(),
-    callChatAPIWithContinuation: vi.fn(),
+    callDirectChatWithTools: vi.fn(),
     getAgentModelDisplay: vi.fn((model: unknown) => `Resolved ${model}`),
     getCachedAgentModelCatalog: vi.fn(() => []),
     mergeAgentContextReceipts: vi.fn((_calls: unknown, context: Iterable<unknown>) => [...context, { label: 'Tools', detail: 'getbased context read' }]),
@@ -676,6 +676,7 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
   vi.doMock('../js/lab-context-output.js', () => ({ injectLensChunks: deps.injectLensChunks }));
   vi.doMock('../js/lens.js', () => ({
     hasLens: deps.hasLens,
+    canQueryLens: deps.hasLens,
     queryLensMulti: deps.queryLensMulti,
   }));
   vi.doMock('../js/chat-personalities.js', () => ({
@@ -696,10 +697,8 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
   vi.doMock('../js/ai-execution-routing.js', () => ({ getAssistantExecutionRoute: deps.getAssistantExecutionRoute }));
   vi.doMock('../js/agent-chat-context.js', () => ({ isPersonalAgentTarget: deps.isPersonalAgentTarget }));
   vi.doMock('../js/agent-chat-backend.js', () => ({ callCodexAgent: deps.callCodexAgent }));
-  vi.doMock('../js/chat-continuation.js', () => ({
-    CHAT_RESPONSE_MAX_TOKENS: 8192,
-    callChatAPIWithContinuation: deps.callChatAPIWithContinuation,
-  }));
+  vi.doMock('../js/chat-continuation.js', () => ({ CHAT_RESPONSE_MAX_TOKENS: 8192 }));
+  vi.doMock('../js/direct-chat-tools.js', () => ({ callDirectChatWithTools: deps.callDirectChatWithTools }));
   vi.doMock('../js/agent-model-catalog.js', () => ({
     getAgentModelDisplay: deps.getAgentModelDisplay,
     getCachedAgentModelCatalog: deps.getCachedAgentModelCatalog,
@@ -796,7 +795,7 @@ describe('chat discussion round request runtime behavior', () => {
     finishLookup({ chunks: [{ id: 'late-source' }] });
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
     expect(deps.injectLensChunks).not.toHaveBeenCalled();
-    expect(deps.callChatAPIWithContinuation).not.toHaveBeenCalled();
+    expect(deps.callDirectChatWithTools).not.toHaveBeenCalled();
     expect(deps.callCodexAgent).not.toHaveBeenCalled();
   });
 
@@ -806,15 +805,15 @@ describe('chat discussion round request runtime behavior', () => {
     const request = await mod.buildDiscussionRoundRequest({ msgText: 'question', roundHistory: [] });
     const controller = new AbortController();
     let finishReply!: (result: unknown) => void;
-    deps.callChatAPIWithContinuation.mockImplementation(() => new Promise(resolve => { finishReply = resolve; }));
+    deps.callDirectChatWithTools.mockImplementation(() => new Promise(resolve => { finishReply = resolve; }));
     const pending = mod.callDiscussionRoundAssistant({ request, profileId: 'accepted-profile', signal: controller.signal });
-    expect(deps.callChatAPIWithContinuation).toHaveBeenCalledWith(expect.objectContaining({ provider: 'venice', modelOverride: 'model-1' }));
+    expect(deps.callDirectChatWithTools).toHaveBeenCalledWith(expect.objectContaining({ provider: 'venice', modelOverride: 'model-1' }));
     controller.abort();
     finishReply({ text: 'late reply', finishReason: 'stop' });
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
 
     await expect(mod.callDiscussionRoundAssistant({ request, profileId: 'accepted-profile', signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
-    expect(deps.callChatAPIWithContinuation).toHaveBeenCalledTimes(1);
+    expect(deps.callDirectChatWithTools).toHaveBeenCalledTimes(1);
   });
 
   it('does not dispatch a captured CLI turn through a newly selected agent or model', async () => {

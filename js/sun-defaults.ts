@@ -10,8 +10,7 @@ import { configureSunDefaultsSetupUI } from './sun-defaults-setup-ui.js';
 
 export function getSunDefaults() {
   if (!state.importedData) return null;
-  if (!state.importedData.sunDefaults) state.importedData.sunDefaults = {};
-  return state.importedData.sunDefaults as PersistedSunDefaults;
+  return (state.importedData.sunDefaults || {}) as PersistedSunDefaults;
 }
 
 export async function saveSunDefaults(patch: Partial<PersistedSunDefaults>, session: SunSetupSession = createSunSetupSession()) {

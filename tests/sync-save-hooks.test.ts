@@ -103,6 +103,27 @@ describe('sync save-hook profile data dependencies', () => {
     }
   });
 
+  it('immediately schedules a scoped durable import save and cancels its older delayed save', () => {
+    vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']});
+    const profileId = 'immediate-scoped-import', priorProfile = state.currentProfile, priorData = state.importedData;
+    const data = {entries: [{date: '2026-01-12', markers: {'biochemistry.glucose': 5.2}}]};
+    const pushProfile = vi.fn<(id: string, data: unknown) => Promise<object>>(async () => ({}));
+    const previous = configureSyncSaveHooks({pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
+      isEvoluReady: () => true, isSyncing: () => false, getProfiles: () => [{id: profileId}]});
+    state.currentProfile = profileId; (state as {importedData: unknown}).importedData = data;
+    try {
+      onProfileSaved(profileId, data);
+      expect(pushProfile).not.toHaveBeenCalled();
+      onProfileSaved(profileId, data, {immediate: true});
+      expect(pushProfile).toHaveBeenCalledExactlyOnceWith(profileId, data);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      clearSyncSaveTimers(); vi.useRealTimers(); configureSyncSaveHooks(previous);
+      state.currentProfile = priorProfile; (state as {importedData: unknown}).importedData = priorData;
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
+    }
+  });
+
   it('does not publish a blank replacement when an inactive profile blob is unavailable', async () => {
     const profileId = 'unavailable-inactive-profile';
     const storageKey = profileStorageKey(profileId, 'imported');

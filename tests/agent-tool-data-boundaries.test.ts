@@ -3,11 +3,11 @@ const mocks = vi.hoisted(() => ({ data: vi.fn(), enabled: vi.fn(), group: vi.fn(
 vi.mock('../js/data.js', () => ({ getActiveData: mocks.data, navigateDataViewRuntime: mocks.navigate, showDataMarkerDetailRuntime: mocks.detail }));
 vi.mock('../js/marker-analysis.js', () => ({ getMarkerRangesForChat: mocks.ranges }));
 vi.mock('../js/context-source-registry.js', async original => ({ ...await original<typeof import('../js/context-source-registry.js')>(), isContextSourceEnabled: mocks.enabled }));
-vi.mock('../js/lab-context-settings.js', () => ({ isGroupInAIContext: mocks.group }));
+vi.mock('../js/lab-context-settings.js', () => ({ isGroupInAIContext: mocks.group, isLabMarkersContextEnabled: () => mocks.enabled('lab-markers') }));
 vi.mock('../js/lab-context-wearables.js', () => ({ buildWearableSeriesSection: mocks.wearable }));
-vi.mock('../js/lens.js', () => ({ queryLens: mocks.knowledge }));
+vi.mock('../js/lens.js', () => ({ queryLensMulti: mocks.knowledge }));
 import { state } from '../js/state.js';
-import { createBrowserAgentToolDependencies, searchAgentMarkers, readAgentMarkerHistory, readAgentNutritionSummary, readAgentWearableSeries, searchAgentKnowledge, navigateFromAgent } from '../js/agent-tool-bindings.js';
+import { canDiscloseAgentDraftReview, createBrowserAgentToolDependencies, searchAgentMarkers, readAgentMarkerHistory, readAgentNutritionSummary, readAgentWearableSeries, searchAgentKnowledge, navigateFromAgent } from '../js/agent-tool-bindings.js';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -22,9 +22,15 @@ beforeEach(() => {
     custom: { label: 'Specialty', group: 'Private', markers: { glucose: { name: 'Glucose', unit: 'mg/l', values: [7], singlePoint: true, singleDate: '2026-02-15' } } },
   } });
   state.currentProfile = 'a';
-  (state as { importedData: Pick<typeof state.importedData, 'entries' | 'nutritionMeals'> }).importedData = { entries: [], nutritionMeals: [] };
+  state.dateRangeFilter = 'all';
+  (state as { importedData: Pick<typeof state.importedData, 'entries' | 'nutritionMeals' | 'customMarkers'> }).importedData = { entries: [], nutritionMeals: [], customMarkers: { 'custom.glucose': { name: 'Glucose', unit: 'mg/l', categoryLabel: 'Specialty', group: 'Private', singlePoint: true } } };
 });
 afterEach(() => vi.useRealTimers());
+it('translates an exact marker key to the ordinary detail modal identity', async () => {
+  mocks.navigate.mockReturnValue(true); mocks.detail.mockReturnValue(true);
+  expect(await navigateFromAgent({ view: '', marker: 'biochemistry.glucose' })).toMatchObject({ changed: true, opened: 'marker' });
+  expect(mocks.detail).toHaveBeenCalledExactlyOnceWith('biochemistry_glucose');
+});
 
 describe('agent marker disclosure', () => {
   it('omits empty markers and disabled groups instead of disclosing their existence', () => {
@@ -46,6 +52,18 @@ describe('agent marker disclosure', () => {
   });
   it('uses the actual collection date for a single-point marker', () => {
     expect((readAgentMarkerHistory({ marker: 'custom.glucose', limit: 1 }) as Extract<ReturnType<typeof readAgentMarkerHistory>, { available: true }>).values[0]).toMatchObject({ date: '2026-02-15', value: 7 });
+  });
+  it('uses the native lab view range by default and lets explicit dates request older history', () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-05-01T12:00:00Z')); state.dateRangeFilter = '3m';
+    const before = structuredClone(mocks.data());
+    expect(readAgentMarkerHistory({ marker: 'biochemistry.glucose', limit: 10 })).toMatchObject({ historyScope: '3m', totalValuesInRange: 1, marker: { latestValue: 5.8, latestDate: '2026-03-01', recordedValues: 1 }, values: [{ date: '2026-03-01' }] });
+    expect(readAgentMarkerHistory({ marker: 'biochemistry.glucose', from: '2026-01-01', to: '2026-03-01', limit: 10 })).toMatchObject({ historyScope: 'explicit dates', totalValuesInRange: 2 });
+    expect(readAgentMarkerHistory({ marker: 'custom.glucose', limit: 10 })).toMatchObject({ totalValuesInRange: 1, values: [{ date: '2026-02-15' }] });
+    expect(mocks.data()).toEqual(before);
+  });
+  it('reports an empty current range without falling back to older or future readings', () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-01T12:00:00Z')); state.dateRangeFilter = '3m';
+    expect(readAgentMarkerHistory({ marker: 'biochemistry.glucose', limit: 10 })).toMatchObject({ available: true, totalValuesInRange: 0, marker: { latestValue: null, latestDate: null, recordedValues: 0 }, values: [] });
   });
   it('blocks marker search and history before reading data when context is disabled', () => {
     mocks.enabled.mockReturnValue(false);
@@ -101,4 +119,15 @@ describe('agent non-lab disclosure', () => {
     expect(mocks.data).not.toHaveBeenCalled();
     expect(mocks.knowledge).not.toHaveBeenCalled();
   });
+});
+
+it('gates all-kind review receipts by domain disclosure and originating profile', () => {
+  for (const [kind, source] of [['context', 'insight-cards'], ['note', 'insight-cards'], ['meal', 'meals-nutrition'], ['supplement', 'supplements-meds'], ['biometric', 'wearables']]) {
+    mocks.enabled.mockReturnValue(false);
+    expect(canDiscloseAgentDraftReview({ profileId: 'a', kind })).toBe(false);
+    expect(mocks.enabled).toHaveBeenLastCalledWith(source);
+    mocks.enabled.mockReturnValue(true);
+    expect(canDiscloseAgentDraftReview({ profileId: 'a', kind })).toBe(true);
+    expect(canDiscloseAgentDraftReview({ profileId: 'b', kind })).toBe(false);
+  }
 });

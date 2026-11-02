@@ -55,12 +55,14 @@ import {
   syncWearableNow,
   toggleWearableReorder,
   toggleWearableStrip,
+  toggleWearableStripGuarded,
 } from './wearables-strip-actions.js';
 import {renderWearableStripView,type WearableMetricCardView,type WearableStripItemView} from './wearable-strip-presentation.js';
 import type {WearableSparklineView} from './wearable-strip-sparkline-presentation.js';
 import type {WearableEmptyCardView} from './wearable-strip-empty-presentation.js';
 import {projectWearableStripStubActions,renderWearableStripStubPresentation} from './wearable-strip-stub-presentation.js';
 import {qualifyWearableEmptyAction,wearableEmptyText} from './wearable-strip-empty-presentation.js';
+import { changeWearableDetailRange } from './history-native-controls.js';
 
 export { isWearableStripHidden, setWearableStripHidden, renderWearablesSettingsSection } from './wearables-settings-panel.js';
 export {
@@ -110,7 +112,7 @@ function handleWearableActionClick(event: MouseEvent) {
   } else if (action === 'dismiss-stub') {
     dismissWearableStub();
   } else if (action === 'toggle-strip') {
-    toggleWearableStrip();
+    void toggleWearableStripGuarded();
   } else if (action === 'sync-now') {
     syncWearableNow(actionEl);
   } else if (action === 'toggle-reorder') {
@@ -124,7 +126,7 @@ function handleWearableActionClick(event: MouseEvent) {
   } else if (action === 'modal-close') {
     closeWearablesModal();
   } else if (action === 'set-detail-range') {
-    setWearableDetailRange(metricId, actionEl.dataset.wearableRange || '');
+    void changeWearableDetailRange(metricId, actionEl.dataset.wearableRange || '');
   } else if (action === 'open-detail-manual-add') {
     openManualAddFromDetail(metricId, event);
   } else if (action === 'delete-detail-manual-entry') {

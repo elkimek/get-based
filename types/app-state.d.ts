@@ -57,8 +57,9 @@ export interface ProfileData {
   genetics: any;
   customMarkers: Record<string, CustomMarkerDefinition>;
   markerPlacements: Record<string, MarkerPlacement>;
+  labOrdering?: Record<string, unknown>;
   markerNotes: Record<string, string>;
-  markerValueNotes: Record<string, string>;
+  markerValueNotes: Record<string, string | null>;
   biologyScoreAI: Record<string, any>;
   contextSourceSettings: Record<string, boolean>;
   nutritionContextDays?: 7 | 30 | 90;
@@ -70,6 +71,9 @@ export interface ProfileData {
   manualBodyReadings?: Record<string, ManualBodyReading>;
   manualMetricTombstones?: Record<string, number>;
   manualValues?: Record<string, any>;
+  labPanelTombstones?: Record<string, { deletedAt: number; restoredAt: number; updatedAt: number }>;
+  geneticsSnpTombstones?: Record<string, { deletedAt: number; restoredAt: number; updatedAt: number }>;
+  geneticsLifecycle?: import('../js/genetics-lifecycle.js').GeneticsLifecycle;
   sunSessions?: any[];
   deviceSessions?: any[];
   lightDevices?: any[];

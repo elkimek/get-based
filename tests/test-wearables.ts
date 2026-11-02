@@ -1590,7 +1590,7 @@ assert('Invalid day value (45) is silently rejected',
 // Legacy 'on' migrates to 30 only when no synced preference exists.
 delete state.importedData.agentAccessWearableSeriesDays;
 if (state.importedData.agentAccess) delete state.importedData.agentAccess.wearableSeriesDays;
-localStorage.setItem(`labcharts-${localStorage.getItem('labcharts-active-profile') || 'default'}-agent-wearable-series`, 'on');
+localStorage.setItem(`labcharts-${state.currentProfile || localStorage.getItem('labcharts-active-profile') || 'default'}-agent-wearable-series`, 'on');
 assert('Legacy "on" reads as 30 (default migration)',
   labCtxV29.getAgentWearableSeriesDays() === 30);
 // Synced preference wins over stale legacy 'on'.

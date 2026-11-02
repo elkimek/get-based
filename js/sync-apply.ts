@@ -16,6 +16,7 @@ import {
 } from './app-extension-runtime.js';
 import { refreshSyncedAIProviderUiRuntime, refreshSyncedRoutstrBalanceRuntime } from './sync-runtime.js';
 import { VOICE_ENCRYPTED_SYNC_KEYS } from './voice-settings-schema.js';
+import { LENS_CONFIG_STORAGE_KEY, replaceLensConfigRaw } from './lens-config-store.js';
 
 export {
   applyChatData, getChatDataLocalLockRemainingMs, markChatDataLocal,
@@ -140,7 +141,9 @@ async function applyAISettingsUnlocked(settings: Record<string, unknown> | null 
     const before = await encryptedGetItem(key);
     const hasStoredValue = localStorage.getItem(key) !== null;
     if (val === null ? before === '' && hasStoredValue : before === val) continue;
-    if (val === null) {
+    if (key === LENS_CONFIG_STORAGE_KEY) {
+      await replaceLensConfigRaw(val === null ? '' : String(val));
+    } else if (val === null) {
       // Keep an empty stored value so subsequent pushes preserve the deletion
       // tombstone instead of allowing an older peer to resurrect the key.
       if (encryptedSetting) {

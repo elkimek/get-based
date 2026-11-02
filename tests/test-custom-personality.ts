@@ -29,7 +29,7 @@ const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Multiple Custom Personalities Tests ===\n');
 
-await import('../js/state.js');
+const {state} = await import('../js/state.js');
 await import('../js/chat.js');
 const personalities = await import('../js/chat-personalities.js');
 const chatHistory = await import('../js/chat-history.js');
@@ -39,7 +39,7 @@ const chatSend = await import('../js/chat-send.js');
 const { buildPersonalityPrompt } = await import('../js/chat-prompt-context.js');
 const { createNewThread } = await import('../js/chat-threads.js');
 
-const profileId = localStorage.getItem('labcharts-current-profile') || 'default';
+const profileId = state.currentProfile || localStorage.getItem('labcharts-active-profile') || 'default';
 const key = `labcharts-${profileId}-chatPersonalityCustom`;
 const origVal = localStorage.getItem(key);
 const origPersonality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`);
@@ -131,11 +131,12 @@ personalities.loadChatPersonality();
 const compat = personalities.getCustomPersonality();
 assert('Compat shim: returns matching custom', (compat as {id?: unknown}).id === 'custom_def');
 assert('Compat shim: name is Functional Doc', compat.name === 'Functional Doc');
+assert('getCustomPersonalityText returns only the selected custom prompt', personalities.getCustomPersonalityText() === 'Functional prompt');
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'default');
 personalities.loadChatPersonality();
 const compatFallback = personalities.getCustomPersonality();
 assert('Compat shim: fallback returns first', (compatFallback as {id?: unknown}).id === 'custom_abc');
-assert('getCustomPersonalityText returns promptText', personalities.getCustomPersonalityText() === 'Expert prompt');
+assert('getCustomPersonalityText excludes unrelated custom prompts for the default persona', personalities.getCustomPersonalityText() === '');
 localStorage.removeItem(key);
 const compatEmpty = personalities.getCustomPersonality();
 assert('Compat shim: empty returns blank', compatEmpty.promptText === '' && compatEmpty.name === 'Custom Personality');

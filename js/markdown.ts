@@ -1,6 +1,7 @@
 // markdown.js — Markdown rendering for chat messages, focus card, EMF reports
 
 import { escapeHTML } from './utils.js';
+import { parseConversationSourceLink } from '../shared/conversation-search-contract.js';
 
 const MAX_BLOCKQUOTE_DEPTH = 8;
 
@@ -35,6 +36,8 @@ export function applyInlineMarkdown(text: unknown) {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+      const source = parseConversationSourceLink(url);
+      if (source) return protect(`<a href="${url}" data-chat-message-action="open-conversation-result">${label}</a>`);
       const safe = safeMarkdownHref(url);
       // The whole input, including the label, was escaped before Markdown tags
       // were introduced. Protect the complete anchor from the bare-URL pass.

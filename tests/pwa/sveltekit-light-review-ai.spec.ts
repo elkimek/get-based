@@ -6,7 +6,7 @@ import { state } from '../../js/state.js';
 import { getDayFingerprint } from '../../js/light-today-ai.js';
 import { getChannelMixFingerprint } from '../../js/light-channels-ai-analysis.js';
 import { getBurdenFingerprint } from '../../js/light-burden-ai-analysis.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';

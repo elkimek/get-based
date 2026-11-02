@@ -1,3 +1,4 @@
+import { createWearableFetchScope } from './wearable-fetch-scope.js';
 import type { WearableDailyRow, WearableErrorBody, WearableRequestError, WearableQuery, WearableQueryConstructor } from './wearable-data-types.js';
 
 type OuraMetric = 'hrv_rmssd' | 'rhr' | 'hrv_day' | 'hr_day' | 'sleep_score' | 'readiness_score'
@@ -86,7 +87,7 @@ async function ouraCollect(path: string, accessToken: string, params: WearableQu
 // larger gets a 400 "Timerange ... has to be less than or equal to 30 days".
 // Walk the requested window in 30-day chunks and concatenate.
 async function ouraCollectHeartrate(accessToken: string, startDt: string, endDt: string): Promise<OuraRecord[]> {
-  const out: OuraRecord[] = [];
+  const out: OuraRecord[] = [], requests = createWearableFetchScope();
   const startMs = Date.parse(startDt);
   const endMs   = Date.parse(endDt);
   if (!isFinite(startMs) || !isFinite(endMs) || endMs <= startMs) return out;
@@ -100,12 +101,13 @@ async function ouraCollectHeartrate(accessToken: string, startDt: string, endDt:
     };
     try {
       const samples = await ouraCollect('v2/usercollection/heartrate', accessToken, params);
-      out.push(...samples);
+      out.push(...samples); requests.success();
     } catch (e) {
-      logDebug('heartrate-chunk', e);
+      requests.failure(e); logDebug('heartrate-chunk', e);
     }
     cursor = chunkEnd + 1; // +1ms to avoid duplicating the boundary sample
   }
+  requests.assertSuccessful();
   return out;
 }
 
@@ -194,6 +196,7 @@ const RESILIENCE_LEVEL_TO_NUM: Record<string, number> = {
 };
 
 export async function fetchOuraDailyRange(accessToken: string, startDate: string, endDate: string) {
+  const requests = createWearableFetchScope();
   const params = { start_date: startDate, end_date: endDate };
   // Fetch collections in parallel — independent endpoints. New (daily_activity,
   // daily_stress, daily_resilience, daily_cardiovascular_age) are covered by
@@ -211,18 +214,18 @@ export async function fetchOuraDailyRange(accessToken: string, startDate: string
     vo2maxSamples,
     heartrateSamples,
   ] = await Promise.all([
-    ouraCollect('v2/usercollection/sleep',                    accessToken, params).catch(e => { logDebug('sleep', e); return []; }),
-    ouraCollect('v2/usercollection/daily_sleep',              accessToken, params).catch(e => { logDebug('daily_sleep', e); return []; }),
-    ouraCollect('v2/usercollection/daily_readiness',          accessToken, params).catch(e => { logDebug('daily_readiness', e); return []; }),
-    ouraCollect('v2/usercollection/daily_spo2',               accessToken, params).catch(e => { logDebug('daily_spo2', e); return []; }),
-    ouraCollect('v2/usercollection/daily_activity',           accessToken, params).catch(e => { logDebug('daily_activity', e); return []; }),
-    ouraCollect('v2/usercollection/daily_stress',             accessToken, params).catch(e => { logDebug('daily_stress', e); return []; }),
-    ouraCollect('v2/usercollection/daily_resilience',         accessToken, params).catch(e => { logDebug('daily_resilience', e); return []; }),
-    ouraCollect('v2/usercollection/daily_cardiovascular_age', accessToken, params).catch(e => { logDebug('daily_cardiovascular_age', e); return []; }),
-    ouraCollect('v2/usercollection/vO2_max',                  accessToken, params).catch(e => { logDebug('vO2_max', e); return []; }),
-    ouraCollectHeartrate(accessToken, startDt, endDt)
-      .catch(e => { logDebug('heartrate', e); return []; }),
+    requests.run(ouraCollect('v2/usercollection/sleep',                    accessToken, params), [], e => { logDebug('sleep', e); }),
+    requests.run(ouraCollect('v2/usercollection/daily_sleep',              accessToken, params), [], e => { logDebug('daily_sleep', e); }),
+    requests.run(ouraCollect('v2/usercollection/daily_readiness',          accessToken, params), [], e => { logDebug('daily_readiness', e); }),
+    requests.run(ouraCollect('v2/usercollection/daily_spo2',               accessToken, params), [], e => { logDebug('daily_spo2', e); }),
+    requests.run(ouraCollect('v2/usercollection/daily_activity',           accessToken, params), [], e => { logDebug('daily_activity', e); }),
+    requests.run(ouraCollect('v2/usercollection/daily_stress',             accessToken, params), [], e => { logDebug('daily_stress', e); }),
+    requests.run(ouraCollect('v2/usercollection/daily_resilience',         accessToken, params), [], e => { logDebug('daily_resilience', e); }),
+    requests.run(ouraCollect('v2/usercollection/daily_cardiovascular_age', accessToken, params), [], e => { logDebug('daily_cardiovascular_age', e); }),
+    requests.run(ouraCollect('v2/usercollection/vO2_max',                  accessToken, params), [], e => { logDebug('vO2_max', e); }),
+    requests.run(ouraCollectHeartrate(accessToken, startDt, endDt), [], e => { logDebug('heartrate', e); }),
   ]);
+  requests.assertSuccessful();
 
   const sleepByDay = bestSessionPerDay(sleepSessions);
 

@@ -1261,12 +1261,35 @@ for (const legacy of [false, true]) test(`an in-place equal-timestamp array edit
     expect(await rowIds(b.page)).toEqual(originalRows);
     await writeMinutes(b.page, 10); expect((await syncNow(b.page))?.ok).toBe(true);
     await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBe(10);
-    await b.page.evaluate(async () => {
+    expect(await b.page.evaluate(async () => {
       (await import('/js/state.js')).state.importedData.sunSessions = [];
-      await (await import('/js/data.js')).saveImportedData();
-    });
-    expect((await syncNow(b.page))?.ok).toBe(true);
-    await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBeUndefined();
+      return (await import('/js/data.js')).saveImportedData();
+    })).toBe(true);
+    try {
+      expect((await syncNow(b.page))?.ok).toBe(true);
+      await expect.poll(() => readMinutes(a.page), {timeout: 30_000}).toBeUndefined();
+    } catch (error) {
+      for (const device of devices) console.error('Array deletion diagnostics:', JSON.stringify(await device.page.evaluate(async () => {
+        const runtime = await import('/js/sync-runtime.js'), sdk = runtime.getSyncEvolu()!, query = runtime.getSyncItemRowQuery();
+        await sdk.loadQuery(query);
+        const state = (await import('/js/state.js')).state;
+        const snapshots = await import('/js/sync-delta-snapshot.js');
+        const raw = await (await import('/js/crypto.js')).encryptedGetItem((await import('/js/profile.js')).profileStorageKey(state.currentProfile, 'imported'));
+        const baseline = (await import('/js/profile-data-writes.js')).profileDataBaseline(state.importedData);
+        return {
+          rows: sdk.getQueryRows<DeltaItemRow>(query)!.filter(row => row.arrayName === 'sunSessions' && row.itemId === 'transport_array'),
+          live: state.importedData.sunSessions,
+          stored: raw ? (JSON.parse(raw) as {sunSessions?: unknown}).sunSessions : null,
+          baseline: baseline?.sunSessions,
+          receipt: snapshots.readArrayVersions(state.currentProfile, 'sunSessions'),
+          legacyReceipt: snapshots.readLegacyArrayVersions(state.currentProfile, 'sunSessions'),
+          cutover: snapshots.isPhase2CutoverEnabled(state.currentProfile),
+          dirty: (await import('/js/sync-dirty-state.js')).getSyncDirtyToken(state.currentProfile),
+          events: (await import('/js/sync-state.js')).getRecentSyncEvents(),
+        };
+      })));
+      throw error;
+    }
     await writeMinutes(b.page, 10);
     // An incoming pull can start after the local restoration was saved but
     // before its row write is queued. Its old deletion must not erase it.
@@ -1303,8 +1326,8 @@ test('all registered sync surfaces converge bidirectionally with clean console a
   const paths = [
     'sunSessions', 'lightDevices', 'deviceSessions', 'lightAudits', 'lightMeasurements', 'lightEnvironment.rooms', 'lightEnvironment.screens',
     'entries', 'notes', 'supplements', 'healthGoals', 'changeHistory', 'chatSummaries', 'importSnapshots', 'nutritionMeals',
-    'markerNotes', 'markerValueNotes', 'customMarkers', 'markerPlacements', 'manualValues', 'manualMetricTombstones', 'manualBodyReadings',
-    'refOverrides', 'categoryLabels', 'categoryIcons', 'markerLabels', 'wearablePrimaryOverride', 'biologyScoreAI', 'genetics.snps', 'lightDailyVerdicts', 'contextSourceSettings',
+    'markerNotes', 'markerValueNotes', 'customMarkers', 'markerPlacements', 'labOrdering', 'manualValues', 'labPanelTombstones', 'manualMetricTombstones', 'manualBodyReadings',
+    'refOverrides', 'categoryLabels', 'categoryIcons', 'markerLabels', 'wearablePrimaryOverride', 'biologyScoreAI', 'genetics.snps', 'geneticsSnpTombstones', 'geneticsLifecycle', 'lightDailyVerdicts', 'contextSourceSettings',
     'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'interpretiveLens', 'contextNotes',
     'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics', 'lightEnvironment.burdenAI', 'agentAccess', 'agentAccessWearableSeriesDays',
     'sunCorrelations', 'lifelightProfile', 'sunDefaults', 'channelMixAI', 'biologyScoreContextAI', 'wearableSummary', 'wearableCardOrder', 'nutritionContextDays', 'nutritionTargets',
@@ -1330,6 +1353,7 @@ test('all registered sync surfaces converge bidirectionally with clean console a
     expect([...paths].sort()).toEqual(registry);
     expect(await a.page.evaluate(async () => {
       const {state} = await import('/js/state.js'), now = Date.now() - 60_000, date = '2026-08-06';
+      const {appendLabOrderMove} = await import('/js/lab-ordering-core.js');
       const row = (id: string) => ({id, date, updatedAt: now});
       Object.assign(state.importedData, {
         sunSessions: [{...row('surface_sun'), minutes: 10}],
@@ -1350,6 +1374,10 @@ test('all registered sync surfaces converge bidirectionally with clean console a
         markerValueNotes: {'lipids.apoB:2026-08-06': 'Synthetic value note'},
         customMarkers: {'synthetic.value': {name: 'Synthetic value', unit: 'u', categoryLabel: 'Synthetic'}},
         markerPlacements: {'builtin:lipids.apoB': {categoryKey: 'lipids'}},
+        labOrdering: {markers: appendLabOrderMove(null, {item: 'lipids.apoB', after: 'biochemistry.glucose'}, 'surface_order_A', now)},
+        labPanelTombstones: {'removed_panel.2026-08-01': {deletedAt: now, restoredAt: 0, updatedAt: now}},
+        geneticsSnpTombstones: {rs999: {deletedAt: now, restoredAt: 0, updatedAt: now}},
+        geneticsLifecycle: {maternal: {deletedAt: now, restoredAt: 0, updatedAt: now}},
         manualValues: {'synthetic.value:2026-08-06': 12},
         manualMetricTombstones: {'weight.2026-08-06': 0},
         manualBodyReadings: {'weight.2026-08-06': {value: 80, updatedAt: now}},
@@ -1405,6 +1433,11 @@ test('all registered sync surfaces converge bidirectionally with clean console a
     expect((await settings(b.page)).connections?.syntheticVendor).toBeUndefined();
     expect(await b.page.evaluate(async () => {
       const {state} = await import('/js/state.js'), now = Date.now();
+      const {appendLabOrderMove} = await import('/js/lab-ordering-core.js');
+      state.importedData.labOrdering = {markers: appendLabOrderMove(state.importedData.labOrdering?.markers ?? null, {item: 'lipids.apoB', before: 'biochemistry.glucose'}, 'surface_order_B', now)};
+      state.importedData.labPanelTombstones = {'removed_panel.2026-08-01': {deletedAt: now, restoredAt: 0, updatedAt: now}};
+      state.importedData.geneticsSnpTombstones = {rs999: {deletedAt: now, restoredAt: 0, updatedAt: now}};
+      state.importedData.geneticsLifecycle = {maternal: {deletedAt: now, restoredAt: 0, updatedAt: now}};
       state.importedData.contextNotes = 'Synthetic reverse edit';
       state.importedData.markerNotes['lipids.apoB'] = 'Synthetic reverse marker note';
       state.importedData.nutritionTargets = {protein: 110};

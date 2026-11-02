@@ -2,7 +2,7 @@ import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page, type BrowserContext } from '@playwright/test';
 import { prepareStaticWallet } from './wallet-static-fixture.js';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 test.use({ actionTimeout: 15_000, navigationTimeout: 30_000 });
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 interface SyntheticAccount { mode: 'valid' | 'malformed'; creates: number; clipboard: string }

@@ -13,7 +13,7 @@ export interface ReviewSourceReader {
   correction?: unknown;
   aiNutritionEstimate?: { nutrientKeys?: unknown[] | null } | null;
   foodComposition?: { completeNutrientKeys?: unknown[] | null; matchedComponents?: unknown; totalComponents?: unknown } | null;
-  review?: { editedNutrients?: unknown[] | null } | null;
+  review?: { editedNutrients?: unknown[] | null; analysisInvalidated?: unknown } | null;
 }
 export interface ReviewResultReader {
   analysis: {
@@ -49,6 +49,7 @@ export function projectReviewEvidence(result: ReviewResultReader | null | undefi
   const knownWeights = components.filter(item => hasFiniteNumber(item!.quantityG)).length;
   const linked = components.filter(item => Object.keys(item!.nutrientsPer100g || {}).length).length;
   const parts = [`${source}`, `${knownWeights}/${components.length || 0} portions quantified`];
+  if (result?.source?.review?.analysisInvalidated === true) parts.push('Previous estimate cleared after correction; recalculate for a new estimate');
   if (linked) parts.push(`${linked}/${components.length} linked to component nutrients`);
   const composition = result?.source?.foodComposition;
   if (sourceKind === 'ai-photo-estimate' && composition?.matchedComponents) {

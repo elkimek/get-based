@@ -49,7 +49,8 @@ export const DELTA_ARRAY_CONFIG: Record<string, ArrayIdentityConfig> = {
   },
   // No lightMeasurements override on purpose: automatic per-row tombstones
   // are the Phase 2 carrier for superseded/deleted measurements.
-  // Lab entries are date-unique and have no `.id`.
+  // One date carrier contains individually identified panels; never emit two
+  // mutations for one date or mistake this address for a specimen identity.
   entries: {
     itemIdFn: (it) => (it && typeof it.date === 'string' && _isAllowlistSafeId(it.date)) ? it.date : null,
   },

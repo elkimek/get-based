@@ -11,6 +11,7 @@
   let draft = $state<LifestyleDraft>(untrack(() => structuredClone(initial)));
   let busy = $state(false), status = $state(''), pendingLabel = $state('Saving…');
   export function readDraft(): LifestyleDraft { return $state.snapshot(draft); }
+  export function refresh(nextModel: LifestyleFormModel, nextDraft: LifestyleDraft, filled: boolean): void { model = nextModel; draft = structuredClone(nextDraft); hasCurrent = filled; status = ''; }
   export function report(message: string, pending: boolean, label = 'Saving…'): void { status = message; busy = pending; pendingLabel = label; }
   import { focus, label, button, input, mealTimeInput, surfaceButton, choiceButton, tagButton, noteInput, lensInput, closeButton, editorHeader, editorKicker, editorTitle, editorFooter } from '../context-form-classes.js';
   function selected(field: LifestyleField, value: string): boolean {

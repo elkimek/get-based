@@ -1,8 +1,8 @@
-import {beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import crypto from 'node:crypto';
-import {PATIENT_PLACEHOLDER, parsePersonName, parseReportDate, redactReportText} from '../js/pii-redaction.js';
+import {PATIENT_PLACEHOLDER, parsePersonName, parseReportDate, patientPseudonym, redactReportText} from '../js/pii-redaction.js';
 import {hmacSha256, sha256} from '../js/pii-pseudonym.js';
-import {getPIIPseudonymKey, obfuscatePDFText} from '../js/pii.js';
+import {obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming} from '../js/pii.js';
 import {state} from '../js/state.js';
 
 // Every identifier below is synthetic (fictional names, 555 phone numbers, made-up IDs).
@@ -47,7 +47,7 @@ describe('deterministic report redaction', () => {
     expect(text).not.toMatch(/quill/i);
     expect(text).not.toMatch(/avery/i);
     expect(text.split(PATIENT_PLACEHOLDER).length - 1).toBeGreaterThanOrEqual(7);
-    expect(pageLines(text, '[PATIENT]  DOB:')).toHaveLength(4);
+    expect(pageLines(text, `${PATIENT_PLACEHOLDER}  DOB:`)).toHaveLength(4);
   });
 
   it('a) uses the profile name as a hint when it looks like a full name', () => {
@@ -120,7 +120,7 @@ describe('deterministic report redaction', () => {
   });
 
   it('d) never treats labels as values and keeps header structure and results', () => {
-    expect(pageLines(text, '[PATIENT]  DOB:').every(line => line.endsWith('  Patient Report'))).toBe(true);
+    expect(pageLines(text, `${PATIENT_PLACEHOLDER}  DOB:`).every(line => line.endsWith('  Patient Report'))).toBe(true);
     for (const label of ['Patient Details', 'Physician Details', 'Specimen Details', '=== Page 4 ===']) expect(text).toContain(label);
     expect(pageLines(text, 'Specimen ID:').filter(line => line.includes('Sex: Male  Ordering Physician: [PHYSICIAN-'))).toHaveLength(4);
     expect(text.match(/Date Collected: 09\/30\/2026  Date Received: 09\/30\/2026  Date Reported: 10\/02\/2026/g)).toHaveLength(4);
@@ -136,7 +136,7 @@ describe('deterministic report redaction', () => {
     expect(out).not.toMatch(/Svoboda|856115\/1234|Hlavní|Kopecká/);
     expect(out).toContain('Datum odběru: 15.01.2024');
     expect(out).toContain('Glukóza 5.2 mmol/L 3.9-5.6');
-    expect(out).toContain(`Pacient ${PATIENT_PLACEHOLDER}`);
+    expect(out).toContain('Pacient Jana Nováková');
   });
 
   it('parses names and dates in the formats reports use', () => {
@@ -161,32 +161,127 @@ describe('keyed digest', () => {
   });
 });
 
-describe('profile-scoped key in pii.js', () => {
+describe('report-scoped redaction in pii.js', () => {
+  let previous = { currentProfile: state.currentProfile, profiles: state.profiles, profileDob: state.profileDob, profileSex: state.profileSex };
   beforeEach(() => localStorage.clear());
-  it('persists one random key per profile and uses it for obfuscatePDFText', () => {
-    const first = getPIIPseudonymKey('profile-a');
-    expect(first).toMatch(/^[0-9a-f]{64}$/);
-    expect(getPIIPseudonymKey('profile-a')).toBe(first);
-    expect(getPIIPseudonymKey('profile-b')).not.toBe(first);
-    expect(localStorage.getItem('labcharts-profile-a-pii-pseudonym-key')).toBe(first);
-    const previous = state.currentProfile;
-    try {
-      state.currentProfile = 'profile-a';
-      const a = obfuscatePDFText(fixture).obfuscated;
-      expect(obfuscatePDFText(fixture).obfuscated).toBe(a);
-      expect(a).not.toMatch(/quill|vanterpool/i);
+  beforeEach(() => { previous = { currentProfile: state.currentProfile, profiles: state.profiles, profileDob: state.profileDob, profileSex: state.profileSex }; });
+  afterEach(() => { Object.assign(state, previous); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  it('keeps repeated values consistent within a report without persisting or reusing a key', () => {
+    const writes = vi.spyOn(localStorage, 'setItem');
+    const a = obfuscatePDFText(fixture).obfuscated;
+    const b = obfuscatePDFText(fixture).obfuscated;
+    expect(a).not.toMatch(/quill|vanterpool/i);
+    expect(new Set(pageLines(a, 'Patient ID:')).size).toBe(1);
+    expect(new Set(pageLines(b, 'Patient ID:')).size).toBe(1);
+    expect(pageLines(a, 'Patient ID:')[0]).not.toBe(pageLines(b, 'Patient ID:')[0]);
+    expect(writes).not.toHaveBeenCalled();
+    expect(localStorage.length).toBe(0);
+  });
+
+  it('does not request randomness when the report contains no identifiers', () => {
+    const randomness = vi.spyOn(globalThis.crypto, 'getRandomValues');
+    expect(obfuscatePDFText(results)).toMatchObject({obfuscated: results, replacements: 0});
+    expect(randomness).not.toHaveBeenCalled();
+  });
+
+  it.each(['plain', 'stream'] as const)('retains one key and captured profile hints through %s model finalization', async mode => {
+    state.currentProfile = 'profile-a';
+    state.profiles = [{id: 'profile-a', name: 'Nadia Ostrowski'}, {id: 'profile-b', name: 'Other Person'}];
+    state.profileDob = '1999-03-14';
+    state.profileSex = 'female';
+    localStorage.setItem('labcharts-ollama-pii-url', 'http://localhost:11434');
+    localStorage.setItem('labcharts-ollama-pii-model', 'privacy-qwen:7b');
+    let supplied = '';
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (!url.endsWith('/v1/chat/completions')) return Response.json({});
+      const body = JSON.parse(String(init?.body)) as {messages: Array<{content: string}>};
+      supplied = body.messages[0]!.content.split('TEXT TO PROCESS:\n')[1]!;
+      expect(supplied).not.toMatch(/Ostrowski|1999-03-14|PX4471/);
       state.currentProfile = 'profile-b';
-      expect(obfuscatePDFText(fixture).obfuscated).not.toBe(a);
-    } finally {
-      state.currentProfile = previous;
-    }
+      state.profileDob = '1980-01-01';
+      state.profileSex = 'male';
+      const content = supplied + '\nNadia Ostrowski\nBorn 1999-03-14';
+      if (mode === 'plain') return Response.json({choices: [{message: {content}}]});
+      return new Response(`data: ${JSON.stringify({choices: [{delta: {content}}]})}\n\ndata: [DONE]\n\n`, {headers: {'Content-Type': 'text/event-stream'}});
+    }));
+    const input = 'Report for Nadia Ostrowski\nDOB: 1999-03-14\nPatient ID: PX4471\nPatient ID: PX4471\nCollected: 2026-09-30\nGlucose 91 mg/dL';
+    const chunks: string[] = [];
+    const out = mode === 'plain' ? await sanitizeWithOllama(input) : await sanitizeWithOllamaStreaming(input, chunk => chunks.push(chunk), undefined, () => {});
+    const dob = supplied.match(/DOB: (\S+)/)![1];
+    expect(out).toBe(supplied + `\nJane Doe\nBorn ${dob}`);
+    expect(out).not.toMatch(/Ostrowski|1999-03-14|PX4471/);
+    expect(new Set(pageLines(out, 'Patient ID:')).size).toBe(1);
+    expect(localStorage.getItem('labcharts-profile-a-pii-pseudonym-key')).toBeNull();
+    if (mode === 'stream') expect(chunks.join('')).toContain(supplied);
   });
 });
 
 describe('names that are also calendar words', () => {
   it('removes full names like "Jan Novotny" or "May Ortega" without touching month words elsewhere', () => {
     const out = redactReportText('Jmeno: Jan Novotny\nPatient Name: May Ortega\nCollected: May 3, 2026\nORTEGA, MAY', {key: 'k'}).text;
-    expect(out).toBe(`Jmeno: ${PATIENT_PLACEHOLDER}\nPatient Name: ${PATIENT_PLACEHOLDER}\nCollected: May 3, 2026\n${PATIENT_PLACEHOLDER}`);
+    expect(out).toBe('Jmeno: Jan Novák\nPatient Name: Jan Novák\nCollected: May 3, 2026\nJan Novák');
+  });
+});
+
+describe('fictional patient names and medical text', () => {
+  const run = (input: string) => redactReportText(input, {key: 'synthetic-report-key'}).text;
+
+  it.each([
+    ['Jméno: Karel Svoboda\nPohlaví: muž', 'Jan Novák'],
+    ['Jméno: Eva Svobodová\nPohlaví: žena', 'Jana Nováková'],
+    ['Patient: Robert Smith\nSex: Male', 'John Doe'],
+    ['Patient: Alice Smith\nSex: Female', 'Jane Doe'],
+  ])('uses a consistent conventional name for %s', (input, replacement) => {
+    const out = run(`=== Page 1 ===\n${input}\n=== Page 2 ===\n${input}`);
+    expect(out.split(replacement)).toHaveLength(3);
+    expect(out).toBe(`=== Page 1 ===\n${input.replace(/: [^\n]+/, `: ${replacement}`)}\n=== Page 2 ===\n${input.replace(/: [^\n]+/, `: ${replacement}`)}`);
+  });
+
+  it('uses profile sex only as a fallback and avoids copying a real namesake', () => {
+    expect(patientPseudonym('Patient: Alice Smith', 'female')).toBe('Jane Doe');
+    expect(patientPseudonym('Patient: Alice Smith\nSex: Male', 'female')).toBe('John Doe');
+    expect(patientPseudonym('Jméno: Jan Novak\nPohlaví: muž')).toBe('Petr Svoboda');
+    expect(run('Patient: John Doe')).not.toContain('John Doe');
+  });
+
+  it.each([
+    ['Alice White', 'White blood cell count 6.1 x10E3/uL 3.4-10.8'],
+    ['Jane Free', 'Free T4 1.2 ng/dL 0.8-1.8'],
+    ['Ana Sodium', 'Sodium 140 mmol/L 135-145'],
+    ['Alice Low', 'Eosinophils 0.5 % Low'],
+  ])('preserves the exact clinical row when the patient is %s', (name, row) => {
+    expect(run(`Patient: ${name}\n${row}`)).toBe(`Patient: John Doe\n${row}`);
+  });
+
+  it('redacts explicit names beside results and retains physician-name collisions in clinical text', () => {
+    expect(run('Surname: White  White blood cell count 6.1 x10E3/uL')).toBe('Surname: John Doe  White blood cell count 6.1 x10E3/uL');
+    const out = run('Ordering Physician: Sarah Free\nFree T4 1.2 ng/dL');
+    expect(out).toMatch(/^Ordering Physician: \[PHYSICIAN-[A-Z2-9]{4}\]\nFree T4 1\.2 ng\/dL$/);
+  });
+
+  it('redacts short and lowercase separately labeled names without changing medical abbreviations', () => {
+    expect(run('Surname: Li\nFirst Name: Bo\nBo: 5.2 mg/dL')).toBe('Surname: John Doe\nFirst Name: John Doe\nBo: 5.2 mg/dL');
+    expect(run('Surname: li  First Name: bo')).toBe('Surname: John Doe  First Name: John Doe');
+    expect(run('Příjmení: Li\nJméno: Bo')).toBe('Příjmení: Jan Novák\nJméno: Jan Novák');
+  });
+
+  it('redacts untitled and lowercase physicians and whitespace-separated addresses', () => {
+    expect(run('Ordering Sarah Williams')).not.toMatch(/Sarah|Williams/);
+    expect(run('Physician: sarah williams')).not.toMatch(/sarah|williams/);
+    expect(run('Address Hlavni 42, Praha')).toMatch(/^Address \[ADDRESS-[A-Z2-9]{4}\]$/);
+    expect(run('Adresa Hlavní 42, Praha')).toMatch(/^Adresa \[ADDRESS-[A-Z2-9]{4}\]$/);
+  });
+
+  it('keeps numeric result rows and test names after empty identifying fields', () => {
+    const input = 'Patient ID:\n12345 91 mg/dL\nAddress:\nGlucose 91 mg/dL\nPatient:\nFerritin 120 ng/mL';
+    expect(run(input)).toBe(input);
+  });
+
+  it('keeps a labeled collection date even when it equals the date of birth', () => {
+    const out = run('DOB: 2026-09-30\nCollected: 2026-09-30\nGlucose 91 mg/dL');
+    expect(out).toContain('Collected: 2026-09-30\nGlucose 91 mg/dL');
+    expect(out).not.toContain('DOB: 2026-09-30');
   });
 });
 

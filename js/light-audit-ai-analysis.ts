@@ -33,7 +33,7 @@ export type AuditScreenInput = Pick<LightScreen, 'device' | 'roomId' | 'hoursPer
 export interface AuditContextInput {
   id?: string;
   date?: unknown;
-  label?: unknown;
+  label?: unknown; notes?: unknown;
   createdAt?: number | string | null;
   rooms?: AuditRoomInput[] | null;
   screens?: AuditScreenInput[] | null;
@@ -62,14 +62,14 @@ const _SOURCE_LABELS: Record<string, unknown> = {
 // Bumped 2026-05-08: synthesis priorities now use Brown 2022 melanopic-
 // EDI thresholds; older cached verdicts used a 100-lux daytime / >1
 // photopic-lux night anchor and need to refresh.
-const _auditFingerprintSalt = 'v3-measurement-quality';
+const _auditFingerprintSalt = 'v4-checkpoint-notes';
 export function getAuditFingerprint(a: AuditContextInput | null | undefined) {
   if (!a) return '';
   const parts = [
     _auditFingerprintSalt,
     a.id || '',
     a.date || '',
-    a.label || '',
+    a.label || '', a.notes || '',
     (a.rooms || []).length,
     (a.screens || []).length,
     (a.measurements || []).length,
@@ -108,6 +108,7 @@ export function buildAuditContext(a: AuditContextInput | null | undefined) {
   const lines: string[] = [];
   lines.push(`### Light environment audit`);
   lines.push(`Date: ${a.date}${a.label ? ` (${_safeText(a.label, 100)})` : ''}`);
+  if (a.notes) lines.push(`Reported notes: ${_safeText(a.notes, 1000)}`);
   lines.push(`Snapshot taken on: ${new Date(a.createdAt || Date.now()).toISOString().slice(0, 10)}`);
 
   const rooms = a.rooms || [];
@@ -250,6 +251,7 @@ export const analyzeAuditAI = engine.analyze;
 export const refreshAuditAIAnalysis = engine.refresh;
 registerAIActionHandler('refresh-audit', refreshAuditAIAnalysis);
 export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;
+export function requestSavedAuditAnalysis(id: string) { maybeAnalyzeAuditAfterSave(_getAudits().find(audit => audit.id === id)); }
 
 // ─── Render ────────────────────────────────────────────────────────────
 

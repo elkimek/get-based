@@ -2,6 +2,8 @@
 import type { JSONImportOptions } from '../types/export-import.js';
 
 import type { ImportBodyOperations, ImportedDataOperations, ImportProfileOperations, ImportRowOperations, RawReplace, RawClear, RawTrim, RawFindLab, RawRestoreLab, RawCreateProfile, RawSaveProfile, RawMigrateProfile } from '../types/export-import.js';
+import { mergeLabOrdering } from './lab-ordering-core.js';
+import { mergeRestoredDisplayMetadata } from './lab-display-import.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
@@ -10,7 +12,8 @@ import { adoptProfileData } from './profile-data-writes.js';
 import { showNotification, showConfirmDialog, isDebugMode } from './utils.js';
 import { saveImportedData, saveImportedDataForProfile, invalidateActiveDataCache } from './data.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, waitForProfileWearables, migrateProfileData } from './profile.js';
-import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
+import { encryptedGetItem, encryptedSetItem } from './crypto.js';
+import { withChatThreadIndexLock, readChatThreadIndexForCommand, writeLockedChatThreadIndex } from './chat-thread-index-storage.js';
 import {
   appendImportedArrayItem,
   clearTombstone,
@@ -21,6 +24,7 @@ import {
 } from './data-merge.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { mergeRestoredLabEntry } from './lab-entry-restore.js';
+import { planCustomMarkerRestore, reconcileCustomMarkerLifecycle } from './custom-marker-lifecycle.js';
 import {
   clearDemoLoadingProfile,
   isDemoLoadingProfile,
@@ -29,15 +33,12 @@ import {
 import { setSelectedNodeUrl } from './nostr-discovery.js';
 import {
   normalizeChatBackup,
-  normalizeChatThreads,
 } from './chat-storage-safety.js';
 import {
-  saveCustomPersonalitiesToStorage,
-  saveCustomPersonalityTombstones,
+  mergeCustomPersonalitiesFromReplica,
 } from './chat-personality-storage.js';
 
 const MAX_PORTABLE_JSON_BYTES = 512 * 1024 * 1024;
-
 async function confirmRegimenImport(target: ImportedDataOperations, records: unknown) {
   const conflicts = (Array.isArray(records) ? records : []).filter(s => s?.id && target.supplements?.some(x => x.id === s.id && JSON.stringify(x) !== JSON.stringify(s)));
   return !conflicts.length || showConfirmDialog(`Replace saved regimens (${conflicts.map(s => s.name).join(', ')})? Imported versions replace dose history and remove omitted fields. Other data imports either way.`, {
@@ -79,18 +80,14 @@ function _reviveImportedProfileSyncIdentity(profileId: string) {
 }
 
 async function _importChatData(profileId: string, chat: unknown) {
+  return withChatThreadIndexLock(profileId, () => _importChatDataLocked(profileId, chat));
+}
+async function _importChatDataLocked(profileId: string, chat: unknown) {
   const importedChat = normalizeChatBackup(chat);
   if (importedChat.threads.length > 0) {
     // Read existing threads to merge
-    let existingRaw;
-    if (getEncryptionEnabled()) {
-      try { existingRaw = await encryptedGetItem(`labcharts-${profileId}-chat-threads`); } catch { existingRaw = null; }
-    } else {
-      existingRaw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
-    }
-    let existing;
-    try { existing = existingRaw ? JSON.parse(existingRaw) : []; } catch { existing = []; }
-    existing = normalizeChatThreads(existing);
+    const index = await readChatThreadIndexForCommand(profileId);
+    const existing = index.records;
     const existingIds = new Set(existing.map(t => t.id));
     for (const t of importedChat.threads) {
       if (existingIds.has(t.id)) continue;
@@ -102,18 +99,15 @@ async function _importChatData(profileId: string, chat: unknown) {
         JSON.stringify(importedChat.messages[t.id] || []),
       );
     }
-    await encryptedSetItem(`labcharts-${profileId}-chat-threads`, JSON.stringify(existing));
+    if (!index.isCurrent()) throw new Error('The conversation index changed during import.');
+    await writeLockedChatThreadIndex(profileId, existing);
   }
   // Restore personality + custom personas (only if not already set)
   if (importedChat.personality && !localStorage.getItem(`labcharts-${profileId}-chatPersonality`)) {
     localStorage.setItem(`labcharts-${profileId}-chatPersonality`, importedChat.personality);
   }
-  if (importedChat.customPersonalities.length > 0 && !localStorage.getItem(`labcharts-${profileId}-chatPersonalityCustom`)) {
-    await saveCustomPersonalitiesToStorage(importedChat.customPersonalities, profileId);
-  }
-  if (Object.keys(importedChat.customPersonalityDeleted).length > 0
-    && !localStorage.getItem(`labcharts-${profileId}-chatPersonalityDeleted`)) {
-    await saveCustomPersonalityTombstones(importedChat.customPersonalityDeleted, profileId);
+  if (chat && typeof chat === 'object' && (Object.hasOwn(chat, 'customPersonalities') || Object.hasOwn(chat, 'customPersonalityDeleted'))) {
+    await mergeCustomPersonalitiesFromReplica(chat, profileId, 'import');
   }
 }
 
@@ -192,7 +186,9 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
           showNotification('Profile changed. Retry import.', 'info'); return;
         }
         let count = 0;
-        const importTs = Date.now();
+        const markerRestore = planCustomMarkerRestore(rollbackData as ImportedDataOperations, json);
+        const restoredOrdering = mergeLabOrdering((rollbackData as ImportedDataOperations).labOrdering, json.labOrdering);
+        const importTs = markerRestore.at;
         for (const entry of json.entries || []) {
           if (!entry.date || !entry.markers) continue;
           // Earlier draft did `filter(ex => ex.date !== entry.date)` — same-
@@ -207,10 +203,11 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
           (replaceImportedArrayItem as RawReplace)((state.importedData as ImportedDataOperations), 'entries', (state.importedData as ImportedDataOperations).entries!.indexOf(existing as ImportRowOperations), restored);
           count++;
         }
-        if (count === 0 && (!json.notes || json.notes.length === 0) && !json.chat && !hasNutrition && !hasManualReadings) {
+        if (count === 0 && (!json.notes || json.notes.length === 0) && !json.chat && !hasNutrition && !hasManualReadings && !Object.keys(json.customMarkers || {}).length && !Object.keys(markerRestore.lifecycle).length && !Object.keys(json.labOrdering || {}).length) {
           showNotification('No valid entries found in JSON', 'error');
           return;
         }
+        if (json.labOrdering != null) (state.importedData as ImportedDataOperations).labOrdering = restoredOrdering;
         // Import context fields — handle both old string format (v1) and new object format (v2)
         function importContextField(field: 'diagnoses' | 'diet' | 'exercise' | 'sleepRest') {
           const val = json[field];
@@ -278,11 +275,12 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
         if (json.customMarkers && typeof json.customMarkers === 'object') {
           if (!(state.importedData as ImportedDataOperations).customMarkers) (state.importedData as ImportedDataOperations).customMarkers = {};
           for (const [key, def] of Object.entries(json.customMarkers)) {
-            if (!(state.importedData as ImportedDataOperations).customMarkers![key]) {
-              (state.importedData as ImportedDataOperations).customMarkers![key] = def;
+            if (!Object.hasOwn((state.importedData as ImportedDataOperations).customMarkers!, key)) {
+              Object.defineProperty((state.importedData as ImportedDataOperations).customMarkers!, key, { value: def, enumerable: true, configurable: true, writable: true });
             }
           }
         }
+        (state.importedData as ImportedDataOperations).customMarkerLifecycle = markerRestore.lifecycle;
         // Placement metadata is keyed by stable marker ID, so it composes
         // without changing any dotkey-indexed values or definitions.
         if (json.markerPlacements && typeof json.markerPlacements === 'object') {
@@ -634,6 +632,11 @@ async function _importDatabaseBundle(json: ImportBodyOperations, options: JSONIm
     const raw = key ? await encryptedGetItem(key, { throwOnDecryptError: true }) : null;
     let current: ImportedDataOperations;
     try { current = raw ? JSON.parse(raw) : {}; } catch { current = {}; }
+    const restoredOrdering = mergeLabOrdering(current.labOrdering, importData.labOrdering);
+    if (current.labOrdering != null || importData.labOrdering != null) importData.labOrdering = restoredOrdering;
+    const markerRestore = planCustomMarkerRestore(current, importData);
+    // Validate removal history and identity conflicts for every profile before any write.
+    importData.customMarkerLifecycle = markerRestore.lifecycle;
     const replaceRegimens = await confirmRegimenImport(current, importData.supplements);
     plans.push({ bp, existing, importData, key, raw, current, replaceRegimens });
   }
@@ -642,13 +645,14 @@ async function _importDatabaseBundle(json: ImportBodyOperations, options: JSONIm
   try {
     for (const { bp, existing, importData, raw, current, replaceRegimens } of plans) {
       if (existing) {
+        const markerRestore = planCustomMarkerRestore(current, importData);
         // Entries: date-keyed upsert
         if (Array.isArray(importData.entries)) {
           const entries = ensureImportedArray(current, 'entries');
           for (const entry of importData.entries) {
             if (!entry.date || !entry.markers) continue;
             const idx = entries.findIndex(ex => ex.date === entry.date);
-            if (idx >= 0) { (replaceImportedArrayItem as RawReplace)(current, 'entries', idx, (mergeRestoredLabEntry as RawRestoreLab)(entries[idx], entry)); }
+            if (idx >= 0) { (replaceImportedArrayItem as RawReplace)(current, 'entries', idx, (mergeRestoredLabEntry as RawRestoreLab)(entries[idx], entry, markerRestore.at)); }
             else { appendImportedArrayItem(current, 'entries', entry); }
           }
         }
@@ -724,15 +728,9 @@ async function _importDatabaseBundle(json: ImportBodyOperations, options: JSONIm
           }
           sortImportedArray(current, 'importSnapshots', (a, b) => ((b.importedAt || 0) as number) - ((a.importedAt || 0) as number));
         }
-        // Marker definitions and display overrides: preserve existing values.
-        for (const field of ['customMarkers', 'refOverrides', 'categoryLabels', 'categoryIcons', 'markerLabels', 'markerPlacements', 'manualValues', 'manualBodyReadings']) {
-          if (importData[field] && typeof importData[field] === 'object') {
-            if (!current[field]) current[field] = {};
-            for (const [k, v] of Object.entries(importData[field] as Record<string, unknown>)) {
-              if (!(current[field] as Record<string, unknown>)[k]) (current[field] as Record<string, unknown>)[k] = v;
-            }
-          }
-        }
+        mergeRestoredDisplayMetadata(current, importData);
+        current.customMarkerLifecycle = markerRestore.lifecycle;
+        reconcileCustomMarkerLifecycle(current);
         if (importData.manualMetricTombstones && typeof importData.manualMetricTombstones === 'object'
             && !Array.isArray(importData.manualMetricTombstones)) {
           if (!current.manualMetricTombstones) current.manualMetricTombstones = {};
@@ -761,6 +759,7 @@ async function _importDatabaseBundle(json: ImportBodyOperations, options: JSONIm
         if (bp.chat) await _importChatData(existing.id, bp.chat);
         await _importNutritionData(existing.id, bp.nutrition);
       } else {
+        reconcileCustomMarkerLifecycle(importData);
         const id = await (createProfile as RawCreateProfile)(bp.name || 'Imported', {
           sex: bp.sex || null, dob: bp.dob || null,
           location: bp.location || { country: '', zip: '' },

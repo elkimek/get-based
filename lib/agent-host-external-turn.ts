@@ -1,7 +1,8 @@
 // Turn normalization shared by ACP harnesses and Claude Agent.
 
-import type { ExternalAgentTurnOptions, McpContext, ACPUpdateEnvelope } from './agent-host-turn-state.js';
+import type { ExternalAgentTurnOptions, McpContext, McpSession, ACPUpdateEnvelope } from './agent-host-turn-state.js';
 import { cancelPendingHostTools } from './agent-host-turn-state.js';
+import { formatAgentApplicationContext } from './agent-host-boundary.js';
 
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -26,6 +27,9 @@ export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
   let temporaryKey = '';
   let mcpContext: McpContext | null | undefined = null;
   let reusableACPSession = false;
+  let promptStarted = false;
+  let closeTurnClient: (() => Promise<void>) | undefined;
+  const closeDedicatedClient = () => { void closeTurnClient?.(); };
   const localToolsEnabled = options.agent.target?.supportsLocalTools !== false;
   const cancelledToolResult = {
     success: false,
@@ -67,7 +71,9 @@ export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
             if (oldest) options.mcpSessions.delete(oldest.token);
           }
           const mcpToken = `${randomUUID()}${randomUUID()}`;
-          const session = { activeKey: temporaryKey, tools: options.dynamicTools };
+          let markCatalogDelivered!: () => void;
+          const catalogDelivered = new Promise<void>(resolve => { markCatalogDelivered = resolve; });
+          const session: McpSession = { activeKey: temporaryKey, tools: options.dynamicTools, catalogDelivered, markCatalogDelivered };
           mcpContext = { token: mcpToken, session };
           options.mcpSessions.set(mcpToken, session);
           options.sessionMcp.set(temporaryKey, mcpContext);
@@ -76,7 +82,8 @@ export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
       throwIfAborted();
       if (mcpContext) mcpContext.session.tools = options.dynamicTools;
       const mcpEnvironment = mcpContext
-        ? { GETBASED_MCP_ENDPOINT: options.origin, GETBASED_MCP_TOKEN: mcpContext.token } : null;
+        ? { GETBASED_MCP_ENDPOINT: options.origin, GETBASED_MCP_TOKEN: mcpContext.token,
+          ...(options.agent.protocol === 'acp' && options.agent.createTurnClient ? { GETBASED_MCP_NOTIFY_READY: '1' } : {}) } : null;
       const acpMcpServers = mcpEnvironment ? [{
         name: 'getbased', command: process.execPath, args: [options.bridgePath, 'mcp-bridge'],
         env: Object.entries(mcpEnvironment).map(([name, value]) => ({ name, value })),
@@ -98,24 +105,52 @@ export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
       // current bounded snapshot on resumed turns so changed getbased data and
       // context toggles take effect immediately, just as they do for API routes.
       const includeInstructionsInPrompt = options.agent.protocol === 'acp' || !resumed;
-      let textPrompt = `${includeInstructionsInPrompt ? `${instructionText}${historyText}\n\nUser request:\n` : ''}${options.prompt}${schemaText}`;
+      const turnRequest = `${formatAgentApplicationContext(options.applicationContext || '')}${options.applicationContext ? 'User request:\n' : ''}${options.prompt}`;
+      let textPrompt = `${includeInstructionsInPrompt ? `${instructionText}${historyText}\n\nUser request:\n` : ''}${turnRequest}${schemaText}`;
       const images = await Promise.all(options.turnUploads.map(async upload => ({
         mediaType: upload.mediaType, data: (await readFile(upload.path)).toString('base64'),
       })));
       throwIfAborted();
 
       if (options.agent.protocol === 'acp') {
-        const session = await options.agent.client.ensureSession({ requestedSessionId: sessionId, mcpServers: acpMcpServers });
+        const dedicated = options.agent.createTurnClient?.(acpMcpServers);
+        const client = dedicated?.client || options.agent.client;
+        if (dedicated) {
+          closeTurnClient = dedicated.close;
+          abortController.signal.addEventListener('abort', closeDedicatedClient, { once: true });
+        }
+        let session = await client.ensureSession({
+          requestedSessionId: dedicated ? '' : sessionId,
+          mcpServers: dedicated ? [] : acpMcpServers,
+        });
         throwIfAborted();
+        if (dedicated && mcpContext?.session.catalogDelivered) {
+          // OpenCode can return session/new before its MCP catalog arrives.
+          // Do not send the user's first prompt with an empty editing tool set.
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          let fail = () => {};
+          await new Promise<void>((resolve, reject) => {
+            fail = () => reject(new Error('Agent turn cancelled.'));
+            timer = setTimeout(() => reject(new Error('The agent did not finish loading getbased editing tools. Check the Companion connection and retry.')), 30_000);
+            abortController.signal.addEventListener('abort', fail, { once: true });
+            void mcpContext!.session.catalogDelivered!.then(resolve);
+          }).finally(() => {
+            clearTimeout(timer);
+            abortController.signal.removeEventListener('abort', fail);
+          });
+          throwIfAborted();
+          if (dedicated.afterCatalog) session = await dedicated.afterCatalog(session);
+          throwIfAborted();
+        }
         sessionId = session.sessionId;
         if (resumed && sessionId !== options.requestedThreadId) {
           resumed = false;
           const recoveredHistory = options.history.length
             ? `\n\nEarlier visible conversation:\n${options.history.map(item => `${item.role}: ${item.content}`).join('\n\n')}` : '';
-          textPrompt = `${instructionText}${recoveredHistory}\n\nUser request:\n${options.prompt}${schemaText}`;
+          textPrompt = `${instructionText}${recoveredHistory}\n\nUser request:\n${turnRequest}${schemaText}`;
         }
         bindSession();
-        await options.agent.client.configureSession(
+        await client.configureSession(
           sessionId,
           session.configOptions,
           options.model || '',
@@ -125,8 +160,9 @@ export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
         throwIfAborted();
         options.activeTurns.set(activeKey, { agentId: options.agentId, threadId: sessionId, turnId: activeKey, send: options.send, cleanup: options.cleanup });
         options.send({ type: 'session', threadId: options.createHandle(sessionId), turnId: activeKey, model: options.model || options.agent.name, resumed });
-        reusableACPSession = true;
-        const result = await options.agent.client.prompt({
+        reusableACPSession = !dedicated;
+        promptStarted = true;
+        const result = await client.prompt({
           sessionId, signal: abortController.signal,
           allowedToolNames: options.dynamicTools.map(spec => spec.name),
           prompt: [{ type: 'text', text: textPrompt }, ...images.map(image => ({ type: 'image', data: image.data, mimeType: image.mediaType }))],
@@ -140,11 +176,12 @@ export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
         options.activeTurns.set(activeKey, { agentId: options.agentId, threadId: sessionId, turnId: activeKey, send: options.send, cleanup: options.cleanup });
         let sentSession = false;
         let sentDone = false;
+        promptStarted = true;
         await options.agent.client.prompt({
           sessionId: options.requestedThreadId || undefined, model: options.model || undefined, effort: options.effort || undefined,
           instructions: instructionText, outputSchema: options.outputSchema, mcpConfig: claudeMcpConfig,
           allowedToolNames: options.dynamicTools.map(spec => spec.name), signal: abortController.signal,
-          prompt: [{ type: 'text', text: `${historyText}${options.prompt}` }, ...images.map(image => ({ type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } }))],
+          prompt: [{ type: 'text', text: `${historyText}${turnRequest}` }, ...images.map(image => ({ type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } }))],
           onEvent(event) {
             if (event.type === 'session') {
               sentSession = true;
@@ -162,8 +199,11 @@ export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
         if (!sentDone) options.send({ type: 'done', finishReason: 'stop' });
       }
     } catch (error) {
-      options.send({ type: 'error', message: options.cleanError(error) });
+      options.send({ type: 'error', message: promptStarted && !abortController.signal.aborted
+        ? 'The selected agent could not complete this response. Try another model or check the agent’s provider connection.'
+        : options.cleanError(error) });
     } finally {
+      abortController.signal.removeEventListener('abort', closeDedicatedClient);
       releaseTurn();
       if (mcpContext && (options.agent.protocol !== 'acp' || !reusableACPSession)) {
         options.mcpSessions.delete(mcpContext.token);
@@ -172,6 +212,7 @@ export function startExternalAgentTurn(options: ExternalAgentTurnOptions) {
       }
       options.cleanup();
       options.close();
+      await closeTurnClient?.();
     }
   })();
   return () => {

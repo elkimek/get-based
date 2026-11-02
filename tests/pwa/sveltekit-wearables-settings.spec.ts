@@ -1,7 +1,7 @@
 import {openStaticSettings, awaitStaticThemeReady} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-server.js';
+import { startKitServer } from './kit-release-server.js';
 const artifact=process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page:Page) {
   await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({timeout:30_000});
@@ -32,7 +32,8 @@ test('Wearables settings mount on offline first use and retain profile visibilit
     await expect(panel.locator('[data-adapter="google_health"] [data-wearable-settings-action="connect"]')).toHaveCount(0);
     const checkbox=panel.locator('#wearables-strip-hidden-toggle');await expect(checkbox).toBeChecked();
     await checkbox.focus();await page.keyboard.press('Space');await expect(checkbox).not.toBeChecked();
-    const preferenceKey=await page.evaluate(()=>Object.keys(localStorage).find(key=>key.startsWith('wearables-strip-hidden-')));
+    const preferenceKey=await page.evaluate(()=>`wearables-strip-hidden-${localStorage.getItem('labcharts-active-profile')||'default'}`);
+    await expect.poll(()=>page.evaluate(key=>localStorage.getItem(key),preferenceKey)).toBe('1');
     expect(preferenceKey).toBeTruthy();expect(await page.evaluate(key=>localStorage.getItem(key!),preferenceKey)).toBe('1');
     for(const theme of ['dark','light','cyberterm','glass','synth-sunrise','neuromancer']) {
       await page.locator('#settings-nav-display').click();

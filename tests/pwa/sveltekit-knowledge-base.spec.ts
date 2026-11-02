@@ -1,12 +1,17 @@
+import { runKnowledgeTextImportStaticCase, runKnowledgeFileImportStaticCase } from '../helpers/knowledge-text-import-static-case.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { runKnowledgeChatStaticCase } from '../helpers/knowledge-chat-static-case.js';
+import { runKnowledgeLibraryChatStaticCase } from '../helpers/knowledge-library-chat-static-case.js';
+import { runKnowledgeDocumentChatStaticCase } from '../helpers/knowledge-document-chat-static-case.js';
 import {createHash} from 'node:crypto';
 import {expect, test as base, type Page, type BrowserContextOptions} from '@playwright/test';
 import {createDefaultProfileData} from '../../js/profile.js';
 import {chunkText} from '../../js/lens-local-utils.js';
 import {MODELS} from '../../js/lens-local-embedder-config.js';
 import type {LibraryRegistry, CorpusManifest} from '../../js/lens-local-store.js';
-import {startKitServer} from './kit-server.js';
+import type {ReplyPayloads, WorkerReply} from '../../js/lens-local-protocol.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';
@@ -34,6 +39,13 @@ const test = base.extend({
     await withNativeCocoaOpfsContext({browserType: playwright.webkit, privateContext: context,
       launchOptions: {...launchOptions, headless}, contextOptions: resolved, info}, use);
   },
+});
+test('Knowledge Base chat file requests stay native-only after a stopped-origin cold launch', runKnowledgeFileImportStaticCase);
+test('Knowledge Base chat text imports stay native-only after a stopped-origin cold launch', runKnowledgeTextImportStaticCase);
+test('Knowledge Base library management stays native-only after a stopped-origin cold launch', runKnowledgeLibraryChatStaticCase);
+test('Knowledge Base document management stays native-only after a stopped-origin cold launch', runKnowledgeDocumentChatStaticCase);
+for (const inventory of [false, true]) test(`Knowledge Base chat ${inventory ? 'inventory is native-only' : 'preferences are native-only'} after a stopped-origin cold launch`, async ({ page, context }, info) => {
+  await runKnowledgeChatStaticCase(inventory, { page, context }, info);
 });
 
 
@@ -289,7 +301,7 @@ test('native Knowledge Base create, Markdown ingest and rename persist through t
   const server = await startKitServer(artifact);
   let closed = false, complete = false, stoppedOrigin = false;
   const filePath = test.info().outputPath(SOURCE);
-  let profileBefore: unknown;
+  let profileBefore: unknown, metadataProof: unknown;
   let queryCache: Awaited<ReturnType<typeof workerQueryCache>> = [];
   const loading: Array<{phase: string; readyMs: number}> = [], snapshots: Array<{phase: string; opfs: OpfsSnapshot}> = [], native: Array<{phase: string; receipt: Receipt}> = [], geometry: Array<{phase: string; receipt: Awaited<ReturnType<typeof controls>>}> = [];
   try {
@@ -356,6 +368,30 @@ test('native Knowledge Base create, Markdown ingest and rename persist through t
     await page.locator('#prompt-ok').click();
     await expect(page.locator('#prompt-dialog-overlay.show')).toHaveCount(0);
     await expect(page.locator('#lens-library-select option:checked')).toContainText(SAVED_NAME);
+    // Bypass only the test embedder hook: this is the shipped worker URL with
+    // no mock parameter. Library management must not start any embedding model.
+    metadataProof = await page.evaluate(async activeId => {
+      const NativeWorker = Object.getPrototypeOf(window.Worker) as typeof Worker;
+      const worker = new NativeWorker(new URL('/js/lens-local-worker.js', location.origin), { type: 'module' });
+      function send<Type extends keyof ReplyPayloads>(type: Type, fields: Record<string, unknown> = {}): Promise<ReplyPayloads[Type]> {
+        return new Promise((resolve, reject) => {
+          const failed = (event: ErrorEvent) => { cleanup(); reject(new Error(event.message)); };
+          const received = (event: MessageEvent<WorkerReply>) => { if (event.data.type === 'progress') return; cleanup(); if (event.data.type === 'error') reject(new Error(event.data.message)); else resolve(event.data as ReplyPayloads[Type]); };
+          const cleanup = () => { worker.removeEventListener('message', received); worker.removeEventListener('error', failed); };
+          worker.addEventListener('message', received); worker.addEventListener('error', failed); worker.postMessage({ type, ...fields });
+        });
+      }
+      try {
+        const initial = await send('init_metadata');
+        const created = await send('create_library', { name: 'Production metadata collection', model: 'bge-base-en' });
+        const renamed = await send('rename_library', { libraryId: created.id, name: 'Renamed production metadata collection' });
+        const empty = await send('activate_library', { libraryId: created.id });
+        const restored = await send('activate_library', { libraryId: activeId });
+        const removed = await send('delete_library', { libraryId: created.id });
+        return { initial, created, renamed, empty, restored, removed };
+      } finally { worker.terminate(); }
+    }, activeId);
+    expect(metadataProof).toMatchObject({ initial: { activeId, numChunks: 1, numDocs: 1, embedder: null }, renamed: { name: 'Renamed production metadata collection' }, empty: { activeModel: 'bge-base-en', numChunks: 0, numDocs: 0, embedder: null }, restored: { activeId, activeModel: 'all-minilm', numChunks: 1, numDocs: 1, embedder: null }, removed: { activeId, cleanupPending: false, numChunks: 1, numDocs: 1 } });
     const saved = await page.evaluate(snapshotOpfs);
     assertSavedCorpus(saved, activeId);
     const corpusFiles = (snapshot: OpfsSnapshot) => snapshot.files.filter(file => !['lens-local/_libraries.json', 'lens-local/_libraries.backup.json'].includes(file.path));
@@ -449,8 +485,8 @@ test('native Knowledge Base create, Markdown ingest and rename persist through t
       catch (error) { return {observationError: String(error)}; }
     }));
     await fs.writeFile(test.info().outputPath('knowledge-base-native-pwa.json'), JSON.stringify({
-      boundary: {embedder: 'Existing mock=1 only; no benchmark, real model download or inference', native: 'Actual Worker/client FIFO/Markdown File parser/OPFS/SW', offline: 'Actual artifact HTTP server closed; all page clients closed before each launch', install: 'Browser SW/OPFS acceptance; no physical OS installation claim', fixture: 'Synthetic unrelated profile/legal acceptance, paused AI; existing kit-server build identity and legacy probe response seam'},
-      status: complete ? 'passed' : 'incomplete-or-failed', project: test.info().project.name, stoppedOrigin, workerArtifactHash, loading, queryCache, native, geometry, snapshots, profileBefore, requests, errors, csp, remainingClients,
+      boundary: {embedder: 'Existing mock=1 only; no benchmark, real model download or inference', metadata: 'Shipped production worker with no mock parameter; create/rename/activate/remove without embedding initialization', native: 'Actual Worker/client FIFO/Markdown File parser/OPFS/SW', offline: 'Actual artifact HTTP server closed; all page clients closed before each launch', install: 'Browser SW/OPFS acceptance; no physical OS installation claim', fixture: 'Synthetic unrelated profile/legal acceptance, paused AI; existing kit-server build identity and legacy probe response seam'},
+      status: complete ? 'passed' : 'incomplete-or-failed', project: test.info().project.name, stoppedOrigin, workerArtifactHash, loading, queryCache, native, geometry, snapshots, profileBefore, metadataProof, requests, errors, csp, remainingClients,
     }, null, 2));
     if (!closed) await server.close();
   }

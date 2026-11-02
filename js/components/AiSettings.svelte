@@ -4,9 +4,12 @@
   import type { AiSettingsSnapshot, AiSettingsActions } from '../ai-settings-contract.js';
   let { initial,actions }: { initial:AiSettingsSnapshot; actions:AiSettingsActions } = $props();
   let snapshot = $state(untrack(() => initial)), phase = $state<'loading'|'ready'|'error'>('loading'), pauseError = $state('');
+  let chatControlsError = $state('');
   let providerHost: HTMLElement | null = $state(null);
   export function getSnapshot(): AiSettingsSnapshot { return snapshot; }
   export function setEnabled(enabled: boolean): void { snapshot = { ...snapshot,enabled }; }
+  export function setChatControlsEnabled(enabled: boolean): void { snapshot = { ...snapshot, chatControlsEnabled: enabled }; }
+  export function setChatControlsError(message: string): void { chatControlsError = message; }
   export function setSelected(activeProvider: string): void { snapshot = { ...snapshot,activeProvider }; }
   export function setProviderStatus(value: 'loading'|'ready'|'error'): void { phase = value; }
   export function setPauseError(message: string): void { pauseError = message; }
@@ -19,6 +22,15 @@
       <SettingsToggle id="ai-pause-toggle" label="AI features" checked={snapshot.enabled} action="toggle-ai-pause" touch="coarse" onToggle={actions.pause} />
     </div>
     {#if pauseError}<p class="gb:ai:mt-2 gb:ai:text-xs gb:ai:text-danger-ink" role="status">{pauseError}</p>{/if}
+  </div>
+  <h3 class="settings-group-title gb:ai:mb-0 gb:ai:text-secondary gb:ai:text-[11px] gb:ai:leading-normal">Chat controls</h3>
+  <div class="settings-section">
+    <div class="settings-action-row gb:ai:mb-3">
+      <div class="settings-copy"><div class="settings-copy-title">Health updates through chat</div></div>
+      <SettingsToggle id="chat-controls-toggle" label="Health updates through chat" help="chat-controls-help" checked={snapshot.chatControlsEnabled} action="set-chat-controls-enabled" touch="coarse" onToggle={actions.chatControls} />
+    </div>
+    <p id="chat-controls-help" class="ai-model-tip">Let chat read your enabled health information and propose changes for your review. Nothing is saved until you choose Apply. Turning this off keeps ordinary chat and expires pending reviews.</p>
+    {#if chatControlsError}<p class="gb:ai:mt-2 gb:ai:text-xs gb:ai:text-danger-ink" role="status">{chatControlsError}</p>{/if}
   </div>
   <div id="ai-provider-settings" hidden={snapshot.hideProviders}>
     <h3 class="settings-group-title gb:ai:mb-0 gb:ai:text-secondary gb:ai:text-[11px] gb:ai:leading-normal">AI providers</h3>

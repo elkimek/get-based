@@ -1,4 +1,5 @@
 import { readNutritionMealRows } from './nutrition-store-reads.js';
+import { queueNutritionOperation } from './nutrition-operation-lock.js';
 import type { ProfileData } from '../types/app-state.js';
 import type { StoredNutritionMeal } from './nutrition-sync-sanitize.js';
 import type { DeviceLocalEnvelope } from './wearable-storage-types.js';
@@ -52,13 +53,6 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const dbPromises = new Map<string, Promise<IDBDatabase>>();
 const blockedOpens = new Map<string, Promise<IDBDatabase>>(); // Retain uncancellable native upgrades.
-let nutritionOperationTail: Promise<unknown> = Promise.resolve();
-
-function queueNutritionOperation<T>(operation: () => Promise<T>): Promise<T> {
-  const result = nutritionOperationTail.then(operation);
-  nutritionOperationTail = result.catch(() => {});
-  return result;
-}
 
 function localDay(date: Date) {
   const year = date.getFullYear();
@@ -349,7 +343,7 @@ export async function getLocalNutritionSummary(profileId: unknown): Promise<Summ
 }
 
 export function setLocalNutritionComparison<T>(profileId: unknown, comparison: T) {
-  return queueNutritionOperation(async () => {
+  return queueNutritionOperation(String(profileId), async () => {
     if (comparison == null) {
       await deleteMeta(profileId, COMPARISON_META);
       return null;
@@ -428,6 +422,9 @@ function validateArchiveImage(image: ArchiveImageReader | null | undefined) {
 }
 
 export async function restoreNutritionArchive(profileId: string, archive: ArchiveReader | null | undefined) {
+  return queueNutritionOperation(profileId, () => restoreNutritionArchiveOperation(profileId, archive));
+}
+async function restoreNutritionArchiveOperation(profileId: string, archive: ArchiveReader | null | undefined) {
   if (!archive) return 0;
   if (archive?.version !== 1 || !Array.isArray(archive?.meals)) {
     throw new Error('The Meals & Nutrition archive has an unsupported format.');
@@ -484,7 +481,7 @@ export async function restoreNutritionArchive(profileId: string, archive: Archiv
   return restored;
 }
 
-function mealFreshness(meal: MealReader | null | undefined) {
+export function mealFreshness(meal: MealReader | null | undefined) {
   for (const value of [meal?.updatedAt, meal?.createdAt, meal?.eatenAt]) {
     const clock = Date.parse((value || '') as string);
     if (Number.isFinite(clock)) return clock;
@@ -534,9 +531,9 @@ async function persistAlignedNutritionProfileData(profileId: string, source: Nut
   return null;
 }
 
-export async function reconcileNutritionMealsFromProfileData(profileId = state.currentProfile) {
-  if (!profileId || state.currentProfile !== profileId) return { meals: [], cacheChanged: false };
-  const importedData = (state.importedData || ((state as { importedData: NutritionProfile }).importedData = ({}))) as NutritionProfile;
+export async function reconcileNutritionMealsFromProfileData(profileId = state.currentProfile, snapshot?: NutritionProfile) {
+  if (!profileId || !snapshot && state.currentProfile !== profileId) return { meals: [], cacheChanged: false };
+  const importedData = snapshot || (state.importedData || ((state as { importedData: NutritionProfile }).importedData = ({}))) as NutritionProfile;
   const localMeals = await listNutritionMeals(profileId, { limit: 10000 });
   const initialized = await readMeta(profileId, PROFILE_SYNC_INITIALIZED_META) === true;
   const syncedMeals = canonicalNutritionMeals(importedData.nutritionMeals);
@@ -654,8 +651,17 @@ async function hydrateNutritionSummaryOperation(profileId: string) {
 }
 
 export function hydrateNutritionSummary(profileId = state.currentProfile) {
-  return queueNutritionOperation(() => hydrateNutritionSummaryOperation(profileId));
+  return queueNutritionOperation(profileId, () => hydrateNutritionSummaryOperation(profileId));
 }
+
+/** Called inside the meal operation lock after an already committed domain edit. */
+export async function refreshNutritionMealsFromSnapshot(profileId: string, snapshot: NutritionProfile) {
+  await writeMeta(profileId, PROFILE_SYNC_INITIALIZED_META, true);
+  await reconcileNutritionMealsFromProfileData(profileId, snapshot);
+  return recomputeActiveSummary(profileId, snapshot);
+}
+
+export async function isNutritionSyncInitialized(profileId: string) { return await readMeta(profileId, PROFILE_SYNC_INITIALIZED_META) === true; }
 
 export async function refreshNutritionSummaryFromWearables(profileId = state.currentProfile) {
   if (state.currentProfile !== profileId || !state.nutritionSummary?.totalMeals) return null;
@@ -688,7 +694,7 @@ function captureNutritionRollback(importedData: NutritionProfile) {
 export function saveActiveProfileMeal(meal: MealReader | null | undefined) {
   const profileId = state.currentProfile;
   const importedData = (state.importedData || ((state as { importedData: NutritionProfile }).importedData = ({}))) as NutritionProfile;
-  return queueNutritionOperation(() => saveProfileMeal(profileId, importedData, meal));
+  return queueNutritionOperation(profileId, () => saveProfileMeal(profileId, importedData, meal));
 }
 
 async function saveProfileMeal(profileId: string, importedData: NutritionProfile, meal: MealReader | null | undefined) {
@@ -746,7 +752,7 @@ async function saveProfileMeal(profileId: string, importedData: NutritionProfile
 export function deleteActiveProfileMeal(id: unknown) {
   const profileId = state.currentProfile;
   const importedData = (state.importedData || ((state as { importedData: NutritionProfile }).importedData = ({}))) as NutritionProfile;
-  return queueNutritionOperation(async () => {
+  return queueNutritionOperation(profileId, async () => {
     const baseData = structuredClone(importedData);
     const rollback = captureNutritionRollback(importedData);
     const deleted = importedData._deleted && typeof importedData._deleted === 'object' ? importedData._deleted : {};

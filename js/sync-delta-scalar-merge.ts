@@ -4,6 +4,8 @@ import type {ScalarVersion} from './sync-scalar-snapshot.js';
 import {getAt, setAt} from './data-merge.js';
 import {recordPullDeltaSurface} from './sync-delta-pull-snapshot.js';
 import {decodeRowPayload} from './sync-delta-row-codec.js';
+import {reconcileGeneticsSnpState} from './genetics-snp-lifecycle.js';
+import {mergeGeneticsMetadata, geneticsRecordTime, mergeGeneticsLifecycle} from './genetics-lifecycle.js';
 import {readScalarVersion, scalarValue, scalarValueHash} from './sync-scalar-snapshot.js';
 
 export async function mergeScalarRowsIntoImported(
@@ -14,6 +16,7 @@ export async function mergeScalarRowsIntoImported(
 ) {
   let live = 0, tombs = 0, chosenAt = '', tombstonedAt = '';
   let chosen: {v?: unknown} | null = null;
+  const geneticsCandidates: unknown[] = [];
   let chosenRow: DeltaItemRow | null = null;
   for (const row of arrRows) {
     if (row.itemId !== arrayName) continue;
@@ -22,7 +25,8 @@ export async function mergeScalarRowsIntoImported(
       const parsed = await decodeRowPayload(row) as {v?: unknown} | null;
       if (!parsed || !Object.hasOwn(parsed, 'v')) continue;
       live++;
-      if (!chosenRow || compareSyncRows(row,chosenRow)>0) {chosen=parsed;chosenRow=row;chosenAt=String(row.syncedAt||'');}
+      if (arrayName === 'genetics') geneticsCandidates.push(parsed.v);
+      if (!chosenRow || compareSyncRows(row, chosenRow) > 0) { chosen = parsed; chosenRow = row; chosenAt = String(row.syncedAt || ''); }
     } catch { /* Malformed rows cannot replace valid data. */ }
   }
   let selected: {value: unknown; clock: number} | null = null;
@@ -39,14 +43,21 @@ export async function mergeScalarRowsIntoImported(
   if (options.hasLocal && local && local.hash === scalarValueHash(arrayName, options.localValue) && local.clock > (selected?.clock || 0)) {
     selected = {value: scalarValue(arrayName, options.localValue), clock: local.clock};
   }
-  if (selected) {
-    let value = selected.value;
+  const stampedGenetics = (value: unknown) => geneticsRecordTime(value) > 0 || !!value && typeof value === 'object' && geneticsRecordTime((value as {mtdna?: unknown}).mtdna) > 0;
+  const semanticGenetics = arrayName === 'genetics' && (stampedGenetics(imported.genetics) || geneticsCandidates.some(stampedGenetics) || Object.keys(mergeGeneticsLifecycle(imported.geneticsLifecycle, null)).length > 0);
+  if (selected || semanticGenetics) {
+    // Transport clocks protect ordinary scalar edits. Genetics also retains its
+    // independent record/generation histories across older transport envelopes.
+    let value = semanticGenetics
+      ? [...geneticsCandidates, ...(selected ? [selected.value] : [])].reduce<Record<string, unknown>>((previous, candidate) => mergeGeneticsMetadata(previous, candidate, imported.geneticsLifecycle), mergeGeneticsMetadata(imported.genetics, imported.genetics, imported.geneticsLifecycle))
+      : selected!.value;
     if (arrayName === 'genetics' && imported.genetics?.snps && typeof imported.genetics.snps === 'object') {
       const snps = imported.genetics.snps;
       value = value && typeof value === 'object' ? {...value, snps} : {snps};
     }
     setAt(imported, arrayName, value);
-    if (selected.clock > 0) options.onVersion?.({clock: selected.clock, hash: scalarValueHash(arrayName, selected.value)});
+    if (selected && selected.clock > 0) options.onVersion?.({clock: selected.clock, hash: scalarValueHash(arrayName, selected.value)});
   }
+  if (arrayName === 'genetics') reconcileGeneticsSnpState(imported);
   if (arrRows.length) recordPullDeltaSurface(arrayName, {live, tombstones: tombs});
 }

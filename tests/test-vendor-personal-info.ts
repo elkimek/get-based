@@ -27,6 +27,7 @@ function stubAll(body: unknown, status = 200) {
   globalThis.fetch = async () => new Response(JSON.stringify(body),
     { status, headers: { 'content-type': 'application/json' } });
 }
+async function rejectsFailedRefresh(run: () => Promise<unknown>): Promise<boolean> { try { await run(); return false; } catch (error) { return error instanceof Error; } }
 
 try {
   // ─── Fitbit ─────────────────────────────────────────────────────────
@@ -55,9 +56,9 @@ try {
     fbErr?.status === 401);
 
   stubAll({ error: 'sub-request failed' }, 500);
-  const fbRows = await fb.fetchFitbitDailyRange('stub-token', '2026-05-01', '2026-05-02');
-  assert('Fitbit dailyRange returns array even when every sub-request 500s (logDebug fired)',
-    Array.isArray(fbRows));
+  assert('Fitbit refuses an entirely failed refresh instead of claiming empty success', await rejectsFailedRefresh(() => fb.fetchFitbitDailyRange('stub-token', '2026-05-01', '2026-05-02')));
+  stubAll([]);
+  assert('Fitbit returns an array for successful empty responses', Array.isArray(await fb.fetchFitbitDailyRange('stub-token', '2026-05-01', '2026-05-02')));
 
   // ─── Ultrahuman ─────────────────────────────────────────────────────
   console.log('\nUltrahuman');
@@ -85,9 +86,9 @@ try {
     uhErr?.status === 403);
 
   stubAll({ error: 'metrics down' }, 500);
-  const uhRows = await uh.fetchUltrahumanDailyRange('stub-token', '2026-05-01', '2026-05-02');
-  assert('Ultrahuman dailyRange returns array when every day errors (logDebug fired)',
-    Array.isArray(uhRows));
+  assert('Ultrahuman refuses an entirely failed refresh instead of claiming empty success', await rejectsFailedRefresh(() => uh.fetchUltrahumanDailyRange('stub-token', '2026-05-01', '2026-05-02')));
+  stubAll([]);
+  assert('Ultrahuman returns an array for successful empty responses', Array.isArray(await uh.fetchUltrahumanDailyRange('stub-token', '2026-05-01', '2026-05-02')));
 
   // ─── Whoop ──────────────────────────────────────────────────────────
   console.log('\nWhoop');
@@ -109,10 +110,9 @@ try {
   console.log('\nPolar (logDebug)');
   const polar = await import('../js/wearables-polar.js');
   stubAll({ error: 'down' }, 500);
-  const polarRows = await polar.fetchPolarDailyRange('stub-token',
-    '2026-05-01', '2026-05-02', { userId: 'stub-user' });
-  assert('Polar dailyRange returns array when every sub-tx 500s (logDebug fired)',
-    Array.isArray(polarRows));
+  assert('Polar refuses an entirely failed refresh instead of claiming empty success', await rejectsFailedRefresh(() => polar.fetchPolarDailyRange('stub-token', '2026-05-01', '2026-05-02', {userId:'stub-user'})));
+  stubAll([]);
+  assert('Polar returns an array for successful empty responses', Array.isArray(await polar.fetchPolarDailyRange('stub-token', '2026-05-01', '2026-05-02', {userId:'stub-user'})));
 
 } finally {
   globalThis.fetch = origFetch;

@@ -9,8 +9,10 @@ import { profileStorageKey } from './profile.js';
 import { getAIProvider, getActiveModelId } from './api.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { injectLensChunks } from './lab-context-output.js';
-import { isGroupInAIContext, isInsightContextCardsEnabled, isLabMarkersContextEnabled, isSupplementsMedsContextEnabled } from './lab-context-settings.js';
-import { hasLens, queryLens } from './lens.js';
+import { isInsightContextCardsEnabled, isLabMarkersContextEnabled, isSupplementsMedsContextEnabled } from './lab-context-settings.js';
+import { createLabContextDisclosure } from './lab-context-disclosure.js';
+import { buildLabCollectionContextSection, buildLabSampleResultsSection } from './lab-context-collection.js';
+import { canQueryLens, queryLens } from './lens.js';
 import {projectFocusCardMarkdown, renderFocusCardView} from './focus-card-presentation.js';
 import type {FocusCardView} from './focus-card-presentation.js';
 import {replaceFocusCardBody, createFocusCardStream} from './focus-card-host.js';
@@ -52,14 +54,9 @@ export function installFocusCardActionDelegates(root: Pick<EventTarget, 'addEven
 
 if (typeof document !== 'undefined') installFocusCardActionDelegates();
 
-function focusCategoryInContext(data: FocusData, catKey: string) {
-  const group = data?.categories?.[catKey]?.group;
-  return !group || isGroupInAIContext(group);
-}
-
 function getFocusFlaggedMarkers(data: FocusData) {
   if (!isLabMarkersContextEnabled()) return [];
-  return getAllFlaggedMarkers(data).filter(f => focusCategoryInContext(data, f.categoryKey));
+  return getAllFlaggedMarkers(createLabContextDisclosure().project(data));
 }
 
 export function projectFocusCard(): FocusCardView {
@@ -75,7 +72,7 @@ export function renderFocusCard() {
 }
 
 export function buildFocusContext() {
-  const data = getActiveData();
+  const disclosure = createLabContextDisclosure(), data = disclosure.project(getActiveData());
   if (!data.dates.length && !Object.values(data.categories).some(c => c.singleDate)) {
     return null;
   }
@@ -87,6 +84,9 @@ export function buildFocusContext() {
   const includeInsightCards = isInsightContextCardsEnabled();
   const includeSupplementsMeds = isSupplementsMedsContextEnabled();
   let ctx = `Profile: ${sexLabel}${age !== null ? ', age ' + age : ''}, today ${today}, last labs ${lastDate}\n`;
+  const samples = disclosure.entries(state.importedData.entries || []);
+  ctx += buildLabCollectionContextSection(samples);
+  if (samples.length > 1) ctx += buildLabSampleResultsSection(samples, data, state.unitSystem);
 
   const healthGoals = state.importedData.healthGoals || [];
   if (includeInsightCards && healthGoals.length > 0) {
@@ -157,8 +157,7 @@ export function buildFocusContext() {
   }
 
   const changes: string[] = [];
-  for (const [catKey, cat] of Object.entries(data.categories)) {
-    if (!focusCategoryInContext(data, catKey)) continue;
+  for (const cat of Object.values(data.categories)) {
     for (const [, m] of Object.entries(cat.markers)) {
       const nonNull = m.values.filter(v => v !== null);
       if (nonNull.length < 2) continue;
@@ -208,7 +207,7 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
       replaceFocusCardBody(el, {kind: 'message', text: 'No insight available'});
       return;
     }
-    if (hasLens()) {
+    if (canQueryLens()) {
       const data = getActiveData();
       const includeInsightCards = isInsightContextCardsEnabled();
       const goals = includeInsightCards ? (state.importedData.healthGoals || []).map(g => g.text).slice(0, 3).join('; ') : '';

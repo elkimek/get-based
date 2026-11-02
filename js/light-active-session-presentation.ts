@@ -1,5 +1,6 @@
 import type { SessionReader } from '../types/sun-session-ui.js';
 import type { LiveDosesOperations } from '../types/sun-active-session.js';
+import { sunSessionHasPendingIntervals } from './sun-session-mutations.js';
 
 const literal = (value: unknown): string => value == null ? '' : String(value);
 export interface SessionChannelChip {
@@ -34,7 +35,10 @@ function vitaminDRate(rate: number): string {
   return rate > 0 ? '<1 IU-eq/min avg' : 'rate pending';
 }
 const calculating = (): LiveSessionReadout => ({ kind: 'vitamin-d', tone: 'normal', title: '', values: ['Calculating…'], idle: true });
+const unavailable = (reason: string): LiveSessionReadout => ({ kind: 'vitamin-d', tone: 'warning', title: 'Unreported or uncalculated exposure is not replaced with model defaults or zero dose.', values: [reason], idle: true });
 export function initialSessionReadouts(session: SessionReader): LiveSessionReadout[] {
+  if (session.calculationStatus === 'needs-inputs') return [unavailable('Exposure details needed for estimates')];
+  if (sunSessionHasPendingIntervals(session)) return [unavailable('Earlier exposure incomplete — estimates unavailable')];
   const readouts = [calculating()];
   const med = session.safety?.medFraction as number | null | undefined;
   if (med != null) {
@@ -48,7 +52,8 @@ export function initialSessionReadouts(session: SessionReader): LiveSessionReado
   return readouts;
 }
 /** Formats already calculated live values; dose integration and IU conversion stay in the ticker. */
-export function liveSessionReadouts(live: LiveDosesOperations | null, vitaminD: { iu: number; ratePerMin: number } | null, elapsedMin: number): LiveSessionReadout[] {
+export function liveSessionReadouts(live: LiveDosesOperations | null, vitaminD: { iu: number; ratePerMin: number } | null, elapsedMin: number, unavailableReason?: string): LiveSessionReadout[] {
+  if (unavailableReason) return [unavailable(unavailableReason)];
   let vitamin = calculating();
   if (live && live.doses?.vitamin_d! > 0) {
     const iu = vitaminD?.iu ?? Number.NaN, rate = vitaminD?.ratePerMin ?? 0;

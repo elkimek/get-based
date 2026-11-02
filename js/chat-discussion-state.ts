@@ -50,7 +50,7 @@ export function getCurrentThread(): DiscussionThreadReader | null {
   return state.chatThreads.find(t => t.id === state.currentThreadId) || null;
 }
 
-export function clearCurrentDiscussionThreadState({ clearThread = false, markEnded = false }: { clearThread?: unknown; markEnded?: unknown } = {}) {
+export function clearCurrentDiscussionThreadState({ clearThread = false, markEnded = false, persist = true }: { clearThread?: unknown; markEnded?: unknown; persist?: boolean } = {}) {
   const thread = getCurrentThread();
   if (!thread || (!clearThread && !markEnded)) return;
 
@@ -59,7 +59,7 @@ export function clearCurrentDiscussionThreadState({ clearThread = false, markEnd
   delete thread.discussionPendingPersonas;
   if (markEnded) thread.discussionEnded = true;
   else delete thread.discussionEnded;
-  saveChatThreadIndex();
+  if (persist) saveChatThreadIndex();
 }
 
 export function reopenCurrentDiscussionThread() {

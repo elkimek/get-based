@@ -9,7 +9,9 @@ interface ReviewInput extends Options {result: PendingImport; duplicateIndices?:
 type Sample = {kind: string; name: string; html: string; input: Record<string, unknown>; refLookup?: Record<string, unknown>};
 const fixture = JSON.parse(fs.readFileSync('tests/fixtures/review-recommendations-original.json', 'utf8')) as {revision: string; samples: Sample[]};
 const owned = vi.hoisted(() => ({pending: null as PendingImport | null, refs: {} as Record<string, unknown>, options: {} as Options}));
-vi.mock('../js/state.js', () => ({state: {currentProfile: 'default'}}));
+vi.mock('../js/state.js', () => ({state: {currentProfile: 'default', importedData: {entries: []}}}));
+import {state} from '../js/state.js';
+import {bindImportReportReview} from '../js/lab-report-samples.js';
 vi.mock('../js/pdf-import-review-runtime.js', () => ({
   getPendingImportFromRuntime: () => owned.pending,
   setPendingImportRuntime: (result: PendingImport, refs: Record<string, unknown>) => {owned.pending = result; owned.refs = refs;},
@@ -45,12 +47,14 @@ beforeEach(() => {
   closeModalOverlay('import-modal-overlay');
   document.body.innerHTML = '<div id="drop-zone"></div><div id="import-modal-overlay" class="modal-overlay"><div id="import-modal"></div></div>';
   document.body.style.overflow = ''; owned.pending = null; owned.refs = {}; owned.options = {};
+  state.importedData.entries = [];
 });
 function review(sample: Sample): string {
   const input = sample.input as unknown as ReviewInput;
   owned.options = input; owned.refs = sample.refLookup!;
   const result = structuredClone(input.result);
   for (const indices of input.duplicateIndices || []) for (const index of indices.slice(1)) result.markers[index] = result.markers[indices[0]!]!;
+  if (sample.name === 'missing-date-rereview-excluded') bindImportReportReview(result, state.importedData, state.currentProfile, {id:'existing',panelId:'review-fixture-sample',date:'2026-07-14'});
   showImportPreview(result);
   if (sample.kind === 'review-incremental') {
     if (sample.name === 'map' || sample.name === 'clear') {
@@ -114,12 +118,16 @@ function expectedWithRowNumbers(sample: Sample): string {
     const cell = document.createElement('td'); cell.className = 'import-row-number'; cell.dataset.label = 'Row';
     cell.title = 'Original import row'; cell.textContent = String(Number(row.dataset.importIdx) + 1); row.prepend(cell);
   }
+  if (sample.name === 'missing-date-rereview-excluded') root.querySelector('#import-manual-date')!.parentElement!.insertAdjacentHTML('afterend', '<div class="import-review-file"><span class="import-review-label">Sample destination</span><select class="import-collection-control" id="import-sample-destination" data-import-review-action="sample-destination" aria-label="Sample destination" disabled><option value="review-fixture-sample" selected>Collection linked to this report</option></select><small class="import-review-time-help">Collection date changes move every result in this sample, including results from other reports.</small></div>');
   return root.innerHTML;
 }
 it.each(fixture.samples)('preserves original $kind/$name complete structure, control state and literal text', sample => {
+  if (sample.name === 'missing-date-rereview-excluded') state.importedData.entries = [{panelId:'review-fixture-sample',date:'2026-07-14',markers:{}}];
+  const profileBefore=structuredClone(state.importedData);
   const frozen = JSON.stringify(sample), current = authored(sample);
   expect(structure(current)).toEqual(structure(expectedWithRowNumbers(sample)));
   expect(JSON.stringify(sample)).toBe(frozen);
+  expect(state.importedData).toEqual(profileBefore);
   const before = document.createElement('div'); before.innerHTML = expectedWithRowNumbers(sample);
   const after = document.createElement('div'); after.innerHTML = current;
   const originals = [...before.querySelectorAll('*')], actuals = [...after.querySelectorAll('*')];
@@ -147,4 +155,11 @@ it('owns migrated markup in literal components and retires the original private 
   for (const component of ['ImportReviewPresentation', 'ImportReviewRow', 'ImportUnitControl', 'ImportMapControl', 'ImportReviewRowAction', 'ImportExcludeContent', 'ImportReviewStatus', 'ImportUnitMenu', 'RecommendationPresentation', 'RecommendationCard']) expect(fs.readFileSync(`js/components/${component}.svelte`, 'utf8')).not.toContain('{@html');
   expect(fs.readFileSync('js/pdf-import-review.ts', 'utf8')).not.toContain('const pad = status');
   expect(fs.readFileSync('js/dashboard-recommendation-widget.ts', 'utf8')).not.toContain('const savedClass =');
+});
+
+it('refuses an unbound historical report review without changing its existing UI or profile',()=>{
+ const sample=fixture.samples.find(row=>row.name==='missing-date-rereview-excluded')!;
+ const before=document.body.innerHTML,profile=structuredClone(state.importedData);
+ showImportPreview(structuredClone((sample.input as unknown as ReviewInput).result));
+ expect(document.body.innerHTML).toBe(before);expect(state.importedData).toEqual(profile);
 });

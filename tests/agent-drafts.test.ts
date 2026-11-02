@@ -4,6 +4,15 @@ import { describe, expect, it } from 'vitest';
 import { renderAgentDraftCards } from '../js/agent-drafts.js';
 
 describe('agent proposal cards', () => {
+  it.each([undefined, null, '', 'applied ', 'unknown-future-status'])('offers no Apply action for an unrecognized raw status %s', status => {
+    const html = renderAgentDraftCards({ agentDrafts: [{
+      id: 'uncertain-goal', profileId: 'profile-1', kind: 'context', status,
+      payload: { card: 'healthGoals', baseline: '[]', changes: [{ field: 'goals', operation: 'add', record: { text: 'Reviewed goal' } }], reason: 'A reported goal.', evidence: 'I want a goal.' },
+    }] }, 0);
+    expect(html).toContain('chat-agent-draft-failed');
+    expect(html).not.toContain('apply-agent-draft');
+  });
+
   it('renders pending proposals with explicit apply and discard actions', () => {
     const html = renderAgentDraftCards({ agentDrafts: [{
       id: 'draft-1', profileId: 'profile-1', kind: 'note', status: 'pending',
@@ -63,4 +72,15 @@ it.each([['applying', 'Applying…'], ['discarded', 'Discarded']])('prevents ano
 });
 it('omits the review section when a message contains no proposals', () => {
   expect((renderAgentDraftCards as (message: Parameters<typeof renderAgentDraftCards>[0] & { content?: unknown }, index: Parameters<typeof renderAgentDraftCards>[1]) => ReturnType<typeof renderAgentDraftCards>)({ content: 'Normal reply' }, 0)).toBe('');
+});
+
+it('shows the normalized default goal priority and friendly explicit priorities', () => {
+  for (const [severity, label] of [[undefined, 'Medium'], ['major', 'High'], ['minor', 'Low']] as const) {
+    const record = { text: 'Improve sleep', ...(severity ? { severity } : {}) };
+    const html = renderAgentDraftCards({ agentDrafts: [{ id: 'goal', profileId: 'a', kind: 'context', status: 'pending', payload: {
+      card: 'healthGoals', baseline: '[]', changes: [{ field: 'goals', operation: 'add', record }], reason: 'Explicit goal.', evidence: 'Improve sleep.',
+    } }] }, 0);
+    expect(html).toContain(label);
+    if (severity) expect(html).not.toContain(`impact: ${severity}`);
+  }
 });

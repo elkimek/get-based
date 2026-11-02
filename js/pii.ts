@@ -25,30 +25,20 @@ import {
 import { createInitialResponseTimeout } from './api-transport.js';
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { state } from './state.js';
-import { profileStorageKey } from './profile-storage-key.js';
-import { redactReportText } from './pii-redaction.js';
+import { detectSexFromPDF, patientPseudonym, redactReportText } from './pii-redaction.js';
+import type { RedactionContext, RedactionResult } from './pii-redaction.js';
 import {
   buildPIIDiffHTML,
   reviewPIIBeforeSend as reviewPIIBeforeSendUI,
   showPIIDiffViewer,
 } from './pii-review.js';
 
-export { checkOllama, checkOpenAICompatible };
+export { checkOllama, checkOpenAICompatible, detectSexFromPDF };
 export { buildPIIDiffHTML, showPIIDiffViewer };
 
 // ═══════════════════════════════════════════════
 // PII OBFUSCATION — Fake data generators & sanitization
 // ═══════════════════════════════════════════════
-export function detectSexFromPDF(text: string) {
-  // Check for sex/gender labels in Czech and English lab reports
-  // Note: \b doesn't work with accented chars (í,ž), so use [\s:] boundary instead
-  if (/(?:pohlav[ií]|sex|gender)[\s:]+(?:ž|žena|female|f)(?:\s|$)/im.test(text)) return 'female';
-  if (/(?:pohlav[ií]|sex|gender)[\s:]+(?:m|muž|male)(?:\s|$)/im.test(text)) return 'male';
-  // Czech birth numbers: month 51-62 = female (month + 50)
-  const bn = text.match(/\b\d{2}(5[1-9]|6[0-2])\d{2}\/\d{3,4}\b/);
-  if (bn) return 'female';
-  return null;
-}
 export function fakeName(sex: unknown) { return sex === 'female' ? 'Jana Nováková' : 'Jan Novák'; }
 export const FAKE_STREETS = [
   'Sokolská 17', 'Národní 8', 'Lidická 32', 'Husova 5', 'Květná 12',
@@ -138,7 +128,7 @@ REPLACE these with fake data:
 - Doctor names → fictional doctor names
 - Patient IDs → random numbers
 
-Bracketed placeholders such as [PATIENT], [PHYSICIAN-AB12], [ADDRESS-AB12] or [PHONE-AB12] are already anonymized — copy them exactly and never replace them.
+The text has already passed through local deterministic redaction. Fictional patient names such as Jan Novák, Jana Nováková, John Doe or Jane Doe, bracketed placeholders such as [PHYSICIAN-AB12], [ADDRESS-AB12] or [PHONE-AB12], dates of birth and patient identifiers are already replaced — copy those supplied values exactly. Remove remaining identifying names and contact details. Keep the supplied birth year and age unchanged.
 
 DO NOT CHANGE (copy exactly as-is):
 - Collection dates, sample dates, and report dates — these are critical. Only dates of birth should change
@@ -215,12 +205,13 @@ export function validatePIIResult(result: string | null | undefined, pdfText: st
   return null;
 }
 
-export function finalizePIIResult(result: string, pdfText: string) {
+export function finalizePIIResult(result: string, pdfText: string, prepared?: PreparedPIIRedaction) {
   const validationError = validatePIIResult(result, pdfText);
   if (validationError) throw new Error(validationError);
   // The model saw the deterministic pre-pass output; keep those replacements as they are
   // so the second pass only catches what the model left behind.
-  const deterministic = obfuscatePDFText(result, obfuscatePDFText(pdfText).produced ?? []).obfuscated;
+  const prepass = prepared ?? preparePIIRedaction(pdfText);
+  const deterministic = redactReportText(result, { ...prepass.context, preserve: prepass.output.produced }).text;
   const normalizedFinal = normalizePIIComparison(deterministic);
   const retained = extractSensitiveValues(pdfText).filter(value => normalizedFinal.includes(value));
   if (retained.length > 0) throw new Error(`Privacy check found ${retained.length} original identifier${retained.length === 1 ? '' : 's'} still present`);
@@ -278,8 +269,9 @@ export async function sanitizeWithOllamaStreaming(pdfText: string, onChunk: (chu
   ensurePIIModelEligible(piiModel);
   const apiKey = getOllamaPIIApiKey();
   // Deterministic redaction first so the local model only handles leftovers and
-  // repeated identifiers stay consistent across pages and reports.
-  const promptText = PII_PROMPT_PREFIX + obfuscatePDFText(pdfText).obfuscated;
+  // repeated identifiers stay consistent throughout this report and its final pass.
+  const redaction = preparePIIRedaction(pdfText);
+  const promptText = PII_PROMPT_PREFIX + redaction.output.text;
   const baseUrl = piiUrl.replace(/\/+$/, '');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
@@ -399,7 +391,7 @@ export async function sanitizeWithOllamaStreaming(pdfText: string, onChunk: (chu
     unloadOllamaPIIModel();
   }
 
-  return finalizePIIResult(accumulated.trim(), pdfText);
+  return finalizePIIResult(accumulated.trim(), pdfText, redaction);
 }
 
 export async function sanitizeWithOllama(pdfText: string) {
@@ -408,8 +400,9 @@ export async function sanitizeWithOllama(pdfText: string) {
   ensurePIIModelEligible(piiModel);
   const apiKey = getOllamaPIIApiKey();
   // Deterministic redaction first so the local model only handles leftovers and
-  // repeated identifiers stay consistent across pages and reports.
-  const promptText = PII_PROMPT_PREFIX + obfuscatePDFText(pdfText).obfuscated;
+  // repeated identifiers stay consistent throughout this report and its final pass.
+  const redaction = preparePIIRedaction(pdfText);
+  const promptText = PII_PROMPT_PREFIX + redaction.output.text;
   try {
     const baseUrl = piiUrl.replace(/\/+$/, '');
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -429,7 +422,7 @@ export async function sanitizeWithOllama(pdfText: string) {
     if (!resp.ok) throw new Error(`Local server error: ${resp.status}`);
     const data = await resp.json() as PrivacyCompletion;
     const result = (data.choices?.[0]?.message?.content || '').trim();
-    return finalizePIIResult(result, pdfText);
+    return finalizePIIResult(result, pdfText, redaction);
   } catch (e) {
     if (getErrorName(e) === 'TimeoutError' || getErrorMessage(e).includes('timed out')) {
       showNotification(`PII model "${piiModel}" timed out. Falling back to regex. Try a smaller model in Settings → Privacy.`, 'info', 6000);
@@ -443,30 +436,17 @@ export async function sanitizeWithOllama(pdfText: string) {
 // ═══════════════════════════════════════════════
 // REGEX PII OBFUSCATION (fallback when no Ollama)
 // ═══════════════════════════════════════════════
-// Replacements are keyed per profile (see pii-redaction.ts) so the same
-// original value gets the same replacement on every page and in every report.
-const PII_PSEUDONYM_KEY_SUFFIX = 'pii-pseudonym-key';
-let sessionPseudonymKey = '';
+// Each import gets a fresh in-memory key. Repeated identifiers agree across
+// its pages and model passes without persisting a cross-report identifier.
+interface PreparedPIIRedaction {
+  readonly context: RedactionContext;
+  readonly output: RedactionResult;
+}
 
 function randomKeyHex() {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-/** Per-profile random redaction key. Holds no report content; falls back to a session key without storage. */
-export function getPIIPseudonymKey(profileId: string = state.currentProfile || 'default') {
-  const storageKey = profileStorageKey(profileId, PII_PSEUDONYM_KEY_SUFFIX);
-  try {
-    const existing = localStorage.getItem(storageKey);
-    if (existing && /^[0-9a-f]{64}$/.test(existing)) return existing;
-    const created = randomKeyHex();
-    localStorage.setItem(storageKey, created);
-    return created;
-  } catch {
-    if (!sessionPseudonymKey) sessionPseudonymKey = randomKeyHex();
-    return sessionPseudonymKey;
-  }
 }
 
 function currentProfileName() {
@@ -475,15 +455,25 @@ function currentProfileName() {
   return typeof active?.name === 'string' ? active.name : null;
 }
 
-export function obfuscatePDFText(pdfText: string, preserve?: Iterable<string>): { obfuscated: string; original: string; replacements: number; produced?: readonly string[] } {
-  const original = pdfText;
-  const { text, replacements, produced } = redactReportText(pdfText, {
-    key: () => getPIIPseudonymKey(),
-    profileName: currentProfileName(),
+function preparePIIRedaction(pdfText: string, preserve?: Iterable<string>): PreparedPIIRedaction {
+  let key = '';
+  const profileName = currentProfileName();
+  // Capture profile hints before awaiting a model; a later profile switch must
+  // not change the owner, DOB or pseudonyms used by the final privacy pass.
+  const context: RedactionContext = {
+    key: () => key ||= randomKeyHex(),
+    profileName,
     profileDob: state.profileDob,
+    profileSex: state.profileSex,
+    patientName: patientPseudonym(pdfText, state.profileSex, profileName),
     preserve,
-  });
-  return { obfuscated: text, original, replacements, produced };
+  };
+  return { context, output: redactReportText(pdfText, context) };
+}
+
+export function obfuscatePDFText(pdfText: string, preserve?: Iterable<string>): { obfuscated: string; original: string; replacements: number; produced: readonly string[] } {
+  const { text, replacements, produced } = preparePIIRedaction(pdfText, preserve).output;
+  return { obfuscated: text, original: pdfText, replacements, produced };
 }
 
 // extractPatientName dropped — too unreliable across PDF layouts

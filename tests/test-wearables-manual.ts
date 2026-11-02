@@ -337,14 +337,18 @@ try {
   const manualLibSrc = await fetch('js/wearables-manual.js').then(r => r.text());
 
   assert('logManualMetric signature accepts note param',
-    /export async function logManualMetric\(profileId, metric, \{ date, value, unit = 'kg', tags, note \}\)/.test(manualLibSrc));
+    /async function logManualMetricUnlocked\(profileId, metric, \{ date, value, unit = 'kg', tags, note \}\)/.test(manualLibSrc));
   assert('logManualBP signature accepts note param',
-    /export async function logManualBP\(profileId, \{ date, systolic, diastolic, pulse, tags, note \}\)/.test(manualLibSrc));
+    /async function logManualBPUnlocked\(profileId, \{ date, systolic, diastolic, pulse, tags, note \}\)/.test(manualLibSrc));
   assert('Both helpers write the note onto the row patch via _sanitizeNote',
-    sourceFunctionHasInitializer(manualLibSrc, 'logManualMetric', 'noteClean', '_sanitizeNote(note)') &&
-    sourceFunctionHasStatement(manualLibSrc, 'logManualMetric', 'if (noteClean) patch.note = noteClean;') &&
-    sourceFunctionHasInitializer(manualLibSrc, 'logManualBP', 'noteClean', '_sanitizeNote(note)') &&
-    sourceFunctionHasStatement(manualLibSrc, 'logManualBP', 'if (noteClean) row.note = noteClean;'));
+    sourceFunctionHasInitializer(manualLibSrc, 'logManualMetricUnlocked', 'noteClean', '_sanitizeNote(note)') &&
+    sourceFunctionHasStatement(manualLibSrc, 'logManualMetricUnlocked', 'if (noteClean) patch.note = noteClean;') &&
+    sourceFunctionHasInitializer(manualLibSrc, 'logManualBPUnlocked', 'noteClean', '_sanitizeNote(note)') &&
+    sourceFunctionHasStatement(manualLibSrc, 'logManualBPUnlocked', 'if (noteClean) row.note = noteClean;'));
+
+  assert('Public manual helpers preserve readings through the per-profile operation queue',
+    sourceFunctionHasStatement(manualLibSrc, 'logManualMetric', 'return queueManualOperation(profileId, () => logManualMetricUnlocked(profileId, metric, reading));') &&
+    sourceFunctionHasStatement(manualLibSrc, 'logManualBP', 'return queueManualOperation(profileId, () => logManualBPUnlocked(profileId, reading));'));
 
   assert('_sanitizeNote function defined',
     /function _sanitizeNote\(note\)/.test(manualLibSrc));

@@ -1,5 +1,5 @@
 interface AuditFixtureGlobals {
- __auditReply?: (options:Parameters<typeof import("../../js/chat-continuation.js").callChatAPIWithContinuation>[0])=>Promise<unknown>;
+ __auditReply?: (options:Parameters<typeof import("../../js/direct-chat-tools.js").callDirectChatWithTools>[0])=>Promise<unknown>;
  __auditRequest?:unknown; __auditFinishReply?:(result:unknown)=>void; __auditSending?:unknown;
  __auditApproval?:(()=>Promise<unknown>)|undefined; __auditFinishApproval?:(value:unknown)=>void;
  __auditBeforeSave?:(()=>Promise<unknown>)|undefined; __auditFinishSave?:()=>void;
@@ -10,8 +10,8 @@ import { expect, test } from './coverage-fixture.js';
 test.beforeEach(async ({ page }) => {
   // Exercise the real chat/controller/storage path; only the billable boundary
   // and consent interaction are replaced with controllable synthetic promises.
-  await routeJavaScript(page, '**/js/chat-continuation.js', `export * from '/js/chat-continuation.js?audit-original';
-      export function callChatAPIWithContinuation(options) { return globalThis.__auditReply(options); }`);
+  await routeJavaScript(page, '**/js/direct-chat-tools.js', `export * from '/js/direct-chat-tools.js?audit-original';
+      export function callDirectChatWithTools(options) { return globalThis.__auditReply(options); }`);
   await routeJavaScript(page, '**/js/cloud-ai-consent.js', `export * from '/js/cloud-ai-consent.js?audit-original';
       export function requestAIProcessingApproval() { return globalThis.__auditApproval?.() ?? Promise.resolve(true); }`);
   await routeJavaScript(page, '**/js/chat-history.js', `export * from '/js/chat-history.js?audit-original';
@@ -52,7 +52,7 @@ for (const change of ['profile', 'thread', 'none']) {
         state.chatHistory = [{ role: 'user', content: 'Keep B unchanged' }];
         document.getElementById('chat-messages')!.textContent = 'Keep B unchanged';
       }
-      ((globalThis as unknown as AuditFixtureGlobals).__auditRequest as Pick<Parameters<typeof import("../../js/chat-continuation.js").callChatAPIWithContinuation>[0],"onStream">).onStream!('Synthetic private A response.');
+      ((globalThis as unknown as AuditFixtureGlobals).__auditRequest as Pick<Parameters<typeof import("../../js/direct-chat-tools.js").callDirectChatWithTools>[0],"onStream">).onStream!('Synthetic private A response.');
       (globalThis as unknown as AuditFixtureGlobals).__auditFinishReply!({ text: 'Synthetic private A response.', finishReason: 'stop' });
       await (globalThis as unknown as AuditFixtureGlobals).__auditSending;
       return { history: state.chatHistory, transcript: document.getElementById('chat-messages')!.textContent,
@@ -82,7 +82,7 @@ test('a stale silent generation releases controls before it settles', async ({ p
     const chat = await import('/js/chat-send.js');
     const streaming = chat.isChatStreaming();
     const restored = chat.restoreChatGenerationUI();
-    const aborted = ((globalThis as unknown as AuditFixtureGlobals).__auditRequest as Pick<Parameters<typeof import("../../js/chat-continuation.js").callChatAPIWithContinuation>[0],"signal">).signal!.aborted;
+    const aborted = ((globalThis as unknown as AuditFixtureGlobals).__auditRequest as Pick<Parameters<typeof import("../../js/direct-chat-tools.js").callDirectChatWithTools>[0],"signal">).signal!.aborted;
     const title = document.getElementById('chat-send-btn')!.title;
     (globalThis as unknown as AuditFixtureGlobals).__auditFinishReply!({ text: 'Discard stale reply', finishReason: 'stop' });
     await (globalThis as unknown as AuditFixtureGlobals).__auditSending;

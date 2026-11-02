@@ -57,11 +57,11 @@ it('retiring the cold History owner during an actual held meal read cannot publi
   held.meals.mockReturnValueOnce(new Promise<[]>(resolve => {release = resolve;}));
   const opening = openNutritionHistory(undefined, {}, () => owned);
   await vi.waitFor(() => expect(held.meals).toHaveBeenCalledOnce());
-  // Preferences are accepted by the current public opener before its read;
-  // retirement prevents subsequent UI/data work, not those accepted preferences.
-  expect(localStorage.getItem('nutrition-history-range')).toBe('30d'); expect(localStorage.getItem('nutrition-history-view')).toBe('meals');
+  // A held/retired read has not opened the requested view and must not save its preferences.
+  expect(localStorage.getItem('nutrition-history-range')).toBeNull(); expect(localStorage.getItem('nutrition-history-view')).toBeNull();
   owned = false; const before = document.body.innerHTML, focus = document.activeElement, original = state.importedData;
   release([]); await expect(opening).resolves.toBe(false); expect(document.body.innerHTML).toBe(before); expect(document.activeElement).toBe(focus); expect(state.importedData).toBe(original);
+  expect(localStorage.getItem('nutrition-history-range')).toBeNull(); expect(localStorage.getItem('nutrition-history-view')).toBeNull();
 });
 
 it('preserves a current-owner draft restoration exception rather than silently hiding it', async () => {
@@ -77,4 +77,14 @@ it.each(['data', 'content', 'modal', 'overlay'] as const)('ignores a held actual
   if (reason === 'overlay') document.getElementById('modal-overlay')!.id = 'retired-overlay';
   const before = document.body.innerHTML, focus = document.activeElement; rejectRestore(new Error('Retired restore failed'));
   await expect(opening).resolves.toBe(false); expect(document.body.innerHTML).toBe(before); expect(document.activeElement).toBe(focus);
+});
+
+it('saves the exact History preferences only after a current held read completes', async () => {
+ let release!: (value: []) => void;
+ held.meals.mockReturnValueOnce(new Promise<[]>(resolve => { release = resolve; }));
+ const opening=openNutritionHistory('6m', {view:'trends'}, () => true);
+ await vi.waitFor(() => expect(held.meals).toHaveBeenCalledOnce());
+ expect(localStorage.getItem('nutrition-history-range')).toBeNull();expect(localStorage.getItem('nutrition-history-view')).toBeNull();
+ release([]);await expect(opening).resolves.toBe(true);
+ expect(localStorage.getItem('nutrition-history-range')).toBe('6m');expect(localStorage.getItem('nutrition-history-view')).toBe('trends');
 });

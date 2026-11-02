@@ -2,7 +2,7 @@ import path from 'node:path';
 import {expect, test, type Page} from '@playwright/test';
 import type {StoredProfileRecord} from '../../js/profile-list-store.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 interface FormEventReceipt {trusted: boolean; name: string; prevented: boolean}

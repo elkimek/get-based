@@ -7,6 +7,43 @@ const openBlankPage = createBlankPage({
   body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
 });
 
+test('PII review preserves clinical text and synchronizes real editable panes', async ({ page }) => {
+  await openBlankPage(page, '/pii-scroll-and-redaction');
+  const prepared = await page.evaluate(async () => {
+    const pii = await import('/js/pii.js');
+    const row = 'White blood cell count 6.1 x10E3/uL 3.4-10.8';
+    const original = Array.from({length: 4}, (_, i) => `=== Page ${i + 1} ===\nPatient: Alice White\nSex: Female\nPatient ID: PX4471\n${Array(45).fill(row).join('\n')}`).join('\n');
+    const result = pii.obfuscatePDFText(original).obfuscated;
+    void pii.reviewPIIBeforeSend(original, {obfuscatedText: result}).then(text => Reflect.set(window, 'piiReviewResult', text));
+    return {result, row};
+  });
+  expect(prepared.result).not.toContain('Alice White');
+  expect(prepared.result.match(/Patient: Jane Doe/g)).toHaveLength(4);
+  expect(prepared.result.split(prepared.row)).toHaveLength(181);
+  expect(new Set(prepared.result.match(/Patient ID: \S+/g)).size).toBe(1);
+  const textarea = page.locator('#pii-edit-textarea');
+  await expect(textarea).toBeEditable();
+  await page.locator('.pii-review-viewer > .pii-diff-left').evaluate(left => {
+    left.scrollTop = Math.round((left.scrollHeight - left.clientHeight) * 0.5);
+  });
+  await expect.poll(() => page.evaluate(async () => {
+    const {activePIIRightScroller} = await import('/js/pii-scroll-sync.js');
+    const left = document.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-left')!;
+    const right = activePIIRightScroller(document.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-right')!);
+    if (left.scrollHeight <= left.clientHeight || right.scrollHeight <= right.clientHeight) return 1;
+    return Math.abs(left.scrollTop / (left.scrollHeight - left.clientHeight) - right.scrollTop / (right.scrollHeight - right.clientHeight));
+  })).toBeLessThan(0.01);
+  await page.evaluate(async () => {
+    const {activePIIRightScroller} = await import('/js/pii-scroll-sync.js');
+    const right = activePIIRightScroller(document.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-right')!);
+    right.scrollTop = Math.round((right.scrollHeight - right.clientHeight) * 0.25);
+  });
+  await expect.poll(() => page.locator('.pii-review-viewer > .pii-diff-left').evaluate(left => left.scrollTop / (left.scrollHeight - left.clientHeight))).toBeCloseTo(0.25, 2);
+  await textarea.fill(prepared.result + '\nReviewed');
+  await page.locator('#pii-review-send').click();
+  await expect.poll(() => page.evaluate(() => Reflect.get(window, 'piiReviewResult'))).toBe(prepared.result + '\nReviewed');
+});
+
 test('PII browser coverage exercises config probes regex obfuscation and diff helpers', async ({ page }) => {
   await openBlankPage(page, '/pii-browser-coverage');
 
@@ -518,7 +555,7 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
       overlay!.querySelector<HTMLElement>('#pii-review-regex')!.click();
       await waitFor(() => !!overlay!.querySelector<HTMLElement>('.pii-diff-preview'), 'regex diff preview');
       const regexValue = (textarea! as unknown as {value: string}).value;
-      const regexFallback = regexValue.includes('Patient: [PATIENT]') && !regexValue.includes('Alice Smith') && !regexValue.includes('777 888 999');
+      const regexFallback = regexValue.includes('Patient: John Doe') && !regexValue.includes('Alice Smith') && !regexValue.includes('777 888 999');
       overlay!.querySelector<HTMLElement>('#pii-review-cancel')!.click();
       const cancelResult = await cancelPromise;
 

@@ -13,9 +13,11 @@ import type {SyncProfileRow} from '../js/sync-payload.js';
 import type {DeltaItemRow} from '../js/sync-delta-row-codec.js';
 import {makeEvolu, PROFILE_QUERY, ITEM_ROW_QUERY} from './helpers/sync-runtime-fixture.js';
 
+// Keep IndexedDB's setImmediate scheduler real while controlling sync deadlines.
+
 afterEach(() => {vi.clearAllTimers(); vi.useRealTimers(); localStorage.clear(); sessionStorage.clear();});
 it('repeated startup reconciliation does not append an equivalent profile, but sends real edits and explicit resends', async () => {
-  vi.useFakeTimers(); localStorage.clear(); sessionStorage.clear();
+  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']}); localStorage.clear(); sessionStorage.clear();
   const previousProfile = state.currentProfile, previousData = state.importedData;
   const id = 'startup-equivalent-profile';
   const fixture = makeEvolu();

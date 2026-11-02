@@ -68,6 +68,17 @@ export function normalizeAgentVersion(agentId: string, value: unknown) {
     : version;
 }
 
+/** OpenCode 2.1 replaced the --pure switch with ordered plugin configuration. */
+export function usesOpenCodeV2Configuration(agent: Pick<DetectedLocalAgent, 'id' | 'version'>) {
+  const match = agent.version.match(/(?:^|\s)v?(\d+)\.(\d+)\./);
+  return agent.id === 'opencode' && !!match && (Number(match[1]) > 2 || Number(match[1]) === 2 && Number(match[2]) >= 1);
+}
+
+export function localAgentArguments(spec: Pick<LocalAgentSpec, 'id' | 'args'>, version: string) {
+  const args = [...(spec.args || [])];
+  return usesOpenCodeV2Configuration({ id: spec.id, version }) ? args.filter(arg => arg !== '--pure') : args;
+}
+
 export function findAgentExecutable(command: string, env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform) {
   const absolute = platform === 'win32' ? win32.isAbsolute(command) : isAbsolute(command);
   if (absolute) {
@@ -191,7 +202,7 @@ export function detectLocalAgents(options: LocalAgentDiscoveryOptions = {}): Det
       }
     }
     return [{
-      ...spec, args: [...launch.args, ...('args' in spec ? spec.args! : [])], command: launch.command,
+      ...spec, args: [...launch.args, ...localAgentArguments(spec, version)], command: launch.command,
       version, versionArgs: [...launch.args], compatible: true, status, ...(message ? { message } : {}),
     }];
   });
@@ -228,7 +239,7 @@ export function publicAgentDescriptors(agents: DetectedLocalAgent[]) {
 }
 
 // Preserve login/config discovery without exposing unrelated process secrets.
-export function buildLocalAgentEnvironment(source: NodeJS.ProcessEnv = process.env) {
+export function buildLocalAgentEnvironment(source: NodeJS.ProcessEnv = process.env, agent?: Pick<DetectedLocalAgent, 'id' | 'version'>) {
   const exact = new Set([
     'HOME', 'USER', 'LOGNAME', 'SHELL', 'PATH', 'LANG', 'TMPDIR', 'TEMP', 'TMP',
     'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'SystemRoot', 'ComSpec', 'PATHEXT',
@@ -240,5 +251,15 @@ export function buildLocalAgentEnvironment(source: NodeJS.ProcessEnv = process.e
   const env = Object.fromEntries(Object.entries(source).filter(([name, value]) => (
     value !== undefined && (exact.has(name) || name.startsWith('LC_'))
   )));
-  return { ...env, CI: '1', NO_COLOR: '1', TERM: 'dumb' };
+  const base: NodeJS.ProcessEnv = { ...env, CI: '1', NO_COLOR: '1', TERM: 'dumb' };
+  if (agent && usesOpenCodeV2Configuration(agent)) {
+    // This is process-local, never a write to the user's OpenCode config.
+    // Keep the built-in provider/MCP plugins while excluding other plugin IDs.
+    base.OPENCODE_DISABLE_PROJECT_CONFIG = '1';
+    base.OPENCODE_CONFIG_CONTENT = JSON.stringify({
+      plugins: ['-*', 'opencode.*'],
+      permissions: [{ action: '*', resource: '*', effect: 'deny' }, { action: 'getbased_*', resource: '*', effect: 'allow' }],
+    });
+  }
+  return base;
 }

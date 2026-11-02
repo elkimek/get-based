@@ -2,7 +2,7 @@ import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import {readFileSync} from 'node:fs';
 import {expect, test} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 
 // Shell ownership acceptance uses the assembled artifact; offline/cache/install
 // acceptance is covered separately, without accumulating another full precache.

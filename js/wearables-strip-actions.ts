@@ -6,6 +6,7 @@ import type { CanonicalWearableMetricId } from './wearable-adapters.js';
 import { getErrorMessage } from './caught-error.js';
 import { showNotification } from './utils.js';
 import { state } from './state.js';
+import { commitHistoryViewPreferences, writeHistoryViewPreferencesNow } from './history-view-preferences.js';
 import { weightToKilograms } from './wearables-formatters.js';
 import {isBodyMeasurementId} from './body-measurement-model.js';
 import {openBodyMeasurement} from './body-measurement-loader.js';
@@ -82,7 +83,18 @@ export function toggleWearableStrip() {
       arrow.setAttribute('aria-label', labelBase.replace(/^Collapse /i, 'Expand '));
     }
   }
-  localStorage.setItem('wearables-strip-collapsed', hidden ? '1' : '0');
+  writeHistoryViewPreferencesNow({ stripCollapsed: hidden });
+}
+export async function toggleWearableStripGuarded() {
+  const grid = document.querySelector('.wearable-card-grid'), footer = document.querySelector('.wearable-strip-footer'), arrow = document.querySelector('.wearable-collapse-arrow');
+  if (!grid) return;
+  const hidden = !grid.classList.contains('hidden'), profile = state.currentProfile, root = state.importedData;
+  const current = () => state.currentProfile === profile && state.importedData === root && grid.isConnected && document.querySelector('.wearable-card-grid') === grid;
+  try { await commitHistoryViewPreferences({ stripCollapsed: hidden }, { canCommit: current }); }
+  catch { if (current()) showNotification('The strip appearance preference could not be saved.', 'error'); return; }
+  if (!current()) return;
+  grid.classList.toggle('hidden', hidden); footer?.classList.toggle('hidden', hidden); arrow?.classList.toggle('collapsed', hidden);
+  if (arrow) { arrow.setAttribute('aria-expanded', String(!hidden)); const label = arrow.getAttribute('aria-label') || ''; if (hidden && /^Collapse /i.test(label)) arrow.setAttribute('aria-label', label.replace(/^Collapse /i, 'Expand ')); else if (!hidden && /^Expand /i.test(label)) arrow.setAttribute('aria-label', label.replace(/^Expand /i, 'Collapse ')); }
 }
 
 // Per-metric primary-source override picker. Reads connected sources that

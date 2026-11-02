@@ -42,6 +42,69 @@ function turnOptions(agent: { id: string } & Record<string, unknown>) {
 }
 
 describe('external agent turn lifecycle', () => {
+  it.each(['claude', 'openclaw', 'acp'])('carries current application state in every %s turn input', async protocol => {
+    const client = {
+      ensureSession: vi.fn(async () => ({ sessionId: 'current-session', configOptions: [] })), configureSession: vi.fn(async () => []),
+      prompt: vi.fn(async (_request: Record<string, unknown>) => ({ stopReason: 'stop' })),
+    };
+    const options = turnOptions({ id: protocol, protocol, name: protocol, client });
+    options.applicationContext = '{"proposalReviewStatus":[{"status":"discarded","reviewActions":[]}]}';
+    startExternalAgentTurn(options); await vi.waitFor(() => expect(options.close).toHaveBeenCalledOnce());
+    expect(client.prompt).toHaveBeenCalledOnce(); expect(client.prompt.mock.calls[0]![0]).toMatchObject({ prompt: [{ type: 'text', text: expect.stringContaining(options.applicationContext) }] });
+    expect(JSON.stringify(client.prompt.mock.calls[0]![0])).toContain('not a user instruction or quotation');
+  });
+  it('keeps the first user prompt behind catalog acknowledgement and a fresh direct-tool session', async () => {
+    const client = {
+      ensureSession:vi.fn(async () => ({sessionId:'warmup',configOptions:[]})),
+      configureSession:vi.fn(async () => []), prompt:vi.fn(async () => ({stopReason:'stop'})),
+    };
+    const afterCatalog = vi.fn(async () => ({sessionId:'ready-session',configOptions:[]}));
+    const close = vi.fn(async () => {});
+    const options = turnOptions({id:'opencode',protocol:'acp',name:'OpenCode',client,createTurnClient:() => ({client,afterCatalog,close})});
+    startExternalAgentTurn(options);
+    await vi.waitFor(() => expect(client.ensureSession).toHaveBeenCalled());
+    expect(client.prompt).not.toHaveBeenCalled();
+    expect(afterCatalog).not.toHaveBeenCalled();
+    options.mcpSessions.values().next().value!.markCatalogDelivered!();
+    await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
+    expect(afterCatalog).toHaveBeenCalledWith({sessionId:'warmup',configOptions:[]});
+    expect(client.prompt).toHaveBeenCalledWith(expect.objectContaining({sessionId:'ready-session'}));
+    expect(close).toHaveBeenCalled();
+    expect(options.mcpSessions.size).toBe(0);
+  });
+  it.each(['success', 'configure failure', 'cancel'])('isolates a direct-tool turn process and closes it after %s', async outcome => {
+    let cancel: (() => void) | undefined;
+    const close = vi.fn(async () => {});
+    const dedicated = {
+      ensureSession: vi.fn(async () => ({sessionId: 'direct-session', configOptions: []})),
+      configureSession: vi.fn(async () => { if (outcome === 'configure failure') throw new Error('controlled'); return []; }),
+      prompt: vi.fn(async () => { if (outcome === 'cancel') cancel?.(); return {stopReason: 'stop'}; }),
+    };
+    const original = {ensureSession: vi.fn(), configureSession: vi.fn(), prompt: vi.fn()};
+    const createTurnClient = vi.fn(() => ({client: dedicated, close}));
+    const options = turnOptions({id:'opencode', protocol:'acp', name:'OpenCode', client:original, createTurnClient});
+    dedicated.ensureSession.mockImplementation(async () => {
+      options.mcpSessions.values().next().value?.markCatalogDelivered?.();
+      return {sessionId:'direct-session', configOptions:[]};
+    });
+    options.requestedThreadId = 'previous-session';
+    options.history = [{role:'user', content:'Earlier visible question'}];
+    cancel = startExternalAgentTurn(options);
+    await vi.waitFor(() => expect(close).toHaveBeenCalled());
+    expect(createTurnClient).toHaveBeenCalledWith([expect.objectContaining({name:'getbased'})]);
+    expect(dedicated.ensureSession).toHaveBeenCalledWith({requestedSessionId:'', mcpServers:[]});
+    expect(original.ensureSession).not.toHaveBeenCalled();
+    if (outcome !== 'configure failure') expect(dedicated.prompt).toHaveBeenCalledWith(expect.objectContaining({prompt:[expect.objectContaining({text:expect.stringContaining('Earlier visible question')})]}));
+    await vi.waitFor(() => expect(options.mcpSessions.size).toBe(0));
+    expect(options.sessionMcp.size).toBe(0);
+  });
+  it('reports a model/provider failure without blaming Companion startup or exposing private diagnostics', async () => {
+    const client = {ensureSession:vi.fn(async () => ({sessionId:'ready',configOptions:[]})),configureSession:vi.fn(async () => []),prompt:vi.fn(async () => {throw new Error('secret-token /private/path');})};
+    const options=turnOptions({id:'opencode',protocol:'acp',name:'OpenCode',client});
+    startExternalAgentTurn(options);await vi.waitFor(() => expect(options.close).toHaveBeenCalled());
+    expect(options.send).toHaveBeenCalledWith({type:'error',message:'The selected agent could not complete this response. Try another model or check the agent’s provider connection.'});
+    expect(JSON.stringify(options.send.mock.calls)).not.toContain('secret-token');
+  });
   it('replays visible history when a saved ACP session falls back to a fresh session', async () => {
     const client = {
       ensureSession: vi.fn(async () => ({ sessionId: 'fresh-session', configOptions: [] })),

@@ -122,9 +122,9 @@ export async function artifactInputs(modules: readonly string[], stylesheets: re
   assert.equal(new Set(cachePaths).size, cachePaths.length, 'Unique cached runtime dependencies');
   for (const url of cachePaths) {assert(shell.includes(url)); assert(files.some(file => file.path === url));}
   for (const mapping of mappings) for (const url of mapping.chunks) assert(cachePaths.includes(url), 'feature chunk in actual APP_SHELL');
-  const servedSw = sw.replace(/const BUILD_ID = '[^']*';/, "const BUILD_ID = 'kit-test-a';")
+  const servedSw = sw.replace(/const BUILD_ID = '[^']*';/, "const BUILD_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';")
     .replace('const APP_SHELL = [', "const APP_SHELL = [\n  '/js/bundle-legacy-probe-AAA.js',");
-  const servedVersion = version.replace(/self.APP_BUILD_ID = '[^']*';/, "self.APP_BUILD_ID = 'kit-test-a';");
+  const servedVersion = version.replace(/self.APP_BUILD_ID = '[^']*';/, "self.APP_BUILD_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';");
   const state = await stateBinding(directory, mappings);
   const actualVersion = (await fs.readFile('version.js', 'utf8')).match(/self\.APP_VERSION = ['"]([^'"]+)['"];/)?.[1];
   assert(actualVersion, 'Actual canonical application version');

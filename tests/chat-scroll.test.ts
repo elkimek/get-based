@@ -39,6 +39,37 @@ describe('chat latest control', () => {
     expect(button.hidden).toBe(true);
   });
 
+  it('retains a paused reader across a temporary empty transcript without announcing a new reply', () => {
+    container.scrollTop = 400;
+    chatScroll.initChatScrollControls();
+    const position = chatScroll.captureChatScrollPosition(container);
+    Object.defineProperty(container, 'scrollHeight', { configurable: true, value: 200 });
+    container.scrollTop = 0;
+    container.dispatchEvent(new Event('scroll'));
+    Object.defineProperty(container, 'scrollHeight', { configurable: true, value: 1000 });
+
+    chatScroll.restoreChatScrollPosition(container, position);
+    expect(container.scrollTop).toBe(400);
+    expect(button.hidden).toBe(false);
+    expect(button.textContent).toContain('Jump to latest');
+    expect(button.classList.contains('has-new-content')).toBe(false);
+    expect(chatScroll.notifyChatContentAdded(container)).toBe(false);
+    expect(container.scrollTop).toBe(400);
+    expect(button.textContent).toContain('New response');
+  });
+
+  it('follows genuinely new content only when the reader was at the latest message before rendering', () => {
+    container.scrollTop = 800;
+    chatScroll.initChatScrollControls();
+    const position = chatScroll.captureChatScrollPosition(container);
+    Object.defineProperty(container, 'scrollHeight', { configurable: true, value: 1400 });
+    container.scrollTop = 0;
+
+    chatScroll.restoreChatScrollPosition(container, position, true);
+    expect(container.scrollTop).toBe(1400);
+    expect(button.hidden).toBe(true);
+  });
+
   it('continues following content while already near the latest message', () => {
     container.scrollTop = 760;
     chatScroll.initChatScrollControls();

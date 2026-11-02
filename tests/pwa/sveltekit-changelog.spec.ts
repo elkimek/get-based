@@ -3,7 +3,7 @@ import {expect, test, type Page} from '@playwright/test';
 import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js';
 import type {ProfileData} from '../../types/app-state.js';
 import {CURRENT_RELEASE} from '../../js/changelog-current.js';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
@@ -119,6 +119,6 @@ test('static Changelog first offline full history, seen state and two zero-page 
     expect(await artifactInputs()).toEqual(artifact); expect(errors).toEqual([]); expect(csp).toEqual([]); expect(external).toEqual([]);
     await info.attach('changelog-stopped-origin-acceptance', {body: JSON.stringify({artifact, before, onlineCache,
       servedWorkerSHA256: sha(new Uint8Array(servedWorker)), stoppedListener: true, coldLaunches: 2, boundaries, phases, traffic, errors, csp, external,
-      boundary: 'Actual built static Kit/SW/cache with native Settings Display Resources handoff; first offline Changelog construction and two zero-page cold clients. Whole real bundled live imported profile plus native IDB commit and full registry preserved. Synthetic unencrypted returning-user profile and paused credential-free OpenRouter; no external provider. Existing kit-test-a/version/legacyProbe fixture seam. No OS install, physical Safari/iPhone, SW termination, whole app or migration acceptance claim.'}, null, 2), contentType: 'application/json'});
+      boundary: 'Actual built static Kit/SW/cache with native Settings Display Resources handoff; first offline Changelog construction and two zero-page cold clients. Whole real bundled live imported profile plus native IDB commit and full registry preserved. Synthetic unencrypted returning-user profile and paused credential-free OpenRouter; no external provider. Existing aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/version/legacyProbe fixture seam. No OS install, physical Safari/iPhone, SW termination, whole app or migration acceptance claim.'}, null, 2), contentType: 'application/json'});
   } finally {if (!closed) await server.close();}
 });

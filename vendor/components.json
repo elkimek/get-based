@@ -258,6 +258,17 @@
         "vendor/evolu8/v8.24.1-web3.6.5/LICENSE",
         "vendor/evolu8/v8.24.1-web3.6.5/THIRD_PARTY_NOTICES.md"
       ]
+    },
+    {
+      "name": "@noble/hashes",
+      "version": "2.2.0",
+      "purl": "pkg:npm/%40noble/hashes@2.2.0",
+      "license": "MIT",
+      "source": "https://github.com/paulmillr/noble-hashes",
+      "monitoring": "github-advisory",
+      "files": [
+        "vendor/sha256.js"
+      ]
     }
   ],
   "projectFiles": [
@@ -269,6 +280,7 @@
     "vendor/ppq-private-tee.js",
     "vendor/ppq-private-tee.ts",
     "vendor/routstr-crypto.d.ts",
+    "vendor/sha256.d.ts",
     "vendor/tinfoil-browser.d.ts",
     "vendor/venice-dcap.d.ts",
     "vendor/venice-e2ee.d.ts",

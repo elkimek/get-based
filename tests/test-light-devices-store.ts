@@ -34,19 +34,24 @@ const {
   updateDeviceSession,
 } = await import('../js/light-devices-store.js');
 
+const { saveImportedData } = await import('../js/data.js');
+const { encryptedSetItem } = await import('../js/crypto.js');
+const { profileStorageKey } = await import('../js/profile.js');
 state.currentProfile = 'light-devices-store-test';
 let analysisCalls = 0;
 configureLightDevicesStore({
   maybeAnalyzeDeviceSessionAfterFinish: () => { analysisCalls++; },
 });
 
-function reset(seed = {}) {
+async function reset(seed = {}) {
   analysisCalls = 0;
   (state as { importedData: unknown }).importedData = Object.assign({ entries: [], lightDevices: [], deviceSessions: [] }, seed);
+  await encryptedSetItem(profileStorageKey(state.currentProfile, 'imported'), JSON.stringify(state.importedData));
+  assert('fixture seed saves canonically', await saveImportedData() === true);
 }
 
 console.log('%c 1. Device library mutations ', 'font-weight:bold;color:#f59e0b');
-reset();
+await reset();
 assert('getDevices lazily initializes lightDevices',
   Array.isArray(getDevices()) && getDevices().length === 0);
 assert('getDeviceSessions lazily initializes deviceSessions',
@@ -109,7 +114,7 @@ assert('addCustomDevice persists a sanitized custom device',
     && custom.coupling!.length === 1);
 
 console.log('%c 2. Session lifecycle ', 'font-weight:bold;color:#f59e0b');
-reset({ lightDevices: [{
+await reset({ lightDevices: [{
   id: 'sad-1',
   brand: 'Bright',
   model: 'Desk',
@@ -180,7 +185,7 @@ assert('delete miss paths return false',
   await deleteDevice('missing') === false
     && await deleteDeviceSession('missing') === false);
 
-reset({ lightDevices: [{
+await reset({ lightDevices: [{
   id: 'uv-1', brand: 'UV', model: '311', type: 'uvb',
   peakWavelengths: [311], mwPerCm2At15cm: 50, recommendedDistanceCm: 30,
 }] });
@@ -197,7 +202,7 @@ const protectedUvId = await startDeviceSession({ deviceId: 'uv-1', distanceCm: 3
 assert('Store boundary allows a UV timer with recorded eye protection',
   typeof protectedUvId === 'string' && getActiveDeviceSession()?.id === protectedUvId);
 
-reset({ deviceSessions: [
+await reset({ deviceSessions: [
   { id: 'recent', endedAt: Date.now(), doses: { circadian: 100, pbm_red: 5 } },
   { id: 'old', endedAt: Date.now() - 30 * 86400 * 1000, doses: { circadian: 999 } },
 ] });
@@ -216,11 +221,10 @@ assert('light-devices no longer persists device/session mutations directly',
   !/saveImportedData\(/.test(uiSrc)
     && !/deleteImportedArrayItem\(/.test(uiSrc)
     && !/state\.importedData\.(?:lightDevices|deviceSessions)\s*(?:\[|=|\.)/.test(uiSrc));
-assert('light-devices-store owns synced persistence for devices and sessions',
-  /saveImportedData\(/.test(storeSrc)
-    && /deleteImportedArrayItem\(state\.importedData, 'lightDevices'/.test(storeSrc)
-    && /deleteImportedArrayItem\(state\.importedData, 'deviceSessions'/.test(storeSrc)
-    && /computeDeviceSessionDoses/.test(storeSrc));
+assert('light-devices-store stages shared canonical device/session commands',
+  storeSrc.includes('captureLightEnvironmentWrite(observed, LIGHT_DEVICE_PAYLOAD_FIELDS)')
+    && storeSrc.includes('commitLightEnvironmentWrite(profileId, observed, base, source, next, allowed, LIGHT_DEVICE_FIELDS, LIGHT_DEVICE_PAYLOAD_FIELDS)')
+    && storeSrc.includes("import * as mutations from './light-device-mutations.js'"));
 assert('light-devices-store routes analyzer hook through injected deps',
   storeSrc.includes('configureLightDevicesStore')
     && storeSrc.includes('maybeAnalyzeDeviceSessionAfterFinish: requestDeviceSessionAnalysis')

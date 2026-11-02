@@ -1,6 +1,6 @@
 import path from 'node:path';
 import {devices, expect, test, type BrowserContext, type Page} from '@playwright/test';
-import {startKitServer} from './kit-server.js';
+import {startKitServer} from './kit-release-server.js';
 import {artifactInputs} from './kit-native-receipts.js';
 import {captureOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import type {SyncRuntimeClient} from '../../js/sync-runtime.js';

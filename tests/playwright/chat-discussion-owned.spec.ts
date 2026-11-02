@@ -4,6 +4,8 @@ test.beforeEach(async ({ page, context }) => {
   await installDiscussionFixture(context); await page.goto('/app');
   await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.evaluate(async () => {
+    // Start outside the empty dashboard's deferred chat onboarding action.
+    (await import('/js/views.js')).navigate('labs');
     await (await import('/js/chat-loader.js')).openChatPanel();
     const { state } = await import('/js/state.js');
     (await import('/js/chat-discussion-lifecycle.js')).cleanupDiscussionState();
@@ -13,6 +15,43 @@ test.beforeEach(async ({ page, context }) => {
     (await import('/js/chat-discussion-ui.js')).updateDiscussButton();
   });
   await expect(page.locator('[data-chat-discussion-view]')).toBeVisible();
+});
+for (const outcome of ['success', 'failure'] as const) test(`discussion actions wait for the native save lock and recover after ${outcome}`, async ({page}) => {
+  const before = await page.evaluate(async failure => {
+    const {state} = await import('/js/state.js'), threads = await import('/js/chat-threads.js');
+    const {CHAT_PERSONALITIES} = await import('/js/constants.js');
+    const personas = CHAT_PERSONALITIES.slice(0, 2).map(({id, name, icon}) => ({id, name, icon}));
+    (await import('/js/chat-discussion-lifecycle.js')).showDiscussContinuePrompt(personas, 'default');
+    await threads.saveChatThreadIndex();
+    const key = threads.getChatThreadsKey(), before = localStorage.getItem(key);
+    if (failure) {
+      const write = Storage.prototype.setItem; let rejected = false;
+      Storage.prototype.setItem = function(name, value) {
+        if (name === key && !rejected) {rejected = true; throw new DOMException('Synthetic storage failure', 'QuotaExceededError');}
+        return write.call(this, name, value);
+      };
+    }
+    await new Promise<void>(entered => {
+      void navigator.locks.request(`getbased-chat-index-${state.currentProfile}`, () => new Promise<void>(release => {
+        Reflect.set(window, 'releaseDiscussionWrite', release); entered();
+      }));
+    });
+    return {key, value: before};
+  }, outcome === 'failure');
+  await page.locator('.chat-discussion-end').click();
+  await expect(page.getByRole('region', {name: 'Active discussion'})).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('.chat-discussion-add')).toBeDisabled(); await expect(page.locator('.chat-discussion-end')).toBeDisabled();
+  await expect(page.locator('#chat-discuss-btn')).toBeDisabled(); await expect(page.locator('.chat-discussion-progress')).toHaveText('Saving discussion…');
+  expect(await page.evaluate(key => localStorage.getItem(key), before.key)).toBe(before.value);
+  await page.evaluate(() => {Reflect.get(window, 'releaseDiscussionWrite')();});
+  if (outcome === 'success') await expect(page.locator('.chat-discussion-mode')).toHaveCount(0);
+  else {
+    await expect(page.locator('.chat-discussion-add')).toBeEnabled();
+    expect(await page.evaluate(key => localStorage.getItem(key), before.key)).toBe(before.value);
+    await page.locator('.chat-discussion-add').click();
+    await expect(page.getByRole('dialog', {name: 'Add a participant'})).toBeVisible();
+    await expect(page.locator('.discuss-persona-picker input[data-locked="1"]')).toHaveCount(2);
+  }
 });
 test('owned discussion picker selects one additional perspective and keeps keyboard focus', async ({ page }) => {
   await page.getByRole('button', { name: 'Start a discussion', exact: true }).click();

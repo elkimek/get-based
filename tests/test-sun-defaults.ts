@@ -288,9 +288,10 @@ installLightSetupDelegates(delegateDom.window.document);
   (state as unknown as { importedData: unknown }).importedData = { entries: [] };
   await saveImportedData();
 
+  const beforeDefaultsRead = JSON.stringify(state.importedData);
   const empty = getSunDefaults();
-  assert('getSunDefaults seeds importedData.sunDefaults when missing',
-    empty && typeof empty === 'object' && (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults === empty);
+  assert('getSunDefaults reads empty defaults without initializing health data',
+    empty && typeof empty === 'object' && Object.keys(empty).length === 0 && JSON.stringify(state.importedData) === beforeDefaultsRead);
 
   await saveSunDefaults({ fitzpatrick: 'III', homeLight: 'led-warm' });
   const after1 = getSunDefaults();

@@ -3,6 +3,7 @@ import type { ImportReviewMarker, PendingImport } from './pdf-import-review-runt
 // Import review modal rendering and interaction state
 import { state } from './state.js';
 import { prepareImportCommit } from './import-commit-validation.js';
+import { chooseImportSample, importReviewSampleOptions } from './lab-report-samples.js';
 
 let failedReview: PendingImport | null = null;
 import { formatCost } from './schema.js';
@@ -171,6 +172,15 @@ function handleImportReviewInput(event: Event) {
 }
 
 function handleImportReviewChange(event: Event) {
+  const destination = closestImportReviewElement(event.target, '[data-import-review-action="sample-destination"]');
+  if (destination instanceof HTMLSelectElement) {
+    const result = getPendingImport();
+    if (result) {
+      try { chooseImportSample(result, state.importedData, state.currentProfile, destination.value); updateImportConfirmCount(); }
+      catch (error) { showNotification(error instanceof Error ? error.message : 'Choose a sample.', 'error'); }
+    }
+    return;
+  }
   const dateInput = closestImportReviewElement(event.target, '[data-import-review-action="manual-date"]');
   if (dateInput instanceof HTMLInputElement) {
     applyManualImportDate(dateInput.value);
@@ -391,6 +401,9 @@ export function showImportPreview(parseResult: PendingImport) {
   const modal = document.getElementById('import-modal');
   const overlay = document.getElementById('import-modal-overlay');
   if (!modal || !overlay) return;
+  let samples: NonNullable<ImportReviewPresentationInput['samples']>;
+  try { samples = importReviewSampleOptions(parseResult, state.importedData, state.currentProfile); }
+  catch (error) { showNotification(error instanceof Error ? error.message : 'Could not verify the sample destination.', 'error'); return; }
   const matched = markers.filter(m => m.matched);
   const newMarkers = markers.filter(m => !m.matched && m.suggestedKey);
   const unmatched = markers.filter(m => !m.matched && !m.suggestedKey);
@@ -455,11 +468,11 @@ export function showImportPreview(parseResult: PendingImport) {
     ? `Update Import (${importCount} Marker${importCount !== 1 ? 's' : ''})`
     : `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
   const view: ImportReviewPresentationInput = {
-    batchLabel, fileName, date, sampleTime, fasting,
+    batchLabel, fileName, date, sampleTime, fasting, samples,
     counts: {matched: matched.length, new: newMarkers.length, unmatched: unmatched.length}, rows,
     unmatchedWarning: unmatchedRatio > 0.4 && unmatched.length > 10, dateWarning: !date,
     ranges: rangesDiffCount > 0 ? {count: rangesDiffCount, checked: parseResult._adoptReferenceRanges !== false} : null,
-    privacy, cost, debug, privacyDetails, cancelLabel, confirmLabel, confirmDisabled: !date,
+    privacy, cost, debug, privacyDetails, cancelLabel, confirmLabel, confirmDisabled: !date || samples.required && !samples.value,
   };
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   setPendingImportRuntime(parseResult, refLookup);
@@ -571,6 +584,10 @@ function updateImportConfirmCount() {
   if (btn) btn.textContent = result._reReviewSnapshotId
     ? `Update Import (${importCount} Marker${importCount !== 1 ? 's' : ''})`
     : `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
+  if (btn instanceof HTMLButtonElement) {
+    const samples = importReviewSampleOptions(result, state.importedData, state.currentProfile);
+    btn.disabled = !result.date || samples.required && !samples.value;
+  }
 }
 
 export function setImportReviewFilter(btn: HTMLElement) {
@@ -610,6 +627,7 @@ export function applyManualImportDate(dateStr: string | null | undefined) {
   const pendingImport = getPendingImport();
   if (!pendingImport) return;
   const nextDate = (dateStr || '').trim();
+  pendingImport._excludedImportIndices = Array.from(getExcludedImportIndices());
   if (pendingImport.date !== nextDate) pendingImport._benchmarkDateEdited = true;
   pendingImport.date = nextDate;
   if (btn) {
@@ -618,6 +636,7 @@ export function applyManualImportDate(dateStr: string | null | undefined) {
     btn.style.cursor = '';
   }
   persistCurrentImportReviewDraft();
+  showImportPreview(pendingImport);
 }
 
 export function applyManualImportCollectionContext(patch: { sampleTime?: unknown; fasting?: unknown } = {}) {

@@ -52,7 +52,7 @@ export async function planProfileDeltas(profileId: string, importedData: DeltaIm
     // as the array planner. Flat names hit the obvious top-level.
     const obj = mapName.includes('.') ? getAt(importedData, mapName) : importedData[mapName];
     try {
-      const plan = await _planKeyedMapDelta(profileId, mapName, obj);
+      const plan = await _planKeyedMapDelta(profileId, mapName, obj, { geneticsSnpTombstones: importedData.geneticsSnpTombstones, geneticsLifecycle: importedData.geneticsLifecycle });
       if (plan.ops.length > 0) {
         deltaPlans.push({ arrayName: mapName, plan });
         deltaOpCount += plan.ops.length;

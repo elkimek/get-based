@@ -6,6 +6,7 @@ import { showNotification } from './utils.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 import { loadDataProtectionStylesheet } from './modal-lifecycle.js';
 import { loadSettingsSyncPanelModule } from './settings-sync-panel.js';
+import { SETTINGS_TABS } from './settings-shell-contract.js';
 
 type SettingsModule = typeof import('./settings.js');
 
@@ -117,6 +118,16 @@ function runLoadedSettingsAction(name: keyof SettingsModule, args: unknown[]) {
 export function openSettingsModal(...args: unknown[]) {
   return runSettingsAction('openSettingsModal', args);
 }
+/** Fixed native handoff with ownership rechecked after the lazy load. */
+export async function openAISettingsForOwner(isCurrent: () => boolean) {
+  return openSettingsForOwner('ai', isCurrent);
+}
+export async function openSettingsForOwner(tab: string, isCurrent: () => boolean) {
+  if (!SETTINGS_TABS.some(item => item.id === tab) || !isCurrent()) return false;
+  const module = await loadSettingsModule();
+  if (!isCurrent()) return false;
+  return module.openSettingsModal(tab, isCurrent);
+}
 
 export function closeSettingsModal(...args: unknown[]) {
   return runSettingsAction('closeSettingsModal', args);
@@ -134,6 +145,8 @@ function installSettingsLoaderBridge() {
   configureSettingsModuleBridge({
     applyAccentOverride,
     openSettingsModal,
+    openAISettingsForOwner,
+    openSettingsForOwner,
     closeSettingsModal,
     openTweaksPanel,
     closeTweaksPanel,
