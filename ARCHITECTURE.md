@@ -1612,7 +1612,11 @@ the higher-layer behavior through a narrow runtime seam.
   name fields include short names; standalone matches preserve measured clinical
   rows. Lab values, units, test names, age and collection/report dates retain
   their source meaning. The local-model review displays and sends the finalized
-  privacy result. `pii-scroll-sync.ts` owns only review-pane scroll coordination.
+  privacy result. `pii-review.ts` retires text, thinking, queued frame and
+  completion callbacks when an attempt stops, is replaced, completes or closes.
+  Opted-in batch callers distinguish unavailable review from deliberate cancel;
+  a successful retry or explicit regex replacement clears prior model failure.
+  `pii-scroll-sync.ts` owns only review-pane scroll coordination.
 - `state.js` is shared in-memory session state. Do not treat it as durable
   storage or add feature callbacks to it.
 - Lab marker values and ranges remain in their schema-canonical units at rest.
@@ -1662,8 +1666,11 @@ the higher-layer behavior through a narrow runtime seam.
   dedupe storage without network access; `auto-import-feed-runtime.js` fetches
   only after the user saved an address and hands downloaded PDFs to
   `handleBatchPDFs`, marking an item done only when the review reports it saved
-  or skipped. It claims the shared import lock only after its last await and
-  never commits health data itself.
+  or deliberately skipped. Unavailable privacy review (including Cancel after
+  an unrecovered model failure, or while a configured model is unreachable)
+  reports failure and remains eligible for a later feed check. It claims the
+  shared import lock only after its last await and never commits health data
+  itself.
 - Native history reads capture the profile, thread, live message-array identity
   and its exact value. A delayed read or read failure cannot replace or clear
   newer replies, reviews, edits or removals in that same conversation. A retired

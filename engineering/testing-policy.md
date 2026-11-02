@@ -724,11 +724,18 @@ retains priority across line breaks.
 Both local-model transports retain the same captured profile hints and key
 through finalization without storing it. The review contracts in
 [`pii-review-presentation.test.ts`](../tests/pii-review-presentation.test.ts)
-require Send to use the finalized result and its actual character count.
+require Send to use the finalized result and its actual character count. They
+also require retired text, thinking, queued frame and completion callbacks to
+leave regex replacements and newer attempts intact. Unavailable-review opt-in,
+stylesheet failure and recovery retain ordinary Cancel behavior for other
+callers. [`pdf-import-batch-privacy.test.ts`](../tests/pdf-import-batch-privacy.test.ts)
+drives real batch and feed handlers: privacy failures remain eligible on the
+next check, while a subsequent deliberate skip is persisted as handled.
 [`pii-scroll-sync.test.ts`](../tests/pii-scroll-sync.test.ts) covers proportional
 scrolling and echo suppression; the real-browser
 [`pii-browser-coverage.spec.ts`](../tests/playwright/pii-browser-coverage.spec.ts)
-retains configuration, sanitizer and editable-review checks. These synthetic
+retains configuration, sanitizer and editable-review checks, including a
+controlled queued-frame race after regex replacement. These synthetic
 checks do not establish recognition of every real report layout or language.
 
 Opening CLI Settings and an explicit rescan must refresh installed versions through the separately installed Companion. Ordinary discovery keeps its short unused-port deadline; only an identified Companion receives the longer bounded refresh request. Version probes run asynchronously and concurrently against each configured executable and its launcher arguments, without ACP/gateway arguments, authentication checks, client restarts or gateway enumeration. Failed probes clear stale version text. Browser refresh failures retain the already discovered agents and their original discovery credential with version text cleared; explicit caller cancellation still discards the result. Concurrent refreshes share work, and discovery origin/credential boundaries remain unchanged. [Version probes](../tests/local-agent-version-refresh.test.ts), [host discovery](../tests/agent-host-service.test.ts), [browser discovery](../tests/agent-chat-settings.test.ts) and [Settings presentation](../tests/cli-companion-ui.test.ts) cover this contract.

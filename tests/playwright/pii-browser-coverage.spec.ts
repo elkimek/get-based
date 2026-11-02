@@ -7,6 +7,47 @@ const openBlankPage = createBlankPage({
   body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
 });
 
+test('PII review keeps a selected regex result when retired model callbacks arrive', async ({ page }) => {
+  await openBlankPage(page, '/pii-retired-stream');
+  const result = await page.evaluate(async () => {
+    const { reviewPIIBeforeSend } = await import('/js/pii-review.js');
+    const { loadDataProtectionStylesheetForAction } = await import('/js/modal-lifecycle.js');
+    await loadDataProtectionStylesheetForAction();
+    const originalRAF = window.requestAnimationFrame;
+    const frames: FrameRequestCallback[] = [];
+    window.requestAnimationFrame = callback => { frames.push(callback); return frames.length; };
+    let lateText: (text: string) => void = () => {};
+    let lateThinking: (text: string) => void = () => {};
+    let finish: (text: string) => void = () => {};
+    try {
+      const pending = reviewPIIBeforeSend('Patient: Alice White', {
+        reportUnavailable: true,
+        streamFn: (onChunk, _signal, onThinking) => {
+          lateText = onChunk; lateThinking = onThinking;
+          onChunk('Patient: Alice White'); onThinking('old reasoning');
+          return new Promise<string>(resolve => { finish = resolve; });
+        },
+      }, {
+        obfuscatePDFText: () => ({ original: 'Patient: Alice White', obfuscated: 'Patient: Jane Doe', replacements: 1 }),
+        unloadOllamaPIIModel: () => {},
+      });
+      document.querySelector<HTMLButtonElement>('#pii-review-regex')!.click();
+      lateText('late private output'); lateThinking('late reasoning'); finish('old finalized output');
+      await Promise.resolve(); await Promise.resolve();
+      for (const frame of frames.splice(0)) frame(0);
+      const textarea = document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!;
+      const text = textarea.value;
+      const thinking = document.querySelector('#pii-thinking-content')!.textContent;
+      const status = document.querySelector('#pii-stream-status')!.textContent;
+      document.querySelector<HTMLButtonElement>('#pii-review-send')!.click();
+      return { text, thinking, status, sent: await pending };
+    } finally {
+      window.requestAnimationFrame = originalRAF;
+    }
+  });
+  expect(result).toEqual({ text: 'Patient: Jane Doe', thinking: '', status: 'Regex applied — 1 replacement', sent: 'Patient: Jane Doe' });
+});
+
 test('PII review preserves clinical text and synchronizes real editable panes', async ({ page }) => {
   await openBlankPage(page, '/pii-scroll-and-redaction');
   const prepared = await page.evaluate(async () => {

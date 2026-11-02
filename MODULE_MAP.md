@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 2092 |
-| Internal import edges | 7035 |
+| Internal import edges | 7036 |
 | Dynamic internal edges | 216 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -67,8 +67,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | --- | ---: | --- | ---: |
 | [`js/state.ts`](js/state.ts) | 340 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 81 |
 | [`js/utils.ts`](js/utils.ts) | 271 | [`js/agent-data-bindings.ts`](js/agent-data-bindings.ts) | 45 |
-| [`js/data.ts`](js/data.ts) | 97 | [`js/chat-send.ts`](js/chat-send.ts) | 41 |
-| [`js/caught-error.ts`](js/caught-error.ts) | 96 | [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts) | 36 |
+| [`js/caught-error.ts`](js/caught-error.ts) | 97 | [`js/chat-send.ts`](js/chat-send.ts) | 41 |
+| [`js/data.ts`](js/data.ts) | 97 | [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 86 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/profile.ts`](js/profile.ts) | 71 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 66 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
@@ -4202,7 +4202,7 @@ Native browser modules shipped with the static application.
 - [`js/pii-pseudonym.ts`](js/pii-pseudonym.ts) → no in-scope imports
 - [`js/pii-redaction.ts`](js/pii-redaction.ts) → [`js/pii-pseudonym.ts`](js/pii-pseudonym.ts)
 - [`js/pii-review-presentation.ts`](js/pii-review-presentation.ts) → [`js/components/PIIDiffFragment.svelte`](js/components/PIIDiffFragment.svelte), [`js/components/PIIDiffViewer.svelte`](js/components/PIIDiffViewer.svelte), [`js/components/PIIReviewModal.svelte`](js/components/PIIReviewModal.svelte)
-- [`js/pii-review.ts`](js/pii-review.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pii-review-presentation.ts`](js/pii-review-presentation.ts), [`js/pii-scroll-sync.ts`](js/pii-scroll-sync.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/pii-review.ts`](js/pii-review.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/pii-review-presentation.ts`](js/pii-review-presentation.ts), [`js/pii-scroll-sync.ts`](js/pii-scroll-sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/pii-scroll-sync.ts`](js/pii-scroll-sync.ts) → no in-scope imports
 - [`js/pii.ts`](js/pii.ts) → [`js/api-transport.ts`](js/api-transport.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/local-ai-provider-registry.ts`](js/local-ai-provider-registry.ts), [`js/pii-redaction.ts`](js/pii-redaction.ts), [`js/pii-review.ts`](js/pii-review.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
