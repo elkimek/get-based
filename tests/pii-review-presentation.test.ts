@@ -145,6 +145,17 @@ describe('genuine PII children and retained controller',()=>{
     click('#pii-stream-retry');expect(signals).toHaveLength(2);expect(signals[1]!.aborted).toBe(false);
     click('#pii-review-cancel');expect(await done).toBe('cancel');expect(signals[1]!.aborted).toBe(true);
   });
+  it('sends the finalized privacy result and shows its actual length', async () => {
+    const finalText='Patient: John Doe\nGlucose 91 mg/dL';
+    const done=reviewPIIBeforeSend('Patient: Alice Smith\nGlucose 91 mg/dL', {streamFn:onChunk=>{
+      onChunk('unfinished model draft');return Promise.resolve(finalText);
+    }}, {obfuscatePDFText:()=>({original:'original',obfuscated:'regex',replacements:1}),unloadOllamaPIIModel:vi.fn()});
+    await Promise.resolve();await Promise.resolve();
+    const textarea=window.document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!;
+    expect(textarea.value).toBe(finalText);expect(textarea.readOnly).toBe(false);
+    expect(window.document.querySelector('#pii-stream-status')!.textContent).toBe(`Complete — ${finalText.length} chars — click text to edit`);
+    click('#pii-review-send');expect(await done).toBe(finalText);
+  });
   it('retains blur preview and click-line caret/scroll restoration', async () => {
     vi.useFakeTimers();const done=reviewPIIBeforeSend('first\nAlice', {obfuscatedText:'first\nBob'}, {obfuscatePDFText:()=>({original:'Alice',obfuscated:'Bob',replacements:1}),unloadOllamaPIIModel:vi.fn()});
     const textarea=window.document.querySelector<HTMLTextAreaElement>('#pii-edit-textarea')!;

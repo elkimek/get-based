@@ -1599,6 +1599,20 @@ the higher-layer behavior through a narrow runtime seam.
 
 ## State, storage, and privacy boundaries
 
+- `pii-redaction.ts` owns pure text-report redaction. Each import captures profile
+  name, DOB and sex hints once and uses a fresh in-memory key for repeated
+  identifiers across its pages and local-model passes. No pseudonym key is
+  persisted or shared across reports. `pii-pseudonym.ts` reuses vendored SHA-256.
+  Patient names use conventional Czech, Slovak or English fictional names.
+  Specific Czech/Slovak label vocabulary supplies the language hint; shared,
+  mixed or unknown clues use English aliases without suppressing name removal.
+  Reported sex, including multiline fields, takes priority over profile sex.
+  Aliases avoid original labeled name components so final privacy validation
+  cannot mistake an intentional replacement for retained identity. Explicit
+  name fields include short names; standalone matches preserve measured clinical
+  rows. Lab values, units, test names, age and collection/report dates retain
+  their source meaning. The local-model review displays and sends the finalized
+  privacy result. `pii-scroll-sync.ts` owns only review-pane scroll coordination.
 - `state.js` is shared in-memory session state. Do not treat it as durable
   storage or add feature callbacks to it.
 - Lab marker values and ranges remain in their schema-canonical units at rest.

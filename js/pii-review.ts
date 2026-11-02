@@ -1,6 +1,7 @@
 // pii-review.js — PII diff rendering and review-modal interaction.
 
 import type { ModalOverlayOptions } from './modal-lifecycle.js';
+import { syncPIIReviewScroll } from './pii-scroll-sync.js';
 
 export type PIIStreamFunction = (
   onChunk: (chunk: string) => void,
@@ -8,7 +9,9 @@ export type PIIStreamFunction = (
   onThinking: (chunk: string) => void,
 ) => Promise<unknown>;
 export interface PIIReviewOptions { obfuscatedText?: string; streamFn?: PIIStreamFunction | null; }
-type PIIReviewDeps = Pick<typeof import('./pii.js'), 'obfuscatePDFText' | 'unloadOllamaPIIModel'>;
+type PIIReviewDeps = Pick<typeof import('./pii.js'), 'unloadOllamaPIIModel'> & {
+  obfuscatePDFText: (text: string) => Pick<ReturnType<typeof import('./pii.js').obfuscatePDFText>, 'original' | 'obfuscated' | 'replacements'>;
+};
 type DiffOperation =
   | { type: 'equal'; original: string; replacement: string }
   | { type: 'add'; replacement: string }
@@ -211,6 +214,8 @@ export function reviewPIIBeforeSend(
     const stopButton = overlay.querySelector<HTMLButtonElement>('#pii-stream-stop');
     const leftPanel = overlay.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-left');
     const mobileOriginal = overlay.querySelector<HTMLElement>('.pii-mobile-original-body');
+    const rightPanel = overlay.querySelector<HTMLElement>('.pii-review-viewer > .pii-diff-right');
+    if (leftPanel && rightPanel) syncPIIReviewScroll(leftPanel, rightPanel);
     let dirty = false;
 
     searchInput.addEventListener('input', () => {
@@ -416,8 +421,13 @@ export function reviewPIIBeforeSend(
           },
           abortController.signal,
           onThinking,
-        ).then(() => {
+        ).then(finalText => {
           flushToTextarea();
+          // Send exactly what the non-streaming path would: the finalized, re-checked text.
+          if (typeof finalText === 'string' && finalText) {
+            textarea.value = finalText;
+            characterCount = finalText.length;
+          }
           textarea.readOnly = false;
           sendButton.disabled = false;
           statusElement.textContent = `Complete \u2014 ${characterCount.toLocaleString()} chars \u2014 click text to edit`;
