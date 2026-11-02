@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import crypto from 'node:crypto';
-import {PATIENT_PLACEHOLDER, parsePersonName, parseReportDate, patientPseudonym, redactReportText} from '../js/pii-redaction.js';
+import {PATIENT_PLACEHOLDER, detectSexFromPDF, parsePersonName, parseReportDate, patientPseudonym, redactReportText, reportLanguageHint} from '../js/pii-redaction.js';
 import {hmacSha256, sha256} from '../js/pii-pseudonym.js';
 import {obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming} from '../js/pii.js';
 import {state} from '../js/state.js';
@@ -230,6 +230,8 @@ describe('fictional patient names and medical text', () => {
   it.each([
     ['Jméno: Karel Svoboda\nPohlaví: muž', 'Jan Novák'],
     ['Jméno: Eva Svobodová\nPohlaví: žena', 'Jana Nováková'],
+    ['Meno: Martin Kováč\nPohlavie: muž', 'Peter Horváth'],
+    ['Meno: Anna Kováčová\nPohlavie: žena', 'Petra Horváthová'],
     ['Patient: Robert Smith\nSex: Male', 'John Doe'],
     ['Patient: Alice Smith\nSex: Female', 'Jane Doe'],
   ])('uses a consistent conventional name for %s', (input, replacement) => {
@@ -282,6 +284,87 @@ describe('fictional patient names and medical text', () => {
     const out = run('DOB: 2026-09-30\nCollected: 2026-09-30\nGlucose 91 mg/dL');
     expect(out).toContain('Collected: 2026-09-30\nGlucose 91 mg/dL');
     expect(out).not.toContain('DOB: 2026-09-30');
+  });
+});
+
+describe('Slovak redaction and report-language hints', () => {
+  const run = (input: string) => redactReportText(input, {key: 'synthetic-slovak-report-key'}).text;
+
+  it.each([
+    ['Jméno: Karel Svoboda', 'cs'],
+    ['Jmeno: Karel Svoboda', 'cs'],
+    ['Příjmení: Svoboda', 'cs'],
+    ['Pohlaví: žena', 'cs'],
+    ['Meno: Martin Kováč', 'sk'],
+    ['Priezvisko: Kováč', 'sk'],
+    ['Pohlavie: žena', 'sk'],
+    ['Dátum odberu: 15.01.2026', 'sk'],
+    ['Datum narodenia: 15.01.1990', 'sk'],
+    ['Pacient: Martin Kováč', null],
+    ['Rodné číslo: 900115/1234', null],
+    ['Meno: Martin Kováč\nJméno: Karel Svoboda', null],
+    ['Patient: Robert Smith', null],
+    ['Patient: Meno Smith', null],
+    ['Patient: Dátum Smith', null],
+  ] as const)('uses specific language clues in %s', (input, language) => {
+    expect(reportLanguageHint(input)).toBe(language);
+  });
+
+  it('redacts the previously missed Slovak fields without any profile-name hint', () => {
+    const input = 'Meno: Martin Kováč\nPriezvisko: Kováč\nPohlavie: muž\nDátum odberu: 15.01.2026\nGlukóza 5.2 mmol/L 3.9-5.6';
+    expect(run(input)).toBe('Meno: Peter Horváth\nPriezvisko: Peter Horváth\nPohlavie: muž\nDátum odberu: 15.01.2026\nGlukóza 5.2 mmol/L 3.9-5.6');
+  });
+
+  it.each([
+    'Meno a priezvisko: Anna Kováčová',
+    'Priezvisko a meno: Kováčová, Anna',
+    'Meno pacienta: Anna Kováčová',
+    'Meno Anna Kováčová',
+    'Meno: anna kováčová',
+  ])('handles combined, whitespace and lowercase Slovak name fields: %s', field => {
+    const out = run(`${field}\nPohlavie: žena\nPacient: Anna Kováčová`);
+    expect(out).not.toMatch(/Kováčová|Anna/iu);
+    expect(out.match(/Petra Horváthová/g)).toHaveLength(2);
+  });
+
+  it('bounds separately labeled names and Slovak sex on the same line', () => {
+    expect(run('Meno: Anna Priezvisko: Kováčová Pohlavie: žena')).toBe('Meno: Petra Horváthová Priezvisko: Petra Horváthová Pohlavie: žena');
+    expect(run('Meno: Bo Priezvisko: Li Pohlavie: muž')).toBe('Meno: Peter Horváth Priezvisko: Peter Horváth Pohlavie: muž');
+  });
+
+  it('uses reported Slovak sex before profile sex, with or without accents', () => {
+    expect(detectSexFromPDF('Pohlavie: žena')).toBe('female');
+    expect(detectSexFromPDF('Pohlavie: zena')).toBe('female');
+    expect(detectSexFromPDF('Pohlavie: M')).toBe('male');
+    expect(patientPseudonym('Meno: Anna Kováčová\nPohlavie: žena', 'male')).toBe('Petra Horváthová');
+    expect(patientPseudonym('Meno: Martin Kováč\nPohlavie: muž', 'female')).toBe('Peter Horváth');
+    expect(patientPseudonym('Meno: Anna Kováčová', 'female')).toBe('Petra Horváthová');
+  });
+
+  it('does not reuse the original Slovak name when it equals a fixed alias', () => {
+    expect(patientPseudonym('Meno: Peter Horvath\nPohlavie: muž')).toBe('Ján Novák');
+    expect(patientPseudonym('Meno: Petra Horváthová\nPohlavie: žena')).toBe('Jana Nováková');
+  });
+
+  it('keeps name removal independent of an unknown or mixed language hint', () => {
+    expect(run('Pacient: Martin Kováč')).toBe('Pacient: John Doe');
+    expect(run('Meno: Martin Kováč\nJméno: Karel Svoboda')).toBe('Meno: John Doe\nJméno: John Doe');
+  });
+
+  it('handles Slovak DOB, clinician and address fields without changing results or draw dates', () => {
+    const input = 'Meno: Anna Kováčová\nPohlavie: žena\nDátum narodenia: 15.01.1990\nLekár: MUDr. Ivana Malá\nBydlisko: Hlavná 42, Nitra\nDátum odberu: 20260115\nGlukóza 5.2 mmol/L 3.9-5.6';
+    const out = run(input);
+    expect(out).not.toMatch(/Anna|Kováčová|15\.01\.1990|Ivana|Malá|Hlavná|Nitra/u);
+    expect(out).toContain('Meno: Petra Horváthová');
+    expect(out).toMatch(/Dátum narodenia: \d{2}\.\d{2}\.1990/);
+    expect(out).toMatch(/Lekár: \[PHYSICIAN-[A-Z2-9]{4}\]/);
+    expect(out).toMatch(/Bydlisko: \[ADDRESS-[A-Z2-9]{4}\]/);
+    expect(out).toContain('Dátum odberu: 20260115\nGlukóza 5.2 mmol/L 3.9-5.6');
+  });
+
+  it('leaves clinical rows after empty Slovak identity fields intact', () => {
+    const input = 'Meno:\nGlukóza 5.2 mmol/L\nPriezvisko:\nKreatinín 80 µmol/L\nDátum narodenia:\nFerritín 120 ng/mL';
+    expect(run(input)).toBe(input);
   });
 });
 

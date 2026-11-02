@@ -27,22 +27,35 @@ export interface RedactionResult { readonly text: string; readonly replacements:
 export const PATIENT_PLACEHOLDER = 'John Doe';
 
 export function detectSexFromPDF(text: string) {
-  if (/(?:pohlav[ií]|sex|gender)[\s:]+(?:ž|žena|female|f)(?:\s|$)/im.test(text)) return 'female';
-  if (/(?:pohlav[ií]|sex|gender)[\s:]+(?:m|muž|male)(?:\s|$)/im.test(text)) return 'male';
+  if (/(?:^|[^\p{L}])(?:pohlav(?:[ií]|ie)|sex|gender)[ \t:]+(?:ž|z|žena|zena|female|f)(?=$|\s)/imu.test(text)) return 'female';
+  if (/(?:^|[^\p{L}])(?:pohlav(?:[ií]|ie)|sex|gender)[ \t:]+(?:m|muž|muz|male)(?=$|\s)/imu.test(text)) return 'male';
   if (/\b\d{2}(5[1-9]|6[0-2])\d{2}\/\d{3,4}\b/.test(text)) return 'female';
   return null;
 }
 
+/** Specific label vocabulary supplies a hint; shared or mixed labels remain ambiguous. */
+export function reportLanguageHint(input: string): 'cs' | 'sk' | null {
+  const label = (source: string) => new RegExp(`(?:^|[^\\p{L}])(?:${source})[ \\t]*:|(?:^|\\t| {2,})(?:${source})(?=[ \\t]+[\\p{L}\\d])`, 'imu').test(input);
+  const czech = label(String.raw`jm[ée]no(?:[ \t]+a[ \t]+p[řr][íi]jmen[íi])?|p[řr][íi]jmen[íi]|pohlav[ií]|(?:datum[ \t]+)?narozen[ií]|lékař|(?:datum[ \t]+)?odběr(?:u)?`);
+  const slovak = label(String.raw`meno(?:[ \t]+(?:a[ \t]+priezvisko|pacienta))?|priezvisko(?:[ \t]+a[ \t]+meno)?|pohlavie|(?:d[áa]tum[ \t]+)?naroden(?:ia|ie)|lekár|dátum(?:[ \t]+odberu)?`);
+  return czech === slovak ? null : czech ? 'cs' : 'sk';
+}
+
+const PATIENT_NAMES = {
+  cs: { male: ['Jan Novák', 'Petr Svoboda'], female: ['Jana Nováková', 'Marie Svobodová'] },
+  sk: { male: ['Peter Horváth', 'Ján Novák'], female: ['Petra Horváthová', 'Jana Nováková'] },
+  en: { male: ['John Doe', 'Richard Roe'], female: ['Jane Doe', 'Jane Roe'] },
+} as const;
+const ANONYMOUS_PATIENT = { cs: 'Anonymní pacient', sk: 'Anonymný pacient', en: 'Anonymous patient' } as const;
+
 /** Familiar fictional names, chosen once per report without inferring sex from a name. */
 export function patientPseudonym(input: string, profileSex?: string | null, profileName?: string | null) {
-  const czech = /(?:^|[^\p{L}])(?:jm[ée]no|p[řr][íi]jmen[íi]|pacient|pohlav[ií]|rodn[ée][ \t]+[čc][íi]slo|datum[ \t]+odb[ěe]ru)(?=$|[^\p{L}])/imu.test(input);
+  const language = reportLanguageHint(input) ?? 'en';
   const female = (detectSexFromPDF(input) || profileSex) === 'female';
-  const names = czech
-    ? female ? ['Jana Nováková', 'Marie Svobodová'] : ['Jan Novák', 'Petr Svoboda']
-    : female ? ['Jane Doe', 'Jane Roe'] : ['John Doe', 'Richard Roe'];
+  const names = PATIENT_NAMES[language][female ? 'female' : 'male'];
   const original = `${input}\n${profileName || ''}`.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
   return names.find(name => !original.includes(name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()))
-    || (czech ? 'Anonymní pacient' : 'Anonymous patient');
+    || ANONYMOUS_PATIENT[language];
 }
 
 interface Person { first: string; last: string; middle: string; raw: string; }
@@ -64,6 +77,7 @@ const NON_NAME_WORDS = new Set([
   'demographics', 'identification', 'signature', 'consent', 'location', 'value', 'values', 'type', 'source', 'comments', 'notes',
   'unknown', 'none', 'n/a', 'provided', 'available', 'redacted', 'anonymous', 'withheld', 'on', 'file', 'is', 'to', 'be',
   'pohlaví', 'pohlavi', 'věk', 'vek', 'datum', 'narození', 'narozeni', 'adresa', 'lékař', 'lekar', 'pacient', 'jméno', 'jmeno',
+  'meno', 'priezvisko', 'pohlavie', 'dátum', 'narodenia', 'narodenie', 'lekár', 'bydlisko', 'pacienta',
 ]);
 // Real first names that are also common report words: replaced only inside full-name forms, never standalone.
 const STANDALONE_DENY = new Set([
@@ -80,14 +94,14 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 const US_STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|PR';
 const STREET_SUFFIX = 'Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Court|Ct|Way|Parkway|Pkwy|Place|Pl|Circle|Cir|Highway|Hwy|Terrace|Ter|Trail|Trl|Square|Sq|Loop|Pike|Plaza|Plz';
 const UNIT_KEYWORDS = /\b(mmol|[µμu]mol|[µμu]kat|g\/l|mg\/l|ng\/l|[µμu]g|mU\/l|pmol|nmol|ml\/s|fL|pg|×10|10\^|u\/l|iu\/l|sec|s\/1|mg\/dL|ng\/dL|ng\/mL|mIU\/mL|mEq\/L|mcg|cells\/uL|thou\/uL|mill\/uL|x10E\d)\b|%/i;
-const NEXT_LABEL_RE = /\s{2,}|\t|\s+(?:DOB|D\.O\.B|Date|Sex|Gender|Age|Phone|Tel|Fax|Email|Patient|Account|Acct|Specimen|Accession|Control|MRN|ID|NPI|Address|Physician|Ordering|Referring|Doctor|Provider|Collected|Received|Reported|Pohlav[ií]|V[ěe]k|Datum|Adresa|Rodn[ée]|L[ée]ka[řr])\b[^:\n]{0,20}:/iu;
-const COLLECTION_LABEL_RE = /(?:collect|odb[ěe]r|received|reported|report[ \t]+date|specimen[ \t]+date|sample[ \t]+date|drawn|datum|date)/i;
+const NEXT_LABEL_RE = /\s{2,}|\t|\s+(?:DOB|D\.O\.B|Date|Sex|Gender|Age|Phone|Tel|Fax|Email|Patient|Account|Acct|Specimen|Accession|Control|MRN|ID|NPI|Address|Physician|Ordering|Referring|Doctor|Provider|Collected|Received|Reported|Pohlav(?:[ií]|ie)|V[ěe]k|D[áa]tum|Adresa|Bydlisko|Rodn[ée]|L[ée]k[áa][řr]|Jm[ée]no|P[řr][íi]jmen[íi]|Meno|Priezvisko)(?!\p{L})[^:\n]{0,20}:/iu;
+const COLLECTION_LABEL_RE = /(?:collect|odb[ěe]r|received|reported|report[ \t]+date|specimen[ \t]+date|sample[ \t]+date|drawn|d[áa]tum|date)/i;
 const COMPACT_DATE_LABEL_RE = new RegExp(`(?:^|[^\\p{L}])${COLLECTION_LABEL_RE.source}\\p{L}*(?:[ \\t]+(?:date|on|at|odb[ěe]ru))?[ \\t]*:?[ \\t]*$`, 'iu');
 const MAX_SPANS = 0xF8FF - 0xE100;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const DATE_SOURCE = String.raw`(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{1,2}\.\s\d{1,2}\.\s\d{4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4})`;
-const DOB_LABEL_SOURCE = String.raw`(?:DOB|D\.O\.B\.?|date[ \t]+of[ \t]+birth|birth[ \t]*date|datum[ \t]+narozen[ií]|narozen[ií]?|nar\.)`;
+const DOB_LABEL_SOURCE = String.raw`(?:DOB|D\.O\.B\.?|date[ \t]+of[ \t]+birth|birth[ \t]*date|datum[ \t]+narozen[ií]|narozen[ií]?|(?:d[áa]tum[ \t]+)?naroden(?:ia|ie)|nar\.)`;
 
 function escapeRegExp(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
@@ -273,14 +287,14 @@ export function redactReportText(input: string, context: RedactionContext): Reda
 
   const patients: Person[] = [];
   const addPatient = (person: Person | null) => { if (person && person.last) patients.push(person); };
-  const patientLabel = /(?:^|[^\p{L}])(?:(?:patient|full|legal)[ \t]+name|(?<!(?:physician|doctor|provider|clinician|facility|lab|laboratory|test|company|practice|clinic|hospital|ordering|referring|plan|insurance|file|user)[ \t]+)name|patient|surname|last[ \t]+name|first[ \t]+name|jm[ée]no(?:[ \t]+a[ \t]+p[řr][íi]jmen[íi])?|p[řr][íi]jmen[íi]|pacient)[ \t]*:[ \t]*/giu;
-  const czechPatientLabel = /(?:^|[^\p{L}])(?:jm[ée]no|pacient|p[řr][íi]jmen[íi])[ \t]+(?=\p{Lu})/giu;
+  const patientLabel = /(?:^|[^\p{L}])(?:(?:patient|full|legal)[ \t]+name|(?<!(?:physician|doctor|provider|clinician|facility|lab|laboratory|test|company|practice|clinic|hospital|ordering|referring|plan|insurance|file|user)[ \t]+)name|patient|surname|last[ \t]+name|first[ \t]+name|jm[ée]no(?:[ \t]+a[ \t]+p[řr][íi]jmen[íi])?|p[řr][íi]jmen[íi]|meno(?:[ \t]+(?:a[ \t]+priezvisko|pacienta))?|priezvisko(?:[ \t]+a[ \t]+meno)?|pacient)[ \t]*:[ \t]*/giu;
+  const czechSlovakPatientLabel = /(?:^|[^\p{L}])(?:jm[ée]no|pacient|p[řr][íi]jmen[íi]|meno(?:[ \t]+(?:a[ \t]+priezvisko|pacienta))?|priezvisko(?:[ \t]+a[ \t]+meno)?)[ \t]+(?=\p{Lu})/giu;
   // English labels followed by a space instead of a colon ("Patient Jane Smith"): only at the start of a
   // line or column, and only as a full capitalized name, so headings like "Patient Report" stay.
   const spacedPatientLabel = /(?:^|\n|\t|[ ]{2,})(?:(?:patient|full|legal)\s+name|patient|name)[ \t]+(?=\p{Lu})/giu;
   const labelRuns: Array<{ re: RegExp; options: { allowLowercase?: boolean; minTokens?: number } }> = [
     { re: patientLabel, options: { allowLowercase: true } },
-    { re: czechPatientLabel, options: {} },
+    { re: czechSlovakPatientLabel, options: {} },
     { re: spacedPatientLabel, options: { minTokens: 2 } },
   ];
   for (const { re, options } of labelRuns) {
@@ -302,7 +316,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   }
 
   const physicians: Person[] = [];
-  const physicianLabel = /(?:^|[^\p{L}])(?:(?:(?:ordering|referring|attending|treating|primary)[ \t]+)?(?:physician|doctor|provider|clinician)(?:[ \t]+name)?|ordering|referring|l[ée]ka[řr]|o[šs]et[řr]uj[íi]c[íi](?:[ \t]+l[ée]ka[řr])?)(?:[ \t]*:[ \t]*|[ \t]+(?=\p{L}))/giu;
+  const physicianLabel = /(?:^|[^\p{L}])(?:(?:(?:ordering|referring|attending|treating|primary)[ \t]+)?(?:physician|doctor|provider|clinician)(?:[ \t]+name)?|ordering|referring|l[ée]k[áa][řr]|o[šs]et[řr]uj[íiú]c[íi](?:[ \t]+l[ée]k[áa][řr])?)(?:[ \t]*:[ \t]*|[ \t]+(?=\p{L}))/giu;
   const physicianOptions = (label: string, rest: string) => ({
     allowLowercase: true,
     minTokens: label.includes(':') || TITLE_RE.test(rest.trim().split(/\s+/)[0] || '') ? 1 : 2,
@@ -314,7 +328,7 @@ export function redactReportText(input: string, context: RedactionContext): Reda
   }
 
   // ── Addresses ──
-  const addressLabel = /((?:^|[^\p{L}])(?:address|residence|adresa|bydli[šs]t[ěe]|trval[ée][ \t]+bydli[šs]t[ěe])(?:[ \t]*:[ \t]*|[ \t]+(?=[\p{L}\d])))([^\n]+)/giu;
+  const addressLabel = /((?:^|[^\p{L}])(?:address|residence|adresa|bydli[šs]t[ěe]|bydlisko|trval[ée][ \t]+(?:bydli[šs]t[ěe]|bydlisko))(?:[ \t]*:[ \t]*|[ \t]+(?=[\p{L}\d])))([^\n]+)/giu;
   text = text.replace(addressLabel, (_match, label: string, rest: string) => {
     const value = segmentValue(rest).trim();
     if (!value || /^\uE000/.test(value) || NON_NAME_WORDS.has(value.toLowerCase())) return label + rest;

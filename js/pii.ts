@@ -128,7 +128,7 @@ REPLACE these with fake data:
 - Doctor names → fictional doctor names
 - Patient IDs → random numbers
 
-The text has already passed through local deterministic redaction. Fictional patient names such as Jan Novák, Jana Nováková, John Doe or Jane Doe, bracketed placeholders such as [PHYSICIAN-AB12], [ADDRESS-AB12] or [PHONE-AB12], dates of birth and patient identifiers are already replaced — copy those supplied values exactly. Remove remaining identifying names and contact details. Keep the supplied birth year and age unchanged.
+The text has already passed through local deterministic redaction. Fictional patient names such as Jan Novák, Jana Nováková, Peter Horváth, Petra Horváthová, John Doe or Jane Doe, bracketed placeholders such as [PHYSICIAN-AB12], [ADDRESS-AB12] or [PHONE-AB12], dates of birth and patient identifiers are already replaced — copy those supplied values exactly. Remove remaining identifying names and contact details. Keep the supplied birth year and age unchanged.
 
 DO NOT CHANGE (copy exactly as-is):
 - Collection dates, sample dates, and report dates — these are critical. Only dates of birth should change

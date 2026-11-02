@@ -44,6 +44,26 @@ test('PII review preserves clinical text and synchronizes real editable panes', 
   await expect.poll(() => page.evaluate(() => Reflect.get(window, 'piiReviewResult'))).toBe(prepared.result + '\nReviewed');
 });
 
+test('PII redacts Slovak names with the selected aliases and preserves report evidence', async ({ page }) => {
+  await openBlankPage(page, '/pii-slovak-report');
+  const results = await page.evaluate(async () => {
+    const pii = await import('/js/pii.js');
+    const render = (name: string, sex: string) => {
+      const page = `Meno a priezvisko: ${name}\nPohlavie: ${sex}\nDátum narodenia: 15.01.1990\nDátum odberu: 15.01.2026\nPatient ID: PX4471\nGlukóza 5.2 mmol/L 3.9-5.6`;
+      return pii.obfuscatePDFText(`=== Page 1 ===\n${page}\n=== Page 2 ===\n${page}`).obfuscated;
+    };
+    return {male: render('Martin Kováč', 'muž'), female: render('Anna Kováčová', 'žena')};
+  });
+  expect(results.male.match(/Meno a priezvisko: Peter Horváth/g)).toHaveLength(2);
+  expect(results.female.match(/Meno a priezvisko: Petra Horváthová/g)).toHaveLength(2);
+  for (const text of [results.male, results.female]) {
+    expect(text).not.toMatch(/Martin|Anna|Kováč|15\.01\.1990|PX4471/);
+    expect(text.match(/Dátum odberu: 15\.01\.2026/g)).toHaveLength(2);
+    expect(text.match(/Glukóza 5\.2 mmol\/L 3\.9-5\.6/g)).toHaveLength(2);
+    expect(new Set(text.match(/Patient ID: \S+/g)).size).toBe(1);
+  }
+});
+
 test('PII browser coverage exercises config probes regex obfuscation and diff helpers', async ({ page }) => {
   await openBlankPage(page, '/pii-browser-coverage');
 

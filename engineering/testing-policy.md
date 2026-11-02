@@ -714,7 +714,8 @@ does not establish a fresh whole-project combined measurement.
 ## Release and integration evidence
 
 Report privacy contracts in [`pii-redaction.test.ts`](../tests/pii-redaction.test.ts)
-cover conventional Czech/English fictional names, short and lowercase labeled
+cover conventional Czech/Slovak/English fictional names, shared and mixed language
+clues, Slovak identity/DOB fields, short and lowercase labeled
 identities, exact clinical-row preservation and report-local identifier keys.
 Both local-model transports retain the same captured profile hints and key
 through finalization without storing it. The review contracts in

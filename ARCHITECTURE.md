@@ -1603,8 +1603,10 @@ the higher-layer behavior through a narrow runtime seam.
   name, DOB and sex hints once and uses a fresh in-memory key for repeated
   identifiers across its pages and local-model passes. No pseudonym key is
   persisted or shared across reports. `pii-pseudonym.ts` reuses vendored SHA-256.
-  Patient names use conventional Czech or English fictional names, selected
-  from report language and reported sex with profile sex as a fallback. Explicit
+  Patient names use conventional Czech, Slovak or English fictional names.
+  Specific Czech/Slovak label vocabulary supplies the language hint; shared,
+  mixed or unknown clues use English aliases without suppressing name removal.
+  Reported sex takes priority over profile sex. Explicit
   name fields include short names; standalone matches preserve measured clinical
   rows. Lab values, units, test names, age and collection/report dates retain
   their source meaning. The local-model review displays and sends the finalized
