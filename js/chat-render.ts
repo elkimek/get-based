@@ -12,7 +12,7 @@ import { disposeChatProviderSetup } from './chat-provider-setup-component.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
 import { renderChatCitations } from './chat-message-content.js';
 import {
-  followChatLatest, initChatScrollControls, notifyChatContentAdded,
+  captureChatScrollPosition, followChatLatest, initChatScrollControls, restoreChatScrollPosition,
 } from './chat-scroll.js';
 import {
   expandChatRenderWindow,
@@ -33,10 +33,21 @@ export function _renderLensSources(chunks: unknown, sourceName?: unknown) {
   return renderChatCitations(chunks, sourceName);
 }
 
-export function renderChatMessages({ preserveScroll = false, attentionMessage }: {preserveScroll?:boolean; attentionMessage?: object} = {}) {
+const renderedConversations = new WeakMap<HTMLElement, {
+  profile: typeof state.currentProfile; thread: typeof state.currentThreadId; count: number; latestContent: string;
+}>();
+
+export function renderChatMessages({ preserveScroll, attentionMessage }: {preserveScroll?:boolean; attentionMessage?: object} = {}) {
   const container = document.getElementById('chat-messages');
   if (!container) return;
   initChatScrollControls();
+  const previous = renderedConversations.get(container);
+  const sameConversation = previous?.profile === state.currentProfile && previous?.thread === state.currentThreadId;
+  const position = sameConversation && preserveScroll !== false ? captureChatScrollPosition(container) : null;
+  const current = { profile: state.currentProfile, thread: state.currentThreadId,
+    count: state.chatHistory.length, latestContent: state.chatHistory.at(-1)?.content || '' };
+  const hasNewContent = !!previous && (current.count > previous.count
+    || current.count === previous.count && current.latestContent !== previous.latestContent);
   const panel = document.getElementById('chat-panel');
   panel?.classList.remove('chat-onboarding-active');
 
@@ -44,6 +55,7 @@ export function renderChatMessages({ preserveScroll = false, attentionMessage }:
     disposeChatTranscript();
     resetChatRenderWindow(state.currentThreadId);
     renderEmptyChatState(container, panel);
+    renderedConversations.set(container, current);
     followChatLatest(container, { behavior: 'auto' });
     updateDiscussButton();
     return;
@@ -53,7 +65,8 @@ export function renderChatMessages({ preserveScroll = false, attentionMessage }:
   disposeChatOptionalSetup();
   const renderStart = getChatRenderStart(state.currentThreadId, state.chatHistory.length);
   renderChatTranscript(container, projectChatTranscript(renderStart, attentionMessage));
-  if (preserveScroll) notifyChatContentAdded(container);
+  renderedConversations.set(container, current);
+  if (position) restoreChatScrollPosition(container, position, hasNewContent);
   else followChatLatest(container, { behavior: 'auto' });
   updateDiscussButton();
   updateChatHeaderTitle();

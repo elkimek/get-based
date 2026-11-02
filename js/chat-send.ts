@@ -311,7 +311,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   (state.chatHistory.push as (...messages:unknown[])=>number)(userMsg);
   const sendingHistory = state.chatHistory;
   generationHistory = sendingHistory;
-  renderChatMessages();
+  renderChatMessages({ preserveScroll: false });
   let saved = false;
   chatSavePending = true;
   try { saved = await saveChatHistory(); }
