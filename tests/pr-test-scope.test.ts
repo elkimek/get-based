@@ -159,6 +159,7 @@ describe('native tooling and mandatory PR validation', () => {
     ['scripts/playwright-coverage.mts', 'tests/coverage-gate.test.ts'],
     ['scripts/quality-guardrails.mts', 'tests/quality-guardrails.test.ts'],
     ['scripts/upgrade-demos.mts', 'tests/project-owned-ci.test.ts'],
+    ['scripts/refresh-demo-treatments.mts', 'tests/demo-treatment-data.test.ts'],
   ])('selects the precise artifact contract for %s without selecting unrelated tests', (native, test) => {
     const sources = new Map([[native!, ''], [test!, ''], ['tests/unrelated.test.ts', '']]);
     for (const changed of [native!, native!.replace(/\.mts$/, '.mjs')]) {

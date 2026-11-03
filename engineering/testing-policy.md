@@ -760,6 +760,9 @@ and the mitochondrial evidence catalog are separate from this chat contract.
 Legacy regimen regression checks preserve reported amounts beside missing dated
 doses, retain dated-dose precedence, and never turn label directions or inactive
 records into current personal dosing or infer elemental amounts/frequency.
+Therapy projection regressions also check actual detailed/indexed/omitted counts,
+later course dates and whole-record budgets, including oversized first records;
+the response receipt must never claim that omitted records were supplied.
 
 Report privacy contracts in [`pii-redaction.test.ts`](../tests/pii-redaction.test.ts)
 cover conventional Czech/Slovak/English fictional names, shared and mixed language

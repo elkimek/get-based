@@ -64,6 +64,7 @@ const TOOL_SCOPES: readonly ToolScope[] = [
   { sources: ['scripts/playwright-coverage.mjs'], tests: ['tests/coverage-source.test.js', 'tests/coverage-gate.test.js', 'tests/playwright/coverage-fixture.spec.js'] },
   { sources: ['scripts/quality-guardrails.mjs'], tests: ['tests/quality-guardrails.test.js'] },
   { sources: ['scripts/upgrade-demos.mjs'], tests: ['tests/project-owned-ci.test.js', 'tests/test-demo.js', 'tests/playwright/demo-biology.spec.js', 'tests/playwright/demo-nutrition.spec.js'] },
+  { sources: ['scripts/refresh-demo-treatments.mjs'], tests: ['tests/demo-treatment-data.test.js', 'tests/test-demo.js', 'tests/playwright/demo-biology.spec.js'] },
 ];
 
 // These are actual shipping entry/configuration owners, not artificial test

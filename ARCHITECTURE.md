@@ -1691,6 +1691,10 @@ the higher-layer behavior through a narrow runtime seam.
 - Supplement and medication status is derived from dated periods. Product-label
   facts, a user's regimen, inactive materials, and source quality evidence stay
   separate; AI consumers use the bounded projections in `supplement-context.js`.
+  Whole dated index rows are budgeted before dose-detail upgrades, prioritizing
+  named therapies and medications. The prompt and response receipt disclose
+  actual detailed, indexed and omitted record counts; counted rows are never
+  truncated afterward. Index date ranges have no separate count cap.
   An active legacy free-text regimen remains visible as an explicitly undated
   report beside a missing dated dose; it never fills historical dose periods or
   infers missing elemental amounts, frequency or daily totals.
