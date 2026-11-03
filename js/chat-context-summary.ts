@@ -11,9 +11,14 @@ const CONTEXT_AREA_LABELS: Readonly<Record<string, unknown>> = {
 
 function sectionDetail(name: string, content: string) {
   if (name === 'supplements') {
-    const counts = content.match(/^Therapy records in this prompt: (\d+) of (\d+) with dose detail/m);
+    const counts = content.match(/^Therapy records in this prompt: (\d+) of (\d+) with dose detail; (\d+) listed below by name and dates only; (\d+) omitted \(budget\)\./m);
     if (!counts) return '';
-    return counts[1] === counts[2] ? `${counts[2]} records` : `${counts[1]} of ${counts[2]} records detailed · rest by name and dates`;
+    const [detailed, total, indexed, omitted] = counts.slice(1).map(Number) as [number, number, number, number];
+    if (detailed + indexed + omitted !== total) return '';
+    if (detailed === total) return `${total} records`;
+    return [`${detailed} of ${total} records detailed`,
+      ...(indexed ? [`${indexed} indexed by name and dates`] : []),
+      ...(omitted ? [`${omitted} omitted (budget)`] : [])].join(' · ');
   }
   if (name === 'labSampleResults') return `${(content.match(/^\s*- /gm) || []).length} separate samples`;
   if (name === 'wearables') return content.match(/^## Wearables \(([^)]+)\)/m)?.[1] || '';

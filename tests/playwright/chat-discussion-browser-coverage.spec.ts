@@ -48,6 +48,9 @@ test('chat discussion state reopens ended current thread in browser', async ({ p
       localStorage.removeItem(threadIndexKey);
 
       const reopened = discussionState.reopenCurrentDiscussionThread();
+      // The native index publishes asynchronously under its cross-tab lock.
+      // Wait behind that publication without issuing another save ourselves.
+      await (await import('/js/chat-thread-index-storage.js')).withChatThreadIndexLock(profileId, () => {});
       const storedThreads = (JSON.parse as (text: string) => unknown)(localStorage.getItem(threadIndexKey) || '[]') as { id?: unknown; discussionEnded?: unknown }[];
       outcomes.reopenClearsEndedFlagAndPersistsIndex =
         reopened?.id === 'discussion-reopen-thread'

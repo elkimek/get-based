@@ -380,7 +380,7 @@ describe('therapy selection never hides a dated medication course', () => {
     expect(resolveSupplementContextMode('Ako som spal minulý týždeň?', records)).toBe('compact');
   });
 
-  it('includes medication notes in detail and lists every omitted record by name and dates', () => {
+  it('includes medication notes in detail and preserves prioritized dates under a tight budget', () => {
     const records = inventory();
     const detail = buildSupplementAIContext(records, { mode: 'detail', queryText: 'zentarolu', inventorySupplements: records, historyRange });
     expect(detail).toContain('restarted after a planned pause');
@@ -389,6 +389,68 @@ describe('therapy selection never hides a dated medication course', () => {
     expect(tight).toMatch(/Therapy records in this prompt: \d+ of 20 with dose detail; \d+ listed below by name and dates only/u);
     expect(tight).toContain('Zentarol 30 mg');
     expect(tight).toContain('2026-06-01→2026-07-31');
+  });
+
+  it.each([2200, 6500])('reports actual detailed, indexed and omitted coverage at %i characters', maxChars => {
+    const records = Array.from({ length: maxChars === 2200 ? 20 : 40 }, (_, i): SupplementRecord => ({
+      name: `Distinct therapy ${String(i).padStart(2, '0')}`,
+      type: 'medication',
+      periods: [{ start: '2025-01-01', end: '2025-03-01', dose: '10 mg/day' }],
+      note: 'Long clinical context '.repeat(20),
+    }));
+    const before = structuredClone(records);
+    const context = buildSupplementAIContext(records, { mode: 'compact', maxChars });
+    const counts = context.match(/^Therapy records in this prompt: (\d+) of (\d+) with dose detail; (\d+) listed below by name and dates only; (\d+) omitted \(budget\)\./u)!;
+    expect(counts).not.toBeNull();
+    const [detailed, total, indexed, omitted] = counts.slice(1).map(Number) as [number, number, number, number];
+    expect(total).toBe(records.length);
+    expect(detailed + indexed + omitted).toBe(total);
+    expect(records.filter(record => context.includes(record.name!))).toHaveLength(detailed + indexed);
+    expect(context.length).toBeLessThanOrEqual(maxChars);
+    const receipt = getContextSummary(`[section:supplements]\n## Supplements & Medications\n${context}[/section:supplements]\n`)[0]!;
+    if (indexed) expect(receipt.detail).toContain(`${indexed} indexed by name and dates`);
+    if (omitted) expect(receipt.detail).toContain(`${omitted} omitted (budget)`);
+    expect(receipt.detail).not.toContain('rest by name');
+    expect(records).toEqual(before);
+  });
+
+  it('keeps all records when the dated index fits even though dose details do not', () => {
+    const records = inventory();
+    const context = buildSupplementAIContext([], { inventorySupplements: records, maxChars: 3000 });
+    for (const record of records) expect(context).toContain(`${record.name} [`);
+    expect(context).toContain('0 of 20 with dose detail; 20 listed below by name and dates only; 0 omitted (budget)');
+  });
+
+  it('keeps the ninth and later stored date ranges when they fit', () => {
+    const record: SupplementRecord = { name: 'Repeated courses', type: 'medication', periods: Array.from({ length: 10 }, (_, i) => ({
+      start: `${2016 + i}-01-01`, end: `${2016 + i}-02-01`,
+    })) };
+    const context = buildSupplementAIContext([], { inventorySupplements: [record], maxChars: 2200 });
+    for (const period of record.periods!) expect(context).toContain(`${period.start}→${period.end}`);
+    expect(context).not.toContain('more)');
+    expect(context.length).toBeLessThanOrEqual(2200);
+  });
+
+  it.each([500, 1000, 1200, 2200])('never truncates counted records, including an oversized first product at %i characters', maxChars => {
+    const huge = product({ name: 'Oversized medicine', type: 'medication', note: 'Long note '.repeat(100),
+      labelWarnings: Array(8).fill('Very long source warning '.repeat(40)),
+      inactiveIngredients: Array.from({ length: 20 }, (_, i) => `Filler ${i} ${'x'.repeat(150)}`),
+      periods: Array.from({ length: 50 }, (_, i) => ({ start: `${1950 + i}-01-01`, end: `${1950 + i}-02-01`, dose: '20 mg/day' })),
+    });
+    const short: SupplementRecord = { name: 'Small medicine', type: 'medication', startDate: '2026-01-01' };
+    const context = buildSupplementAIContext([huge, short], { mode: 'detail', maxChars });
+    expect(context.length).toBeLessThanOrEqual(maxChars);
+    expect(context).toMatch(/^Therapy records in this prompt: \d+ of 2 with dose detail; \d+ listed below by name and dates only; \d+ omitted \(budget\)\./u);
+    expect(context).not.toContain('context truncated');
+    if (context.includes('Oversized medicine')) expect(context).toContain('omitted (budget)');
+    // An oversized first record must not prevent later small rows from fitting.
+    if (maxChars >= 1000) expect(context).toContain('Small medicine');
+  });
+
+  it('does not claim indexed coverage from incomplete or inconsistent receipt headers', () => {
+    const receipt = (header: string) => getContextSummary(`[section:supplements]\n## Supplements & Medications\n${header}\n[/section:supplements]\n`)[0]!.detail;
+    expect(receipt('Therapy records in this prompt: 1 of 20 with dose detail; 19 listed below by name and dates only.')).toBe('');
+    expect(receipt('Therapy records in this prompt: 1 of 20 with dose detail; 19 listed below by name and dates only; 2 omitted (budget).')).toBe('');
   });
 
   it('discloses partial therapy coverage in the response receipt', () => {
