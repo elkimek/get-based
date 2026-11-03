@@ -62,6 +62,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
 
       state.currentProfile = 'chat-empty-test';
       state.profiles = [{ id: 'chat-empty-test', name: 'Default', tags: [], notes: '', status: 'active' }];
+      localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
       state.profileSex = null;
       state.profileDob = null;
       (state as { importedData: unknown }).importedData = {
@@ -271,6 +272,7 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
       setProvider(connected);
       state.currentProfile = profileId;
       state.profiles = [{ id: profileId, name: 'Default', tags: [], notes: '', status: 'active' }];
+      localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
       state.profileSex = null;
       state.profileDob = null;
       state.currentChatPersonality = 'default';

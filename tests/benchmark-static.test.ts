@@ -116,6 +116,6 @@ it('selects only declared lab lanes while preserving exact markers, units, refer
     const contaminated = {...exported, [field]: {url: 'https://invalid.example', credential: 'SYNTHETIC-NOT-A-CREDENTIAL'}};
     expect(makeLaboratorySeed(contaminated)).toEqual(selected); expect(selected).not.toHaveProperty(field);
   }
-  expect(selected.entries).toHaveLength(8); expect(selected.entries).toEqual((demo as typeof selected).entries);
+  expect(selected.entries).toHaveLength(15); expect(selected.entries).toEqual((demo as typeof selected).entries);
   selected.entries[0]!.date = '2000-01-01'; expect(demo).toEqual(original);
 });

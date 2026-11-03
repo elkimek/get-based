@@ -336,7 +336,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/wearables-entry-presentation.js', '/js/components/WearableManualLog.svelte.html.js', '/js/components/WearableSourcePicker.svelte.html.js', '/js/wearables-runtime.js',
   '/js/wearables-auth-runtime.js', '/js/wearables-settings-runtime.js', '/js/wearables-settings-groups.js', '/js/wearables-settings-panel.js',
   '/js/wearables-store.js', '/js/wearables-manual-lock.js', '/js/wearables-whoop-storage.js', '/js/nutrition-store.js', '/js/nutrition-store-reads.js',
-  '/js/nutrition-storage-permission.js', '/js/nutrition-sync-sanitize.js', '/js/demo-nutrition.js', '/js/demo-biology-data.js',
+  '/js/nutrition-storage-permission.js', '/js/nutrition-sync-sanitize.js', '/js/demo-nutrition.js', '/js/demo-biology-data.js', '/js/demo-treatment-data.js',
   '/js/demo-biology-insights.js', '/js/nutrition-fuel-mix.js', '/js/nutrition-summary.js', '/js/nutrition-summary-context.js',
   '/js/nutrition-history.js', '/js/nutrition-history-view.js', '/js/route-lifecycle.js', '/js/nutrition-presentation-model.js',
   '/js/nutrition-view-classes.js', '/js/nutrition-dashboard-model.js', '/js/components/NutritionHistory.svelte.native.js', '/js/components/NutritionPresentation.svelte.html.js',
