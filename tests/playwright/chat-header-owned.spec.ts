@@ -1,4 +1,5 @@
 import { expect, test } from './coverage-fixture.js';
+import { openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
 
 test.beforeEach(async ({ page, context }) => {
   await context.route('https://openrouter.ai/**', route => route.abort());
@@ -11,13 +12,14 @@ test.beforeEach(async ({ page, context }) => {
     localStorage.setItem('labcharts-openrouter-model', 'openai/header-test');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([{ id: 'openai/header-test', name: 'Header model', supportsWebSearch: true }]));
   });
-  await page.goto('/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached(); await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); });
+  await page.goto('/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached(); await openDiscussionFixturePanel(page);
   await expect(page.locator('[data-chat-header-view]')).toBeVisible();
 });
 
 test('header owns actions once, keyboard switch, menu focus and layout state', async ({ page, isMobile }) => {
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js'); state.chatHistory = [{ role: 'user', content: '1' }, { role: 'assistant', content: '2' }, { role: 'user', content: '3' }, { role: 'assistant', content: '4' }];
+    if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Header fixture history could not save');
     (await import('/js/chat-personalities.js')).updateChatHeaderTitle();
     const shell = await import('/js/shell-actions.js'); shell.configureShellChatActionDeps({ summarizeThread: () => { document.body.dataset.headerSummaryCalls = String(Number(document.body.dataset.headerSummaryCalls || 0) + 1); } });
   });
@@ -51,6 +53,7 @@ test('header renders literal perspectives, context and private receipts across t
   test.setTimeout(120000);
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js'); state.importedData.interpretiveLens = 'A focused Lens'; state.chatHistory = [{ role: 'assistant', content: 'one', personalityName: '<img src=x>', personalityIcon: '🌿' }, { role: 'assistant', content: 'two', personalityName: 'Second' }];
+    if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Header perspective fixture history could not save');
     (await import('/js/chat-personalities.js')).updateChatHeaderTitle();
     (await import('/js/chat-attestation.js')).installAttestationTooltips();
     (await import('/js/chat-header-view.js')).renderChatHeader({ model: 'Literal <model>', privateMode: true, attestation: { nonceVerified: true, signingKeyBound: true, dcapVerified: true, gpuVerified: true, gpu: { tokensVerified: true, arch: '<GPU>' } } });

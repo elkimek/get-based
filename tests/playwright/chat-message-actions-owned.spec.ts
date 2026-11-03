@@ -1,17 +1,17 @@
 import { expect, test } from './coverage-fixture.js';
-import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import { installDiscussionFixture, openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
 
 test.beforeEach(async ({ page, context }) => {
   await installDiscussionFixture(context);
   await page.goto('/app');
+  await openDiscussionFixturePanel(page);
   await page.evaluate(async () => {
-    await (await import('/js/chat-loader.js')).openChatPanel();
     const { state } = await import('/js/state.js');
-    state.currentThreadId = 'message-actions';
     state.chatHistory = [
       { role: 'user', content: 'Review my latest message.' },
       { role: 'assistant', content: 'Literal answer.', context: [{ label: '<Private labs>', detail: 'LongImportedContext0123456789LongImportedContext0123456789LongImportedContext0123456789' }], agentDrafts: [{ id: 'review', profileId: state.currentProfile!, kind: 'note', status: 'pending', summary: '<script>literal summary</script>', payload: { scope: 'profile', mode: 'append', text: 'Literal <img src=x onerror=alert(1)> proposal\nSecond line.' } }] },
     ];
+    if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Message actions fixture history could not save');
     (await import('/js/chat-render.js')).renderChatMessages();
     (await import('/js/chat-message-actions-component.js')).ensureChatMessageActions();
     const writes: string[] = [];

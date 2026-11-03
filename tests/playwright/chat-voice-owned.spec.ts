@@ -1,9 +1,15 @@
 import { expect, test } from './coverage-fixture.js';
 import { installChatVoiceFixture, type Fixture } from '../helpers/chat-voice-fixture.js';
+import { openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
 test.beforeEach(async ({ page, context }) => {
   await installChatVoiceFixture(context);
   await page.goto('/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached();
-  await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); const { state } = await import('/js/state.js'); state.chatHistory = [{ role: 'user', content: 'Voice fixture question' }, { role: 'assistant', content: 'Review ferritin with your clinician.' }]; (await import('/js/chat-render.js')).renderChatMessages(); });
+  await openDiscussionFixturePanel(page);
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js'); state.chatHistory = [{ role: 'user', content: 'Voice fixture question' }, { role: 'assistant', content: 'Review ferritin with your clinician.' }];
+    if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Voice fixture history could not save');
+    (await import('/js/chat-render.js')).renderChatMessages();
+  });
   await expect(page.locator('[data-chat-voice-view]')).toBeVisible(); await expect(page.locator('#chat-listen-btn-1')).toHaveAttribute('data-chat-speech-owned', '');
 });
 test('owned voice button records once, transcribes into the draft and updates accessible status', async ({ page }) => {
