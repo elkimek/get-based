@@ -713,6 +713,54 @@ does not establish a fresh whole-project combined measurement.
 
 ## Release and integration evidence
 
+Demo medication scenarios must retain prescription dates, dose-period continuity,
+plausible follow-up timing, benefits and uncertainty about adverse effects, along
+with consistent component/derived measurements. Source/rolling fixtures, native
+migration and chat context are checked in
+[`demo-treatment-data.test.ts`](../tests/demo-treatment-data.test.ts); real browser
+import/export, medication cards and reload are checked in
+[`demo-biology.spec.ts`](../tests/playwright/demo-biology.spec.ts). The
+[scenario contract](demo-profiles.md) records the synthetic scope and sources.
+
+Chat medication policy checks in
+[`chat-medication-safety.test.ts`](../tests/chat-medication-safety.test.ts)
+retain educational discussion, the prescription-change boundary, reported
+clinician instructions, urgent-care escalation and optional appointment preparation.
+Adversarial built-in/custom persona text and peer names must remain quoted data,
+including newline/heading/quotation attacks, with the shared policy retained once
+in direct and CLI assembly. Provider-delivery checks include conflicting persona
+preferences. These verify construction and precedence instructions, not that a
+model will reject every adversarial persona. Ordinary possibility
+questions remain conditional when medication is unrecorded; trends alone cannot
+establish or exclude a medication effect or prove a lifestyle cause. Normal safety
+tests do not exclude milder effects, and exercise and medication can both contribute.
+Referrals must not become personalized change menus or trial protocols; general
+clinician approaches remain explainable when asked. The assistant must not
+propose provoking symptoms or abnormal test results, invent user motives or give
+unsupported personal-risk estimates. These checks bound the shared
+therapy-section size and verify single inclusion through persona and CLI prompt
+assembly. [`direct-chat-tools.test.ts`](../tests/direct-chat-tools.test.ts)
+verifies policy delivery across direct providers, including encrypted structured
+replies, without an additional inference. These deterministic contract checks
+do not measure live-model compliance or establish zero unsafe responses.
+
+The same chat contract distinguishes supplement exploration from prescription
+changes: open discussion of options/evidence, a brief professional-review
+suggestion for personal use, contextual risk checks and clear discouragement of
+dangerous doses/combinations. Combined amounts, units, frequency/duration,
+contraindications and unknown context must not be replaced by a blanket safety
+claim. Established numeric dose ranges, label explanations and supported
+weight-based ranges must remain discussable with sources and applicability,
+without selecting a personal regimen or replacing a rejected risky plan with one.
+General source-based dose limits are not personal targets. The existing
+260-word therapy-section cap remains unchanged. Supplement-context checks retain
+the contaminant-specific scope of quantitative ND/NQ/exposure restrictions; those
+restrictions must not silence other safety cautions. Non-chat feature prompts
+and the mitochondrial evidence catalog are separate from this chat contract.
+Legacy regimen regression checks preserve reported amounts beside missing dated
+doses, retain dated-dose precedence, and never turn label directions or inactive
+records into current personal dosing or infer elemental amounts/frequency.
+
 Report privacy contracts in [`pii-redaction.test.ts`](../tests/pii-redaction.test.ts)
 cover conventional Czech/Slovak/English fictional names, shared and mixed language
 clues, Slovak identity/DOB fields, short and lowercase labeled

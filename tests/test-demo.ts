@@ -353,9 +353,9 @@ function invalidContextOptions(demoJson: unknown) {
         assert('Demo Sarah cycle calendar, latest draw phase, and 29-day cadence agree',
           cadenceErrors.length === 0 && latestCycleDay === 10,
           `cadence errors=${cadenceErrors.length}, latest cycle day=${latestCycleDay}`);
-        assert('Demo Sarah is not represented as taking an unstarted thyroid medication',
-          !(demoJson.supplements || []).some(item => item.name === 'Levothyroxine')
-            && (demoJson.diagnoses?.conditions || []).some(condition => condition.name.includes('under evaluation')));
+        assert('Demo Sarah has a documented thyroid prescription and diagnosed condition',
+          (demoJson.supplements || []).some(item => item.name === 'Levothyroxine')
+            && (demoJson.diagnoses?.conditions || []).some(condition => condition.name.includes('Primary hypothyroidism')));
       }
       const imported = importShapeFromDemo(demoJson);
       (state as {importedData: unknown}).importedData = imported;

@@ -1071,6 +1071,8 @@ deploy/profile-share/data/
 /js/light-conditions-now.js
 
 /js/demo-biology-data.js
+/js/demo-treatment-data.js
+/scripts/refresh-demo-treatments.mjs
 
 /js/shell-actions.js
 

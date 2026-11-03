@@ -153,9 +153,15 @@ function datedDoseContext(supplement: ContextSupplement, limit: number, { detail
   const status = getSupplementStatus(supplement);
   const periods = getSupplementPeriods(supplement).filter(period => clean(period?.start, 12));
   const current = status === 'active' ? periods.find(period => period.start <= today && (!period.end || period.end >= today)) : null;
-  const currentDose = current
+  let currentDose = current
     ? `${periodDose(current)} (${clean(current.start, 12)}→${clean(current.end, 12) || 'ongoing'})`
     : `none (${status})`;
+  const undatedRegimen = clean(supplement?.dosage, 160);
+  if (current && !current.dose && !current.ingredientDoses?.length && undatedRegimen) {
+    // Preserve reported free text without filling dated history or inferring
+    // missing elemental amounts, frequency or calculable daily totals.
+    currentDose = `undated reported regimen: ${undatedRegimen}; dated dose not recorded`;
+  }
   const next = periods.filter(period => period.start > today).sort((a, b) => String(a.start).localeCompare(String(b.start)))[0];
   const relevant = detail ? periods : periods.filter(period => period === current || period === next
     || (historyRange && period.start <= historyRange.end && (!period.end || period.end >= historyRange.start)));
@@ -268,7 +274,7 @@ export function buildSupplementAIContext(supplements: unknown, options: Suppleme
     'Source-reported product and lot data below are not personal clinical laboratory results.',
     'Dated dose history overrides product-label amounts and undated directions. Do not project current ingredient totals onto earlier periods; missing doses remain unknown. Current saved records supersede older chat descriptions.',
     'This is a bounded summary: long text and large inventories may be shortened. Source links identify provenance, not verified contents. PRN limits and label directions do not establish actual intake.',
-    'Safety boundary: keep ND/NQ distinct from zero. Do not call an exposure high or unsafe unless its basis converts to personal daily intake and an applicable route- and jurisdiction-specific reference is available.',
+    'For source-reported contaminant results, keep ND/NQ distinct from zero. Do not call an exposure high or unsafe unless its basis converts to personal daily intake and an applicable route- and jurisdiction-specific reference is available.',
   ] : ['Dated doses override label amounts and undated directions. Missing historical doses remain unknown. Saved records supersede older chat descriptions. PRN limits are not actual intake. Extra product details are available on relevant questions.'];
 
   for (const supplement of source.slice(0, productLimit)) {

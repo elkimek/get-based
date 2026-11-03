@@ -54,6 +54,28 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
   }, sex);
   await expect(page.locator('body')).not.toHaveClass(/chat-autostart-reserved/);
   await expect(page.locator('#chat-panel')).not.toHaveClass(/\bopen\b/);
+  const treatment = await page.evaluate(async sex => {
+    const { state } = await import('/js/state.js');
+    const { buildLabContext } = await import('/js/lab-context.js');
+    const { buildClientExportObject } = await import('/js/export.js');
+    const medication = state.importedData.supplements!.find(item => item.type === 'medication')!;
+    const name = sex === 'female' ? 'Levothyroxine' : 'Atorvastatin';
+    const context = buildLabContext({ queryText: `Could ${name} explain my results?` });
+    const exported = await buildClientExportObject(state.currentProfile, false, false);
+    if (!Array.isArray(exported.supplements)) throw new Error('Export omitted therapy records.');
+    const exportedMedication = exported.supplements.find((item: unknown) => !!item && typeof item === 'object' && 'type' in item && item.type === 'medication');
+    return { name: medication.name, periods: medication.periods, currentDose: medication.currentDose,
+      inContext: context.includes(name) && medication.periods!.every(period => context.includes(period.start)),
+      exported: exportedMedication };
+  }, sex);
+  expect(treatment.name).toBe(sex === 'female' ? 'Levothyroxine' : 'Atorvastatin');
+  expect(treatment.periods).toHaveLength(sex === 'female' ? 3 : 1);
+  expect(treatment.inContext).toBe(true);
+  expect(treatment.currentDose).toMatchObject({ value: sex === 'female' ? 50 : 20, unit: sex === 'female' ? 'µg' : 'mg' });
+  expect(treatment.exported).toMatchObject({ name: treatment.name, periods: treatment.periods, currentDose: treatment.currentDose });
+  await page.evaluate(async () => (await import('/js/views.js')).navigate('supplements'));
+  await expect(page.getByText(treatment.name, { exact: true }).first()).toBeVisible();
+  await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   await expect(page.locator('[data-biology-score-ai-summary]').first()).toContainText('Demo insight');
   const matrix = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -107,6 +129,7 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
   await expect(page.locator('[data-biology-score-ai-summary="metabolicFlexibility"]')).toContainText('This is a saved test interpretation');
   expect(await page.evaluate(() => (window as unknown as { demoBiologyCalls: number }).demoBiologyCalls)).toBe(1);
   await page.reload();
+  expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.supplements!.find(item => item.type === 'medication')!.periods)).toEqual(treatment.periods);
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   await expect(page.locator('[data-biology-score-ai-summary="metabolicFlexibility"]')).toContainText('This is a saved test interpretation');
   await expect(page.locator('[data-biology-score-ai-summary="metabolicFlexibility"]')).not.toContainText('refresh needed');

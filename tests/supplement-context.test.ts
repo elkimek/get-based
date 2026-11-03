@@ -56,6 +56,7 @@ describe('token-bounded supplement AI context', () => {
     expect(detail).toContain('relationship to the user’s bottle lot not verified');
     expect(detail).toContain('1 informational/excluded result(s) retained outside AI context');
     expect(detail).toContain('keep ND/NQ distinct from zero');
+    expect(detail).toContain('For source-reported contaminant results, keep ND/NQ distinct from zero');
   });
 
   it('unlocks detail from stored terms in arbitrary scripts and includes full evidence', () => {
@@ -118,6 +119,37 @@ describe('token-bounded supplement AI context', () => {
 describe('dated doses in AI context', () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-29T12:00:00Z')); });
   afterEach(() => vi.useRealTimers());
+  it('preserves a reported legacy amount without inventing a dated or elemental dose', () => {
+    const legacy = { name: 'Iron Bisglycinate', type: 'supplement', dosage: '36 mg with vitamin C', startDate: '2026-01-01', endDate: '' };
+    const before = structuredClone(legacy);
+    const record = buildCompactSupplementContextRecords([legacy])[0]!;
+    const expected = 'undated reported regimen: 36 mg with vitamin C; dated dose not recorded';
+    expect(record.currentDose).toBe(expected);
+    expect(record.doseHistory).toEqual(['2026-01-01→ongoing [current]: dose not recorded']);
+    for (const mode of ['compact', 'detail'] as const) {
+      const context = buildSupplementAIContext([legacy], { mode });
+      expect(context).toContain(expected);
+      expect(context).not.toContain('36 mg/day');
+      expect(context).not.toContain('36 mg elemental');
+    }
+    expect(legacy).toEqual(before);
+  });
+
+  it('keeps dated doses authoritative over legacy text and product-label directions', () => {
+    const record = { name: 'Iron', dosage: '36 mg with vitamin C', labelDirections: 'Two tablets daily',
+      periods: [{ start: '2026-01-01', end: null, dose: { value: 18, unit: 'mg', basis: 'day' } }] };
+    expect(buildCompactSupplementContextRecords([record])[0]!.currentDose).toBe('18 mg/day (2026-01-01→ongoing)');
+    const labelOnly = { name: 'Iron', startDate: '2026-01-01', labelDirections: '36 mg daily' };
+    expect(buildCompactSupplementContextRecords([labelOnly])[0]!.currentDose).toBe('dose not recorded (2026-01-01→ongoing)');
+  });
+
+  it.each([
+    { startDate: '2026-01-01', endDate: '2026-02-01', expected: 'none (ended)' },
+    { startDate: '2027-01-01', expected: 'none (scheduled)' },
+  ])('does not turn an inactive legacy regimen into current use: $expected', ({ expected, ...dates }) => {
+    const record = { name: 'Iron', dosage: '36 mg with vitamin C', ...dates };
+    expect(buildCompactSupplementContextRecords([record])[0]!.currentDose).toBe(expected);
+  });
   const changed = (): HistoryFixture => ({ name: 'TMG', ingredients: [{ name: 'TMG', amount: '500 mg' }], timesPerDay: 1,
     schedule: { mode: 'daily', timesPerDay: 1 }, dosage: '500 mg with food', currentDose: '1500 mg/day', periods: [
       { start: '2026-08-01', end: '2026-09-28', dose: '500 mg/day', schedule: { mode: 'daily', timesPerDay: 1 } },

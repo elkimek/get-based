@@ -40,8 +40,9 @@ describe('chat marker range interpretation contract', () => {
       'educational options to review rather than commands or a personalized regimen',
     );
     expect(CHAT_SYSTEM_PROMPT).not.toContain('D3 + K2');
-    expect(CHAT_SYSTEM_PROMPT).toContain('because an optional target was missed');
-    expect(CHAT_SYSTEM_PROMPT).toContain('Do not give an individualized dose');
+    expect(CHAT_SYSTEM_PROMPT).toContain('optional targets do not justify increasing intake');
+    expect(CHAT_SYSTEM_PROMPT).toContain('Explain established dose ranges and labels with sources, units and scope');
+    expect(CHAT_SYSTEM_PROMPT).toContain('select personal regimens, including alternatives to rejected risky plans');
   });
 
   it('keeps routine replies useful and enjoyable instead of disclaimer-heavy', () => {
@@ -51,5 +52,6 @@ describe('chat marker range interpretation contract', () => {
     expect(CHAT_SYSTEM_PROMPT).toContain('practical next steps');
     expect(CHAT_SYSTEM_PROMPT).toContain('A little personality or light wit is welcome');
     expect(CHAT_SYSTEM_PROMPT).toContain('walls of numbers');
+    expect(CHAT_SYSTEM_PROMPT).toContain('Address the actual question without scolding, invented motives or unsupported personal-risk estimates');
   });
 });
