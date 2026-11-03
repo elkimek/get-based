@@ -208,8 +208,8 @@
           "at": 1733644800000
         },
         "lipids.apoB": {
-          "file": "2024-Q4 follow-up + specialty panel.pdf",
-          "at": 1733644800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1733645100000
         },
         "proteins.ceruloplasmin": {
           "file": "2024-Q4 follow-up + specialty panel.pdf",
@@ -354,16 +354,16 @@
         "electrolytes.calciumTotal": 2.38,
         "electrolytes.phosphorus": 1.12,
         "electrolytes.magnesium": 0.78,
-        "lipids.cholesterol": 4.8,
+        "lipids.cholesterol": 4.868,
         "lipids.triglycerides": 0.92,
         "lipids.hdl": 1.35,
         "lipids.ldl": 3.1,
-        "lipids.nonHdl": 3.45,
-        "lipids.cholHdlRatio": 3.6,
+        "lipids.nonHdl": 3.518,
+        "lipids.cholHdlRatio": 3.606,
         "iron.iron": 18.5,
         "iron.ferritin": 180,
         "iron.transferrin": 2.5,
-        "iron.transferrinSat": 33.2,
+        "iron.transferrinSat": 29.482,
         "proteins.hsCRP": 0.8,
         "proteins.totalProtein": 71.5,
         "proteins.albumin": 45.2,
@@ -372,15 +372,15 @@
         "thyroid.ft3": 4.5,
         "vitamins.vitaminD": 42,
         "diabetes.hba1c": 31,
-        "diabetes.homaIR": 1.11,
+        "diabetes.homaIR": 1.109,
         "coagulation.homocysteine": 11.5,
         "hematology.wbc": 5.8,
         "hematology.rbc": 5.12,
         "hematology.hemoglobin": 152,
-        "hematology.hematocrit": 0.455,
+        "hematology.hematocrit": 45.517,
         "hematology.mcv": 88.9,
-        "hematology.mch": 29.7,
-        "hematology.mchc": 334,
+        "hematology.mch": 29.688,
+        "hematology.mchc": 333.943,
         "hematology.rdwcv": 12.8,
         "hematology.platelets": 228,
         "hematology.mpv": 10.2,
@@ -402,8 +402,8 @@
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         },
         "biochemistry.urea": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -426,12 +426,12 @@
           "at": 1742040000000
         },
         "biochemistry.ast": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         },
         "biochemistry.alt": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         },
         "biochemistry.alp": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -446,8 +446,8 @@
           "at": 1742040000000
         },
         "biochemistry.creatineKinase": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         },
         "hormones.testosterone": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -494,16 +494,16 @@
           "at": 1742040000000
         },
         "lipids.triglycerides": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         },
         "lipids.hdl": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         },
         "lipids.ldl": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         },
         "lipids.nonHdl": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -558,8 +558,8 @@
           "at": 1742040000000
         },
         "diabetes.hba1c": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         },
         "diabetes.homaIR": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -666,8 +666,8 @@
           "at": 1742025600000
         },
         "diabetes.insulin": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1742040000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1742025900000
         }
       }
     },
@@ -754,20 +754,85 @@
       }
     },
     {
+      "date": "2025-06-01",
+      "markers": {
+        "lipids.ldl": 4.5,
+        "lipids.apoB": 1.32,
+        "lipids.hdl": 1.05,
+        "lipids.triglycerides": 1.95,
+        "diabetes.hba1c": 37,
+        "biochemistry.glucose": 5.4,
+        "diabetes.insulin": 14,
+        "biochemistry.creatineKinase": 2.5,
+        "biochemistry.alt": 0.65,
+        "biochemistry.ast": 0.42,
+        "diabetes.homaIR": 3.36,
+        "lipids.cholesterol": 6.436,
+        "lipids.nonHdl": 5.386,
+        "lipids.cholHdlRatio": 6.13
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05"
+      },
+      "markerSources": {
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "biochemistry.creatineKinase": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "biochemistry.alt": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        },
+        "biochemistry.ast": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1748765100000
+        }
+      }
+    },
+    {
       "date": "2025-07-20",
       "markers": {
-        "biochemistry.glucose": 5.1,
+        "biochemistry.glucose": 5.316,
         "biochemistry.urea": 6.2,
         "biochemistry.creatinine": 85,
         "biochemistry.egfr": 1.58,
         "biochemistry.uricAcid": 362,
         "biochemistry.bilirubinTotal": 11.8,
-        "biochemistry.ast": 0.35,
-        "biochemistry.alt": 0.42,
+        "biochemistry.ast": 0.403,
+        "biochemistry.alt": 0.625,
         "biochemistry.alp": 1.2,
         "biochemistry.ggt": 0.55,
         "biochemistry.ldh": 2.92,
-        "biochemistry.creatineKinase": 2.45,
+        "biochemistry.creatineKinase": 2.416,
         "hormones.testosterone": 16.2,
         "hormones.freeTestosterone": 64.5,
         "hormones.shbg": 26.8,
@@ -781,18 +846,18 @@
         "electrolytes.magnesium": 0.82,
         "electrolytes.copper": 14.2,
         "electrolytes.zinc": 13.5,
-        "lipids.cholesterol": 5,
-        "lipids.triglycerides": 1.05,
-        "lipids.hdl": 1.3,
-        "lipids.ldl": 3.22,
-        "lipids.nonHdl": 3.7,
-        "lipids.cholHdlRatio": 3.8,
+        "lipids.cholesterol": 6.339,
+        "lipids.triglycerides": 1.866,
+        "lipids.hdl": 1.075,
+        "lipids.ldl": 4.416,
+        "lipids.nonHdl": 5.264,
+        "lipids.cholHdlRatio": 5.897,
         "lipids.apoAI": 1.25,
-        "lipids.apoB": 0.88,
+        "lipids.apoB": 1.303,
         "iron.iron": 20.1,
         "iron.ferritin": 165,
         "iron.transferrin": 2.4,
-        "iron.transferrinSat": 35.8,
+        "iron.transferrinSat": 33.367,
         "proteins.hsCRP": 1.2,
         "proteins.totalProtein": 72.8,
         "proteins.albumin": 44.8,
@@ -802,17 +867,17 @@
         "thyroid.ft3": 4.3,
         "vitamins.vitaminD": 68,
         "vitamins.vitaminA": 1.85,
-        "diabetes.hba1c": 33,
-        "diabetes.homaIR": 1.77,
+        "diabetes.hba1c": 37,
+        "diabetes.homaIR": 3.008,
         "tumorMarkers.psa": 0.32,
         "coagulation.homocysteine": 13,
         "hematology.wbc": 6.1,
         "hematology.rbc": 5.2,
         "hematology.hemoglobin": 155,
-        "hematology.hematocrit": 0.462,
+        "hematology.hematocrit": 46.176,
         "hematology.mcv": 88.8,
-        "hematology.mch": 29.8,
-        "hematology.mchc": 335,
+        "hematology.mch": 29.808,
+        "hematology.mchc": 335.672,
         "hematology.rdwcv": 12.9,
         "hematology.platelets": 235,
         "hematology.mpv": 10.5,
@@ -826,12 +891,12 @@
         "differential.monocytesPct": 0.074,
         "specialty.glycanAge": 42,
         "specialty.urinaryIodine": 130,
-        "diabetes.insulin": 7.8
+        "diabetes.insulin": 12.733
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "biochemistry.urea": {
           "file": "Summer 2025 Panel.pdf",
@@ -854,12 +919,12 @@
           "at": 1753012800000
         },
         "biochemistry.ast": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "biochemistry.alt": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "biochemistry.alp": {
           "file": "Summer 2025 Panel.pdf",
@@ -874,8 +939,8 @@
           "at": 1753012800000
         },
         "biochemistry.creatineKinase": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "hormones.testosterone": {
           "file": "Summer 2025 Panel.pdf",
@@ -934,16 +999,16 @@
           "at": 1753012800000
         },
         "lipids.triglycerides": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "lipids.hdl": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "lipids.ldl": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "lipids.nonHdl": {
           "file": "Summer 2025 Panel.pdf",
@@ -958,8 +1023,8 @@
           "at": 1753012800000
         },
         "lipids.apoB": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "iron.iron": {
           "file": "Summer 2025 Panel.pdf",
@@ -1014,8 +1079,8 @@
           "at": 1753012800000
         },
         "diabetes.hba1c": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
         },
         "diabetes.homaIR": {
           "file": "Summer 2025 Panel.pdf",
@@ -1110,26 +1175,156 @@
           "at": 1752998400000
         },
         "diabetes.insulin": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1753012800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1752998700000
+        }
+      }
+    },
+    {
+      "date": "2025-07-29",
+      "markers": {
+        "lipids.ldl": 4.4,
+        "lipids.apoB": 1.3,
+        "lipids.hdl": 1.08,
+        "lipids.triglycerides": 1.85,
+        "diabetes.hba1c": 37,
+        "biochemistry.glucose": 5.3,
+        "diabetes.insulin": 12.5,
+        "biochemistry.creatineKinase": 2.4,
+        "biochemistry.alt": 0.62,
+        "biochemistry.ast": 0.4,
+        "diabetes.homaIR": 2.944,
+        "lipids.cholesterol": 6.321,
+        "lipids.nonHdl": 5.241,
+        "lipids.cholHdlRatio": 5.853
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05"
+      },
+      "markerSources": {
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "biochemistry.creatineKinase": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "biochemistry.alt": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        },
+        "biochemistry.ast": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1753776300000
+        }
+      }
+    },
+    {
+      "date": "2025-09-25",
+      "markers": {
+        "lipids.ldl": 2.55,
+        "lipids.apoB": 0.9,
+        "lipids.hdl": 1.12,
+        "lipids.triglycerides": 1.65,
+        "diabetes.hba1c": 39,
+        "biochemistry.glucose": 5.4,
+        "diabetes.insulin": 12,
+        "biochemistry.creatineKinase": 2.9,
+        "biochemistry.alt": 0.72,
+        "biochemistry.ast": 0.44,
+        "diabetes.homaIR": 2.88,
+        "lipids.cholesterol": 4.42,
+        "lipids.nonHdl": 3.3,
+        "lipids.cholHdlRatio": 3.946
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05"
+      },
+      "markerSources": {
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "biochemistry.creatineKinase": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "biochemistry.alt": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
+        },
+        "biochemistry.ast": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1758787500000
         }
       }
     },
     {
       "date": "2025-11-10",
       "markers": {
-        "biochemistry.glucose": 4.9,
+        "biochemistry.glucose": 5.321,
         "biochemistry.urea": 6.5,
         "biochemistry.creatinine": 84,
         "biochemistry.egfr": 1.6,
         "biochemistry.uricAcid": 388,
         "biochemistry.bilirubinTotal": 10.2,
-        "biochemistry.ast": 0.4,
-        "biochemistry.alt": 0.52,
+        "biochemistry.ast": 0.408,
+        "biochemistry.alt": 0.609,
         "biochemistry.alp": 1.18,
         "biochemistry.ggt": 0.68,
         "biochemistry.ldh": 3.05,
-        "biochemistry.creatineKinase": 2.8,
+        "biochemistry.creatineKinase": 3.059,
         "biochemistry.cystatinC": 0.79,
         "hormones.testosterone": 14.8,
         "hormones.freeTestosterone": 66.8,
@@ -1146,14 +1341,14 @@
         "electrolytes.magnesiumRBC": 2.18,
         "electrolytes.copper": 15,
         "electrolytes.zinc": 12.8,
-        "lipids.cholesterol": 5.2,
-        "lipids.triglycerides": 1.18,
-        "lipids.hdl": 1.25,
-        "lipids.ldl": 3.4,
-        "lipids.nonHdl": 3.95,
-        "lipids.cholHdlRatio": 4.2,
+        "lipids.cholesterol": 4.326,
+        "lipids.triglycerides": 1.547,
+        "lipids.hdl": 1.152,
+        "lipids.ldl": 2.471,
+        "lipids.nonHdl": 3.174,
+        "lipids.cholHdlRatio": 3.755,
         "lipids.apoAI": 1.18,
-        "lipids.apoB": 0.95,
+        "lipids.apoB": 0.868,
         "iron.iron": 19.2,
         "iron.ferritin": 155,
         "iron.transferrin": 2.6,
@@ -1167,17 +1362,17 @@
         "thyroid.t3total": 1.72,
         "vitamins.vitaminD": 95,
         "vitamins.vitaminD3": 82,
-        "diabetes.hba1c": 31,
-        "diabetes.homaIR": 2.5,
+        "diabetes.hba1c": 39,
+        "diabetes.homaIR": 2.556,
         "tumorMarkers.psa": 0.35,
         "coagulation.homocysteine": 10.5,
         "hematology.wbc": 5.95,
         "hematology.rbc": 5.28,
         "hematology.hemoglobin": 158,
-        "hematology.hematocrit": 0.47,
+        "hematology.hematocrit": 46.992,
         "hematology.mcv": 89,
-        "hematology.mch": 29.9,
-        "hematology.mchc": 336,
+        "hematology.mch": 29.924,
+        "hematology.mchc": 336.227,
         "hematology.rdwcv": 13.1,
         "hematology.platelets": 220,
         "hematology.mpv": 10.8,
@@ -1193,12 +1388,13 @@
         "boneMetabolism.osteocalcin": 22.5,
         "specialty.glycanAge": 41,
         "specialty.urinaryIodine": 160,
-        "diabetes.insulin": 11.5
+        "diabetes.insulin": 10.81,
+        "iron.transferrinSat": 29.421
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "biochemistry.urea": {
           "file": "Fall 2025 Panel.pdf",
@@ -1221,12 +1417,12 @@
           "at": 1762776000000
         },
         "biochemistry.ast": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "biochemistry.alt": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "biochemistry.alp": {
           "file": "Fall 2025 Panel.pdf",
@@ -1241,8 +1437,8 @@
           "at": 1762776000000
         },
         "biochemistry.creatineKinase": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "biochemistry.cystatinC": {
           "file": "Fall 2025 Panel.pdf",
@@ -1313,16 +1509,16 @@
           "at": 1762776000000
         },
         "lipids.triglycerides": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "lipids.hdl": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "lipids.ldl": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "lipids.nonHdl": {
           "file": "Fall 2025 Panel.pdf",
@@ -1337,8 +1533,8 @@
           "at": 1762776000000
         },
         "lipids.apoB": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "iron.iron": {
           "file": "Fall 2025 Panel.pdf",
@@ -1393,8 +1589,8 @@
           "at": 1762776000000
         },
         "diabetes.hba1c": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         },
         "diabetes.homaIR": {
           "file": "Fall 2025 Panel.pdf",
@@ -1497,8 +1693,8 @@
           "at": 1762761600000
         },
         "diabetes.insulin": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1762776000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1762761900000
         }
       }
     },
@@ -1585,20 +1781,280 @@
       }
     },
     {
+      "date": "2025-11-22",
+      "markers": {
+        "lipids.ldl": 2.45,
+        "lipids.apoB": 0.86,
+        "lipids.hdl": 1.16,
+        "lipids.triglycerides": 1.52,
+        "diabetes.hba1c": 39,
+        "biochemistry.glucose": 5.3,
+        "diabetes.insulin": 10.5,
+        "biochemistry.creatineKinase": 3.1,
+        "biochemistry.alt": 0.58,
+        "biochemistry.ast": 0.4,
+        "diabetes.homaIR": 2.473,
+        "lipids.cholesterol": 4.301,
+        "lipids.nonHdl": 3.141,
+        "lipids.cholHdlRatio": 3.708
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05"
+      },
+      "markerSources": {
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "biochemistry.creatineKinase": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "biochemistry.alt": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        },
+        "biochemistry.ast": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1763798700000
+        }
+      }
+    },
+    {
+      "date": "2026-01-19",
+      "markers": {
+        "lipids.ldl": 2.4,
+        "lipids.apoB": 0.84,
+        "lipids.hdl": 1.18,
+        "lipids.triglycerides": 1.42,
+        "diabetes.hba1c": 38,
+        "biochemistry.glucose": 5.25,
+        "diabetes.insulin": 10,
+        "biochemistry.creatineKinase": 2.6,
+        "biochemistry.alt": 0.55,
+        "biochemistry.ast": 0.36,
+        "diabetes.homaIR": 2.333,
+        "lipids.cholesterol": 4.225,
+        "lipids.nonHdl": 3.045,
+        "lipids.cholHdlRatio": 3.581
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05"
+      },
+      "markerSources": {
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "biochemistry.creatineKinase": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "biochemistry.alt": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        },
+        "biochemistry.ast": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1768809900000
+        }
+      }
+    },
+    {
+      "date": "2026-03-18",
+      "markers": {
+        "lipids.ldl": 2.35,
+        "lipids.apoB": 0.82,
+        "lipids.hdl": 1.2,
+        "lipids.triglycerides": 1.36,
+        "diabetes.hba1c": 38,
+        "biochemistry.glucose": 5.2,
+        "diabetes.insulin": 9,
+        "biochemistry.creatineKinase": 2.2,
+        "biochemistry.alt": 0.5,
+        "biochemistry.ast": 0.34,
+        "diabetes.homaIR": 2.08,
+        "lipids.cholesterol": 4.168,
+        "lipids.nonHdl": 2.968,
+        "lipids.cholHdlRatio": 3.473
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05"
+      },
+      "markerSources": {
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "biochemistry.creatineKinase": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "biochemistry.alt": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        },
+        "biochemistry.ast": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1773821100000
+        }
+      }
+    },
+    {
+      "date": "2026-05-15",
+      "markers": {
+        "lipids.ldl": 2.4,
+        "lipids.apoB": 0.84,
+        "lipids.hdl": 1.2,
+        "lipids.triglycerides": 1.32,
+        "diabetes.hba1c": 38,
+        "biochemistry.glucose": 5.2,
+        "diabetes.insulin": 8.5,
+        "biochemistry.creatineKinase": 2.4,
+        "biochemistry.alt": 0.48,
+        "biochemistry.ast": 0.33,
+        "diabetes.homaIR": 1.964,
+        "lipids.cholesterol": 4.2,
+        "lipids.nonHdl": 3,
+        "lipids.cholHdlRatio": 3.5
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05"
+      },
+      "markerSources": {
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "biochemistry.creatineKinase": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "biochemistry.alt": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        },
+        "biochemistry.ast": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1778832300000
+        }
+      }
+    },
+    {
       "date": "2026-07-12",
       "markers": {
-        "biochemistry.glucose": 4.7,
+        "biochemistry.glucose": 5.15,
         "biochemistry.urea": 5.5,
         "biochemistry.creatinine": 86,
         "biochemistry.egfr": 1.55,
         "biochemistry.uricAcid": 405,
         "biochemistry.bilirubinTotal": 9.8,
-        "biochemistry.ast": 0.45,
-        "biochemistry.alt": 0.62,
+        "biochemistry.ast": 0.32,
+        "biochemistry.alt": 0.46,
         "biochemistry.alp": 1.22,
         "biochemistry.ggt": 0.85,
         "biochemistry.ldh": 3.12,
-        "biochemistry.creatineKinase": 3.15,
+        "biochemistry.creatineKinase": 2,
         "biochemistry.cystatinC": 0.82,
         "biochemistry.gfrCystatin": 1.95,
         "hormones.testosterone": 13.5,
@@ -1618,18 +2074,18 @@
         "electrolytes.magnesiumRBC": 2.28,
         "electrolytes.copper": 15.8,
         "electrolytes.zinc": 11.9,
-        "lipids.cholesterol": 5.35,
-        "lipids.triglycerides": 1.32,
-        "lipids.hdl": 1.2,
-        "lipids.ldl": 3.55,
-        "lipids.nonHdl": 4.15,
-        "lipids.cholHdlRatio": 4.5,
+        "lipids.cholesterol": 4.161,
+        "lipids.triglycerides": 1.3,
+        "lipids.hdl": 1.22,
+        "lipids.ldl": 2.35,
+        "lipids.nonHdl": 2.941,
+        "lipids.cholHdlRatio": 3.411,
         "lipids.apoAI": 1.12,
-        "lipids.apoB": 1.02,
+        "lipids.apoB": 0.82,
         "iron.iron": 27,
         "iron.ferritin": 190,
         "iron.transferrin": 2.7,
-        "iron.transferrinSat": 48,
+        "iron.transferrinSat": 39.841,
         "proteins.hsCRP": 1.5,
         "proteins.totalProtein": 73,
         "proteins.albumin": 43.5,
@@ -1642,17 +2098,17 @@
         "vitamins.vitaminD": 102,
         "vitamins.vitaminD3": 105,
         "vitamins.vitaminA": 2.1,
-        "diabetes.hba1c": 29,
-        "diabetes.homaIR": 1.67,
+        "diabetes.hba1c": 38,
+        "diabetes.homaIR": 1.831,
         "tumorMarkers.psa": 0.38,
         "coagulation.homocysteine": 9.2,
         "hematology.wbc": 6.25,
         "hematology.rbc": 5.35,
         "hematology.hemoglobin": 160,
-        "hematology.hematocrit": 0.478,
+        "hematology.hematocrit": 47.775,
         "hematology.mcv": 89.3,
-        "hematology.mch": 29.9,
-        "hematology.mchc": 335,
+        "hematology.mch": 29.907,
+        "hematology.mchc": 334.9,
         "hematology.rdwcv": 13,
         "hematology.platelets": 212,
         "hematology.mpv": 11,
@@ -1712,13 +2168,12 @@
         "oatMicrobial.hphpa": 75,
         "oatMicrobial.cresol4": 42,
         "oatMicrobial.dArabinitol": 31,
-        "iron.transferrinSaturation": 0.34,
         "diabetes.insulin": 8
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "biochemistry.urea": {
           "file": "Summer 2026 Panel.pdf",
@@ -1741,12 +2196,12 @@
           "at": 1783857600000
         },
         "biochemistry.ast": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "biochemistry.alt": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "biochemistry.alp": {
           "file": "Summer 2026 Panel.pdf",
@@ -1761,8 +2216,8 @@
           "at": 1783857600000
         },
         "biochemistry.creatineKinase": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "biochemistry.cystatinC": {
           "file": "Summer 2026 Panel.pdf",
@@ -1845,16 +2300,16 @@
           "at": 1783857600000
         },
         "lipids.triglycerides": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "lipids.hdl": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "lipids.ldl": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "lipids.nonHdl": {
           "file": "Summer 2026 Panel.pdf",
@@ -1869,8 +2324,8 @@
           "at": 1783857600000
         },
         "lipids.apoB": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "iron.iron": {
           "file": "Summer 2026 Panel.pdf",
@@ -1937,8 +2392,8 @@
           "at": 1783857600000
         },
         "diabetes.hba1c": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         },
         "diabetes.homaIR": {
           "file": "Summer 2026 Panel.pdf",
@@ -2189,28 +2644,40 @@
           "page": 1
         },
         "diabetes.insulin": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1783857600000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1783843500000
         }
       }
     }
   ],
   "notes": [
     {
-      "date": "2025-03-15",
-      "text": "First comprehensive blood panel. Vitamin D quite low — starting 4000 IU/day supplementation. Fasting 14 hours before draw."
+      "date": "2025-06-01",
+      "text": "Persistent high LDL and ApoB despite earlier diet changes. Family history includes a paternal heart attack at 52. Fasting insulin is elevated; no diabetes diagnosis."
     },
     {
-      "date": "2025-07-20",
-      "text": "Summer recheck. Vitamin D improving but still below optimal. Added magnesium glycinate 400mg before bed. Noticed increased thirst and urination — worth monitoring glucose."
+      "date": "2025-07-29",
+      "text": "Repeat lipid panel remains high. Doctor and patient discussed benefits and risks and agreed to start atorvastatin after this baseline."
     },
     {
-      "date": "2025-11-10",
-      "text": "Glucose and insulin continuing to climb. Reduced refined carbs and started zone 2 cardio 3x/week. Vitamin D finally in good range."
+      "date": "2025-08-08",
+      "text": "Doctor prescribed atorvastatin 20 mg nightly after a shared benefit/risk discussion."
+    },
+    {
+      "date": "2025-09-25",
+      "text": "First follow-up 48 days after starting atorvastatin: LDL 4.40→2.55 mmol/L and ApoB 1.30→0.90 g/L. HbA1c 37→39 mmol/mol; a small concurrent rise with pre-existing metabolic risk, not proof of a drug effect."
+    },
+    {
+      "date": "2025-11-22",
+      "text": "Intermittent bilateral thigh aches after longer cycling sessions. No weakness or dark urine. CK 3.1 µkat/L is within the reporting range. Prescriber reviewed the symptoms; training load and statin association remain possible, with no confirmed drug causality. Prescription continued under supervision."
+    },
+    {
+      "date": "2026-05-15",
+      "text": "Mild aches recur only after harder rides and improve with recovery. The prescription is unchanged; a benefit/tolerability review remains planned."
     },
     {
       "date": "2026-07-12",
-      "text": "Follow-up after eight months of reduced refined carbohydrates and regular zone 2 cycling. Fasting insulin improved from 11.5 to 8.0 mIU/L and calculated HOMA-IR fell from 2.50 to 1.67. Testosterone remains lower than baseline, so morning testing will continue. Homocysteine is now below 10 µmol/L on B-complex."
+      "text": "Current atorvastatin prescription remains 20 mg nightly. LDL 2.35 mmol/L, ApoB 0.82 g/L, HbA1c 38 mmol/mol and CK 2.0 µkat/L. Lipid benefit remains evident; symptoms and glycemia require context rather than automatic attribution."
     }
   ],
   "supplements": [
@@ -2255,6 +2722,45 @@
       "startDate": "2025-08-01",
       "endDate": "2025-12-01",
       "type": "supplement"
+    },
+    {
+      "id": "demo-alex-atorvastatin",
+      "schemaVersion": 2,
+      "name": "Atorvastatin",
+      "genericName": "atorvastatin",
+      "type": "medication",
+      "startDate": "2025-08-08",
+      "endDate": null,
+      "dosage": "20 mg nightly, prescribed by his doctor",
+      "currentDose": {
+        "value": 20,
+        "unit": "mg",
+        "basis": "day",
+        "text": "20 mg/day"
+      },
+      "schedule": {
+        "mode": "daily",
+        "timesPerDay": 1,
+        "details": "21:00; current clinician prescription."
+      },
+      "periods": [
+        {
+          "start": "2025-08-08",
+          "end": null,
+          "dose": {
+            "value": 20,
+            "unit": "mg",
+            "basis": "day",
+            "text": "20 mg/day"
+          }
+        }
+      ],
+      "lifecycle": {
+        "state": "active",
+        "reason": "Ongoing clinician-managed lipid lowering."
+      },
+      "prescriber": "Demo prescribing doctor",
+      "note": "Prescribed for persistently raised LDL/ApoB and premature coronary disease in his father. LDL response is substantial. Intermittent thigh aches after cycling and a small HbA1c rise are under clinician review; causality is unconfirmed and CK remains within range."
     }
   ],
   "diagnoses": {
@@ -2270,6 +2776,12 @@
         "severity": "minor",
         "since": "2025",
         "status": "resolved"
+      },
+      {
+        "name": "Primary hyperlipidemia",
+        "since": "2025-07-29",
+        "severity": "moderate",
+        "status": "controlled"
       }
     ],
     "familyHistory": [
@@ -2283,6 +2795,12 @@
         "relative": "paternal_grandmother",
         "condition": "Hypertension",
         "note": "Diagnosed later in life."
+      },
+      {
+        "relative": "father",
+        "condition": "Premature coronary artery disease",
+        "onsetAge": 52,
+        "note": "Myocardial infarction at 52; separate from his later type 2 diabetes."
       }
     ],
     "flags": {
@@ -2290,7 +2808,7 @@
       "acuteIllnessNearDraw": false
     },
     "proceduresNote": "",
-    "note": "Occasional lower back discomfort related to desk work. No chronic medications."
+    "note": "Atorvastatin is prescribed for primary prevention after persistent high LDL/ApoB and family-history review. No personal cardiovascular event or diabetes diagnosis. Mild intermittent thigh aches after cycling have no established cause; no weakness or dark urine was reported, and CK is within range. Prescriber follow-up is planned."
   },
   "diet": {
     "type": "mediterranean",
@@ -2312,7 +2830,7 @@
     "dinnerTime": "19:30",
     "snacks": "Mixed nuts, Greek yogurt with berries, dark chocolate",
     "snacksTime": "15:00",
-    "note": "Intermittent fasting — skips breakfast. High protein (~150g/day). Reduced refined carbs since July 2025. 2-3 coffees/day. Social alcohol 1-2 drinks on weekends.",
+    "note": "Mediterranean-style meals with reduced refined carbohydrates and adequate protein; changes predate the statin. Diet and training can contribute to trends but do not establish the cause of the post-prescription LDL change.",
     "bowelFrequency": "1x/day",
     "stoolConsistency": "smooth",
     "bloating": "mild",
@@ -2339,7 +2857,7 @@
     "duration": "30-60 min",
     "muscleContext": "muscular",
     "limitations": [],
-    "note": "Strength training 3x/week (push-pull-legs, progressive overload). Zone 2 cycling added Nov 2025 (30-45 min, 3x/week). Weekly physiotherapy-led mobility work supports intermittent desk-related lower back discomfort. Daily step goal 8000+."
+    "note": "Strength training three times weekly, zone 2 cycling and walking. Cycling volume increased around the onset of intermittent thigh aches. Symptoms improve with recovery days; exercise and medication remain alternative explanations under clinician review."
   },
   "sleepRest": {
     "duration": "7-8h",
@@ -2413,7 +2931,7 @@
       "mismatched libido"
     ],
     "reproductiveGoals": [],
-    "note": "Married 5 years. Overall good relationship. Noticed slight decline in drive over past year — correlates with testosterone trend."
+    "note": "Married, generally satisfied. Variable libido was reported before statin initiation; it has not been attributed to the prescription."
   },
   "environment": {
     "setting": "suburban",
@@ -2453,7 +2971,7 @@
   "contextNotes": "Data-driven and tracks metrics closely. Wants to understand the relationship between testosterone, insulin sensitivity, training, and recovery. Prefers evidence-based interventions.",
   "healthGoals": [
     {
-      "text": "Maintain improved insulin sensitivity — keep HOMA-IR below 2.0",
+      "text": "Review LDL/ApoB benefit, muscle symptoms and glycemic trend with the prescribing doctor",
       "severity": "major"
     },
     {
@@ -2466,6 +2984,10 @@
     },
     {
       "text": "Maintain vitamin D between 100-150 nmol/L year-round",
+      "severity": "mild"
+    },
+    {
+      "text": "Maintain improved insulin sensitivity with sustainable diet, activity and recovery",
       "severity": "mild"
     }
   ],
@@ -2907,12 +3429,15 @@
     }
   ],
   "markerNotes": {
-    "diabetes.homaIR": "Calculated from fasting glucose and the matched fasting-insulin result from the same draw.",
-    "hormones.testosterone": "Follow-up hormone panels were collected in the morning where possible; interpret alongside sleep and training load."
+    "diabetes.homaIR": "Calculated from matched fasting glucose and insulin at the same draw.",
+    "hormones.testosterone": "Follow-up hormone panels were collected in the morning where possible; interpret alongside sleep and training load.",
+    "lipids.ldl": "Interpret with the documented atorvastatin start and pretreatment values; it is not a lifestyle-only trend.",
+    "diabetes.hba1c": "Small increase after statin initiation; pre-existing insulin resistance and concurrent changes limit causal attribution. No diabetes diagnosis.",
+    "biochemistry.creatineKinase": "Muscle symptoms were reviewed with normal CK; normal CK does not establish or exclude statin-associated myalgia."
   },
   "markerValueNotes": {
-    "coagulation.homocysteine:2026-07-12": "Repeat after consistent daily B-complex use.",
-    "diabetes.insulin:2026-07-12": "Fasted 12 hours. No intense training for 36 hours before the draw."
+    "lipids.ldl:2025-09-25": "First response measurement 48 days after the recorded prescription start.",
+    "biochemistry.creatineKinase:2025-11-22": "Measured during clinician evaluation of intermittent thigh aches. No intense exercise for 36 hours before this draw."
   },
   "wearableSummary": {
     "sources": {
@@ -4519,7 +5044,7 @@
     "generatedAt": 1785400200000
   },
   "focusCard": {
-    "text": "The July 2026 fasting glucose of 4.7 mmol/L and matched insulin of 8.0 mIU/L calculate to HOMA-IR 1.67, improved from 2.50 in November after reduced refined carbohydrates and regular zone 2 cycling. HbA1c is 29 mmol/mol and homocysteine is 9.2 µmol/L, supporting the same favorable metabolic direction. Total testosterone remains lower than the March 2025 baseline (18.5 → 13.5 nmol/L), so a standardized morning repeat alongside sleep and training context is more appropriate than calling that goal complete."
+    "text": "LDL decreased from 4.40 to 2.35 mmol/L and ApoB from 1.30 to 0.82 g/L after the atorvastatin prescription, alongside continued lifestyle work. HbA1c is 38 mmol/mol after a small earlier rise. Intermittent post-cycling aches have been reviewed with normal CK; exercise and medication remain possible contributors. The prescribing doctor is following benefit and tolerability."
   },
   "contextHealth": {
     "dots": {
@@ -4534,8 +5059,8 @@
       "environment": "yellow"
     },
     "summaries": {
-      "healthGoals": "HOMA-IR improved below 2.0; testosterone follow-up remains active",
-      "diagnoses": "Insulin resistance controlled; family type 2 diabetes history",
+      "healthGoals": "Lipid benefit, tolerability, insulin sensitivity and recovery follow-up",
+      "diagnoses": "Treated hyperlipidemia; metabolic risk improving; muscle symptoms under review",
       "diet": "Mediterranean + IF 16:8 fits IR-reversal goal",
       "exercise": "Strength, zone 2 cycling, walking, and back-focused rehab",
       "sleepRest": "Onset + middle-of-night waking present",
@@ -4545,34 +5070,15 @@
       "environment": "Boulder altitude, seasonal smoke, agriculture, and home EMF captured"
     },
     "cardSummaries": {
-      "healthGoals": "Focused on insulin sensitivity, supporting testosterone, lowering homocysteine, and maintaining vitamin D.",
-      "diagnoses": "Controlled insulin resistance and resolved vitamin D deficiency, with structured family histories of type 2 diabetes and hypertension.",
+      "healthGoals": "Balance lipid-lowering benefit, tolerability, glucose monitoring and sustainable recovery with clinician follow-up.",
+      "diagnoses": "Atorvastatin is prescribed for primary prevention after persistent high LDL/ApoB and family-history review. No personal cardiovascular event or diabetes diagnosis. Mild intermittent thigh aches after cycling have no established cause; no weakness or dark urine was reported, and CK is within range. Prescriber follow-up is planned.",
       "diet": "Mediterranean, seed-oil-free 16:8 pattern with 1.6–2.2 g/kg/day protein, 2–3 L/day fluids, and reduced refined carbohydrates.",
-      "exercise": "Exercises five to six times weekly with strength, cycling, walking, and physiotherapy-led mobility; typical sessions last 30–60 minutes.",
+      "exercise": "Strength training three times weekly, zone 2 cycling and walking. Cycling volume increased around the onset of intermittent thigh aches. Symptoms improve with recovery days; exercise and medication remain alternative explanations under clinician review.",
       "sleepRest": "Usually sleeps seven to eight hours with fair quality and a variable schedule. Daytime sleepiness occurs sometimes; apnea is not suspected.",
       "lightCircadian": "Gets brief morning outdoor light but spends under an hour outside and eight to twelve hours on screens.",
       "stress": "Long-term work, health, and financial stress is currently moderate and improving with exercise, nature, and breathing practices.",
       "loveLife": "Married and generally satisfied, with a modest decrease from usual libido and some concern about differences in desire.",
       "environment": "Boulder-area suburban home at moderate altitude with reverse-osmosis water and HEPA filtration; seasonal wildfire and nearby agricultural exposures are recorded."
     }
-  },
-  "biologyScoreContextAI": {
-    "summary": "Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.",
-    "suggestions": [],
-    "fingerprint": "biology-context:11mwdq0",
-    "fingerprintsByRange": {
-      "all": "biology-context:11mwdq0",
-      "1y": "biology-context:hbls7s",
-      "6m": "biology-context:1m64rjv",
-      "3m": "biology-context:e5cbug"
-    },
-    "unlockedRanges": [
-      "all",
-      "1y",
-      "6m",
-      "3m"
-    ],
-    "range": "all",
-    "updatedAt": 1786104000000
   }
 }

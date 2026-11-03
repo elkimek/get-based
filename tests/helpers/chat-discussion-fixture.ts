@@ -55,9 +55,19 @@ export async function installDiscussionProvider(context: BrowserContext, {seedPr
 /** Module coverage starts with an actual open, nonempty conversation on every layout. */
 export async function openDiscussionFixturePanel(page: Page): Promise<void> {
   await page.evaluate(async () => {
-    await (await import('/js/chat-loader.js')).openChatPanel();
+    const loader = await import('/js/chat-loader.js');
+    // Cancel Dashboard's returning-user auto-open reservation before taking
+    // over the panel. Closing requires the real lazy composition to be ready.
+    await loader.loadChatModule();
+    loader.closeChatPanel();
+    // Finish initial native index/history hydration before claiming its owner.
+    if (!await loader.openChatPanel()) throw new Error('Discussion fixture panel could not initialize');
     const { state } = await import('/js/state.js');
     state.chatHistory = [{ role: 'assistant', content: 'Discussion fixture' }];
-    (await import('/js/chat-render.js')).renderChatMessages();
+    // Reopen through real restoration after persisting the returning-user
+    // conversation, so it cannot revert to empty-chat onboarding.
+    if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Discussion fixture history could not save');
+    if (!await loader.openChatPanel()) throw new Error('Discussion fixture panel could not open');
   });
+  await page.locator('#chat-messages').getByText('Discussion fixture', { exact: true }).waitFor();
 }

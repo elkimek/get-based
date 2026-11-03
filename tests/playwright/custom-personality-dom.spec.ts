@@ -699,7 +699,8 @@ test('custom personality save path updates picker, header, and persisted state',
 
     try {
       Date.now = () => 1781150000000;
-      state.currentProfile = 'chat-personality-coverage';
+      // Keep the loaded profile's real data owner; persona selection rejects
+      // synthetic profile IDs that have never completed a native load.
       state.currentThreadId = 'personality-thread';
       state.currentChatPersonality = 'default';
       state.chatThreads = [{
@@ -811,6 +812,8 @@ test('custom personality save path updates picker, header, and persisted state',
 
       state.currentChatPersonality = 'custom_migrate';
       localStorage.setItem(personalityKey, 'custom_migrate');
+      state.chatThreads[0]!.personality = 'custom_migrate';
+      if (!await (await import('/js/chat-threads.js')).saveChatThreadIndex({ sync: false })) throw new Error('Synthetic persona thread could not be saved');
       chatPersonalities.updatePersonalityBar();
       const deleteResultPromise = chatPersonalities.deleteCustomPersonality('custom_migrate')
         .then(() => ({ ok: true }))

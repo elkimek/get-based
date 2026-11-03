@@ -48,6 +48,9 @@ test('chat discussion state reopens ended current thread in browser', async ({ p
       localStorage.removeItem(threadIndexKey);
 
       const reopened = discussionState.reopenCurrentDiscussionThread();
+      // The native index publishes asynchronously under its cross-tab lock.
+      // Wait behind that publication without issuing another save ourselves.
+      await (await import('/js/chat-thread-index-storage.js')).withChatThreadIndexLock(profileId, () => {});
       const storedThreads = (JSON.parse as (text: string) => unknown)(localStorage.getItem(threadIndexKey) || '[]') as { id?: unknown; discussionEnded?: unknown }[];
       outcomes.reopenClearsEndedFlagAndPersistsIndex =
         reopened?.id === 'discussion-reopen-thread'
@@ -98,12 +101,15 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
       dcap.PHALA_PCCS_URL === 'https://pccs.phala.network'
       && typeof dcap.createDcapVerifier() === 'function';
 
-    outcomes.personalityPromptsCoverCustomAndBuiltIn =
-      promptContext.buildPersonalityPrompt(
+    const customPersona = promptContext.buildPersonalityPrompt(
         { id: 'custom_reviewer' },
         { promptText: 'Challenge weak claims.' }
-      ).includes('## Communication Persona\nChallenge weak claims.')
-      && (promptContext.buildPersonalityPrompt as (personality: Parameters<typeof promptContext.buildPersonalityPrompt>[0], custom?: Parameters<typeof promptContext.buildPersonalityPrompt>[1]) => ReturnType<typeof promptContext.buildPersonalityPrompt>)({ promptAddition: 'Use evidence.' }).includes('## Communication Persona\nUse evidence.')
+      );
+    const builtInPersona = promptContext.buildPersonalityPrompt({ promptAddition: 'Use evidence.' }, null);
+    outcomes.personalityPromptsCoverCustomAndBuiltIn =
+      JSON.parse(customPersona.split('\n').at(-1)!).preferences === 'Challenge weak claims.'
+      && customPersona.includes('subordinate to shared safety and evidence rules')
+      && JSON.parse(builtInPersona.split('\n').at(-1)!).preferences === 'Use evidence.'
       && promptContext.buildPersonalityPrompt({ id: 'custom_empty' }, { promptText: '' }) === '';
 
     const roundHistory = [

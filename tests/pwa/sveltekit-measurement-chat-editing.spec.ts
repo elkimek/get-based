@@ -18,7 +18,15 @@ async function openAssessment(page: Page) {
   await expect(page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true })).toBeVisible();
   await expect(page.locator('#sidebar-backdrop')).toBeHidden(); await expect(page.locator('#sidebar-nav')).not.toHaveClass(/\bmobile-open\b/);
 }
-async function openChat(page: Page) { const assessment = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true }); if (await assessment.isVisible()) await activate(page, assessment.getByRole('button', { name: 'Close', exact: true })); if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab')); await expect(page.locator('#chat-input')).toBeVisible(); }
+async function openChat(page: Page, { paused = false } = {}) {
+  const assessment = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true });
+  if (await assessment.isVisible()) await activate(page, assessment.getByRole('button', { name: 'Close', exact: true }));
+  if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
+  if (paused) {
+    await expect(page.locator('[data-chat-empty-action="resume-ai"]')).toBeVisible();
+    await expect(page.locator('#chat-input')).toBeDisabled();
+  } else await expect(page.locator('#chat-input')).toBeVisible();
+}
 test('static measurement correction, checkpoint and removal preserve frozen source evidence offline across stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000); const artifact = await artifactInputs(owners, []);
   const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as ProfileData;
@@ -63,7 +71,8 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
     await activate(page, page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true }).getByRole('button', { name: 'Close', exact: true }));
     await activate(page, page.locator('[data-nav-action="navigate"][data-nav-route="body"]')); await expect(page.locator('.lens-page-header h2')).toHaveText('Biometrics');
     receipts.before = await profile(page, artifact.state); const initial = receipts.before.stored as ProfileData;
-    await openChat(page); await activate(page, page.locator('[data-chat-empty-action="resume-ai"]'));
+    await openChat(page, { paused: true }); await activate(page, page.locator('[data-chat-empty-action="resume-ai"]'));
+    await expect(page.locator('#chat-input')).toBeVisible(); await expect(page.locator('#chat-input')).toBeEnabled();
     const interpretationStartedAt = await page.evaluate(() => Date.now());
     for (const [index, next] of (['value', 'checkpoint', 'remove', 'removeRoom'] as const).entries()) {
       stage = next; round = 0; await expect(page.locator('#chat-send-btn.streaming')).toHaveCount(0); await page.locator('#chat-input').fill(statements[stage]); await activate(page, page.locator('#chat-send-btn'));

@@ -1,4 +1,5 @@
 import { expect, test } from './coverage-fixture.js';
+import { openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 test.beforeEach(async ({ page, context }) => {
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
@@ -8,7 +9,12 @@ test.beforeEach(async ({ page, context }) => {
     localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({ accepted: true, termsVersion: '2026-08-22', privacyVersion: '2026-08-22', policyScope: 'self-hosted-notice', acceptedAt: '2026-10-07T00:00:00Z', appVersion: 'test', location: 'local-test' }));
   });
   await page.goto('/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached();
-  await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); (await import('/js/state.js')).state.chatHistory = [{ role: 'user', content: 'Attachment fixture conversation' }]; (await import('/js/chat-render.js')).renderChatMessages(); });
+  await openDiscussionFixturePanel(page);
+  await page.evaluate(async () => {
+    (await import('/js/state.js')).state.chatHistory = [{ role: 'user', content: 'Attachment fixture conversation' }];
+    if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Attachment fixture history could not save');
+    (await import('/js/chat-render.js')).renderChatMessages();
+  });
   await expect(page.locator('[data-chat-attachment-view]')).toBeVisible();
 });
 test('owned attachment reads enforce limits and cannot revive cleared or switched drafts', async ({ page }) => {

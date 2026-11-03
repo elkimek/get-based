@@ -76,8 +76,8 @@
           "at": 1713168000000
         },
         "thyroid.t4total": {
-          "file": "2024-Q2 specialty + comprehensive panel.pdf",
-          "at": 1713168000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1713168300000
         },
         "fattyAcids.palmiticC16": {
           "file": "2024-Q2 specialty + comprehensive panel.pdf",
@@ -197,16 +197,16 @@
           "at": 1733644800000
         },
         "lipids.apoB": {
-          "file": "2024-Q4 follow-up + specialty panel.pdf",
-          "at": 1733644800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1733645100000
         },
         "proteins.ceruloplasmin": {
           "file": "2024-Q4 follow-up + specialty panel.pdf",
           "at": 1733644800000
         },
         "thyroid.t3total": {
-          "file": "2024-Q4 follow-up + specialty panel.pdf",
-          "at": 1733644800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1733645100000
         },
         "vitamins.vitaminA": {
           "file": "2024-Q4 follow-up + specialty panel.pdf",
@@ -249,8 +249,8 @@
           "at": 1733644800000
         },
         "thyroid.t4total": {
-          "file": "2024-Q4 follow-up + specialty panel.pdf",
-          "at": 1733644800000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1733645100000
         },
         "fattyAcids.palmiticC16": {
           "file": "2024-Q4 follow-up + specialty panel.pdf",
@@ -322,7 +322,8 @@
         "cycleDay": 10,
         "cyclePhase": "follicular",
         "cyclePhaseDetail": "late_follicular",
-        "cyclePhaseSource": "recorded"
+        "cyclePhaseSource": "recorded",
+        "notes": "Pretreatment thyroid sample; levothyroxine had not been started."
       },
       "markers": {
         "biochemistry.glucose": 4.5,
@@ -351,15 +352,15 @@
         "electrolytes.calciumTotal": 2.38,
         "electrolytes.phosphorus": 1.2,
         "electrolytes.magnesium": 0.82,
-        "lipids.cholesterol": 4.55,
+        "lipids.cholesterol": 4.555,
         "lipids.triglycerides": 0.78,
         "lipids.hdl": 1.72,
         "lipids.ldl": 2.48,
-        "lipids.nonHdl": 2.83,
-        "lipids.cholHdlRatio": 2.6,
-        "iron.iron": 12.5,
+        "lipids.nonHdl": 2.835,
+        "lipids.cholHdlRatio": 2.648,
+        "iron.iron": 10.044,
         "iron.ferritin": 28,
-        "iron.transferrin": 3.2,
+        "iron.transferrin": 2.223,
         "iron.tibc": 55.8,
         "iron.transferrinSat": 18,
         "proteins.hsCRP": 0.45,
@@ -375,10 +376,10 @@
         "hematology.wbc": 5.4,
         "hematology.rbc": 4.15,
         "hematology.hemoglobin": 128,
-        "hematology.hematocrit": 0.385,
+        "hematology.hematocrit": 38.512,
         "hematology.mcv": 92.8,
-        "hematology.mch": 30.8,
-        "hematology.mchc": 333,
+        "hematology.mch": 30.843,
+        "hematology.mchc": 332.364,
         "hematology.rdwcv": 13.5,
         "hematology.platelets": 265,
         "hematology.mpv": 9.8,
@@ -401,8 +402,8 @@
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "biochemistry.urea": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -509,16 +510,16 @@
           "at": 1744286400000
         },
         "lipids.triglycerides": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "lipids.hdl": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "lipids.ldl": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "lipids.nonHdl": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -533,20 +534,20 @@
           "at": 1744286400000
         },
         "iron.ferritin": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "iron.transferrin": {
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1744286400000
         },
         "iron.tibc": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "iron.transferrinSat": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "proteins.hsCRP": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -561,24 +562,24 @@
           "at": 1744286400000
         },
         "thyroid.tsh": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "thyroid.ft4": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "thyroid.ft3": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "vitamins.vitaminD": {
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1744286400000
         },
         "diabetes.hba1c": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "diabetes.homaIR": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -593,20 +594,20 @@
           "at": 1744286400000
         },
         "hematology.rbc": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "hematology.hemoglobin": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "hematology.hematocrit": {
           "file": "Spring 2025 Complete Panel.pdf",
           "at": 1744286400000
         },
         "hematology.mcv": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "hematology.mch": {
           "file": "Spring 2025 Complete Panel.pdf",
@@ -677,8 +678,8 @@
           "at": 1744272000000
         },
         "thyroid.t4total": {
-          "file": "Backfill 2024 historical lab record.pdf",
-          "at": 1744272000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
         },
         "specialty.glycanAge": {
           "file": "GlycanAge plasma test.pdf",
@@ -689,8 +690,243 @@
           "at": 1744272000000
         },
         "diabetes.insulin": {
-          "file": "Spring 2025 Complete Panel.pdf",
-          "at": 1744286400000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1744272300000
+        }
+      }
+    },
+    {
+      "date": "2025-06-07",
+      "markers": {
+        "thyroid.tsh": 8.8,
+        "thyroid.ft4": 9.6,
+        "thyroid.ft3": 3.3,
+        "thyroid.t4total": 59,
+        "thyroid.t3total": 1.32,
+        "lipids.ldl": 3.5,
+        "lipids.apoB": 0.98,
+        "lipids.hdl": 1.65,
+        "lipids.triglycerides": 1.1,
+        "iron.ferritin": 16,
+        "iron.transferrinSat": 16,
+        "hematology.hemoglobin": 122,
+        "hematology.rbc": 4.4,
+        "hematology.mcv": 80,
+        "biochemistry.glucose": 4.8,
+        "diabetes.insulin": 7,
+        "diabetes.hba1c": 33,
+        "thyroid.tpoAb": 280,
+        "diabetes.homaIR": 1.493,
+        "lipids.cholesterol": 5.65,
+        "lipids.nonHdl": 4,
+        "lipids.cholHdlRatio": 3.424,
+        "hematology.hematocrit": 35.2,
+        "hematology.mch": 27.727,
+        "hematology.mchc": 346.591,
+        "iron.tibc": 78,
+        "iron.iron": 12.48,
+        "iron.transferrin": 3.108
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05",
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded",
+        "notes": "Pretreatment thyroid sample; levothyroxine had not been started."
+      },
+      "markerSources": {
+        "thyroid.tsh": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "thyroid.ft4": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "thyroid.ft3": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "thyroid.t4total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "thyroid.t3total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "iron.ferritin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "iron.transferrinSat": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "hematology.hemoglobin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "hematology.rbc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "hematology.mcv": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "thyroid.tpoAb": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        },
+        "iron.tibc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1749283500000
+        }
+      }
+    },
+    {
+      "date": "2025-08-04",
+      "markers": {
+        "thyroid.tsh": 7.9,
+        "thyroid.ft4": 10.3,
+        "thyroid.ft3": 3.4,
+        "thyroid.t4total": 63,
+        "thyroid.t3total": 1.35,
+        "lipids.ldl": 3.55,
+        "lipids.apoB": 1,
+        "lipids.hdl": 1.66,
+        "lipids.triglycerides": 1.1,
+        "iron.ferritin": 18,
+        "iron.transferrinSat": 17,
+        "hematology.hemoglobin": 124,
+        "hematology.rbc": 4.45,
+        "hematology.mcv": 81,
+        "biochemistry.glucose": 4.85,
+        "diabetes.insulin": 7,
+        "diabetes.hba1c": 33,
+        "diabetes.homaIR": 1.509,
+        "lipids.cholesterol": 5.71,
+        "lipids.nonHdl": 4.05,
+        "lipids.cholHdlRatio": 3.44,
+        "hematology.hematocrit": 36.045,
+        "hematology.mch": 27.865,
+        "hematology.mchc": 344.014,
+        "iron.tibc": 76,
+        "iron.iron": 12.92,
+        "iron.transferrin": 3.028
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05",
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded",
+        "notes": "Pretreatment thyroid sample; levothyroxine had not been started."
+      },
+      "markerSources": {
+        "thyroid.tsh": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "thyroid.ft4": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "thyroid.ft3": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "thyroid.t4total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "thyroid.t3total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "iron.ferritin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "iron.transferrinSat": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "hematology.hemoglobin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "hematology.rbc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "hematology.mcv": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
+        },
+        "iron.tibc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754294700000
         }
       }
     },
@@ -702,10 +938,11 @@
         "cycleDay": 11,
         "cyclePhase": "follicular",
         "cyclePhaseDetail": "late_follicular",
-        "cyclePhaseSource": "recorded"
+        "cyclePhaseSource": "recorded",
+        "notes": "Pretreatment thyroid sample; levothyroxine had not been started."
       },
       "markers": {
-        "biochemistry.glucose": 4.6,
+        "biochemistry.glucose": 4.85,
         "biochemistry.urea": 5,
         "biochemistry.creatinine": 55,
         "biochemistry.egfr": 1.9,
@@ -734,39 +971,39 @@
         "electrolytes.magnesium": 0.85,
         "electrolytes.copper": 18.5,
         "electrolytes.zinc": 11.2,
-        "lipids.cholesterol": 4.62,
-        "lipids.triglycerides": 0.82,
-        "lipids.hdl": 1.78,
-        "lipids.ldl": 2.47,
-        "lipids.nonHdl": 2.84,
-        "lipids.cholHdlRatio": 2.6,
+        "lipids.cholesterol": 5.71,
+        "lipids.triglycerides": 1.1,
+        "lipids.hdl": 1.66,
+        "lipids.ldl": 3.55,
+        "lipids.nonHdl": 4.05,
+        "lipids.cholHdlRatio": 3.44,
         "lipids.apoAI": 1.52,
-        "lipids.apoB": 0.68,
-        "iron.iron": 11,
-        "iron.ferritin": 24,
-        "iron.transferrin": 3.4,
-        "iron.tibc": 58.2,
-        "iron.transferrinSat": 16,
+        "lipids.apoB": 1,
+        "iron.iron": 12.92,
+        "iron.ferritin": 18,
+        "iron.transferrin": 3.028,
+        "iron.tibc": 76,
+        "iron.transferrinSat": 17,
         "proteins.hsCRP": 0.55,
         "proteins.totalProtein": 71,
         "proteins.albumin": 44.2,
         "proteins.ceruloplasmin": 0.25,
-        "thyroid.tsh": 2.8,
-        "thyroid.ft4": 15.2,
-        "thyroid.ft3": 4.5,
-        "thyroid.t3total": 1.85,
+        "thyroid.tsh": 7.9,
+        "thyroid.ft4": 10.3,
+        "thyroid.ft3": 3.4,
+        "thyroid.t3total": 1.35,
         "vitamins.vitaminD": 55,
         "vitamins.vitaminA": 1.62,
-        "diabetes.hba1c": 30,
-        "diabetes.homaIR": 1.12,
+        "diabetes.hba1c": 33,
+        "diabetes.homaIR": 1.509,
         "coagulation.homocysteine": 7.5,
         "hematology.wbc": 5.2,
-        "hematology.rbc": 4.05,
-        "hematology.hemoglobin": 126,
-        "hematology.hematocrit": 0.378,
-        "hematology.mcv": 92.6,
-        "hematology.mch": 30.6,
-        "hematology.mchc": 331,
+        "hematology.rbc": 4.45,
+        "hematology.hemoglobin": 124,
+        "hematology.hematocrit": 36.045,
+        "hematology.mcv": 81,
+        "hematology.mch": 27.865,
+        "hematology.mchc": 344.014,
         "hematology.rdwcv": 13.8,
         "hematology.platelets": 272,
         "hematology.mpv": 9.6,
@@ -781,12 +1018,12 @@
         "differential.monocytesPct": 0.067,
         "specialty.glycanAge": 37.2,
         "specialty.urinaryIodine": 110,
-        "diabetes.insulin": 5.5
+        "diabetes.insulin": 7
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "biochemistry.urea": {
           "file": "Summer 2025 Panel.pdf",
@@ -905,16 +1142,16 @@
           "at": 1754395200000
         },
         "lipids.triglycerides": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "lipids.hdl": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "lipids.ldl": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "lipids.nonHdl": {
           "file": "Summer 2025 Panel.pdf",
@@ -929,28 +1166,28 @@
           "at": 1754395200000
         },
         "lipids.apoB": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "iron.iron": {
           "file": "Summer 2025 Panel.pdf",
           "at": 1754395200000
         },
         "iron.ferritin": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "iron.transferrin": {
           "file": "Summer 2025 Panel.pdf",
           "at": 1754395200000
         },
         "iron.tibc": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "iron.transferrinSat": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "proteins.hsCRP": {
           "file": "Summer 2025 Panel.pdf",
@@ -969,20 +1206,20 @@
           "at": 1754395200000
         },
         "thyroid.tsh": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "thyroid.ft4": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "thyroid.ft3": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "thyroid.t3total": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "vitamins.vitaminD": {
           "file": "Summer 2025 Panel.pdf",
@@ -993,8 +1230,8 @@
           "at": 1754395200000
         },
         "diabetes.hba1c": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "diabetes.homaIR": {
           "file": "Summer 2025 Panel.pdf",
@@ -1009,20 +1246,20 @@
           "at": 1754395200000
         },
         "hematology.rbc": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "hematology.hemoglobin": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "hematology.hematocrit": {
           "file": "Summer 2025 Panel.pdf",
           "at": 1754395200000
         },
         "hematology.mcv": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         },
         "hematology.mch": {
           "file": "Summer 2025 Panel.pdf",
@@ -1089,8 +1326,8 @@
           "at": 1754380800000
         },
         "diabetes.insulin": {
-          "file": "Summer 2025 Panel.pdf",
-          "at": 1754395200000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1754381100000
         }
       }
     },
@@ -1177,6 +1414,236 @@
       }
     },
     {
+      "date": "2025-10-01",
+      "markers": {
+        "thyroid.tsh": 5.6,
+        "thyroid.ft4": 13.1,
+        "thyroid.ft3": 3.8,
+        "thyroid.t4total": 83,
+        "thyroid.t3total": 1.5,
+        "lipids.ldl": 2.95,
+        "lipids.apoB": 0.84,
+        "lipids.hdl": 1.7,
+        "lipids.triglycerides": 0.95,
+        "iron.ferritin": 25,
+        "iron.transferrinSat": 20,
+        "hematology.hemoglobin": 128,
+        "hematology.rbc": 4.5,
+        "hematology.mcv": 83,
+        "biochemistry.glucose": 4.85,
+        "diabetes.insulin": 6.5,
+        "diabetes.hba1c": 33,
+        "diabetes.homaIR": 1.401,
+        "lipids.cholesterol": 5.082,
+        "lipids.nonHdl": 3.382,
+        "lipids.cholHdlRatio": 2.989,
+        "hematology.hematocrit": 37.35,
+        "hematology.mch": 28.444,
+        "hematology.mchc": 342.704,
+        "iron.tibc": 72,
+        "iron.iron": 14.4,
+        "iron.transferrin": 2.869
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05",
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded",
+        "notes": "Morning sample before the levothyroxine dose; B-complex held for 48 hours under laboratory instructions."
+      },
+      "markerSources": {
+        "thyroid.tsh": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "thyroid.ft4": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "thyroid.ft3": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "thyroid.t4total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "thyroid.t3total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "iron.ferritin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "iron.transferrinSat": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "hematology.hemoglobin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "hematology.rbc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "hematology.mcv": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        },
+        "iron.tibc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1759305900000
+        }
+      }
+    },
+    {
+      "date": "2025-11-28",
+      "markers": {
+        "thyroid.tsh": 0.8,
+        "thyroid.ft4": 20.4,
+        "thyroid.ft3": 4.9,
+        "thyroid.t4total": 128,
+        "thyroid.t3total": 1.8,
+        "lipids.ldl": 2.45,
+        "lipids.apoB": 0.72,
+        "lipids.hdl": 1.74,
+        "lipids.triglycerides": 0.85,
+        "iron.ferritin": 31,
+        "iron.transferrinSat": 23,
+        "hematology.hemoglobin": 132,
+        "hematology.rbc": 4.55,
+        "hematology.mcv": 85,
+        "biochemistry.glucose": 4.9,
+        "diabetes.insulin": 6.2,
+        "diabetes.hba1c": 34,
+        "diabetes.homaIR": 1.35,
+        "lipids.cholesterol": 4.576,
+        "lipids.nonHdl": 2.836,
+        "lipids.cholHdlRatio": 2.63,
+        "hematology.hematocrit": 38.675,
+        "hematology.mch": 29.011,
+        "hematology.mchc": 341.306,
+        "iron.tibc": 68,
+        "iron.iron": 15.64,
+        "iron.transferrin": 2.709
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05",
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded",
+        "notes": "Morning sample before the levothyroxine dose; B-complex held for 48 hours under laboratory instructions."
+      },
+      "markerSources": {
+        "thyroid.tsh": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "thyroid.ft4": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "thyroid.ft3": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "thyroid.t4total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "thyroid.t3total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "iron.ferritin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "iron.transferrinSat": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "hematology.hemoglobin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "hematology.rbc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "hematology.mcv": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        },
+        "iron.tibc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1764317100000
+        }
+      }
+    },
+    {
       "date": "2025-12-15",
       "context": {
         "sampleTime": "08:15",
@@ -1184,10 +1651,11 @@
         "cycleDay": 27,
         "cyclePhase": "luteal",
         "cyclePhaseDetail": "late_luteal",
-        "cyclePhaseSource": "recorded"
+        "cyclePhaseSource": "recorded",
+        "notes": "Morning sample before the levothyroxine dose; B-complex held for 48 hours under laboratory instructions."
       },
       "markers": {
-        "biochemistry.glucose": 4.7,
+        "biochemistry.glucose": 4.929,
         "biochemistry.urea": 4.5,
         "biochemistry.creatinine": 56,
         "biochemistry.egfr": 1.88,
@@ -1218,39 +1686,39 @@
         "electrolytes.magnesiumRBC": 1.95,
         "electrolytes.copper": 17.8,
         "electrolytes.zinc": 11.8,
-        "lipids.cholesterol": 4.7,
-        "lipids.triglycerides": 0.75,
-        "lipids.hdl": 1.82,
-        "lipids.ldl": 2.54,
-        "lipids.nonHdl": 2.88,
-        "lipids.cholHdlRatio": 2.6,
+        "lipids.cholesterol": 4.432,
+        "lipids.triglycerides": 0.829,
+        "lipids.hdl": 1.752,
+        "lipids.ldl": 2.303,
+        "lipids.nonHdl": 2.68,
+        "lipids.cholHdlRatio": 2.53,
         "lipids.apoAI": 1.55,
-        "lipids.apoB": 0.7,
-        "iron.iron": 16.5,
-        "iron.ferritin": 35,
-        "iron.transferrin": 3.5,
-        "iron.tibc": 60.5,
-        "iron.transferrinSat": 24,
+        "lipids.apoB": 0.688,
+        "iron.iron": 15.762,
+        "iron.ferritin": 32.172,
+        "iron.transferrin": 2.662,
+        "iron.tibc": 66.828,
+        "iron.transferrinSat": 23.586,
         "proteins.hsCRP": 0.62,
         "proteins.totalProtein": 69.8,
         "proteins.albumin": 43.5,
         "proteins.ceruloplasmin": 0.24,
-        "thyroid.tsh": 3.4,
-        "thyroid.ft4": 13.8,
-        "thyroid.ft3": 4.2,
-        "thyroid.t3total": 1.72,
+        "thyroid.tsh": 0.607,
+        "thyroid.ft4": 21.397,
+        "thyroid.ft3": 5.164,
+        "thyroid.t3total": 1.888,
         "vitamins.vitaminD": 72,
         "vitamins.vitaminD3": 62,
-        "diabetes.hba1c": 30,
-        "diabetes.homaIR": 1.29,
+        "diabetes.hba1c": 34,
+        "diabetes.homaIR": 1.365,
         "coagulation.homocysteine": 6.8,
         "hematology.wbc": 5.6,
-        "hematology.rbc": 3.92,
-        "hematology.hemoglobin": 134,
-        "hematology.hematocrit": 0.402,
-        "hematology.mcv": 92.3,
-        "hematology.mch": 30.9,
-        "hematology.mchc": 334,
+        "hematology.rbc": 4.565,
+        "hematology.hemoglobin": 132.586,
+        "hematology.hematocrit": 38.936,
+        "hematology.mcv": 85.293,
+        "hematology.mch": 29.044,
+        "hematology.mchc": 340.521,
         "hematology.rdwcv": 14.2,
         "hematology.platelets": 280,
         "hematology.mpv": 9.5,
@@ -1266,12 +1734,12 @@
         "boneMetabolism.osteocalcin": 25,
         "specialty.glycanAge": 36.5,
         "specialty.urinaryIodine": 145,
-        "diabetes.insulin": 6.2
+        "diabetes.insulin": 6.229
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "biochemistry.urea": {
           "file": "Fall 2025 Panel.pdf",
@@ -1398,16 +1866,16 @@
           "at": 1765800000000
         },
         "lipids.triglycerides": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "lipids.hdl": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "lipids.ldl": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "lipids.nonHdl": {
           "file": "Fall 2025 Panel.pdf",
@@ -1422,28 +1890,28 @@
           "at": 1765800000000
         },
         "lipids.apoB": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "iron.iron": {
           "file": "Fall 2025 Panel.pdf",
           "at": 1765800000000
         },
         "iron.ferritin": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "iron.transferrin": {
           "file": "Fall 2025 Panel.pdf",
           "at": 1765800000000
         },
         "iron.tibc": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "iron.transferrinSat": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "proteins.hsCRP": {
           "file": "Fall 2025 Panel.pdf",
@@ -1462,20 +1930,20 @@
           "at": 1765800000000
         },
         "thyroid.tsh": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "thyroid.ft4": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "thyroid.ft3": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "thyroid.t3total": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "vitamins.vitaminD": {
           "file": "Fall 2025 Panel.pdf",
@@ -1486,8 +1954,8 @@
           "at": 1765800000000
         },
         "diabetes.hba1c": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "diabetes.homaIR": {
           "file": "Fall 2025 Panel.pdf",
@@ -1502,20 +1970,20 @@
           "at": 1765800000000
         },
         "hematology.rbc": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "hematology.hemoglobin": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "hematology.hematocrit": {
           "file": "Fall 2025 Panel.pdf",
           "at": 1765800000000
         },
         "hematology.mcv": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
         },
         "hematology.mch": {
           "file": "Fall 2025 Panel.pdf",
@@ -1586,8 +2054,353 @@
           "at": 1765785600000
         },
         "diabetes.insulin": {
-          "file": "Fall 2025 Panel.pdf",
-          "at": 1765800000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1765785900000
+        }
+      }
+    },
+    {
+      "date": "2026-01-25",
+      "markers": {
+        "thyroid.tsh": 0.14,
+        "thyroid.ft4": 23.8,
+        "thyroid.ft3": 5.8,
+        "thyroid.t4total": 151,
+        "thyroid.t3total": 2.1,
+        "lipids.ldl": 1.95,
+        "lipids.apoB": 0.61,
+        "lipids.hdl": 1.78,
+        "lipids.triglycerides": 0.78,
+        "iron.ferritin": 35,
+        "iron.transferrinSat": 25,
+        "hematology.hemoglobin": 134,
+        "hematology.rbc": 4.6,
+        "hematology.mcv": 86,
+        "biochemistry.glucose": 5,
+        "diabetes.insulin": 6.3,
+        "diabetes.hba1c": 34,
+        "diabetes.homaIR": 1.4,
+        "lipids.cholesterol": 4.085,
+        "lipids.nonHdl": 2.305,
+        "lipids.cholHdlRatio": 2.295,
+        "hematology.hematocrit": 39.56,
+        "hematology.mch": 29.13,
+        "hematology.mchc": 338.726,
+        "iron.tibc": 64,
+        "iron.iron": 16,
+        "iron.transferrin": 2.55
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05",
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded",
+        "notes": "Morning sample before the levothyroxine dose; B-complex held for 48 hours under laboratory instructions."
+      },
+      "markerSources": {
+        "thyroid.tsh": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "thyroid.ft4": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "thyroid.ft3": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "thyroid.t4total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "thyroid.t3total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "iron.ferritin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "iron.transferrinSat": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "hematology.hemoglobin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "hematology.rbc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "hematology.mcv": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        },
+        "iron.tibc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1769328300000
+        }
+      }
+    },
+    {
+      "date": "2026-03-24",
+      "markers": {
+        "thyroid.tsh": 2.3,
+        "thyroid.ft4": 15.7,
+        "thyroid.ft3": 4.3,
+        "thyroid.t4total": 103,
+        "thyroid.t3total": 1.62,
+        "lipids.ldl": 2.45,
+        "lipids.apoB": 0.71,
+        "lipids.hdl": 1.76,
+        "lipids.triglycerides": 0.84,
+        "iron.ferritin": 38,
+        "iron.transferrinSat": 27,
+        "hematology.hemoglobin": 136,
+        "hematology.rbc": 4.6,
+        "hematology.mcv": 87,
+        "biochemistry.glucose": 4.85,
+        "diabetes.insulin": 6,
+        "diabetes.hba1c": 33,
+        "diabetes.homaIR": 1.293,
+        "lipids.cholesterol": 4.592,
+        "lipids.nonHdl": 2.832,
+        "lipids.cholHdlRatio": 2.609,
+        "hematology.hematocrit": 40.02,
+        "hematology.mch": 29.565,
+        "hematology.mchc": 339.83,
+        "iron.tibc": 62,
+        "iron.iron": 16.74,
+        "iron.transferrin": 2.47
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05",
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded",
+        "notes": "Morning sample before the levothyroxine dose; B-complex held for 48 hours under laboratory instructions."
+      },
+      "markerSources": {
+        "thyroid.tsh": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "thyroid.ft4": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "thyroid.ft3": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "thyroid.t4total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "thyroid.t3total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "iron.ferritin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "iron.transferrinSat": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "hematology.hemoglobin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "hematology.rbc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "hematology.mcv": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        },
+        "iron.tibc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1774339500000
+        }
+      }
+    },
+    {
+      "date": "2026-05-21",
+      "markers": {
+        "thyroid.tsh": 2.1,
+        "thyroid.ft4": 15.9,
+        "thyroid.ft3": 4.4,
+        "thyroid.t4total": 105,
+        "thyroid.t3total": 1.65,
+        "lipids.ldl": 2.48,
+        "lipids.apoB": 0.72,
+        "lipids.hdl": 1.78,
+        "lipids.triglycerides": 0.83,
+        "iron.ferritin": 41,
+        "iron.transferrinSat": 28,
+        "hematology.hemoglobin": 137,
+        "hematology.rbc": 4.65,
+        "hematology.mcv": 87,
+        "biochemistry.glucose": 4.8,
+        "diabetes.insulin": 5.8,
+        "diabetes.hba1c": 33,
+        "diabetes.homaIR": 1.237,
+        "lipids.cholesterol": 4.637,
+        "lipids.nonHdl": 2.857,
+        "lipids.cholHdlRatio": 2.605,
+        "hematology.hematocrit": 40.455,
+        "hematology.mch": 29.462,
+        "hematology.mchc": 338.648,
+        "iron.tibc": 60,
+        "iron.iron": 16.8,
+        "iron.transferrin": 2.39
+      },
+      "context": {
+        "fasting": true,
+        "sampleTime": "08:05",
+        "cycleDay": 10,
+        "cyclePhase": "follicular",
+        "cyclePhaseDetail": "late_follicular",
+        "cyclePhaseSource": "recorded",
+        "notes": "Morning sample before the levothyroxine dose; B-complex held for 48 hours under laboratory instructions."
+      },
+      "markerSources": {
+        "thyroid.tsh": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "thyroid.ft4": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "thyroid.ft3": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "thyroid.t4total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "thyroid.t3total": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "lipids.ldl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "lipids.apoB": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "lipids.hdl": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "lipids.triglycerides": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "iron.ferritin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "iron.transferrinSat": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "hematology.hemoglobin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "hematology.rbc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "hematology.mcv": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "biochemistry.glucose": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "diabetes.insulin": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "diabetes.hba1c": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
+        },
+        "iron.tibc": {
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1779350700000
         }
       }
     },
@@ -1599,10 +2412,11 @@
         "cycleDay": 10,
         "cyclePhase": "follicular",
         "cyclePhaseDetail": "late_follicular",
-        "cyclePhaseSource": "recorded"
+        "cyclePhaseSource": "recorded",
+        "notes": "Morning sample before the levothyroxine dose; B-complex held for 48 hours under laboratory instructions."
       },
       "markers": {
-        "biochemistry.glucose": 5.15,
+        "biochemistry.glucose": 4.8,
         "biochemistry.urea": 4.6,
         "biochemistry.creatinine": 54,
         "biochemistry.egfr": 1.95,
@@ -1636,41 +2450,41 @@
         "electrolytes.magnesiumRBC": 2.05,
         "electrolytes.copper": 17.2,
         "electrolytes.zinc": 12.5,
-        "lipids.cholesterol": 4.58,
-        "lipids.triglycerides": 0.92,
-        "lipids.hdl": 1.85,
-        "lipids.ldl": 2.65,
-        "lipids.nonHdl": 2.73,
-        "lipids.cholHdlRatio": 2.5,
+        "lipids.cholesterol": 4.603,
+        "lipids.triglycerides": 0.82,
+        "lipids.hdl": 1.78,
+        "lipids.ldl": 2.45,
+        "lipids.nonHdl": 2.823,
+        "lipids.cholHdlRatio": 2.586,
         "lipids.apoAI": 1.58,
-        "lipids.apoB": 0.65,
-        "iron.iron": 19,
+        "lipids.apoB": 0.7,
+        "iron.iron": 16.8,
         "iron.ferritin": 42,
-        "iron.transferrin": 3.3,
-        "iron.tibc": 56.8,
+        "iron.transferrin": 2.39,
+        "iron.tibc": 60,
         "iron.transferrinSat": 28,
         "proteins.hsCRP": 0.9,
         "proteins.totalProtein": 71.5,
         "proteins.albumin": 44.5,
         "proteins.ceruloplasmin": 0.23,
-        "thyroid.tsh": 3.8,
-        "thyroid.ft4": 12.5,
-        "thyroid.ft3": 4,
-        "thyroid.t4total": 82,
-        "thyroid.t3total": 1.58,
+        "thyroid.tsh": 2.2,
+        "thyroid.ft4": 15.8,
+        "thyroid.ft3": 4.4,
+        "thyroid.t4total": 104,
+        "thyroid.t3total": 1.64,
         "vitamins.vitaminD": 88,
         "vitamins.vitaminD3": 78,
         "vitamins.vitaminA": 1.75,
-        "diabetes.hba1c": 35,
-        "diabetes.homaIR": 1.16,
+        "diabetes.hba1c": 33,
+        "diabetes.homaIR": 1.28,
         "coagulation.homocysteine": 6.5,
         "hematology.wbc": 5.35,
-        "hematology.rbc": 4.22,
+        "hematology.rbc": 4.65,
         "hematology.hemoglobin": 138,
-        "hematology.hematocrit": 0.413,
-        "hematology.mcv": 92.9,
-        "hematology.mch": 30.8,
-        "hematology.mchc": 332,
+        "hematology.hematocrit": 40.455,
+        "hematology.mcv": 87,
+        "hematology.mch": 29.677,
+        "hematology.mchc": 341.12,
         "hematology.rdwcv": 13.2,
         "hematology.platelets": 258,
         "hematology.mpv": 9.9,
@@ -1711,13 +2525,12 @@
         "oatMicrobial.hphpa": 45,
         "oatMicrobial.cresol4": 26,
         "oatMicrobial.dArabinitol": 22,
-        "calculatedRatios.nlr": 1.65,
-        "diabetes.insulin": 7.5
+        "diabetes.insulin": 6
       },
       "markerSources": {
         "biochemistry.glucose": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "biochemistry.urea": {
           "file": "Summer 2026 Panel.pdf",
@@ -1856,16 +2669,16 @@
           "at": 1784376000000
         },
         "lipids.triglycerides": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "lipids.hdl": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "lipids.ldl": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "lipids.nonHdl": {
           "file": "Summer 2026 Panel.pdf",
@@ -1880,28 +2693,28 @@
           "at": 1784376000000
         },
         "lipids.apoB": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "iron.iron": {
           "file": "Summer 2026 Panel.pdf",
           "at": 1784376000000
         },
         "iron.ferritin": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "iron.transferrin": {
           "file": "Summer 2026 Panel.pdf",
           "at": 1784376000000
         },
         "iron.tibc": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "iron.transferrinSat": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "proteins.hsCRP": {
           "file": "Summer 2026 Panel.pdf",
@@ -1920,24 +2733,24 @@
           "at": 1784376000000
         },
         "thyroid.tsh": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "thyroid.ft4": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "thyroid.ft3": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "thyroid.t4total": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "thyroid.t3total": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "vitamins.vitaminD": {
           "file": "Summer 2026 Panel.pdf",
@@ -1952,8 +2765,8 @@
           "at": 1784376000000
         },
         "diabetes.hba1c": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "diabetes.homaIR": {
           "file": "Summer 2026 Panel.pdf",
@@ -1968,20 +2781,20 @@
           "at": 1784376000000
         },
         "hematology.rbc": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "hematology.hemoglobin": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "hematology.hematocrit": {
           "file": "Summer 2026 Panel.pdf",
           "at": 1784376000000
         },
         "hematology.mcv": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         },
         "hematology.mch": {
           "file": "Summer 2026 Panel.pdf",
@@ -2136,8 +2949,8 @@
           "page": 1
         },
         "diabetes.insulin": {
-          "file": "Summer 2026 Panel.pdf",
-          "at": 1784376000000
+          "file": "Synthetic demo treatment follow-up.pdf",
+          "at": 1784361900000
         }
       }
     },
@@ -2226,20 +3039,44 @@
   ],
   "notes": [
     {
-      "date": "2025-04-10",
-      "text": "Baseline panel. Blood draw on cycle day 10 (late follicular). Ferritin already borderline low — doctor recommended iron supplementation. Feeling fatigued, especially around periods."
+      "date": "2025-06-07",
+      "text": "Fatigue, cold intolerance and constipation. TSH 8.8 mU/L with FT4 9.6 pmol/L; TPO antibodies 280 kU/L. Iron depletion is a second possible contributor to fatigue, not an explanation for all thyroid findings."
     },
     {
-      "date": "2025-08-05",
-      "text": "Late-follicular draw on cycle day 11. Estradiol was rising while progesterone remained low, consistent with the recorded cycle. Ferritin dropped further despite 25 mg iron, so she switched to iron bisglycinate 36 mg with vitamin C. TSH is creeping up and will be monitored."
+      "date": "2025-08-04",
+      "text": "Repeat TSH 7.9 mU/L and FT4 10.3 pmol/L support persistent primary hypothyroidism. Endocrinology reviewed the results and arranged replacement treatment."
     },
     {
-      "date": "2025-12-15",
-      "text": "Late-luteal draw on cycle day 27, three days before the next recorded period. Progesterone was already at the low end of the luteal range, consistent with the expected premenstrual decline; this is not comparable with a mid-luteal progesterone test. Hemoglobin, ferritin, and transferrin saturation all improved on a consistent 36 mg iron-bisglycinate dose. TSH continues to rise while free T4 trends down, so the GP ordered thyroid antibodies."
+      "date": "2025-08-14",
+      "text": "Endocrinologist started levothyroxine 50 µg each morning. Recorded instructions separate the morning tablet from iron by more than four hours."
+    },
+    {
+      "date": "2025-10-01",
+      "text": "After 48 days on 50 µg/day, TSH is still 5.6 mU/L and FT4 13.1 pmol/L. Energy and constipation partly improved. Clinician arranged a dose increase after review."
+    },
+    {
+      "date": "2025-10-11",
+      "text": "Clinician increased levothyroxine to 75 µg/day after reviewing symptoms and the follow-up results."
+    },
+    {
+      "date": "2025-11-28",
+      "text": "48-day follow-up on 75 µg/day: TSH 0.8 mU/L and FT4 20.4 pmol/L. Symptoms improved; clinician continued the prescription with follow-up."
+    },
+    {
+      "date": "2026-01-25",
+      "text": "Palpitations, heat intolerance and poorer sleep accompanied TSH 0.14 mU/L and FT4 23.8 pmol/L. Clinician assessed possible over-replacement despite the lower LDL at this draw."
+    },
+    {
+      "date": "2026-02-04",
+      "text": "Endocrinologist reduced levothyroxine to 50 µg/day after reviewing symptoms and biochemistry."
+    },
+    {
+      "date": "2026-03-24",
+      "text": "48 days after the prescribed reduction, TSH is 2.3 mU/L and FT4 15.7 pmol/L. Palpitations and heat intolerance resolved; energy is better than before treatment."
     },
     {
       "date": "2026-07-18",
-      "text": "Cycle day 10 (late follicular). Ferritin, transferrin saturation, and hemoglobin continue to improve after sustained adherence to iron bisglycinate. TSH is still rising and free T4 is near the lower boundary, so thyroid antibodies and an endocrinology review remain pending."
+      "text": "Current 50 µg/day prescription is unchanged under endocrinology follow-up. TSH 2.2 mU/L and FT4 15.8 pmol/L are stable. Ferritin 42 µg/L, hemoglobin 138 g/L and transferrin saturation 28% show improving iron status. Some fatigue remains around deadlines and menstrual symptoms."
     }
   ],
   "supplements": [
@@ -2284,6 +3121,67 @@
       "startDate": "2025-04-15",
       "endDate": "2025-08-05",
       "type": "supplement"
+    },
+    {
+      "id": "demo-sarah-levothyroxine",
+      "schemaVersion": 2,
+      "name": "Levothyroxine",
+      "genericName": "levothyroxine sodium",
+      "type": "medication",
+      "startDate": "2025-08-14",
+      "endDate": null,
+      "dosage": "50 µg each morning, prescribed by her endocrinologist",
+      "currentDose": {
+        "value": 50,
+        "unit": "µg",
+        "basis": "day",
+        "text": "50 µg/day"
+      },
+      "schedule": {
+        "mode": "daily",
+        "timesPerDay": 1,
+        "details": "06:30 with water, before breakfast. Iron at 13:00; magnesium in the evening. On thyroid blood-test days, morning dose follows the draw as instructed by the clinic."
+      },
+      "periods": [
+        {
+          "start": "2025-08-14",
+          "end": "2025-10-10",
+          "dose": {
+            "value": 50,
+            "unit": "µg",
+            "basis": "day",
+            "text": "50 µg/day"
+          },
+          "endReason": "Clinician increased dose after persistent elevated TSH at follow-up."
+        },
+        {
+          "start": "2025-10-11",
+          "end": "2026-02-03",
+          "dose": {
+            "value": 75,
+            "unit": "µg",
+            "basis": "day",
+            "text": "75 µg/day"
+          },
+          "endReason": "Clinician reduced dose after suppressed TSH, high FT4 and palpitations/heat intolerance."
+        },
+        {
+          "start": "2026-02-04",
+          "end": null,
+          "dose": {
+            "value": 50,
+            "unit": "µg",
+            "basis": "day",
+            "text": "50 µg/day"
+          }
+        }
+      ],
+      "lifecycle": {
+        "state": "active",
+        "reason": "Ongoing clinician-managed thyroid replacement."
+      },
+      "prescriber": "Demo endocrinologist",
+      "note": "Primary hypothyroidism with positive TPO antibodies. Energy and constipation improved. A clinician-reviewed over-replacement episode resolved after dose reduction; latest thyroid results are stable. Iron is taken more than four hours apart."
     }
   ],
   "diagnoses": {
@@ -2295,10 +3193,10 @@
         "status": "active"
       },
       {
-        "name": "Possible thyroid dysfunction — under evaluation",
-        "severity": "mild",
-        "since": "2025",
-        "status": "active"
+        "name": "Primary hypothyroidism — autoimmune thyroiditis",
+        "since": "2025-06-07",
+        "severity": "moderate",
+        "status": "controlled"
       }
     ],
     "familyHistory": [
@@ -2318,7 +3216,7 @@
       "acuteIllnessNearDraw": false
     },
     "proceduresNote": "",
-    "note": "No thyroid medication is currently being taken. Thyroid antibody testing (TPOAb and TgAb) and endocrinology review are pending."
+    "note": "Primary hypothyroidism was diagnosed from repeated high TSH/low FT4 and positive TPO antibodies. Endocrinology manages levothyroxine. An earlier over-replacement episode was reviewed and corrected by the clinician; the current dose is 50 µg/day with stable thyroid results. Iron deficiency is improving; menstrual losses and fatigue remain relevant."
   },
   "diet": {
     "type": "omnivore",
@@ -2341,7 +3239,7 @@
     "dinnerTime": "19:00",
     "snacks": "Nuts, dark chocolate, seasonal fruit",
     "snacksTime": "15:30",
-    "note": "Higher protein focus (~120g/day). Red meat 2-3x/week for heme iron. Takes iron supplement away from coffee/tea. Green tea 1-2 cups/day.",
+    "note": "Protein-rich dairy-free meals. Levothyroxine at 06:30 with water before breakfast; iron at 13:00 away from coffee/tea and more than four hours after levothyroxine. Magnesium is taken in the evening. Blood-test mornings follow the clinic instruction to take levothyroxine after collection.",
     "bowelFrequency": "2x/day",
     "stoolConsistency": "smooth",
     "bloating": "moderate",
@@ -2371,11 +3269,11 @@
     "limitations": [
       "poor recovery"
     ],
-    "note": "Yoga 3x/week (vinyasa + yin). Running 2x/week (5-8 km easy pace). Light resistance training 2x/week since Nov 2025 for bone health. Rest days aligned with heavier period days. Daily 6000+ steps."
+    "note": "Yoga, easy running, light strength work and walking. Aims for 6000 steps daily; recent busy workdays are below that goal. Recovery varies with sleep and menstrual symptoms, without assuming an ongoing thyroid-dose problem."
   },
   "sleepRest": {
     "duration": "7-8h",
-    "quality": "good",
+    "quality": "fair",
     "daytimeSleepiness": "sometimes",
     "apneaStatus": "not suspected",
     "papUse": "not applicable",
@@ -2393,7 +3291,7 @@
       "evening magnesium",
       "no food 3h before bed"
     ],
-    "note": "22:30-05:30 typical schedule. Occasional insomnia during luteal phase (3-4 nights/month). Melatonin 0.5mg occasionally."
+    "note": "Usual 22:30–05:30 time in bed; actual sleep varies with deadlines and late-luteal insomnia. Palpitations and marked sleep disruption during the earlier high-dose thyroid phase resolved after clinician review. Recent recovery variation is not automatically thyroid related."
   },
   "lightCircadian": {
     "amLight": "morning outdoor (after sunrise)",
@@ -2429,7 +3327,7 @@
       "social support",
       "journaling"
     ],
-    "note": "Work deadlines can be intense but manageable. Health anxiety around thyroid diagnosis and iron issues."
+    "note": "Moderate work and health stress. Confidence improved after thyroid treatment stabilized; iron-related fatigue, menstrual symptoms and sleep remain separate review topics."
   },
   "loveLife": {
     "status": "in relationship",
@@ -2479,11 +3377,11 @@
   "contextNotes": "Proactive about health and prefers functional/optimal reference ranges over standard lab ranges. Particularly concerned about thyroid trajectory given family history of Hashimoto's diagnosis.",
   "healthGoals": [
     {
-      "text": "Build ferritin to 50+ µg/L and maintain stable iron status",
+      "text": "Maintain clinician-managed thyroid replacement and review any recurrent symptoms with endocrinology",
       "severity": "major"
     },
     {
-      "text": "Clarify thyroid status — determine if subclinical hypothyroidism or early Hashimoto's",
+      "text": "Build ferritin to 50+ µg/L and maintain stable iron status",
       "severity": "major"
     },
     {
@@ -2755,7 +3653,7 @@
       },
       {
         "date": "2026-07-18",
-        "value": 60,
+        "value": 60.7,
         "unit": "kg",
         "source": "manual"
       }
@@ -2775,8 +3673,8 @@
       },
       {
         "date": "2026-07-18",
-        "sys": 112,
-        "dia": 74,
+        "sys": 109,
+        "dia": 71,
         "source": "manual"
       }
     ],
@@ -2953,12 +3851,13 @@
     }
   ],
   "markerNotes": {
-    "iron.ferritin": "Interpret with menstrual blood loss and inflammation markers; oral iron bisglycinate has been used since August 2025.",
-    "thyroid.tsh": "Maternal Hashimoto's history. Thyroid antibodies are pending, and no thyroid medication is currently being taken."
+    "iron.ferritin": "Iron status is improving with the recorded iron regimen. Iron and levothyroxine are taken more than four hours apart.",
+    "thyroid.tsh": "Confirmed primary hypothyroidism treated with levothyroxine. Review the dated 50→75→50 µg clinician-managed history; low TSH during the earlier high-dose phase was assessed as possible over-replacement.",
+    "thyroid.ft4": "Morning samples precede the daily levothyroxine tablet; B-complex held for 48 hours under laboratory instructions."
   },
   "markerValueNotes": {
-    "hormones.progesterone:2025-08-05": "Cycle day 11, so this is a follicular rather than mid-luteal progesterone result.",
-    "iron.ferritin:2026-07-18": "Draw occurred on cycle day 10 after approximately eleven months of iron-bisglycinate use."
+    "thyroid.tsh:2026-01-25": "Suppressed TSH with high FT4 and symptoms during the 75 µg phase; clinician reviewed and later reduced the dose.",
+    "thyroid.tsh:2026-07-18": "Stable results on the current clinician-prescribed 50 µg/day. Morning sample before the tablet."
   },
   "wearableSummary": {
     "sources": {
@@ -3083,30 +3982,30 @@
       },
       "body_temp_delta": {
         "primarySource": "oura",
-        "latest": 0.5,
+        "latest": 0,
         "latestDate": "2026-07-15",
-        "baseline": -0.05,
-        "baselineP25": -0.2,
-        "baselineP75": 0.15,
+        "baseline": 0,
+        "baselineP25": -0.15,
+        "baselineP75": 0.2,
         "rolling": {
-          "d7": 0.4,
-          "d30": 0.1,
-          "d90": -0.05
+          "d7": 0,
+          "d30": 0.02,
+          "d90": 0.05
         },
-        "trend30d": "rising",
+        "trend30d": "stable",
         "weekly": [
-          -0.1,
           0,
           -0.1,
-          0.1,
-          0,
-          0.1,
+          0.15,
           0.2,
-          0.3,
-          0.4,
-          0.4,
-          0.5,
-          0.5
+          -0.05,
+          -0.1,
+          0.2,
+          0.25,
+          0,
+          -0.1,
+          0.15,
+          0
         ]
       },
       "steps": {
@@ -4571,7 +5470,7 @@
     "generatedAt": 1785400200000
   },
   "focusCard": {
-    "text": "Ferritin is 42 µg/L in July 2026, up from 24 in August 2025 after sustained iron-bisglycinate use but still below the personal 50+ goal. Hemoglobin improved from 126 to 138 g/L and transferrin saturation from 16% to 28%, so the iron markers tell a consistent recovery story. The draw was cycle day 10. TSH has risen to 3.8 mIU/L while free T4 has declined to 12.5 pmol/L; both remain within the fixture's displayed ranges, but the trend and maternal Hashimoto's history support completing TPOAb and TgAb testing before labeling or treating thyroid disease."
+    "text": "TSH 2.2 mU/L and FT4 15.8 pmol/L are stable on the current prescribed 50 µg/day of levothyroxine. Energy, cold intolerance and constipation improved after treatment. Earlier palpitations and heat intolerance during the 75 µg phase resolved after the endocrinologist reduced the dose. Ferritin 42 µg/L and hemoglobin 138 g/L show iron recovery, while sleep, workload and menstrual symptoms remain relevant to fatigue."
   },
   "contextHealth": {
     "dots": {
@@ -4587,7 +5486,7 @@
     },
     "summaries": {
       "healthGoals": "Specific lab-tied targets — ferritin 50+ tracking",
-      "diagnoses": "Iron deficiency improving; thyroid status remains under evaluation",
+      "diagnoses": "Treated autoimmune hypothyroidism; iron status improving",
       "diet": "Higher-protein dairy/seed-oil-free pattern supports iron plan",
       "exercise": "Yoga, running, strength, and walking with recovery limitations noted",
       "sleepRest": "Sleep onset and occasional daytime sleepiness worth tracking",
@@ -4597,34 +5496,15 @@
       "environment": "Urban EMF + WiFi load partially mitigated"
     },
     "cardSummaries": {
-      "healthGoals": "Focused on improving iron and thyroid status, reducing fatigue, maintaining vitamin D, and supporting bone density.",
-      "diagnoses": "Active iron deficiency is improving; possible thyroid dysfunction remains under evaluation, with structured family histories of Hashimoto's thyroiditis and osteoporosis.",
-      "diet": "Omnivorous, dairy-free and seed-oil-free diet with 1.6–2.2 g/kg/day protein, 2–3 L/day fluids, and an iron-focused meal plan. Moderate bloating and FODMAP sensitivity are recorded.",
-      "exercise": "Exercises five to six times weekly with yoga, running, strength training, and walking; typical sessions last 30–60 minutes and recovery can be limited.",
-      "sleepRest": "Usually sleeps seven to eight hours on a consistent schedule. Falling asleep can be difficult, daytime sleepiness occurs sometimes, and apnea is not suspected.",
+      "healthGoals": "Stable prescribed thyroid replacement, iron recovery, energy and bone health with clinician follow-up.",
+      "diagnoses": "Primary hypothyroidism was diagnosed from repeated high TSH/low FT4 and positive TPO antibodies. Endocrinology manages levothyroxine. An earlier over-replacement episode was reviewed and corrected by the clinician; the current dose is 50 µg/day with stable thyroid results. Iron deficiency is improving; menstrual losses and fatigue remain relevant.",
+      "diet": "Protein-rich dairy-free meals. Levothyroxine at 06:30 with water before breakfast; iron at 13:00 away from coffee/tea and more than four hours after levothyroxine. Magnesium is taken in the evening. Blood-test mornings follow the clinic instruction to take levothyroxine after collection.",
+      "exercise": "Yoga, easy running, light strength work and walking. Aims for 6000 steps daily; recent busy workdays are below that goal. Recovery varies with sleep and menstrual symptoms, without assuming an ongoing thyroid-dose problem.",
+      "sleepRest": "Usual 22:30–05:30 time in bed; actual sleep varies with deadlines and late-luteal insomnia. Palpitations and marked sleep disruption during the earlier high-dose thyroid phase resolved after clinician review. Recent recovery variation is not automatically thyroid related.",
       "lightCircadian": "Gets morning outdoor light and one to two daytime hours outside, while dimming lights and devices after sunset.",
       "stress": "Long-term work and health stress is moderate and variable, managed through exercise, nature, social support, and journaling.",
       "loveLife": "In a supportive relationship and generally satisfied, with libido and change from usual varying across the menstrual cycle.",
       "environment": "Low-altitude Prague home with filtered water and mixed lighting. WiFi and Bluetooth exposure are reduced at night."
     }
-  },
-  "biologyScoreContextAI": {
-    "summary": "Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.",
-    "suggestions": [],
-    "fingerprint": "biology-context:wvd589",
-    "fingerprintsByRange": {
-      "all": "biology-context:wvd589",
-      "1y": "biology-context:c85pw9",
-      "6m": "biology-context:ut8r1y",
-      "3m": "biology-context:1i8i4k3"
-    },
-    "unlockedRanges": [
-      "all",
-      "1y",
-      "6m",
-      "3m"
-    ],
-    "range": "all",
-    "updatedAt": 1786104000000
   }
 }

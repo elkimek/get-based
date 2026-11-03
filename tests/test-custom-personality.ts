@@ -192,9 +192,9 @@ const promptContextSrc = read('js/chat-prompt-context.js');
 assert('sendChatMessage delegates personality prompt helper', sendSrc.includes('buildPersonalityPrompt'));
 assert('prompt context checks custom_ prefix', promptContextSrc.includes("startsWith('custom_')") || promptContextSrc.includes('startsWith("custom_")'));
 assert(
-  'prompt context gives custom personas a dedicated communication section',
-  buildPersonalityPrompt({ id: 'custom_abc' }, { promptText: 'Be direct.' })
-    .includes('## Communication Persona\nBe direct.'),
+  'prompt context gives custom personas subordinate quoted communication preferences',
+  JSON.parse(buildPersonalityPrompt({ id: 'custom_abc' }, { promptText: 'Be direct.' }).split('\n').at(-1)!).preferences === 'Be direct.'
+    && buildPersonalityPrompt({ id: 'custom_abc' }, { promptText: 'Be direct.' }).includes('subordinate to shared safety and evidence rules'),
 );
 
 // ── 14. Thread metadata ──

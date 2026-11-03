@@ -164,11 +164,12 @@ const dataModule = await import('../js/data.js');
   assert('glucose US refMax ~100.9', Math.abs((gUS.refMax as number) - 100.9) < 0.1,
     `got ${gUS.refMax}, expected ~100.9`);
 
-  // Cholesterol: 4.8 mmol/L * 38.67 = 185.616 -> toPrecision(4) = 185.6
+  // Refreshed demo cholesterol: 4.868 mmol/L * 38.67 = 188.24556 -> 188.2.
+  assert(`cholesterol SI @ ${ANCHOR_DATE} is 4.868`, data.categories.lipids!.markers.cholesterol!.values[anchorIdx] === 4.868);
   const cUS = usData.categories.lipids!.markers.cholesterol!;
   assert('cholesterol US unit is mg/dl', cUS.unit === 'mg/dl', `got "${cUS.unit}"`);
-  assert(`cholesterol US @ ${ANCHOR_DATE} ~185.6`, Math.abs((cUS.values[usIdx] as number) - 185.6) < 0.1,
-    `got ${cUS.values[usIdx]}, expected ~185.6`);
+  assert(`cholesterol US @ ${ANCHOR_DATE} ~188.2`, Math.abs((cUS.values[usIdx] as number) - 188.2) < 0.1,
+    `got ${cUS.values[usIdx]}, expected ~188.2`);
 
   // HbA1c: 31.0 mmol/mol -> (31.0/10.929) + 2.15 = 4.9865 -> toFixed(1) = 5.0
   const hUS = usData.categories.diabetes!.markers.hba1c!;

@@ -1,6 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
-import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import { installDiscussionFixture, openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
 
 type CallOptions = Parameters<typeof import('../../js/direct-chat-tools.js').callDirectChatWithTools>[0];
 type RoundResult = Awaited<ReturnType<typeof import('../../js/chat-discussion-turns.js').runDiscussionContinuation>>;
@@ -34,8 +34,8 @@ test.beforeEach(async ({ context, page }) => {
   `);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/app');
+  await openDiscussionFixturePanel(page);
   await page.evaluate(async () => {
-    await (await import('/js/chat-loader.js')).openChatPanel();
     const { state } = await import('/js/state.js');
     const api = await import('/js/api.js');
     api.setAIProvider('ollama'); api.setOllamaMainModel('accepted-model');
@@ -43,6 +43,7 @@ test.beforeEach(async ({ context, page }) => {
     state.currentThreadId = 'discussion-live-origin';
     state.currentChatPersonality = 'default';
     state.chatHistory = [{ role: 'user', content: 'Origin question' }];
+    const originHistory = state.chatHistory;
     const timestamp = new Date().toISOString();
     state.chatThreads = [
       { id: state.currentThreadId, name: 'Origin', createdAt: timestamp, updatedAt: timestamp, messageCount: 1, personality: 'default' },
@@ -52,11 +53,12 @@ test.beforeEach(async ({ context, page }) => {
     const originKey = getChatThreadKey(state.currentThreadId);
     const originRaw = JSON.stringify(state.chatHistory);
     localStorage.setItem(originKey, originRaw);
-    await saveChatThreadIndex();
+    if (!await saveChatThreadIndex()) throw new Error('Discussion origin index could not save');
+    if (!await (await import('/js/chat-history.js')).saveChatHistory() || state.chatHistory !== originHistory) throw new Error('Discussion origin history could not save');
     const persona = (await import('/js/constants.js')).CHAT_PERSONALITIES.find(item => !!item.promptAddition)!;
     globalThis.discussionLiveFixture = {
       participants: [{ id: persona.id, name: persona.name, icon: persona.icon }],
-      calls: [], replies: [], originHistory: state.chatHistory, originKey, originRaw,
+      calls: [], replies: [], originHistory, originKey, originRaw,
       participant: { id: persona.id, name: persona.name, icon: persona.icon, prompt: persona.promptAddition! },
       reply(options) {
         this.calls.push(options);
@@ -183,6 +185,7 @@ test('background discussion persists only its origin and projects each explicit 
     fixture.replies[0]!({ text: 'Origin reply', finishReason: 'stop' });
   });
   await expect.poll(() => page.evaluate(() => globalThis.discussionLiveFixture.calls.length)).toBe(2);
+  await expect.poll(() => page.evaluate(() => globalThis.discussionLiveFixture.originHistory[1]?.content)).toBe('Origin reply');
   const result = await page.evaluate(async () => {
     const fixture = globalThis.discussionLiveFixture;
     const { state } = await import('/js/state.js');
@@ -208,10 +211,10 @@ test('background discussion persists only its origin and projects each explicit 
   expect(result.destination).toEqual([{ role: 'user', content: 'Destination question' }]);
   expect(result.destinationRaw).toEqual(result.destination);
   expect(result.origin[1]).toMatchObject({ content: 'Origin reply', discussion: true });
-  expect(result.stored).toEqual(result.origin); expect(result.prompt).toContain(result.expectedPrompt);
+  expect(result.stored).toEqual(result.origin); expect(result.prompt).toContain(JSON.stringify({ preferences: result.expectedPrompt }));
   expect(result.origin[2]).toMatchObject({ content: 'Second origin reply', personalityName: result.secondName });
   expect(result.secondMessages).toEqual([{ role: 'user', content: 'Origin question' }, { role: 'assistant', content: `[Response from ${result.participantName}]\nOrigin reply` }]);
-  expect(result.secondSystem).not.toContain(result.expectedPrompt);
+  expect(result.secondSystem).not.toContain(JSON.stringify({ preferences: result.expectedPrompt }));
   expect(result.metadata).toMatchObject({ messageCount: 3, personality: 'default' });
   expect(result.controller).toBe(false);
   await expect(page.locator('#chat-send-btn')).toHaveAttribute('aria-label', 'Send message');

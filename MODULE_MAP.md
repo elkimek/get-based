@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2092 |
-| Internal import edges | 7036 |
+| Modules | 2093 |
+| Internal import edges | 7037 |
 | Dynamic internal edges | 216 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -2049,11 +2049,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>demo</code> family — 3 modules</summary>
+<details><summary><code>demo</code> family — 4 modules</summary>
 
-- [`js/demo-biology-data.ts`](js/demo-biology-data.ts) → no in-scope imports
+- [`js/demo-biology-data.ts`](js/demo-biology-data.ts) → [`js/demo-treatment-data.ts`](js/demo-treatment-data.ts)
 - [`js/demo-biology-insights.ts`](js/demo-biology-insights.ts) → no in-scope imports
 - [`js/demo-nutrition.ts`](js/demo-nutrition.ts) → no in-scope imports
+- [`js/demo-treatment-data.ts`](js/demo-treatment-data.ts) → no in-scope imports
 
 </details>
 

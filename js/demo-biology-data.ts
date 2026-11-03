@@ -1,4 +1,5 @@
 // Retained source rows and copied marker leaves are not validated by this generator.
+import { applyDemoTreatmentData, DEMO_DRAW_OFFSETS } from './demo-treatment-data.js';
 interface DemoHistoricalEntry extends Record<string, unknown> { date: unknown; markers?: unknown }
 export interface DemoBiologyPanel {
   date: string; file: null; markers: Record<string, unknown>;
@@ -15,7 +16,6 @@ type DemoClock = Pick<Date, 'getFullYear' | 'getMonth' | 'getDate' | 'getTime'>;
 // Synthetic, rolling lab history, used only when creating a new demo profile.
 // Existing profiles (including edited demos) are never rewritten on reload.
 const DAY = 86400000;
-const DRAW_OFFSETS = [406, 348, 290, 232, 174, 116, 58, 0];
 const dateAt = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const round = (value: number) => Number(value.toFixed(3));
 
@@ -62,8 +62,8 @@ export function prepareDemoBiologyData(source: unknown, sex: unknown, { now = ne
     'coagulation.homocysteine': 12.5, 'vitamins.vitaminD': 61,
     'fattyAcids.omega3Index': 5.8, 'hormones.cortisol': 550,
   };
-  const panels: DemoBiologyPanel[] = DRAW_OFFSETS.map((offset, index) => {
-    const progress = index / (DRAW_OFFSETS.length - 1);
+  const panels: DemoBiologyPanel[] = DEMO_DRAW_OFFSETS.map((offset, index) => {
+    const progress = index / (DEMO_DRAW_OFFSETS.length - 1);
     const values = { ...markers };
     for (const [path, first] of Object.entries(earlier)) values[path] = round(first + ((markers[path] as number) - first) * progress);
     values['diabetes.homaIR'] = round((values['biochemistry.glucose'] as number) * (values['diabetes.insulin'] as number) / 22.5);
@@ -81,6 +81,7 @@ export function prepareDemoBiologyData(source: unknown, sex: unknown, { now = ne
   });
   const panelDates = new Set(panels.map(entry => entry.date));
   data.entries = [...(data.entries as DemoHistoricalEntry[]).filter(entry => !panelDates.has(entry.date as string)), ...panels].sort((a, b) => (a.date as { localeCompare(other: unknown): number }).localeCompare(b.date));
+  applyDemoTreatmentData(data, sex);
   data.diagnoses ||= {};
   (data.diagnoses as { flags?: unknown }).flags = { ...((data.diagnoses as { flags?: unknown }).flags as object), intenseTrainingRecent: false, acuteIllnessNearDraw: false };
   // Draws are 58 days apart: Sarah's recorded 29-day cycle stays on day 10.

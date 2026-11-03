@@ -1,17 +1,17 @@
 import { expect, test } from './coverage-fixture.js';
-import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import { installDiscussionFixture, openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
 
 test.beforeEach(async ({ page, context }) => {
   await installDiscussionFixture(context);
   await page.goto('/app');
+  await openDiscussionFixturePanel(page);
   await page.evaluate(async () => {
-    await (await import('/js/chat-loader.js')).openChatPanel();
     const { state } = await import('/js/state.js');
-    state.currentThreadId = 'transcript-lifetime';
     state.chatHistory = [
       { role: 'user', content: 'Original question' },
       { role: 'assistant', content: '**Original answer**', lensSources: [{ source: 'Private note', score: 0.8, text: 'Literal <evidence>' }] },
     ];
+    if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Transcript fixture history could not save');
     (await import('/js/chat-render.js')).renderChatMessages();
   });
 });

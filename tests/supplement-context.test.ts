@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getContextSummary } from '../js/chat-context-summary.js';
 import {
   buildCompactSupplementContextRecords,
   buildSupplementAIContext,
@@ -56,6 +57,7 @@ describe('token-bounded supplement AI context', () => {
     expect(detail).toContain('relationship to the user’s bottle lot not verified');
     expect(detail).toContain('1 informational/excluded result(s) retained outside AI context');
     expect(detail).toContain('keep ND/NQ distinct from zero');
+    expect(detail).toContain('For source-reported contaminant results, keep ND/NQ distinct from zero');
   });
 
   it('unlocks detail from stored terms in arbitrary scripts and includes full evidence', () => {
@@ -94,7 +96,7 @@ describe('token-bounded supplement AI context', () => {
       inventorySupplements: [current, ended],
     });
 
-    expect(context).toContain('Other stored therapy records (summary only): Past course [ended]');
+    expect(context).toContain('Other stored therapy records (not detailed in this prompt; name, type, status and dates only): Past course [supplement; ended; 2025-01-01→2025-02-01]');
     expect(context.match(/Past course/gu)).toHaveLength(1);
   });
 
@@ -118,6 +120,37 @@ describe('token-bounded supplement AI context', () => {
 describe('dated doses in AI context', () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-29T12:00:00Z')); });
   afterEach(() => vi.useRealTimers());
+  it('preserves a reported legacy amount without inventing a dated or elemental dose', () => {
+    const legacy = { name: 'Iron Bisglycinate', type: 'supplement', dosage: '36 mg with vitamin C', startDate: '2026-01-01', endDate: '' };
+    const before = structuredClone(legacy);
+    const record = buildCompactSupplementContextRecords([legacy])[0]!;
+    const expected = 'undated reported regimen: 36 mg with vitamin C; dated dose not recorded';
+    expect(record.currentDose).toBe(expected);
+    expect(record.doseHistory).toEqual(['2026-01-01→ongoing [current]: dose not recorded']);
+    for (const mode of ['compact', 'detail'] as const) {
+      const context = buildSupplementAIContext([legacy], { mode });
+      expect(context).toContain(expected);
+      expect(context).not.toContain('36 mg/day');
+      expect(context).not.toContain('36 mg elemental');
+    }
+    expect(legacy).toEqual(before);
+  });
+
+  it('keeps dated doses authoritative over legacy text and product-label directions', () => {
+    const record = { name: 'Iron', dosage: '36 mg with vitamin C', labelDirections: 'Two tablets daily',
+      periods: [{ start: '2026-01-01', end: null, dose: { value: 18, unit: 'mg', basis: 'day' } }] };
+    expect(buildCompactSupplementContextRecords([record])[0]!.currentDose).toBe('18 mg/day (2026-01-01→ongoing)');
+    const labelOnly = { name: 'Iron', startDate: '2026-01-01', labelDirections: '36 mg daily' };
+    expect(buildCompactSupplementContextRecords([labelOnly])[0]!.currentDose).toBe('dose not recorded (2026-01-01→ongoing)');
+  });
+
+  it.each([
+    { startDate: '2026-01-01', endDate: '2026-02-01', expected: 'none (ended)' },
+    { startDate: '2027-01-01', expected: 'none (scheduled)' },
+  ])('does not turn an inactive legacy regimen into current use: $expected', ({ expected, ...dates }) => {
+    const record = { name: 'Iron', dosage: '36 mg with vitamin C', ...dates };
+    expect(buildCompactSupplementContextRecords([record])[0]!.currentDose).toBe(expected);
+  });
   const changed = (): HistoryFixture => ({ name: 'TMG', ingredients: [{ name: 'TMG', amount: '500 mg' }], timesPerDay: 1,
     schedule: { mode: 'daily', timesPerDay: 1 }, dosage: '500 mg with food', currentDose: '1500 mg/day', periods: [
       { start: '2026-08-01', end: '2026-09-28', dose: '500 mg/day', schedule: { mode: 'daily', timesPerDay: 1 } },
@@ -276,7 +309,8 @@ describe('complete therapy facts and conservative exposure', () => {
     records[29]!.qualityTests = [{ category: 'contaminant', analyte: 'PrivateAnalyte', resultText: 'PrivateResult', includeInAIContext: false }];
     const detail = buildSupplementAIContext(records, { mode: 'detail', queryText: 'Tell me about Zebra medicine' });
     expect(detail.indexOf('Zebra medicine')).toBeLessThan(detail.indexOf('Product 0'));
-    expect(detail).toContain('truncated');
+    expect(detail).toMatch(/Therapy records in this prompt: \d+ of 30 with dose detail; \d+ listed below by name and dates only/u);
+    expect(detail).toContain('Product 28 [medication;');
     expect(detail).not.toContain('PrivateAnalyte');
     expect(JSON.stringify(buildCompactSupplementContextRecords([records[29]!]))).not.toContain('PrivateResult');
   });
@@ -298,4 +332,133 @@ it('retains a legacy undated dose without inventing historical amounts', () => {
     expect(context).toContain('25 mg/dose');
     expect(context).toContain('dose not recorded');
   }
+});
+
+describe('therapy selection never hides a dated medication course', () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-02T12:00:00Z')); });
+  afterEach(() => vi.useRealTimers());
+  // Fictional medication; one record per dose change, as users commonly log titrations.
+  const course = (dose: string, start: string, end: string | null, note = ''): SupplementRecord => ({
+    name: `Zentarol ${dose}`, type: 'medication', genericName: 'zentarolum', note,
+    periods: [{ start, end, dose: `${dose}/day` }],
+  });
+  const inventory = (): SupplementRecord[] => [
+    ...Array.from({ length: 12 }, (_, i): SupplementRecord => ({
+      name: `Daily supplement ${i + 1}`, type: 'supplement', periods: [{ start: '2025-07-01', end: null }],
+      ingredients: [{ name: `Nutrient ${i + 1}`, amount: '100 mg' }],
+    })),
+    course('10 mg', '2026-01-10', '2026-03-31'),
+    course('20 mg', '2026-04-01', '2026-04-30'),
+    course('30 mg', '2026-06-01', '2026-07-31', 'restarted after a planned pause'),
+    course('40 mg', '2026-08-01', null),
+    ...Array.from({ length: 4 }, (_, i): SupplementRecord => ({ name: `Old course ${i + 1}`, type: 'supplement', periods: [{ start: '2024-01-01', end: '2024-06-01' }] })),
+  ];
+  const historyRange = { start: '2025-10-01', end: '2026-10-15' };
+
+  it.each([
+    'What could explain my recent blood results?',
+    'najprv si precitaj kompletnu evidenciu brania zentarolu s poznamkami',
+    'zentarol 30 bol od 1.6.2026',
+  ])('keeps every course of a titrated medication with its dates for: %s', queryText => {
+    const records = inventory();
+    const mode = resolveSupplementContextMode(queryText, records);
+    const context = buildSupplementAIContext(records, { mode, queryText, inventorySupplements: records, historyRange });
+    for (const dates of ['2026-01-10→2026-03-31', '2026-04-01→2026-04-30', '2026-06-01→2026-07-31', '2026-08-01→ongoing']) {
+      expect(context).toContain(dates);
+    }
+    for (const dose of ['10 mg/day', '20 mg/day', '30 mg/day', '40 mg/day']) expect(context).toContain(dose);
+    expect(context).toContain('Never fill a gap in a therapy timeline by assumption');
+    expect(context).not.toContain('outside this prompt projection');
+  });
+
+  it('opens detail for inflected, diacritic-free and Slovak therapy questions', () => {
+    const records = inventory();
+    for (const query of ['kompletnu evidenciu brania zentarolu', 'zentarol 30 bol od 1.6.2026', 'zentarolum', 'aké lieky a doplnky beriem?', 'dávkovanie tabliet']) {
+      expect(resolveSupplementContextMode(query, records)).toBe('detail');
+    }
+    expect(resolveSupplementContextMode('How was my sleep last week?', records)).toBe('compact');
+    expect(resolveSupplementContextMode('Ako som spal minulý týždeň?', records)).toBe('compact');
+  });
+
+  it('includes medication notes in detail and preserves prioritized dates under a tight budget', () => {
+    const records = inventory();
+    const detail = buildSupplementAIContext(records, { mode: 'detail', queryText: 'zentarolu', inventorySupplements: records, historyRange });
+    expect(detail).toContain('restarted after a planned pause');
+    const tight = buildSupplementAIContext(records, { mode: 'compact', maxChars: 2200, inventorySupplements: records, historyRange });
+    expect(tight.length).toBeLessThanOrEqual(2200);
+    expect(tight).toMatch(/Therapy records in this prompt: \d+ of 20 with dose detail; \d+ listed below by name and dates only/u);
+    expect(tight).toContain('Zentarol 30 mg');
+    expect(tight).toContain('2026-06-01→2026-07-31');
+  });
+
+  it.each([2200, 6500])('reports actual detailed, indexed and omitted coverage at %i characters', maxChars => {
+    const records = Array.from({ length: maxChars === 2200 ? 20 : 40 }, (_, i): SupplementRecord => ({
+      name: `Distinct therapy ${String(i).padStart(2, '0')}`,
+      type: 'medication',
+      periods: [{ start: '2025-01-01', end: '2025-03-01', dose: '10 mg/day' }],
+      note: 'Long clinical context '.repeat(20),
+    }));
+    const before = structuredClone(records);
+    const context = buildSupplementAIContext(records, { mode: 'compact', maxChars });
+    const counts = context.match(/^Therapy records in this prompt: (\d+) of (\d+) with dose detail; (\d+) listed below by name and dates only; (\d+) omitted \(budget\)\./u)!;
+    expect(counts).not.toBeNull();
+    const [detailed, total, indexed, omitted] = counts.slice(1).map(Number) as [number, number, number, number];
+    expect(total).toBe(records.length);
+    expect(detailed + indexed + omitted).toBe(total);
+    expect(records.filter(record => context.includes(record.name!))).toHaveLength(detailed + indexed);
+    expect(context.length).toBeLessThanOrEqual(maxChars);
+    const receipt = getContextSummary(`[section:supplements]\n## Supplements & Medications\n${context}[/section:supplements]\n`)[0]!;
+    if (indexed) expect(receipt.detail).toContain(`${indexed} indexed by name and dates`);
+    if (omitted) expect(receipt.detail).toContain(`${omitted} omitted (budget)`);
+    expect(receipt.detail).not.toContain('rest by name');
+    expect(records).toEqual(before);
+  });
+
+  it('keeps all records when the dated index fits even though dose details do not', () => {
+    const records = inventory();
+    const context = buildSupplementAIContext([], { inventorySupplements: records, maxChars: 3000 });
+    for (const record of records) expect(context).toContain(`${record.name} [`);
+    expect(context).toContain('0 of 20 with dose detail; 20 listed below by name and dates only; 0 omitted (budget)');
+  });
+
+  it('keeps the ninth and later stored date ranges when they fit', () => {
+    const record: SupplementRecord = { name: 'Repeated courses', type: 'medication', periods: Array.from({ length: 10 }, (_, i) => ({
+      start: `${2016 + i}-01-01`, end: `${2016 + i}-02-01`,
+    })) };
+    const context = buildSupplementAIContext([], { inventorySupplements: [record], maxChars: 2200 });
+    for (const period of record.periods!) expect(context).toContain(`${period.start}→${period.end}`);
+    expect(context).not.toContain('more)');
+    expect(context.length).toBeLessThanOrEqual(2200);
+  });
+
+  it.each([500, 1000, 1200, 2200])('never truncates counted records, including an oversized first product at %i characters', maxChars => {
+    const huge = product({ name: 'Oversized medicine', type: 'medication', note: 'Long note '.repeat(100),
+      labelWarnings: Array(8).fill('Very long source warning '.repeat(40)),
+      inactiveIngredients: Array.from({ length: 20 }, (_, i) => `Filler ${i} ${'x'.repeat(150)}`),
+      periods: Array.from({ length: 50 }, (_, i) => ({ start: `${1950 + i}-01-01`, end: `${1950 + i}-02-01`, dose: '20 mg/day' })),
+    });
+    const short: SupplementRecord = { name: 'Small medicine', type: 'medication', startDate: '2026-01-01' };
+    const context = buildSupplementAIContext([huge, short], { mode: 'detail', maxChars });
+    expect(context.length).toBeLessThanOrEqual(maxChars);
+    expect(context).toMatch(/^Therapy records in this prompt: \d+ of 2 with dose detail; \d+ listed below by name and dates only; \d+ omitted \(budget\)\./u);
+    expect(context).not.toContain('context truncated');
+    if (context.includes('Oversized medicine')) expect(context).toContain('omitted (budget)');
+    // An oversized first record must not prevent later small rows from fitting.
+    if (maxChars >= 1000) expect(context).toContain('Small medicine');
+  });
+
+  it('does not claim indexed coverage from incomplete or inconsistent receipt headers', () => {
+    const receipt = (header: string) => getContextSummary(`[section:supplements]\n## Supplements & Medications\n${header}\n[/section:supplements]\n`)[0]!.detail;
+    expect(receipt('Therapy records in this prompt: 1 of 20 with dose detail; 19 listed below by name and dates only.')).toBe('');
+    expect(receipt('Therapy records in this prompt: 1 of 20 with dose detail; 19 listed below by name and dates only; 2 omitted (budget).')).toBe('');
+  });
+
+  it('discloses partial therapy coverage in the response receipt', () => {
+    const records = inventory();
+    const tight = buildSupplementAIContext(records, { mode: 'compact', maxChars: 2200, inventorySupplements: records, historyRange });
+    const full = buildSupplementAIContext(records, { mode: 'compact', maxChars: 20000, inventorySupplements: records, historyRange });
+    const receipt = (ctx: string) => getContextSummary(`[section:supplements]\n## Supplements & Medications\n${ctx}[/section:supplements]\n`)[0];
+    expect(receipt(tight)).toMatchObject({ label: 'Supplements & Medications', detail: expect.stringMatching(/^\d+ of 20 records detailed/u) });
+    expect(receipt(full)).toEqual({ label: 'Supplements & Medications', detail: '20 records' });
+  });
 });

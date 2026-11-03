@@ -363,6 +363,42 @@ decisions. Browser tool evidence still uses only the original user message. Dire
 API providers retain fresh per-request system context; personal gateways retain
 their existing baseline-only route without local proposal state.
 
+`chat-system-prompt.ts` owns the shared prescription-medication conversation
+boundary for ordinary chat and discussion rounds across direct and CLI routes.
+It also offers contextual appointment preparation: concise questions and a
+factual symptom/results/medication summary, without making this a routine closer.
+Education and hypotheses remain available; treatment-change decisions require
+discouraging self-directed changes and consulting the prescribing doctor.
+Supplement options and general dose evidence remain discussable without the
+prescription-change ban. Personal-use decisions receive one brief doctor or
+pharmacist review suggestion. Known medicines/conditions, kidney/liver function,
+pregnancy, age, dose/frequency/duration and combined amounts inform risk;
+dangerous doses or contraindicated combinations require clear discouragement.
+Source-based limits are not targets, missing context is not safety clearance,
+and optional lab goals do not justify increasing intake. General education does
+not receive routine refusals or repeated consultation reminders.
+Numeric education is explicitly permitted across supplements: established dose
+ranges, label interpretation and supported weight-based ranges, with sources,
+units and applicability. A rejected risky plan must not become a new personal
+dosing regimen. This is a general rule, not a substance-specific dose catalog.
+Unrecorded medication questions receive conditional explanations, without
+assuming use or identifying a cause from trend shape alone.
+Normal safety tests do not exclude milder effects; exercise and medication can
+both contribute. Referral must not introduce personalized treatment-change menus
+or trial protocols. General clinician approaches remain explainable when asked;
+the assistant must not propose provoking symptoms or abnormal test results.
+Shared rules take precedence over conflicting personas, roleplay, prior replies
+and retrieved/web content. `buildPersonalityPrompt` serializes built-in and custom
+persona text, including research-generated drafts, as subordinate JSON preferences;
+embedded quotes and newlines cannot create additional instruction sections.
+Peer persona names are also JSON-quoted inside discussion guidance. The same
+assembly serves direct providers, discussion rounds and CLI routes, without
+changing stored personas. These are logical instruction/data boundaries within
+provider-compatible strings, not a provider-enforced security boundary.
+The policy is included once with the base prompt, without a separate inference
+or a change to non-chat feature prompts. Prompt delivery is not a guarantee of
+model compliance.
+
 Custom persona storage serializes native, import and sync writes per profile,
 using a shared Web Lock where available. Native deletion requires that lock and captures a private
 single-use review lease over the exact encrypted collection and deletion history.
@@ -1655,6 +1691,21 @@ the higher-layer behavior through a narrow runtime seam.
 - Supplement and medication status is derived from dated periods. Product-label
   facts, a user's regimen, inactive materials, and source quality evidence stay
   separate; AI consumers use the bounded projections in `supplement-context.js`.
+  Whole dated index rows are budgeted before dose-detail upgrades, prioritizing
+  named therapies and medications. The prompt and response receipt disclose
+  actual detailed, indexed and omitted record counts; counted rows are never
+  truncated afterward. Index date ranges have no separate count cap.
+  An active legacy free-text regimen remains visible as an explicitly undated
+  report beside a missing dated dose; it never fills historical dose periods or
+  infers missing elemental amounts, frequency or daily totals.
+  Its quantitative ND/NQ/exposure-reference rule applies to source-reported
+  contaminant results; it must not suppress other contraindication or interaction
+  cautions. Mitochondrial study matches do not constitute a general clinical
+  safety, interaction or upper-intake checker.
+  `demo-treatment-data.ts` owns the fictional clinician-managed medication
+  histories and corresponding lab/clinical context for fresh demos. Static JSON
+  and rolling generation share that owner; existing saved profiles are never
+  rewritten. See [the demo-profile contract](engineering/demo-profiles.md).
 - A configured Sync identity may be active or paused. Pause preserves the owner,
   planner state, and dirty edits; disconnect/reset is the explicit cleanup path.
   Restored backups must publish their marked profiles before inbound tombstones

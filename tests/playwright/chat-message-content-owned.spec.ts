@@ -1,15 +1,16 @@
 import { expect, test } from './coverage-fixture.js';
-import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import { installDiscussionFixture, openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 test.beforeEach(async ({ page, context }) => {
   await installDiscussionFixture(context); await page.goto('/app');
+  await openDiscussionFixturePanel(page);
   await page.evaluate(async png => {
-    await (await import('/js/chat-loader.js')).openChatPanel();
     const { state } = await import('/js/state.js');
     state.chatHistory = [
       { role: 'user', content: 'Attached result', hasImages: true, imageCount: 1, thumbnails: [png] },
       { role: 'assistant', content: 'Literal citation details.', lensSourceName: '<Private Vault>', lensSources: [{ source: 'VeryLongUnbrokenImportedFilename0123456789VeryLongUnbrokenImportedFilename0123456789.md', score: .934, text: 'First <script>alert(1)</script>\nSecond & third' }] },
     ];
+    if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Message content fixture history could not save');
     (await import('/js/chat-render.js')).renderChatMessages();
   }, png);
 });

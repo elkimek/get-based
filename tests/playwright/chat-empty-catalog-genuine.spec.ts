@@ -6,7 +6,8 @@ test('genuine empty Chat catalog preserves notes focus async status explanations
  await page.evaluate(async()=>{
   await(await import('/js/chat-loader.js')).openChatPanel();const[{state},profile,data]=await Promise.all([import('/js/state.js'),import('/js/profile.js'),import('/js/data.js')]);
   if(!state.profiles)throw new Error('Synthetic profile fixture unavailable');
-  state.profiles=state.profiles.map(item=>item.id===state.currentProfile?{...item,name:'Synthetic Ada'}:item);state.profileSex='male';state.profileDob='1990-01-01';
+  if(!await profile.renameProfile(state.currentProfile,'Synthetic Ada') || !await profile.setProfileSex(state.currentProfile,'male') || !await profile.setProfileDob(state.currentProfile,'1990-01-01'))throw new Error('Synthetic profile metadata could not save');
+  state.profileSex='male';state.profileDob='1990-01-01';
   state.importedData=profile.createDefaultProfileData();state.importedData.diet={breakfast:'Reported eggs'};state.chatHistory=[];data.invalidateActiveDataCache();
   localStorage.setItem(`labcharts-onboard-extras-done-${state.currentProfile}`,'1');sessionStorage.setItem(`chat-onboard-force-step-${state.currentProfile}`,'cards');
   (await import('/js/chat-render.js')).renderChatMessages();

@@ -5,7 +5,7 @@ import type {AppState} from '../types/app-state.js';
 import type {BiologyContextReviewInput} from '../js/biology-context-presentation.js';
 import {projectBiologyContextReview, projectBiologyContextLabels} from '../js/biology-context-presentation.js';
 import {renderHTML} from '../js/components/BiologyContextPresentation.svelte.html.js';
-import {renderBiologyScoreContextAI} from '../js/biology-score-context-ai.js';
+import {buildBiologyScoreContextFingerprint, renderBiologyScoreContextAI} from '../js/biology-score-context-ai.js';
 import {renderBiologyContextSection} from '../js/biology-context-view.js';
 import {getBiologyProfileContext} from '../js/profile-context.js';
 import {invalidateActiveDataCache} from '../js/data.js';
@@ -74,8 +74,12 @@ for (const sample of fixture.samples) {
     state.profileSex = sample.sex;
     state.importedData = {...structuredClone(fixture.profiles[sample.profileIndex]!), ...structuredClone(sample.overrides)} as AppState['importedData'];
     invalidateActiveDataCache();
-    const before = structuredClone(state.importedData);
     const data = sample.dataIndex === null ? null : fixture.dataSets[sample.dataIndex];
+    // Keep the frozen presentation's "current" case current when the shared
+    // therapy projection changes its fingerprint material. Stale cases retain
+    // their original mismatched fingerprint and expected refresh message.
+    if (sample.name === 'current') state.importedData.biologyScoreContextAI.fingerprint = buildBiologyScoreContextFingerprint(data);
+    const before = structuredClone(state.importedData);
     expect(structure(host(renderBiologyScoreContextAI(data)))).toEqual(structure(host(decode(sample.html))));
     expect(structure(host(renderBiologyContextSection(data)))).toEqual(structure(host(decode(sample.section))));
     expect(state.importedData).toEqual(before);
