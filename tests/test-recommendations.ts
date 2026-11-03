@@ -321,10 +321,16 @@ const _realFetch = globalThis.fetch;
   console.log('%c 11. System Prompt ', 'font-weight:bold;color:#f59e0b');
 
   assert('System prompt has supplements and medications section', chatSystemPromptSrc.includes('## Supplements and Medications'));
-  assert('System prompt puts non-product, food, and lifestyle context first', chatSystemPromptSrc.includes('non-product, food, and lifestyle context first'));
+  assert('System prompt prioritizes the question and food/lifestyle context for general wellness',
+    chatSystemPromptSrc.includes("Prioritize the user's question and major goals")
+      && chatSystemPromptSrc.includes('For general wellness advice, put useful non-product, food, and lifestyle context first'));
   assert('System prompt frames supplements as educational options', chatSystemPromptSrc.includes('educational options to review'));
-  assert('System prompt prohibits individualized dosing', chatSystemPromptSrc.includes('Do not give an individualized dose'));
-  assert('System prompt mentions medication interactions', chatSystemPromptSrc.includes('medication interactions'));
+  assert('System prompt permits established ranges without selecting personal regimens',
+    chatSystemPromptSrc.includes('Explain established dose ranges and labels with sources, units and scope')
+      && chatSystemPromptSrc.includes('Never invent limits, treat limits as targets or select personal regimens'));
+  assert('System prompt discusses interactions and checks known medicines',
+    chatSystemPromptSrc.includes('Discuss therapy effects, interactions and hypotheses openly')
+      && chatSystemPromptSrc.includes('Check known medicines, conditions, kidney/liver function'));
 
   // ═══════════════════════════════════════
   // 12. Service Worker + CSS

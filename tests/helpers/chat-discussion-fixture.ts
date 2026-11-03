@@ -56,13 +56,12 @@ export async function installDiscussionProvider(context: BrowserContext, {seedPr
 export async function openDiscussionFixturePanel(page: Page): Promise<void> {
   await page.evaluate(async () => {
     const loader = await import('/js/chat-loader.js');
-    await loader.loadChatModule();
+    // Finish initial native index/history hydration before claiming its owner.
+    if (!await loader.openChatPanel()) throw new Error('Discussion fixture panel could not initialize');
     const { state } = await import('/js/state.js');
-    const threads = await import('/js/chat-threads.js');
-    if (!await threads.loadChatThreads() || !threads.ensureActiveThread()) throw new Error('Discussion fixture index could not load');
     state.chatHistory = [{ role: 'assistant', content: 'Discussion fixture' }];
-    // Opening restores native history. Persist the returning-user conversation
-    // first so a late restoration cannot replace it with empty-chat onboarding.
+    // Reopen through real restoration after persisting the returning-user
+    // conversation, so it cannot revert to empty-chat onboarding.
     if (!await (await import('/js/chat-history.js')).saveChatHistory()) throw new Error('Discussion fixture history could not save');
     if (!await loader.openChatPanel()) throw new Error('Discussion fixture panel could not open');
   });
