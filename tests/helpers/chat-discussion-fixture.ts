@@ -56,6 +56,10 @@ export async function installDiscussionProvider(context: BrowserContext, {seedPr
 export async function openDiscussionFixturePanel(page: Page): Promise<void> {
   await page.evaluate(async () => {
     const loader = await import('/js/chat-loader.js');
+    // Cancel Dashboard's returning-user auto-open reservation before taking
+    // over the panel. Closing requires the real lazy composition to be ready.
+    await loader.loadChatModule();
+    loader.closeChatPanel();
     // Finish initial native index/history hydration before claiming its owner.
     if (!await loader.openChatPanel()) throw new Error('Discussion fixture panel could not initialize');
     const { state } = await import('/js/state.js');
