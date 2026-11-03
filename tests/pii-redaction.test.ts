@@ -472,6 +472,24 @@ describe('review findings on PR #1699', () => {
     expect(run('Specimen Type: Serum')).toBe('Specimen Type: Serum');
   });
 
+  it.each(['Specimen: 24-hour urine', 'Specimen: 2 mL serum', 'Specimen 24-hour urine', 'Specimen: 3.5 mL plasma'])('preserves clinical sample details in %s', specimen => {
+    const input = `${specimen}\nGlucose 91 mg/dL`;
+    const context = { key: 'synthetic-specimen-description' };
+    const output = redactReportText(input, context);
+    expect(output.text).toBe(input);
+    expect(output.replacements).toBe(0);
+    const report = `Patient ID: AB123456\n${input}`;
+    const prepared = { context, output: redactReportText(report, context) };
+    expect(prepared.output.text).toContain(input);
+    expect(() => finalizePIIResult(prepared.output.text, report, prepared)).not.toThrow();
+  });
+
+  it.each(['Specimen ID:', 'Specimen No.', 'Specimen number:'])('still redacts numeric sample identifiers after %s', label => {
+    const output = run(`${label} AB123456\nSpecimen: 2 mL serum`);
+    expect(output).not.toContain('AB123456');
+    expect(output).toMatch(/^[^\n]+ [A-Z]{2}\d{6}\nSpecimen: 2 mL serum$/u);
+  });
+
   it('gives a labeled and an unlabeled birth number the same replacement', () => {
     const out = run('Rodné číslo: 856115/1234\nPacient 856115/1234');
     const [labeled, bare] = out.split('\n');
