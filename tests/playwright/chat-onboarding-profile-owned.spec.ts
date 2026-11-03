@@ -105,6 +105,8 @@ for (const boundary of ['profile', 'thread', 'history', 'data', 'root', 'reinser
     });
     await page.locator('#chat-onboard-next').click();
     await expect(page.locator('.chat-onboard-form')).toHaveAttribute('aria-busy', 'true');
+    // Busy starts before queued native writes reach the delayed height save.
+    await page.waitForFunction(() => typeof Reflect.get(window, 'finishProfileHeight') === 'function');
     const result = await page.evaluate(async boundary => {
       const { state } = await import('/js/state.js'); const original = state.importedData;
       const old = document.getElementById('chat-onboard-next') as HTMLButtonElement;
