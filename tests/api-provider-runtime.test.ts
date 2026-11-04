@@ -780,6 +780,76 @@ describe('API provider runtime behavior', () => {
     expect(showInsufficientBalanceDialog).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ['anthropic/claude-opus-4.7', undefined, 'none'],
+    ['anthropic/claude-opus-5.5', { mandatory: true, supported_efforts: ['medium', 'low'] }, 'low'],
+  ] as const)('routes a streamed structured request for %s without unsupported sampling', async (model, reasoning, effort) => {
+    updateKeyCache('labcharts-openrouter-key', 'sk-or');
+    setOpenRouterModel(model);
+    localStorage.setItem('labcharts-openrouter-models', JSON.stringify([{
+      id: model, reasoning, supported_parameters: ['reasoning', 'max_tokens', 'response_format', 'structured_outputs'],
+    }]));
+    const mockFetch = fetch as Mock<typeof realFetch>;
+    mockFetch.mockResolvedValueOnce(new Response([
+      'data: {"choices":[{"delta":{"content":"{}"},"finish_reason":"stop"}]}',
+      'data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":2}}',
+      'data: [DONE]',
+    ].join('\n\n') + '\n\n', { headers: { 'Content-Type': 'text/event-stream' } }));
+
+    await expect(callOpenRouterAPI({
+      messages: [{ role: 'user', content: 'Extract markers from this synthetic report' }],
+      maxTokens: 16384,
+      jsonMode: true,
+      temperature: 0,
+      reasoningEffort: 'none',
+      onStream: vi.fn(),
+    })).resolves.toMatchObject({ text: '{}', usage: { inputTokens: 7, outputTokens: 2 } });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const body = (JSON.parse as (text: unknown) => Record<string, unknown>)(mockFetch.mock.calls[0]![1]!.body);
+    expect(body).toMatchObject({
+      model,
+      provider: { require_parameters: true },
+      response_format: { type: 'json_schema', json_schema: { strict: true } },
+      reasoning: { effort },
+      stream: true,
+    });
+    expect(body).not.toHaveProperty('temperature');
+    expect(body).not.toHaveProperty('stream_options');
+  });
+
+  it('retries an OpenRouter parameter-routing 404 without temperature and surfaces other 404s', async () => {
+    updateKeyCache('labcharts-openrouter-key', 'sk-or');
+    setOpenRouterModel('anthropic/claude-opus-4.7');
+    const mockFetch = fetch as Mock<typeof realFetch>;
+    const request = {
+      messages: [{ role: 'user' as const, content: 'Extract markers from this synthetic report' }],
+      jsonMode: true,
+      temperature: 0,
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse({
+      error: { message: 'No endpoints found that can handle the requested parameters.' },
+    }, { status: 404 }));
+    mockFetch.mockResolvedValueOnce(jsonResponse({
+      choices: [{ message: { content: '{}' }, finish_reason: 'stop' }],
+    }));
+
+    await expect(callOpenRouterAPI(request)).resolves.toMatchObject({
+      text: '{}', diagnostics: { temperatureControlFallback: true },
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const [initial, retry] = mockFetch.mock.calls
+      .map(([, init]) => (JSON.parse as (text: unknown) => Record<string, unknown>)(init!.body));
+    expect(initial).toHaveProperty('temperature', 0);
+    expect(retry).not.toHaveProperty('temperature');
+    expect(initial).toEqual({ ...retry, temperature: 0 });
+
+    mockFetch.mockResolvedValueOnce(jsonResponse({
+      error: { message: 'No endpoints found matching your data policy.' },
+    }, { status: 404 }));
+    await expect(callOpenRouterAPI(request)).rejects.toThrow('No endpoints found matching your data policy.');
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
   it('respects mandatory OpenRouter reasoning metadata and stale-cache errors', async () => {
     updateKeyCache('labcharts-openrouter-key', 'sk-or');
     setOpenRouterModel('google/gemini-3.5-flash');

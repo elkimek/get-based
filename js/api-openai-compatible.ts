@@ -121,7 +121,9 @@ function reasoningControlRejected(res: Response, errorText: string) {
     && /reasoning[_ .-]?(?:effort|control)|invalid.*reasoning|reasoning[^\n]{0,120}(?:mandatory|required|cannot be disabled|can't be disabled|must (?:be|remain) enabled)/i.test(errorText);
 }
 
-function temperatureControlRejected(res: Response, errorText: string) {
+function temperatureControlRejected(res: Response, errorText: string, providerName: string) {
+  if (providerName === 'OpenRouter' && res.status === 404
+    && /No endpoints found that can handle the requested parameters\b/i.test(errorText)) return true;
   return (res.status === 400 || res.status === 422)
     && /temperature[^\n]{0,120}(?:not supported|unsupported|not permitted|not allowed|invalid|fixed)|(?:not supported|unsupported|invalid)[^\n]{0,120}temperature/i.test(errorText);
 }
@@ -156,7 +158,10 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
   const useStream = !!onStream && !forceNonStream;
   if (useStream) {
     body.stream = true;
-    body.stream_options = { include_usage: true };
+    // OpenRouter includes usage automatically, so strict routing can omit this option.
+    if (providerName !== 'OpenRouter' || (!jsonMode && !tools?.length)) {
+      body.stream_options = { include_usage: true };
+    }
   }
 
   const fetchRequest = async (requestBody: RequestBody) => {
@@ -199,7 +204,7 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
         reasoningControlFallback = true;
         continue;
       }
-      if (requestBody.temperature !== undefined && temperatureControlRejected(res, errorText)) {
+      if (requestBody.temperature !== undefined && temperatureControlRejected(res, errorText, providerName)) {
         delete requestBody.temperature;
         temperatureControlFallback = true;
         continue;

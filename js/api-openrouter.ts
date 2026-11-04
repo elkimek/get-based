@@ -17,6 +17,7 @@ import {
 } from './app-extension-runtime.js';
 
 import type { ProviderRequestOptions } from './api-openai-compatible.js';
+import type { StoredProviderModel } from './api-provider-storage.js';
 
 export async function getOpenRouterBalance() {
   if (shouldHideAppExtensionAIUsage('openrouter')) return null;
@@ -38,9 +39,7 @@ export async function getOpenRouterBalance() {
   }
 }
 
-function openRouterMandatoryReasoningEffort(modelId: unknown) {
-  const model = readStoredArray('labcharts-openrouter-models')
-    .find(candidate => candidate?.id === modelId);
+function openRouterMandatoryReasoningEffort(model: StoredProviderModel | undefined) {
   if (model?.reasoning?.mandatory !== true) return null;
   const supported = Array.isArray(model.reasoning.supported_efforts)
     ? model.reasoning.supported_efforts
@@ -53,8 +52,11 @@ function openRouterMandatoryReasoningEffort(modelId: unknown) {
 export async function callOpenRouterAPI(opts: ProviderRequestOptions) {
   const key = getOpenRouterKey();
   const modelId = String(opts?.modelOverride || getOpenRouterModel());
+  const model = opts?.reasoningEffort === 'none' || opts?.temperature !== undefined
+    ? readStoredArray('labcharts-openrouter-models').find(candidate => candidate?.id === modelId)
+    : undefined;
   const mandatoryReasoning = opts?.reasoningEffort === 'none'
-    ? openRouterMandatoryReasoningEffort(modelId)
+    ? openRouterMandatoryReasoningEffort(model)
     : null;
   let requestOpts = opts;
   if (mandatoryReasoning) {
@@ -81,19 +83,18 @@ export async function callOpenRouterAPI(opts: ProviderRequestOptions) {
     && !Array.isArray(extensionOptions.provider)
     ? extensionOptions.provider
     : {};
+  const requireParameters = requestOpts.jsonMode || requestOpts.tools?.length;
   const reasoningEffort = String(requestOpts.reasoningEffort || '').trim();
   const extraBody = {
     ...extensionOptions,
     // OpenRouter aggregates parameter support across a model's providers.
     // Structured requests must only use endpoints that can honor the schema.
-    ...((requestOpts.jsonMode || requestOpts.tools?.length) ? {
+    ...(requireParameters ? {
       provider: { ...extensionProviderRouting, require_parameters: true },
     } : {}),
     ...(requestOpts.webSearch ? { plugins: [{ id: 'web' }] } : {}),
     ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
   };
-  const transportOpts = reasoningEffort ? { ...requestOpts } : requestOpts;
-  if (reasoningEffort) delete transportOpts.reasoningEffort;
   try {
     const extensionCall = await callAppExtensionAIProvider({
       provider: 'openrouter',
@@ -103,6 +104,13 @@ export async function callOpenRouterAPI(opts: ProviderRequestOptions) {
     });
     if (extensionCall.handled) return extensionCall.result;
     if (!key) throw new Error('No OpenRouter API key configured. Add your key in Settings.');
+    const transportOpts = { ...requestOpts };
+    if (reasoningEffort) delete transportOpts.reasoningEffort;
+    // Strict routing checks sampling parameters as well as the schema and tools.
+    if (requireParameters && Array.isArray(model?.supported_parameters)
+      && !model.supported_parameters.includes('temperature')) {
+      delete transportOpts.temperature;
+    }
     return await callOpenAICompatibleAPI(
       'https://openrouter.ai/api/v1/chat/completions',
       key,
