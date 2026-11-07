@@ -72,7 +72,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/profile.js', '/js/profile-sync-policy.js', '/js/profile-runtime.js', '/js/profile-share.js',
   '/js/profile-share-presentation.js', '/js/components/ProfileShareActive.svelte.html.js', '/js/components/ProfileShareCreate.svelte.html.js', '/js/components/ProfileShareResult.svelte.html.js',
   '/js/components/ProfileShareLoad.svelte.html.js', '/js/components/ProfileShareShell.svelte.html.js', '/js/unique-id.js', '/js/data.js',
-  '/js/data-core.js', '/js/data-custom-markers.js', '/js/data-calculated-markers.js', '/js/data-view-controls.js',
+  '/js/data-core.js', '/js/data-custom-markers.js', '/js/data-calculated-markers.js', '/js/lab-view-collections.js', '/js/data-view-controls.js',
   '/js/chart-layers-presentation.js', '/js/components/ChartLayersDropdown.svelte.html.js', '/js/header-date-range.js', '/js/components/HeaderDateSummary.svelte.html.js',
   '/js/components/HeaderRangeButtons.svelte.html.js', '/js/lab-entry.js', '/js/lab-panel-identity.js', '/js/lab-panel-deletions.js', '/js/lab-panel-mutations.js', '/js/lab-marker-mutations.js', '/js/lab-marker-record-store.js', '/js/lab-entry-restore.js', '/js/lab-entry-mutations.js',
   '/js/lab-vitamin-d-context.js', '/js/marker-analysis.js', '/js/blob-storage.js', '/js/local-ai-discovery.js',

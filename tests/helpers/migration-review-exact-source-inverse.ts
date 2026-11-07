@@ -1,4 +1,5 @@
 import sampleButtonEdits from '../fixtures/marker-history-no-sample-button-inverse.json' with { type: 'json' };
+import labCalculationEdits from '../fixtures/marker-detail-lab-calculations-inverse.json' with { type: 'json' };
 import customMarkerEdits from '../fixtures/custom-marker-lifecycle-controller-inverse.json' with { type: 'json' };
 import markerRangeEdits from '../fixtures/marker-range-controller-inverse.json' with { type: 'json' };
 import assert from 'node:assert/strict';
@@ -470,6 +471,15 @@ const records = [
 ] as const;
 const sha = (source: string) => createHash('sha256').update(source).digest('hex');
 export function restoreReviewedMigrationSource(file: string, source: string): string {
+  // Qualify the clock and TyG presentation changes before checking the earlier controller.
+  if (file === labCalculationEdits.file) {
+    assert.equal(sha(source), labCalculationEdits.currentSHA256, 'Complete marker controller with lab calculation fixes: ' + file);
+    for (const edit of [...labCalculationEdits.edits].reverse()) {
+      assert.equal(source.slice(edit.start, edit.start + edit.before.length), edit.before, 'Exact lab calculation presentation anchor: ' + file);
+      source = source.slice(0, edit.start) + edit.after + source.slice(edit.start + edit.before.length);
+    }
+    assert.equal(sha(source), labCalculationEdits.restoredSHA256, 'Lab calculation inverse retains prior marker controller bytes: ' + file);
+  }
   // The requested removal of whole-sample UI is qualified before restoring earlier immutable controllers.
   const sampleButton = sampleButtonEdits.find(row => row.file === file);
   if (sampleButton) {

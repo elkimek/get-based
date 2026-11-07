@@ -87,7 +87,7 @@ export function createDashboardLabWidgetRenderers(deps: unknown, quickMarkers: R
     const id = hit ? summaryAttribute(hit.id) : null;
     const accessibleLabel = hit ? summaryText((hit.marker?.name || 'Biological Age') + ': ' + display) : null;
     const name = summaryText(hit?.marker?.name || 'Biological Age');
-    const chronological = age != null ? `${age.toFixed(1)} yr` : '—';
+    const chronological = age != null ? `${age.toFixed(1)} yr` : state.profileDob ? '—' : 'not set';
     const difference = summaryText(deltaText);
     const sameDrawValue = (clock: LabRenderHit | null) => {
       const result = clock && hit && !hit.marker.singleDate && !hit.category.singleDate ? clock.marker.values[hit.latestIdx] : null;
