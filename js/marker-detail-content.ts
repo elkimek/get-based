@@ -4,7 +4,8 @@ import { getActiveModelId, getAIProvider } from './api.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { resolveActiveMarkerPath } from './marker-placement.js';
 import { trackUsage } from './schema.js';
-import type { ActiveData, ActiveMarker } from './data-view-types.js';
+import type { ActiveData, MarkerViewDefinition } from './data-view-types.js';
+import type { MarkerModalData } from '../types/marker-detail-modal-impl.js';
 import type { callCodexFeature } from './agent-feature-inference.js';
 
 type MarkerDescriptionResponse = Partial<Pick<Awaited<ReturnType<typeof callCodexFeature>>, 'text' | 'usage'>>;
@@ -17,7 +18,7 @@ export interface BioAgeInputStatus {
 }
 
 // Keep these inputs aligned with the PhenoAge and Bortz Age calculations in
-// data.js so the detail modal can explain which panel inputs are still missing.
+// data-calculated-markers.ts so the detail modal can explain missing inputs.
 export const BIO_AGE_PHENO_INPUTS: BioAgeInput[] = [
   ['proteins', 'albumin', 'Albumin'],
   ['biochemistry', 'creatinine', 'Creatinine'],
@@ -56,7 +57,7 @@ export const BIO_AGE_BORTZ_INPUTS: BioAgeInput[] = [
 
 export function bioAgeReferenceIndex(
   data: Partial<Pick<ActiveData, 'dates'>>,
-  marker: Partial<Pick<ActiveMarker, 'values'>> | null | undefined,
+  marker: Pick<MarkerViewDefinition, 'values'> | null | undefined,
   latestPoint: { i: number } | null | undefined,
 ) {
   if (latestPoint && Number.isInteger(latestPoint.i)) return latestPoint.i;
@@ -68,16 +69,21 @@ export function bioAgeReferenceIndex(
 }
 
 export function bioAgeInputStatusAtIndex(
-  data: Pick<ActiveData, 'categories'>,
+  data: Pick<MarkerModalData, 'categories'>,
   idx: number,
   inputs: BioAgeInput[],
   profileRequirement: BioAgeInputStatus | null = null,
 ): BioAgeInputStatus[] {
-  const status = inputs.map(([category, key, label]) => ({
-    label,
-    present: idx >= 0 && resolveActiveMarkerPath(data.categories, category, key)?.marker?.values?.[idx] != null,
-    kind: 'marker',
-  }));
+  const positiveInputs = new Set(['hsCRP', 'ggt', 'alt', 'shbg', 'vitaminD']);
+  const status = inputs.map(([category, key, label]) => {
+    const value = resolveActiveMarkerPath(data.categories, category, key)?.marker?.values?.[idx];
+    const nonPositive = value != null && positiveInputs.has(key) && value <= 0;
+    return {
+      label: nonPositive ? `${label} (positive value required)` : label,
+      present: value != null && Number.isFinite(value) && !nonPositive,
+      kind: 'marker',
+    };
+  });
   if (profileRequirement) status.unshift(profileRequirement);
   return status;
 }

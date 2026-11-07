@@ -1,4 +1,5 @@
 import type { MarkerBaseline } from './marker-baseline.js';
+import type { LabViewCollections } from './lab-view-collections.js';
 
 /** Numeric marker projection used by custom-marker and calculated-marker helpers. */
 export type MarkerValues = Array<number | null | undefined>;
@@ -82,6 +83,8 @@ export interface ActiveData extends MarkerViewData {
   /** AI-only projection: derivation must not recreate a withheld marker. */
   contextExcludedMarkers?: readonly string[];
   entryContextByDate?: Record<string, import('../types/lab-data.js').LabCollectionContext>;
+  /** Local projection only. Missing keys on a split date have no known collection. */
+  labCollections?: LabViewCollections;
   phaseLabels?: Array<string | null | undefined>;
   phaseDisplayLabels?: Array<string | null | undefined>;
   phaseCycleDays?: Array<number | null | undefined>;

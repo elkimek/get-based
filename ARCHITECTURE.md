@@ -113,6 +113,11 @@ Profile migrations assign deterministic IDs to old split-day panels and retain
 those IDs through later corrections. Locked profile rebasing uses those IDs,
 while exact reviewed date expectations still reject stale lab snapshots. Date
 projections and date-wide notes are not specimen-specific record selectors.
+The active Labs view retains the collection of each selected value on a split
+date. Calculated markers and same-collection score recipes use that ownership
+before pairing inputs. If the date-wide view selects values from different
+collections, the automatic result is withheld. The AI projection reconstructs
+collection ownership from records allowed by its disclosure policy.
 
 `lab-sample-cycle.ts` validates explicit cycle day/phase/detail commands for one
 sample. These commands share the sample transaction and first-original provenance
@@ -1039,7 +1044,10 @@ marker groups as exact tools. Presentation labels and placement cannot grant
 source access. It filters notes, collection metadata, deletion state and automatic
 value dependencies before chat, lookup, Focus and Biology Score context builders
 consume them. Calculated-marker ownership annotates automatic inputs per date;
-reported ratios retain their independent evidence. Score fallback recipes respect
+reported ratios retain their independent evidence. TyG uses the app's formula
+when both inputs are available from one collection. A report-only TyG of unknown
+formula remains visible without app thresholds. The combined biological-age
+series requires both clock results at each point. Score fallback recipes respect
 withheld marker identities. Repeated same-date results are represented by exact
 sample rows in context; date-wide values and contextual ranges do not choose one
 of those results. This projection does not mutate the local UI or saved evidence.

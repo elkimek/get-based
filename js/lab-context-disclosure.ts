@@ -12,6 +12,7 @@ import { buildMarkerBaselines } from './marker-baseline.js';
 import type { ActiveData, ActiveMarker } from './data-view-types.js';
 import type { LabEntry } from '../types/lab-data.js';
 import type { LabContextOptions } from './lab-context-runtime.js';
+import type { LabViewCollections } from './lab-view-collections.js';
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const cycleFields = ['cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource'];
@@ -109,7 +110,12 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
         delete next.personalBaselines;
         for (const field of dateFields) if (Array.isArray(marker[field])) {
           // Do not attach one draw's phase or contextual range to another draw.
-          Object.assign(next, { [field]: marker[field]!.map((value, i) => multiple.has(valueDates[i] || '') || field.startsWith('phase') && !sourceEnabled('insight-cards') || values[i] == null ? null : value) });
+          Object.assign(next, { [field]: marker[field]!.map((value, i) => {
+            if (values[i] == null || field.startsWith('phase') && !sourceEnabled('insight-cards')) return null;
+            // A TyG result with no applicable guidance must stay unrated.
+            if (key === 'calculatedRatios.tygIndex') return value;
+            return multiple.has(valueDates[i] || '') ? null : value;
+          }) });
         }
         markers[markerKey] = next;
       }
@@ -125,8 +131,17 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
       for (const field of [...dateFields, 'contextDependencies'] as const) if (Array.isArray(marker[field])) Object.assign(marker, { [field]: indices.map(i => marker[field]![i]) });
     }
     const contextExcludedMarkers = Object.entries(registry).flatMap(([category, row]) => Object.keys(row.markers).map(key => `${category}.${key}`)).filter(key => !allows(key));
+    const labCollections: LabViewCollections = {};
+    for (const [date, rows] of contexts) {
+      if (!multiple.has(date)) continue;
+      const day = labCollections[date] = Object.create(null) as LabViewCollections[string];
+      rows.forEach((row, index) => {
+        const collection = { index, context: row.context || {} };
+        for (const key of Object.keys(row.markers || {})) if (counts.get(`${key}:${date}`) === 1) day[key] = collection;
+      });
+    }
     const result: ActiveData = { ...data, categories, contextExcludedMarkers, dates: projectedDates, dateLabels: indices.map(i => data.dateLabels?.[i] || dates[i]!),
-      entryContextByDate: Object.fromEntries([...contexts].filter(([date, rows]) => rows.length === 1 && !multiple.has(date)).map(([date, rows]) => [date, rows[0]!.context || {}])) };
+      labCollections, entryContextByDate: Object.fromEntries([...contexts].filter(([date, rows]) => rows.length === 1 && !multiple.has(date)).map(([date, rows]) => [date, rows[0]!.context || {}])) };
     delete result.phaseLabels; delete result.phaseDisplayLabels; delete result.phaseCycleDays; delete result.phaseSources;
     return result;
   }

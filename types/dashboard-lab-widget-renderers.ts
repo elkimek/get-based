@@ -1,7 +1,7 @@
 import type {getStatus,getTrend} from '../js/utils.js';
 export interface LabMarker {values:unknown[];name?:unknown;unit?:unknown;hidden?:unknown;[key:string]:unknown}
 export interface LabCategory {markers:Record<string,LabMarker>;label?:unknown;[key:string]:unknown}
-export interface LabData {categories:Record<string,LabCategory>}
+export interface LabData {categories:Record<string,LabCategory>;dates?:string[]}
 export interface LabKeyMarker {cat:string;key:string}
 export interface LabAlert {id:string;name?:unknown;category?:unknown;concern:string;spark:unknown[];direction:string}
 export interface LabFlag {status:string;id:string;name?:unknown;categoryKey:string;value:unknown;rawValue:unknown;unit?:unknown;refMin?:unknown;refMax?:unknown;effectiveMin:unknown;effectiveMax:unknown}

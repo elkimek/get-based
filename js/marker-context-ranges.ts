@@ -69,6 +69,12 @@ export function wholeAgeAtDate(dob: string | null | undefined, dateStr: string) 
   return age >= 0 ? age : null;
 }
 
+export function fractionalAgeAtDate(dob: string | null | undefined, dateStr: string) {
+  if (!dob) return null;
+  const age = (Date.parse(dateStr) - Date.parse(dob)) / (365.25 * 86_400_000);
+  return Number.isFinite(age) && age > 0 ? age : null;
+}
+
 export function resolveAgeSexRange(table: ContextRanges, dotKey: string, age: number | null, sex: string | null | undefined) {
   if (age == null) return null;
   const definition = table?.[dotKey];

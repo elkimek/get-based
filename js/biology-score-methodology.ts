@@ -27,7 +27,8 @@ export function addScoreInterpretation<Result extends ScoreResult & { id: string
   const flags = [...(score.flags || [])];
   const patterns: string[] = [];
   const interpretable = (hit: ScorePart | undefined) => hit && !hit.profileContextOnly && hit!.referenceDirection != null;
-  const together = (...items: Array<ScorePart | undefined>) => items.every(interpretable) && items.every(hit => hit!.date === items[0]!.date);
+  const together = (...items: Array<ScorePart | undefined>) => items.every(interpretable)
+    && items.every(hit => hit!.date === items[0]!.date && hit!.collectionIndex === items[0]!.collectionIndex);
   const high = (hit: ScorePart | undefined) => interpretable(hit) && hit!.referenceDirection === 'above';
   const low = (hit: ScorePart | undefined) => interpretable(hit) && hit!.referenceDirection === 'below';
   const inRange = (hit: ScorePart | undefined) => interpretable(hit) && hit!.referenceDirection === '';
@@ -59,7 +60,8 @@ export function addScoreInterpretation<Result extends ScoreResult & { id: string
   if (score.id === 'ironHandling' && hits.get('transferrinSat')?.canonicalValue! >= 50) flags.unshift('High transferrin saturation: review iron loading and collection context alongside ferritin.');
   if (ferritin?.canonicalValue! > 100 && hits.get('crp')?.canonicalValue! > 3) flags.unshift('Inflammation may raise ferritin independently of iron stores.');
   const ft3 = hits.get('ft3'), ft4 = hits.get('ft4');
-  const descriptiveRatio = score.id === 'thyroidCoherence' && ft3?.date === ft4?.date && ft4?.canonicalValue! > 0
+  const descriptiveRatio = score.id === 'thyroidCoherence' && ft3 && ft4
+    && ft3.date === ft4.date && ft3.collectionIndex === ft4.collectionIndex && ft4.canonicalValue! > 0
     ? { label: 'FT3/FT4 (molar ratio)', value: (ft3!.canonicalValue! / ft4!.canonicalValue!).toFixed(3), date: ft3!.date } : null;
   const method = SCORE_METHODS[score.id];
   const attention = patterns[0] || (flags.length > (score.flags || []).length && flags[0] !== score.flags?.[0] ? flags[0] : score.attention);

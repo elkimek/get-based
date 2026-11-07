@@ -42,6 +42,7 @@ export interface MarkerHit {
   id: string; dotKey: string; path: string; label: string;
   value: number; canonicalValue: number; displayValue: string; unit: string;
   date: string; dateIndex: number; ageDays: number | null;
+  collectionIndex?: number | undefined;
   entryContext: LabCollectionContext;
   range: ScoreRange | null; referenceRange: ScoreRange | null; rangeLabel: string;
   canonicalScoringRange: ScoreRange | null; canonicalReferenceRange: ScoreRange | null;

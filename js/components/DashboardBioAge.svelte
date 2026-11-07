@@ -6,7 +6,8 @@
         <div class="db-hero-bio-num">{view.display}</div>
         <div class="db-hero-bio-label">
           <span class="top">{view.name}</span>
-          <span class="actual">Chronological: {view.chronological}</span>
+          <span class="actual">{view.drawDate ? 'Age at collection' : 'Chronological'}: {view.chronological}</span>
+          {#if view.drawDate}<span class="actual"><time datetime={view.drawDate}>{view.drawDate}</time></span>{/if}
           <span class="delta">{view.difference}</span>
         </div>
       </div>

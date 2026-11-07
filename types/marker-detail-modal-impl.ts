@@ -1,5 +1,6 @@
 import type { navigateMarkerDetailRuntime, isDashboardQuickMarkerPinnedRuntime, toggleDashboardQuickMarkerPinRuntime, renameMarkerRuntime, revertMarkerNameRuntime, askAIAboutMarkerRuntime, showEmojiPickerRuntime } from '../js/marker-detail-runtime.js';
 import type { BioAgeInputStatus } from '../js/marker-detail-content.js';
+import type { LabViewCollections } from '../js/lab-view-collections.js';
 export type BioInputStatus = BioAgeInputStatus;
 export interface MarkerModalOptions {showAllHistory?:unknown;historyLimit?:unknown;scrollToHistory?:unknown;scrollToRec?:unknown;returnFocus?:HTMLElement}
 // Existing callback invocation operations; Object.assign does not validate snapshots.
@@ -8,4 +9,4 @@ export interface MarkerModalCalls {navigate(...args:Parameters<typeof navigateMa
 export interface MarkerModalRange {min?:number|null|undefined;max?:number|null|undefined}
 export interface MarkerModalPoint {v:number;i:number}
 export interface MarkerModalMarker extends Record<string,unknown> {values:Array<number|null|undefined>;refMin?:number|null;refMax?:number|null;optimalMin?:number|null;optimalMax?:number|null;contextRefRanges?:Array<MarkerModalRange|null|undefined>;contextOptimalRanges?:Array<MarkerModalRange|null|undefined>;contextOptimalRangeLabels?:Array<string|null|undefined>;phaseRefRanges?:Array<MarkerModalRange|null|undefined>;phaseLabels?:unknown[]}
-export interface MarkerModalData {categories:Record<string,{markers:Record<string,MarkerModalMarker>;label?:unknown}>;dates:string[];dateLabels:unknown[];phaseLabels?:Array<string|null|undefined>;phaseDisplayLabels?:Array<string|null|undefined>;phaseCycleDays?:Array<number|null|undefined>;phaseSources?:Array<string|null|undefined>}
+export interface MarkerModalData {categories:Record<string,{markers:Record<string,MarkerModalMarker>;label?:unknown}>;dates:string[];dateLabels:unknown[];labCollections?:LabViewCollections;phaseLabels?:Array<string|null|undefined>;phaseDisplayLabels?:Array<string|null|undefined>;phaseCycleDays?:Array<number|null|undefined>;phaseSources?:Array<string|null|undefined>}

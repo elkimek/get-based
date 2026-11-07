@@ -76,6 +76,22 @@ describe('dashboard lab widget renderers', () => {
     expect(unavailable).toContain('db-hero-bio-num">—');
   });
 
+  it('labels the latest individual clock and compares both rows on its collection date', () => {
+    const renderers = createRenderers();
+    const view = renderers.projectDashboardBioAgeWidget({ data: {
+      dates: ['2025-01-15', '2026-01-15'],
+      categories: { calculatedRatios: { markers: {
+        biologicalAge: { name: 'Biological Age', values: [43, null] },
+        phenoAge: { name: 'PhenoAge', values: [42, 40] },
+        bortzAge: { name: 'Bortz Age', values: [44, null] },
+      } } },
+    } });
+    expect(view).toMatchObject({
+      id: 'calculatedRatios_phenoAge', name: 'PhenoAge', display: '40.0', drawDate: '2026-01-15',
+      chronological: '41.0 yr', difference: '-1.0 yr vs chronological', phenoValue: '40', bortzValue: '—',
+    });
+  });
+
   it('recovers malformed quick-pin storage and toggles a safe marker id', () => {
     const renderers = createRenderers();
     const storageKey = profileStorageKey(state.currentProfile, 'dashboardQuickMarkerPinsV1');

@@ -56,6 +56,7 @@ export type MarkerDetailBioAgeView =
   | Readonly<{kind: "delta"; sign: string; years: string}>
   | Readonly<{kind: "present-heading"; name: string; value: string; delta: BioAgeDelta | null}>
   | Readonly<{kind: "missing-heading"; name: string; missing: string; total: string; noun: string}>
+  | Readonly<{kind: "unavailable-heading"; name: string}>
   | Readonly<{kind: "component"; state: string; heading: BioAgeHeading; inputs: readonly BioAgeInput[]}>
   | Readonly<{kind: "panel-date"; date: string}>
   | Readonly<{kind: "warning"; issues: string}>
@@ -99,7 +100,7 @@ export type ChromeActions=Kind<MarkerDetailChromeView,'actions'>;
 export type ChromeDelete=Kind<MarkerDetailChromeView,'delete-marker'>;
 export type BioAgeInput=Kind<MarkerDetailBioAgeView,'input'>;
 export type BioAgeDelta=Kind<MarkerDetailBioAgeView,'delta'>;
-export type BioAgeHeading=Kind<MarkerDetailBioAgeView,'present-heading'|'missing-heading'>;
+export type BioAgeHeading=Kind<MarkerDetailBioAgeView,'present-heading'|'missing-heading'|'unavailable-heading'>;
 export type BioAgeComponent=Kind<MarkerDetailBioAgeView,'component'>;
 export type BioAgeDate=Kind<MarkerDetailBioAgeView,'panel-date'>;
 export type BioAgeWarning=Kind<MarkerDetailBioAgeView,'warning'>;
