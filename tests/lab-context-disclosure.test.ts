@@ -137,6 +137,18 @@ it('selects the surviving sample when a removed stale sibling owns the cached da
   seed([{ panelId: 'survivor', date: day, markers: { [glucose]: 5 } }, { panelId: 'removed', date: day, markers: { [glucose]: 19 }, context: { sampleTime: '22:13' } }]);
   state.importedData.labPanelTombstones = { [`removed.${day}`]: { deletedAt: 10, restoredAt: 0, updatedAt: 10 } };
   expect(project().categories.biochemistry!.markers.glucose!.values).toEqual([5]); expect(buildLabContext()).not.toContain('22:13');
+  state.unitSystem = 'US';
+  expect(getMarkerHit(project(), glucose)).toMatchObject({ canonicalValue: 5 });
+});
+it.each([true, false])('preserves computed TyG after removing a stale sibling report (also reported in surviving panel: %s)', survivingReport => {
+  const tyg = 'calculatedRatios.tygIndex';
+  seed([
+    { panelId: 'survivor', date: day, markers: { ...(survivingReport ? { [tyg]: 4.855 } : {}), 'lipids.triglycerides': 150 / 88.57, [glucose]: 110 / 18.018 }, context: { fasting: true } },
+    { panelId: 'removed', date: day, markers: { [tyg]: 5.1 } },
+  ]);
+  expect(getMarkerHit(getActiveData(), tyg)?.value).toBe(9.018);
+  state.importedData.labPanelTombstones = { [`removed.${day}`]: { deletedAt: 10, restoredAt: 0, updatedAt: 10 } };
+  expect(getMarkerHit(project(), tyg)).toMatchObject({ value: 9.018, entryContext: { fasting: true } });
 });
 it('honors per-marker removal clocks before exposing results or calculations', () => {
   state.importedData.entries[0]!.deletedMarkers = { [glucose]: 1100 }; state.importedData.entries[0]!.markerSources![glucose] = { file: null, at: 1000 };
@@ -154,6 +166,25 @@ it('annotates and filters automatic ratios while retaining an independent report
   setGroupInAIContext(group('lipids.hdl'), false);
   const visible = project(); expect(visible.categories.calculatedRatios!.markers.tgHdlRatio!.values).toEqual([null]); expect(visible.categories.calculatedRatios!.markers.cholHdlRatio!.values).toEqual([4]);
   expect(getActiveData()).toBe(original); expect(original.categories.calculatedRatios!.markers.tgHdlRatio!.values).toEqual([2]);
+});
+it('preserves the fasting context of an automatic ratio on a split date', () => {
+  const ratio = 'calculatedRatios.tgHdlRatio';
+  seed([
+    { panelId: 'lipids', date: day, markers: { 'lipids.triglycerides': 2, 'lipids.hdl': 1 }, context: { fasting: false } },
+    { panelId: 'unrelated', date: day, markers: { [glucose]: 5 }, context: { fasting: true } },
+  ]);
+  expect(getMarkerHit(getActiveData(), ratio)).toMatchObject({ value: 2, entryContext: { fasting: false } });
+  expect(getMarkerHit(project(), ratio)).toMatchObject({ value: 2, entryContext: { fasting: false } });
+});
+it('withholds cached automatic values whose selected input sample was removed', () => {
+  const tyg = 'calculatedRatios.tygIndex';
+  seed([
+    { panelId: 'survivor', date: day, markers: { 'lipids.triglycerides': 1, [glucose]: 5 } },
+    { panelId: 'removed', date: day, markers: { 'lipids.triglycerides': 3, [glucose]: 12 } },
+  ]);
+  expect(getMarkerHit(getActiveData(), tyg)).not.toBeNull();
+  state.importedData.labPanelTombstones = { [`removed.${day}`]: { deletedAt: 10, restoredAt: 0, updatedAt: 10 } };
+  expect(getMarkerHit(project(), tyg)).toBeNull();
 });
 for (const [key, components, expected] of [
   ['cd4Cd8Ratio', [['lymphocyteSubsets.cd4', 400], ['lymphocyteSubsets.cd8', 200]], 2],

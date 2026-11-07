@@ -1044,8 +1044,9 @@ and marker removals, and unknown inputs never become zero-valued calculations.
 marker groups as exact tools. Presentation labels and placement cannot grant
 source access. It filters notes, collection metadata, deletion state and automatic
 value dependencies before chat, lookup, Focus and Biology Score context builders
-consume them. Calculated-marker ownership annotates automatic inputs per date;
-reported ratios retain their independent evidence. TyG uses the app's formula
+consume them. Cached calculations retain the collection context of their
+permitted inputs and are withheld if those selected inputs no longer survive.
+Reported ratios retain their independent evidence. TyG uses the app's formula
 when both inputs are available from one collection. A report-only TyG of unknown
 formula remains visible without app thresholds. The combined biological-age
 series requires both clock results at each point. Score fallback recipes respect
