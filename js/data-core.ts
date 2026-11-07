@@ -529,13 +529,15 @@ export function createDataCore(ports: DataCorePorts) {
       }
     }
 
-    // Compute phase-specific reference ranges for cycle-dependent markers
-    if (_hasCyclePhases) {
+    // Prefer the phase recorded with the selected hormone value on split dates.
+    if (_hasActiveNaturalCycle) {
       for (const [fullKey, phaseMap] of Object.entries(ports.PHASE_RANGES)) {
         const [catKey, markerKey] = fullKey.split('.') as [string, string];
         const marker = data.categories[catKey] && data.categories[catKey].markers[markerKey];
         if (!marker) continue;
-        marker.phaseRefRanges = drawPhases.map(p => {
+        const phases = sortedDates.map((date, i) => _getRecordedDrawCyclePhase(labCollections[date]?.[fullKey]?.context) ?? drawPhases[i]);
+        if (!phases.some(Boolean)) continue;
+        marker.phaseRefRanges = phases.map(p => {
           if (!p) return null;
           const range = phaseMap[p.phase] || null;
           if (!range) return null;
@@ -546,10 +548,10 @@ export function createDataCore(ports: DataCorePorts) {
             cycleDay: p.cycleDay,
           };
         });
-        marker.phaseLabels = drawPhases.map(p => p?.phaseName || null);
-        marker.phaseDisplayLabels = drawPhases.map(p => p?.phaseDetailName || p?.phaseName || null);
-        marker.phaseCycleDays = drawPhases.map(p => p?.cycleDay || null);
-        marker.phaseSources = drawPhases.map(p => p?.source || null);
+        marker.phaseLabels = phases.map(p => p?.phaseName || null);
+        marker.phaseDisplayLabels = phases.map(p => p?.phaseDetailName || p?.phaseName || null);
+        marker.phaseCycleDays = phases.map(p => p?.cycleDay || null);
+        marker.phaseSources = phases.map(p => p?.source || null);
       }
     }
 

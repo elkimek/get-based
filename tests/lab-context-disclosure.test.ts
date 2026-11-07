@@ -19,7 +19,7 @@ import { setMarkerPlacement } from '../js/marker-placement.js';
 
 const day = '2026-10-20', otherDay = '2026-10-19';
 const glucose = 'biochemistry.glucose', insulin = 'diabetes.insulin', homa = 'diabetes.homaIR';
-const initial = { data: state.importedData, profile: state.currentProfile, sex: state.profileSex, dob: state.profileDob };
+const initial = { data: state.importedData, profile: state.currentProfile, sex: state.profileSex, dob: state.profileDob, units: state.unitSystem };
 const group = (key: string) => { const category = key.split('.')[0]!; return labToolMarkerGroup(category, labToolRegistry(state.importedData)[category]!); };
 function seed(entries: LabEntry[]) { state.importedData.entries = entries; invalidateActiveDataCache(); invalidateLabContextCache(); }
 function project() { return createLabContextDisclosure().project(getActiveData()); }
@@ -29,7 +29,7 @@ beforeEach(() => {
   setLabMarkersContextEnabled(true); setInsightContextCardsEnabled(true);
   seed([{ panelId: 'morning', date: day, markers: { [glucose]: 5, [insulin]: 10, [homa]: 2.22 }, context: { sampleTime: '08:00', fasting: true }, markerSources: { [homa]: { file: null, derivedFrom: [glucose, insulin] } } }]);
 });
-afterEach(() => { state.currentProfile = initial.profile; state.importedData = initial.data; state.profileSex = initial.sex; state.profileDob = initial.dob; localStorage.clear(); invalidateActiveDataCache(); invalidateLabContextCache(); });
+afterEach(() => { state.currentProfile = initial.profile; state.importedData = initial.data; state.profileSex = initial.sex; state.profileDob = initial.dob; state.unitSystem = initial.units; localStorage.clear(); invalidateActiveDataCache(); invalidateLabContextCache(); });
 
 it('removes disabled core values, notes and linked calculations from the actual assembled prompt', () => {
   state.importedData.markerNotes = { [glucose]: 'PRIVATE_CORE_NOTE', [insulin]: 'RETAIN_INSULIN_NOTE' };
@@ -86,6 +86,24 @@ it('keeps two same-day draws, their results and unknown facts independent withou
   expect(searchAgentMarkers({ query: glucose })).toMatchObject({ matches: [{ key: glucose, latestValue: null, separateSamples: true, recordedValues: 3 }] });
   expect(readAgentMarkerHistory({ marker: glucose, limit: 10 })).toMatchObject({ values: [], marker: { separateSamples: true, sampleResource: 'labResults' } });
   expect(getContextSummary(text).filter(row => row.label === 'Lab values')).toEqual([{ label: 'Lab values', detail: '3 separate samples' }]);
+});
+it('uses the hormone value’s own recorded phase on split dates and honors cycle disclosure', () => {
+  state.profileSex = 'female';
+  state.unitSystem = 'US';
+  seed([
+    { panelId: 'morning', date: day, markers: { 'hormones.progesterone': 15 }, context: { cyclePhase: 'luteal', cycleDay: 21 } },
+    { panelId: 'evening', date: day, markers: { 'hormones.estradiol': 110 }, context: { cyclePhase: 'follicular', cycleDay: 5 } },
+  ]);
+  const local = getActiveData();
+  expect(local.phaseLabels).toBeUndefined();
+  expect(local.categories.hormones!.markers.progesterone!.phaseRefRanges).toMatchObject([{ label: 'Luteal range', phaseSource: 'recorded', cycleDay: 21 }]);
+  expect(local.categories.hormones!.markers.estradiol!.phaseRefRanges).toMatchObject([{ label: 'Follicular range', phaseSource: 'recorded', cycleDay: 5 }]);
+  expect(getMarkerHit(project(), 'hormones.progesterone')?.phaseLabel).toBe('Luteal');
+  setInsightContextCardsEnabled(false);
+  const hidden = project();
+  expect(getMarkerHit(hidden, 'hormones.progesterone')).toMatchObject({ canonicalValue: 15, phaseRange: null, phaseLabel: null });
+  expect(hidden.categories.hormones!.markers.progesterone!.canonicalScoring).toMatchObject({ phaseRefRanges: [null], phaseLabels: [null] });
+  expect(hidden.labCollections?.[day]?.['hormones.progesterone']?.context.cyclePhase).toBeUndefined();
 });
 it('retains ordinary dated values and alignment while withholding an unrelated hidden date', () => {
   seed([{ panelId: 'private', date: otherDay, markers: { [glucose]: 9 } }, { panelId: 'public', date: day, markers: { [insulin]: 8 } }]);

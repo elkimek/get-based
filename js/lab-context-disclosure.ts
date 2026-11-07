@@ -13,6 +13,7 @@ import type { ActiveData, ActiveMarker } from './data-view-types.js';
 import type { LabEntry } from '../types/lab-data.js';
 import type { LabContextOptions } from './lab-context-runtime.js';
 import type { LabViewCollections } from './lab-view-collections.js';
+import type { CanonicalScoringMarker } from './biology-score-types.js';
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const cycleFields = ['cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource'];
@@ -91,6 +92,7 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
       const address = `${key}:${entry.date}`; counts.set(address, (counts.get(address) || 0) + 1);
     }
     const categories: ActiveData['categories'] = {};
+    const includeCycle = sourceEnabled('insight-cards');
     for (const [categoryKey, category] of Object.entries(data.categories)) {
       const markers: typeof category.markers = {};
       for (const [markerKey, marker] of Object.entries(category.markers)) {
@@ -105,17 +107,30 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
           if (active?.length === 1 && (rawCounts.get(address) || 0) > 1) return convertCanonicalToDisplay(key, active[0]!.markers![key]!, state.unitSystem, imported.customMarkers?.[key]?.unit || null);
           return value;
         });
-        const next = { ...marker, values, contextSampleCount: visibleEntries.filter(entry => finite(entry.markers?.[key]) && (counts.get(`${key}:${entry.date}`) || 0) > 1).length };
+        const next: ActiveMarker = { ...marker, values, contextSampleCount: visibleEntries.filter(entry => finite(entry.markers?.[key]) && (counts.get(`${key}:${entry.date}`) || 0) > 1).length };
+        const phaseAllowed = (i: number) => {
+          const date = valueDates[i] || '';
+          return includeCycle && values[i] != null && (!data.labCollections?.[date] || rawCounts.get(`${key}:${date}`) === 1);
+        };
         // Rebuild the display baseline after source and date permissions below.
         delete next.personalBaselines;
         for (const field of dateFields) if (Array.isArray(marker[field])) {
           // Do not attach one draw's phase or contextual range to another draw.
           Object.assign(next, { [field]: marker[field]!.map((value, i) => {
-            if (values[i] == null || field.startsWith('phase') && !sourceEnabled('insight-cards')) return null;
+            if (field.startsWith('phase')) return phaseAllowed(i) ? value : null;
+            if (values[i] == null) return null;
             // A TyG result with no applicable guidance must stay unrated.
             if (key === 'calculatedRatios.tygIndex') return value;
             return multiple.has(valueDates[i] || '') ? null : value;
           }) });
+        }
+        const canonical = marker.canonicalScoring as CanonicalScoringMarker | undefined;
+        if (canonical?.phaseRefRanges) {
+          const allowed = new Set(valueDates.flatMap((date, i) => phaseAllowed(i) ? [canonical.dateIndices?.[date] ?? i] : []));
+          next.canonicalScoring = { ...canonical,
+            phaseRefRanges: canonical.phaseRefRanges.map((range, i) => allowed.has(i) ? range : null),
+            phaseLabels: canonical.phaseLabels?.map((label, i) => allowed.has(i) ? label : null),
+          };
         }
         markers[markerKey] = next;
       }

@@ -117,7 +117,8 @@ The active Labs view retains the collection of each selected value on a split
 date. Calculated markers and same-collection score recipes use that ownership
 before pairing inputs. If the date-wide view selects values from different
 collections, the automatic result is withheld. The AI projection reconstructs
-collection ownership from records allowed by its disclosure policy.
+collection ownership from records allowed by its disclosure policy. Hormone
+ranges and chart phase labels use the recorded phase of the selected sample.
 
 `lab-sample-cycle.ts` validates explicit cycle day/phase/detail commands for one
 sample. These commands share the sample transaction and first-original provenance
