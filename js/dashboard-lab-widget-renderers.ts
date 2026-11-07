@@ -8,6 +8,7 @@ import { filterDatesByRange } from './data.js';
 import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex } from './marker-analysis.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { getMarkerStorageViewId, resolveActiveMarkerPath } from './marker-placement.js';
+import { fractionalAgeAtDate } from './marker-context-ranges.js';
 
 import type {LabData, LabContext, LabHit, LabOperationHit, LabRenderHit, LabPriority, LabQuickPriority, LabScoredHit, LabQuickHit, LabCorrelationPair, LabPersistedReader, LabAlert, LabKeyMarker, LabFlag} from '../types/dashboard-lab-widget-renderers.js';
 
@@ -63,55 +64,39 @@ export function createDashboardLabWidgetRenderers(deps: unknown, quickMarkers: R
     if (idx <= 0) return null;
     return getDashboardMarkerByPath(data, (id as string).slice(0, idx), (id as string).slice(idx + 1));
   }
-  function getDashboardAge() {
-    if (!state.profileDob) return null;
-    const dob = new Date(state.profileDob);
-    if (Number.isNaN(dob.getTime())) return null;
-    return Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-  }
-
-  function getDashboardBioAgeMarker(ctx: LabContext) {
-    const paths: Array<[string,string]> = [
-      ['calculatedRatios', 'biologicalAge'],
-      ['specialty', 'glycanAge'],
-      ['calculatedRatios', 'phenoAge'],
-      ['calculatedRatios', 'bortzAge'],
-      ['ratios', 'bioAge'],
-      ['ratios', 'phenoAge'],
-      ['ratios', 'bortzAge'],
-    ];
-    for (const [cat, key] of paths) {
-      const hit = getDashboardMarkerByPath(ctx.data, cat, key);
-      if (hit) return hit;
-    }
-    return null;
-  }
-
   function projectDashboardBioAgeWidget(ctx: LabContext): DashboardBioAgeView {
-    const hit = getDashboardBioAgeMarker(ctx) as LabRenderHit | null;
-    const age = getDashboardAge();
-    const value = Number(hit?.value);
-    const profileContext = getBiologyProfileContext();
-    const hasBioAge = Number.isFinite(value);
-    const display = hasBioAge ? value.toFixed(1) : '—';
-    const delta = hasBioAge && age != null ? value - age : null;
-    const deltaText = delta == null
-      ? (profileContext.lowMuscleMass ? 'Creatinine-based biological age disabled by low-muscle context' : 'Biological-age comparison unavailable')
-      : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} yr vs chronological`;
     const pheno = (getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')
       || getDashboardMarkerByPath(ctx.data, 'ratios', 'phenoAge')) as LabRenderHit | null;
     const bortz = (getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'bortzAge')
       || getDashboardMarkerByPath(ctx.data, 'ratios', 'bortzAge')) as LabRenderHit | null;
-    const pct = Number.isFinite(value) ? Math.max(4, Math.min(100, (value / 70) * 100)) : 35;
+    const combined = getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'biologicalAge') as LabRenderHit | null;
+    const hit = [combined, pheno, bortz].reduce<LabRenderHit | null>((latest, candidate) =>
+      candidate && (!latest || candidate.latestIdx > latest.latestIdx) ? candidate : latest, null)
+      ?? (getDashboardMarkerByPath(ctx.data, 'specialty', 'glycanAge')
+        || getDashboardMarkerByPath(ctx.data, 'ratios', 'bioAge')) as LabRenderHit | null;
+    const data = ctx.data as LabData;
+    const drawDate = hit && (hit.marker.singleDate || hit.category.singleDate || data.dates?.[hit.latestIdx]);
+    const age = typeof drawDate === 'string' ? fractionalAgeAtDate(state.profileDob, drawDate) : null;
+    const value = hit?.value;
+    const display = typeof value === 'number' && Number.isFinite(value) ? value.toFixed(1) : '—';
+    const delta = value != null && age != null && Number.isFinite(value) ? value - age : null;
+    const deltaText = delta == null
+      ? (getBiologyProfileContext().lowMuscleMass ? 'Creatinine-based biological age disabled by low-muscle context' : 'Biological-age comparison unavailable')
+      : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} yr vs chronological`;
+    const pct = value != null && Number.isFinite(value) ? Math.max(4, Math.min(100, (value / 70) * 100)) : 35;
     const id = hit ? summaryAttribute(hit.id) : null;
     const accessibleLabel = hit ? summaryText((hit.marker?.name || 'Biological Age') + ': ' + display) : null;
     const name = summaryText(hit?.marker?.name || 'Biological Age');
-    const chronological = age != null ? `${age} yr` : 'not set';
+    const chronological = age != null ? `${age.toFixed(1)} yr` : state.profileDob ? '—' : 'not set';
     const difference = summaryText(deltaText);
-    const phenoValue = pheno ? formatValue(pheno.value) : '—';
-    const bortzValue = bortz ? formatValue(bortz.value) : '—';
+    const sameDrawValue = (clock: LabRenderHit | null) => {
+      const result = clock && hit && !hit.marker.singleDate && !hit.category.singleDate ? clock.marker.values[hit.latestIdx] : null;
+      return typeof result === 'number' && Number.isFinite(result) ? formatValue(result) : '—';
+    };
+    const phenoValue = sameDrawValue(pheno);
+    const bortzValue = sameDrawValue(bortz);
     return {kind: 'bio-age', interactive: !!hit, id, accessibleLabel, display, name, chronological,
-      difference, phenoValue, bortzValue, width: pct.toFixed(0)};
+      drawDate: typeof drawDate === 'string' ? drawDate : null, difference, phenoValue, bortzValue, width: pct.toFixed(0)};
   }
 
   function renderDashboardBioAgeWidget(ctx: LabContext): string {

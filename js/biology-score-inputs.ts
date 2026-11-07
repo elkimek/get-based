@@ -6,6 +6,7 @@ import { state } from './state.js';
 import { getMarkerStorageDotKey, resolveActiveMarkerPath } from './marker-placement.js';
 import { formatValue } from './utils.js';
 import { getAgeDays } from './biology-score-dates.js';
+import { sameLabViewCollection } from './lab-view-collections.js';
 import type { ActiveMarker } from './data-view-types.js';
 import type { ScoringData, MarkerHit, ScoreRange, CanonicalScoringMarker, DerivedMarkerRecipe } from './biology-score-types.js';
 
@@ -63,12 +64,14 @@ export function getMarkerHit(data: ScoringData | null | undefined, paths: Marker
       const canonical = marker.canonicalScoring as CanonicalScoringMarker | undefined;
       const canonicalIndex = canonical?.dateIndices?.[date] ?? i;
       const canonicalMarker = canonical ? markerWithSchemaOptimalFallback(dotKey, canonical) : null;
-      const entryContext = data?.entryContextByDate?.[date] || {};
+      const collection = data?.labCollections?.[date]?.[dotKey];
+      const entryContext = collection?.context ?? data?.entryContextByDate?.[date] ?? {};
       hits.push({ id: `${displayCategoryKey}_${markerKey}`, dotKey, path: dotKey, label: marker.name || markerKey,
         value, canonicalValue: canonical?.values?.[canonicalIndex] ?? canonicalMarkerValue(dotKey, marker, value),
         canonicalScoringRange: canonicalMarker ? getEffectiveRangeForDate(canonicalMarker, canonicalIndex) : null,
         canonicalReferenceRange: canonical ? getEffectiveRangeForDate(canonical, canonicalIndex, 'reference') : null, displayValue: formatValue(value),
         unit: marker.unit || '', date, dateIndex: i, ageDays: getAgeDays(date), entryContext,
+        collectionIndex: collection?.index,
         range: getEffectiveRangeForDate(effectiveMarker, i), referenceRange: getEffectiveRangeForDate(marker, i, 'reference'),
         rangeLabel: getEffectiveRangeLabel(effectiveMarker, i), phaseLabel: marker.phaseLabels?.[i] || null,
         phaseRange: marker.phaseRefRanges?.[i] || null, specimen: marker.specimen || category.specimen || entryContext.specimen || '',
@@ -92,7 +95,7 @@ function pairedHits(data: ScoringData | null | undefined, leftPaths: MarkerPaths
     if (options.date && options.date !== date) continue;
     const a = getMarkerHit(data, leftPaths, { date });
     const b = getMarkerHit(data, rightPaths, { date });
-    if (a && b) return [a, b];
+    if (a && b && sameLabViewCollection(data?.labCollections, date, [a.dotKey, b.dotKey])) return [a, b];
   }
   return null;
 }

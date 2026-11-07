@@ -1113,7 +1113,7 @@ test('marker detail delegated actions cover click key and data attribute contrac
   }
 });
 
-test('marker detail modal covers default deps descriptions alt units and bio age CRP fallback', async ({ page }) => {
+test('marker detail modal covers default deps descriptions alt units and bio age hs-CRP requirements', async ({ page }) => {
   await routeHtml(page, '**/marker-detail-modal-isolated-coverage', `<!doctype html><html><head><title>Marker detail isolated coverage</title>
         <meta data-marker-detail-stylesheet-anchor></head>
       <body>
@@ -1289,9 +1289,10 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       await modal.showDetailModal('calculatedRatios_phenoAge');
       await wait(80);
       const bioText = document.getElementById('detail-modal')?.textContent || '';
-      outcomes.bioAgeDetailUsesStandardCrpPresenceFallback =
+      outcomes.bioAgeDetailRequiresHsCrp =
         bioText.includes('PhenoAge')
-        && !bioText.includes('Missing: hs-CRP')
+        && bioText.includes('Missing: hs-CRP')
+        && !bioText.includes('looks like g/dL')
         && !bioText.includes('Missing on latest date');
 
       await modal.openManualEntryForm(albuminId, '2026-06-02');
@@ -1351,10 +1352,10 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       await modal.showDetailModal('calculatedRatios_phenoAge');
       await wait(20);
       const sparseIssue = document.querySelector<HTMLElement>('.calc-missing-inputs')?.textContent || '';
-      outcomes.bioAgeFallbackRebuildsRemainingMissingInputs =
+      outcomes.bioAgeReportsAllMissingInputs =
         sparseIssue.includes('Missing:')
         && sparseIssue.includes('Albumin')
-        && !sparseIssue.includes('hs-CRP');
+        && sparseIssue.includes('hs-CRP');
 
       (state.importedData as unknown as {entries: unknown}).entries = [{
         date: '2026-06-11',
@@ -1381,8 +1382,8 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       await modal.showDetailModal('calculatedRatios_phenoAge');
       await wait(20);
       const latestGapIssue = document.querySelector<HTMLElement>('.calc-missing-inputs')?.textContent || '';
-      outcomes.bioAgeFallbackNamesLatestPanelGaps =
-        latestGapIssue.includes('Missing on latest date')
+      outcomes.bioAgeNamesLatestPanelGaps =
+        latestGapIssue.includes('Missing or unusable on')
         && latestGapIssue.includes('Albumin');
 
       const customKey = 'customCoverage.marker';

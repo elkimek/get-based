@@ -28,7 +28,7 @@ function procedure(kind:string,current:boolean){
   return names.map(name=>declarations.get(name)!).join('\n');
  });
 }
-interface Scenario {kind:string;hit?:unknown;age?:unknown;lowMuscleMass?:boolean;pheno?:unknown;bortz?:unknown;result?:unknown;ctx?:unknown}
+interface Scenario {kind:string;result?:unknown;ctx?:unknown}
 function run(input:Scenario,current:boolean,failAt=Infinity){
  const trace:string[]=[];const read=(label:string)=>{trace.push(label);if(trace.length===failAt)throw new Error('fault:'+label);};
  const proxied=new WeakMap<object,object>();
@@ -39,9 +39,6 @@ function run(input:Scenario,current:boolean,failAt=Infinity){
  const record=structuredClone(input);const ctx=wrap(record.ctx||{data:{}},'ctx');let html:string|null=null,error:string|null=null;
  try{html=vm.runInNewContext(procedure(input.kind,current)+';renderDashboard'+input.kind+'Widget(ctx)',{
   ctx,escapeAttr,escapeHTML,renderDashboardLabSummary,summaryAttribute,summaryText,
-  getDashboardBioAgeMarker(){read('bio-hit');return wrap(record.hit,'hit');},getDashboardAge(){read('age');return record.age;},
-  getBiologyProfileContext(){read('profile-context');return wrap({lowMuscleMass:record.lowMuscleMass},'profile-context');},
-  getDashboardMarkerByPath(_data:unknown,_category:string,key:string){read('path:'+_category+'.'+key);return wrap(key==='phenoAge'?record.pheno:record.bortz,key);},
   getDashboardCorrelationPairs(){read('correlations');return wrap(record.result,'result');},
   formatValue(value:unknown){read('format:'+String(value));return value==null?'—':String(value);},
   dashboardMarkerDetailAttrs:(id:unknown)=>actionAttributes('dashboard-widget','open-marker-detail',{id}),
@@ -58,11 +55,9 @@ function tree(node:Node):unknown{
   button:el.tagName==='BUTTON'?{type:(el as HTMLButtonElement).type,disabled:(el as HTMLButtonElement).disabled}:null,children};
 }
 const dom=(html:string|null)=>html===null?null:tree(new JSDOM(html).window.document.body);
+// BioAge intentionally uses a new collection-based contract, exercised through
+// the actual projector in dashboard-lab-widget-renderers.test.ts.
 const scenarios:Scenario[]=[
- {kind:'BioAge',age:null},
- {kind:'BioAge',age:40,hit:{id:'age-marker',value:42.5,marker:{name:'Biological <Age>&'}},pheno:{value:38},bortz:{value:39}},
- {kind:'BioAge',age:0,hit:{id:0,value:null,marker:{}},lowMuscleMass:true},
- {kind:'BioAge',age:55,lowMuscleMass:true},
  {kind:'Correlation',result:null},
  {kind:'Correlation',result:{pairs:[]}},
  {kind:'Correlation',result:{target:{marker:{name:'Target <marker>'}},pairs:[{id:'a',name:'Positive',r:0.45,value:12,unit:'mg/L'},{id:'b',name:'Negative',r:-0.9,value:3,unit:''}]}},
@@ -72,7 +67,7 @@ const scenarios:Scenario[]=[
 it.each(scenarios)('preserves native summary DOM, controls and read order %#',scenario=>{
  const before=run(scenario,false),after=run(scenario,true);expect(after.error).toEqual(before.error);expect(after.error).toBeNull();expect(after.trace).toEqual(before.trace);expect(dom(after.html)).toEqual(dom(before.html));
 });
-const faultCases = [scenarios[1]!,scenarios[6]!,scenarios[8]!].flatMap(scenario =>
+const faultCases = [scenarios[2]!,scenarios[4]!].flatMap(scenario =>
  Array.from({length:run(scenario,false).trace.length},(_,offset)=>({scenario,index:offset+1})));
 it.each(faultCases)('preserves observed getter and domain-helper fault boundary %#',({scenario,index})=>{
  const before=run(scenario,false,index),after=run(scenario,true,index);

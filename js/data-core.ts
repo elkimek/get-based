@@ -3,6 +3,7 @@ import { customMarkerState } from './custom-marker-core.js';
 import { applyLabOrderingToView } from './lab-ordering-view.js';
 // Canonical data projection and serialized profile saves, with explicit service ports.
 import { buildMarkerBaselines } from './marker-baseline.js';
+import type { LabViewCollections } from './lab-view-collections.js';
 import type { ProfileData as ImportedDataRecord } from '../types/app-state.js';
 import type { LabEntry, LabCollectionContext } from '../types/lab-data.js';
 import type { ActiveData, ActiveCategory, ActiveMarker, MarkerViewRange } from './data-view-types.js';
@@ -411,21 +412,31 @@ export function createDataCore(ports: DataCorePorts) {
     const entries = (ports.state.importedData && ports.state.importedData.entries) ? ports.state.importedData.entries : [];
     const hasEntries = entries.length > 0;
 
-    // Build entry lookup: date → merged markers + per-draw context.
-    // Hormone scoring needs draw-level context because cycle day / sample time can
-    // differ between lab entries for the same profile.
+    // Keep the date-wide display, with collection ownership for selected values
+    // on dates where multiple panels exist.
     const entryLookup: Record<string, Record<string, number | null | undefined>> = {};
     const entryContextByDate: Record<string, LabCollectionContext> = {};
+    const labCollections: LabViewCollections = {};
+    const seenDates = new Set<string>();
+    for (const { date } of entries) {
+      if (seenDates.has(date)) labCollections[date] = Object.create(null);
+      seenDates.add(date);
+    }
     const ENTRY_CONTEXT_KEYS = ['specimen', 'method', 'sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
-    for (const entry of entries) {
+    for (const [index, entry] of entries.entries()) {
       if (!entryLookup[entry.date]) entryLookup[entry.date] = {};
       Object.assign(entryLookup[entry.date]!, entry.markers);
       const context = { ...(entry.context || {}) };
       for (const key of ENTRY_CONTEXT_KEYS) {
         if (entry[key] !== undefined && context[key] === undefined) context[key] = entry[key];
       }
-      if (Object.keys(context).length) entryContextByDate[entry.date] = { ...(entryContextByDate[entry.date] || {}), ...context };
+      const day = labCollections[entry.date];
+      if (day) {
+        const collection = { index, context };
+        for (const key of Object.keys(entry.markers || {})) day[key] = collection;
+      } else if (Object.keys(context).length) entryContextByDate[entry.date] = context;
     }
+    if (Object.keys(labCollections).length) data.labCollections = labCollections;
 
     // Identify singlePoint categories
     const singlePointCats = new Set();
@@ -518,13 +529,15 @@ export function createDataCore(ports: DataCorePorts) {
       }
     }
 
-    // Compute phase-specific reference ranges for cycle-dependent markers
-    if (_hasCyclePhases) {
+    // Prefer the phase recorded with the selected hormone value on split dates.
+    if (_hasActiveNaturalCycle) {
       for (const [fullKey, phaseMap] of Object.entries(ports.PHASE_RANGES)) {
         const [catKey, markerKey] = fullKey.split('.') as [string, string];
         const marker = data.categories[catKey] && data.categories[catKey].markers[markerKey];
         if (!marker) continue;
-        marker.phaseRefRanges = drawPhases.map(p => {
+        const phases = sortedDates.map((date, i) => _getRecordedDrawCyclePhase(labCollections[date]?.[fullKey]?.context) ?? drawPhases[i]);
+        if (!phases.some(Boolean)) continue;
+        marker.phaseRefRanges = phases.map(p => {
           if (!p) return null;
           const range = phaseMap[p.phase] || null;
           if (!range) return null;
@@ -535,10 +548,10 @@ export function createDataCore(ports: DataCorePorts) {
             cycleDay: p.cycleDay,
           };
         });
-        marker.phaseLabels = drawPhases.map(p => p?.phaseName || null);
-        marker.phaseDisplayLabels = drawPhases.map(p => p?.phaseDetailName || p?.phaseName || null);
-        marker.phaseCycleDays = drawPhases.map(p => p?.cycleDay || null);
-        marker.phaseSources = drawPhases.map(p => p?.source || null);
+        marker.phaseLabels = phases.map(p => p?.phaseName || null);
+        marker.phaseDisplayLabels = phases.map(p => p?.phaseDetailName || p?.phaseName || null);
+        marker.phaseCycleDays = phases.map(p => p?.cycleDay || null);
+        marker.phaseSources = phases.map(p => p?.source || null);
       }
     }
 
@@ -586,16 +599,17 @@ export function createDataCore(ports: DataCorePorts) {
     }
 
     setContextRanges('hormones.cortisol', 'reference', (dateStr, _i, marker) => {
-      const specimen = marker.specimen || entryContextByDate[dateStr]?.specimen;
+      const context = labCollections[dateStr]?.['hormones.cortisol']?.context ?? entryContextByDate[dateStr];
+      const specimen = marker.specimen || context?.specimen;
       if (marker.referenceRangeSource || (specimen && !/^(serum|plasma|blood)$/i.test(specimen as string))) return null;
-      const guidance = (0, ports.cortisolReferenceForSampleTime)(entryContextByDate[dateStr]?.sampleTime, marker.unit);
+      const guidance = (0, ports.cortisolReferenceForSampleTime)(context?.sampleTime, marker.unit);
       return guidance ? { ...guidance.range, label: guidance.label } : null;
     });
 
     // WHO/IZiNCG lower serum-zinc cutoffs are population adequacy guidance and
     // only become meaningful when time of day and fasting status are known.
     setContextRanges('electrolytes.zinc', 'optimal', (dateStr, _i, marker) => {
-      const context = entryContextByDate[dateStr] || {};
+      const context = labCollections[dateStr]?.['electrolytes.zinc']?.context ?? entryContextByDate[dateStr] ?? {};
       const hour = (0, ports.parseSampleHour)(context.sampleTime);
       if (hour == null || typeof context.fasting !== 'boolean') return null;
       const female = ports.state.profileSex === 'female';
@@ -611,19 +625,12 @@ export function createDataCore(ports: DataCorePorts) {
       return null;
     });
 
-    // TyG is defined from fasting triglycerides and glucose. An explicitly
-    // non-fasting draw suppresses both the reference and optional lower-risk
-    // band rather than presenting a falsely actionable status.
-    setContextRanges('calculatedRatios.tygIndex', 'optimal', (dateStr) => {
-      if (entryContextByDate[dateStr]?.fasting !== false) return null;
-      return { min: null, max: null, label: 'Requires fasting sample' };
-    });
-
     (0, ports.populateCalculatedMarkers)({
       data,
       sortedDates,
       entryContextByDate,
       refOverrides,
+      labCollections,
     });
     applyUnitConversion(data, ports.state.unitSystem);
     // Derive from full history before UI date filtering; never persist this
@@ -735,6 +742,10 @@ export function createDataCore(ports: DataCorePorts) {
           Object.entries(data.entryContextByDate).filter(([date]) => filteredDates.has(date))
         ),
       }),
+      ...(data.labCollections && {
+        labCollections: Object.fromEntries(Object.entries(data.labCollections).filter(([date]) => filteredDates.has(date))),
+      }),
+      ...(data.contextExcludedMarkers && { contextExcludedMarkers: data.contextExcludedMarkers }),
       categories: {}
     };
     for (const [catKey, cat] of Object.entries(data.categories)) {
@@ -752,6 +763,7 @@ export function createDataCore(ports: DataCorePorts) {
           filteredCat.markers[mKey] = {
             ...marker,
             values: indices.map(i => marker.values[i] as number | null),
+            ...(marker.contextDependencies && { contextDependencies: indices.map(i => marker.contextDependencies![i] || []) }),
             ...(marker.personalBaselines && { personalBaselines: indices.map(i => marker.personalBaselines![i] ?? null) }),
             ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges![i]) }),
             ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels![i]) }),

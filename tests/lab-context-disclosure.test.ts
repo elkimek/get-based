@@ -19,7 +19,7 @@ import { setMarkerPlacement } from '../js/marker-placement.js';
 
 const day = '2026-10-20', otherDay = '2026-10-19';
 const glucose = 'biochemistry.glucose', insulin = 'diabetes.insulin', homa = 'diabetes.homaIR';
-const initial = { data: state.importedData, profile: state.currentProfile, sex: state.profileSex, dob: state.profileDob };
+const initial = { data: state.importedData, profile: state.currentProfile, sex: state.profileSex, dob: state.profileDob, units: state.unitSystem };
 const group = (key: string) => { const category = key.split('.')[0]!; return labToolMarkerGroup(category, labToolRegistry(state.importedData)[category]!); };
 function seed(entries: LabEntry[]) { state.importedData.entries = entries; invalidateActiveDataCache(); invalidateLabContextCache(); }
 function project() { return createLabContextDisclosure().project(getActiveData()); }
@@ -29,7 +29,7 @@ beforeEach(() => {
   setLabMarkersContextEnabled(true); setInsightContextCardsEnabled(true);
   seed([{ panelId: 'morning', date: day, markers: { [glucose]: 5, [insulin]: 10, [homa]: 2.22 }, context: { sampleTime: '08:00', fasting: true }, markerSources: { [homa]: { file: null, derivedFrom: [glucose, insulin] } } }]);
 });
-afterEach(() => { state.currentProfile = initial.profile; state.importedData = initial.data; state.profileSex = initial.sex; state.profileDob = initial.dob; localStorage.clear(); invalidateActiveDataCache(); invalidateLabContextCache(); });
+afterEach(() => { state.currentProfile = initial.profile; state.importedData = initial.data; state.profileSex = initial.sex; state.profileDob = initial.dob; state.unitSystem = initial.units; localStorage.clear(); invalidateActiveDataCache(); invalidateLabContextCache(); });
 
 it('removes disabled core values, notes and linked calculations from the actual assembled prompt', () => {
   state.importedData.markerNotes = { [glucose]: 'PRIVATE_CORE_NOTE', [insulin]: 'RETAIN_INSULIN_NOTE' };
@@ -87,6 +87,24 @@ it('keeps two same-day draws, their results and unknown facts independent withou
   expect(readAgentMarkerHistory({ marker: glucose, limit: 10 })).toMatchObject({ values: [], marker: { separateSamples: true, sampleResource: 'labResults' } });
   expect(getContextSummary(text).filter(row => row.label === 'Lab values')).toEqual([{ label: 'Lab values', detail: '3 separate samples' }]);
 });
+it('uses the hormone value’s own recorded phase on split dates and honors cycle disclosure', () => {
+  state.profileSex = 'female';
+  state.unitSystem = 'US';
+  seed([
+    { panelId: 'morning', date: day, markers: { 'hormones.progesterone': 15 }, context: { cyclePhase: 'luteal', cycleDay: 21 } },
+    { panelId: 'evening', date: day, markers: { 'hormones.estradiol': 110 }, context: { cyclePhase: 'follicular', cycleDay: 5 } },
+  ]);
+  const local = getActiveData();
+  expect(local.phaseLabels).toBeUndefined();
+  expect(local.categories.hormones!.markers.progesterone!.phaseRefRanges).toMatchObject([{ label: 'Luteal range', phaseSource: 'recorded', cycleDay: 21 }]);
+  expect(local.categories.hormones!.markers.estradiol!.phaseRefRanges).toMatchObject([{ label: 'Follicular range', phaseSource: 'recorded', cycleDay: 5 }]);
+  expect(getMarkerHit(project(), 'hormones.progesterone')?.phaseLabel).toBe('Luteal');
+  setInsightContextCardsEnabled(false);
+  const hidden = project();
+  expect(getMarkerHit(hidden, 'hormones.progesterone')).toMatchObject({ canonicalValue: 15, phaseRange: null, phaseLabel: null });
+  expect(hidden.categories.hormones!.markers.progesterone!.canonicalScoring).toMatchObject({ phaseRefRanges: [null], phaseLabels: [null] });
+  expect(hidden.labCollections?.[day]?.['hormones.progesterone']?.context.cyclePhase).toBeUndefined();
+});
 it('retains ordinary dated values and alignment while withholding an unrelated hidden date', () => {
   seed([{ panelId: 'private', date: otherDay, markers: { [glucose]: 9 } }, { panelId: 'public', date: day, markers: { [insulin]: 8 } }]);
   setGroupInAIContext(group(glucose), false);
@@ -119,6 +137,18 @@ it('selects the surviving sample when a removed stale sibling owns the cached da
   seed([{ panelId: 'survivor', date: day, markers: { [glucose]: 5 } }, { panelId: 'removed', date: day, markers: { [glucose]: 19 }, context: { sampleTime: '22:13' } }]);
   state.importedData.labPanelTombstones = { [`removed.${day}`]: { deletedAt: 10, restoredAt: 0, updatedAt: 10 } };
   expect(project().categories.biochemistry!.markers.glucose!.values).toEqual([5]); expect(buildLabContext()).not.toContain('22:13');
+  state.unitSystem = 'US';
+  expect(getMarkerHit(project(), glucose)).toMatchObject({ canonicalValue: 5 });
+});
+it.each([true, false])('preserves computed TyG after removing a stale sibling report (also reported in surviving panel: %s)', survivingReport => {
+  const tyg = 'calculatedRatios.tygIndex';
+  seed([
+    { panelId: 'survivor', date: day, markers: { ...(survivingReport ? { [tyg]: 4.855 } : {}), 'lipids.triglycerides': 150 / 88.57, [glucose]: 110 / 18.018 }, context: { fasting: true } },
+    { panelId: 'removed', date: day, markers: { [tyg]: 5.1 } },
+  ]);
+  expect(getMarkerHit(getActiveData(), tyg)?.value).toBe(9.018);
+  state.importedData.labPanelTombstones = { [`removed.${day}`]: { deletedAt: 10, restoredAt: 0, updatedAt: 10 } };
+  expect(getMarkerHit(project(), tyg)).toMatchObject({ value: 9.018, entryContext: { fasting: true } });
 });
 it('honors per-marker removal clocks before exposing results or calculations', () => {
   state.importedData.entries[0]!.deletedMarkers = { [glucose]: 1100 }; state.importedData.entries[0]!.markerSources![glucose] = { file: null, at: 1000 };
@@ -136,6 +166,25 @@ it('annotates and filters automatic ratios while retaining an independent report
   setGroupInAIContext(group('lipids.hdl'), false);
   const visible = project(); expect(visible.categories.calculatedRatios!.markers.tgHdlRatio!.values).toEqual([null]); expect(visible.categories.calculatedRatios!.markers.cholHdlRatio!.values).toEqual([4]);
   expect(getActiveData()).toBe(original); expect(original.categories.calculatedRatios!.markers.tgHdlRatio!.values).toEqual([2]);
+});
+it('preserves the fasting context of an automatic ratio on a split date', () => {
+  const ratio = 'calculatedRatios.tgHdlRatio';
+  seed([
+    { panelId: 'lipids', date: day, markers: { 'lipids.triglycerides': 2, 'lipids.hdl': 1 }, context: { fasting: false } },
+    { panelId: 'unrelated', date: day, markers: { [glucose]: 5 }, context: { fasting: true } },
+  ]);
+  expect(getMarkerHit(getActiveData(), ratio)).toMatchObject({ value: 2, entryContext: { fasting: false } });
+  expect(getMarkerHit(project(), ratio)).toMatchObject({ value: 2, entryContext: { fasting: false } });
+});
+it('withholds cached automatic values whose selected input sample was removed', () => {
+  const tyg = 'calculatedRatios.tygIndex';
+  seed([
+    { panelId: 'survivor', date: day, markers: { 'lipids.triglycerides': 1, [glucose]: 5 } },
+    { panelId: 'removed', date: day, markers: { 'lipids.triglycerides': 3, [glucose]: 12 } },
+  ]);
+  expect(getMarkerHit(getActiveData(), tyg)).not.toBeNull();
+  state.importedData.labPanelTombstones = { [`removed.${day}`]: { deletedAt: 10, restoredAt: 0, updatedAt: 10 } };
+  expect(getMarkerHit(project(), tyg)).toBeNull();
 });
 for (const [key, components, expected] of [
   ['cd4Cd8Ratio', [['lymphocyteSubsets.cd4', 400], ['lymphocyteSubsets.cd8', 200]], 2],

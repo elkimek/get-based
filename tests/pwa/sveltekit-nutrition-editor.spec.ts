@@ -64,7 +64,12 @@ test('static authored meal editor saves zero and unknown values offline, then ed
     let snapshot = await committed(page, before, [saved.id], started); await page.close();
     for (let launch = 0; launch < 2; launch++) {
       const cold = await context.newPage(); loading.push({ phase: `offline-cold-${launch + 1}`, ...await ready(cold, server.origin) }); expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(snapshot);
-      await history(cold); await cold.locator(`[data-nutrition-action="detail"][data-nutrition-id="${saved.id}"]`).click();
+      await history(cold);
+      // The fixed meal date must remain reachable after it ages out of the default 30-day window.
+      const allMeals = cold.locator('[data-nutrition-action="set-history-range"][data-nutrition-range="all"]');
+      await allMeals.click();
+      await expect(allMeals).toHaveAttribute('aria-pressed', 'true');
+      await cold.locator(`[data-nutrition-action="detail"][data-nutrition-id="${saved.id}"]`).click();
       await cold.locator(`[data-nutrition-action="${launch === 0 ? 'edit' : 'reuse'}"]`).click(); await expect(cold.locator('[data-nutrition-editor-view]')).toBeVisible();
       await expect(cold.locator('#nutrition-proteinG')).toHaveValue('0'); await expect(cold.locator('#nutrition-fiberG')).toHaveValue(''); await cold.locator('.nutrition-more-nutrients > summary').click(); await expect(cold.locator('#nutrition-vitaminCMg')).toHaveValue('0');
       await cold.locator('#nutrition-note').fill(launch === 0 ? 'Edited offline note' : 'Reused offline note'); await cold.locator('#nutrition-save-btn').click(); await expect(cold.locator('[data-nutrition-meal-detail-view]')).toBeVisible();

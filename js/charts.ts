@@ -586,6 +586,10 @@ export function createLineChart(id: string, marker: ActiveMarker, dateLabels: st
     }).catch(() => {});
     return;
   }
+  if (marker.phaseLabels) {
+    phaseLabels = marker.phaseLabels.map(phase => phase?.toLowerCase() ?? null);
+    phaseMetadata = { displayLabels: marker.phaseDisplayLabels, cycleDays: marker.phaseCycleDays, sources: marker.phaseSources };
+  }
   // Trim leading/trailing nulls for category scale (time scale handles gaps proportionally)
   let trimOffset = 0;
   if (!useTimeScale && !marker.singlePoint && values.length > 1) {

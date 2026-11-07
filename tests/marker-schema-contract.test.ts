@@ -97,7 +97,7 @@ describe('marker schema compatibility contract', () => {
     expect(Object.keys(facadeMarkerSchema)).toEqual(EXPECTED_CATEGORIES);
     expect(dotKeys).toHaveLength(210);
     expect(new Set(dotKeys).size).toBe(dotKeys.length);
-    expect(checksum).toBe('17bf944b04dd456fb97a86038fb999f44ec5fc4b71a3697e39aae042f6b1419f');
+    expect(checksum).toBe('6333248b431d35381c1a0af9c7349ed3a0dbdee063c449459c6ac09e5722579a');
   });
 
   it('accounts for reference-range coverage across every built-in marker', () => {

@@ -2,6 +2,7 @@
 import { getMarkerHit } from './biology-score-inputs.js';
 import { getScoreInputs } from './biology-score-contract.js';
 import { getAgeDays, SCORE_DATE_SPAN_DAYS, SCORE_STALE_DAYS } from './biology-score-dates.js';
+import { sameLabViewCollection } from './lab-view-collections.js';
 import type { ScoringData, ScoreDefinition, ScoreInput, ScorePart, MarkerHit, ScoreProfileContext } from './biology-score-types.js';
 
 // Alternative assays can corroborate one sampling period, but an older route
@@ -51,8 +52,9 @@ function sameDrawPair(data: ScoringData | null | undefined, inputs: ScoreInput[]
   const latest = inputs.map(i => getMarkerHit(data, i.paths));
   const dates = [...new Set([...(data?.dates || []), ...latest.map(i => i?.date)])].filter(Boolean).sort().reverse() as string[];
   for (const date of dates) {
-    const hits = inputs.map(i => getMarkerHit(data, i.paths, { date }));
-    if (hits.every(hit => hit && (!kind || specimenKind(hit) === kind))) return hits as MarkerHit[];
+    const hits = inputs.map(i => getMarkerHit(data, i.paths, { date })).filter((hit): hit is MarkerHit => !!hit);
+    if (hits.length === inputs.length && hits.every(hit => !kind || specimenKind(hit) === kind)
+      && sameLabViewCollection(data?.labCollections, date, hits.map(hit => hit.dotKey))) return hits;
   }
   return null;
 }
@@ -123,7 +125,7 @@ export function panelAnchorWarning(def: ScoreDefinition, available: ScorePart[],
   if (def.id === 'cellularEnergyCoherence' || def.id === 'gutImmuneSignal') {
     const keys = def.panelRoute === 'blood' ? ['bloodLactate', 'bloodPyruvate'] : def.panelRoute === 'urine' ? ['lactate', 'pyruvate']
       : def.panelRoute === 'microbial' ? ['arabinose', 'hphpa'] : ['calprotectin'];
-    if (!all(keys) || new Set(core.map(i => i.date)).size !== 1) return `Needs the ${def.panelLabel!.toLowerCase()} from one collection before scoring this route.`;
+    if (!all(keys) || new Set(core.map(i => `${i.date}:${i.collectionIndex ?? ''}`)).size !== 1) return `Needs the ${def.panelLabel!.toLowerCase()} from one collection before scoring this route.`;
     return '';
   }
   if (checks[def.id] && !checks[def.id]!()) {
@@ -139,7 +141,7 @@ export function panelAnchorWarning(def: ScoreDefinition, available: ScorePart[],
     };
     return `Needs ${anchors[def.id]} with usable collection and profile context before scoring.`;
   }
-  if (def.id === 'metabolicFlexibility' && new Set(core.filter(i => i.evidenceGroup === 'glucoseInsulin').map(i => i.date)).size > 1) {
+  if (def.id === 'metabolicFlexibility' && new Set(core.filter(i => i.evidenceGroup === 'glucoseInsulin').map(i => `${i.date}:${i.collectionIndex ?? ''}`)).size > 1) {
     return 'Needs glucose, insulin and HOMA-IR from the same draw to interpret fasting regulation together.';
   }
   return '';
@@ -155,7 +157,8 @@ export function applyPanelContext(def: ScoreDefinition, available: ScorePart[], 
     total.contextReason = 'Ionized calcium supplies the calcium route; total calcium remains supporting context.';
     return;
   }
-  const albumin = available.find(i => i.key === 'albumin' && !i.profileContextOnly && i.date === total.date);
+  const albumin = available.find(i => i.key === 'albumin' && !i.profileContextOnly && i.date === total.date
+    && i.collectionIndex === total.collectionIndex);
   if (!albumin || albumin.partial! < 100) {
     total.contextLimited = true;
     total.contextNote = !albumin ? 'Total calcium needs same-draw albumin or an ionized-calcium result for interpretation.'

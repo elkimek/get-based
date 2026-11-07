@@ -12,6 +12,8 @@ import { buildMarkerBaselines } from './marker-baseline.js';
 import type { ActiveData, ActiveMarker } from './data-view-types.js';
 import type { LabEntry } from '../types/lab-data.js';
 import type { LabContextOptions } from './lab-context-runtime.js';
+import type { LabViewCollection, LabViewCollections } from './lab-view-collections.js';
+import type { CanonicalScoringMarker } from './biology-score-types.js';
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const cycleFields = ['cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource'];
@@ -36,8 +38,11 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
   })) as LabEntry[];
   const sourceEntries = activeEntries(imported.entries || []);
   const rawCounts = new Map<string, number>(), activeResults = new Map<string, LabEntry[]>();
+  const selectedPanels = new Map<string, unknown>();
   for (const entry of identifyLabPanels(imported.entries || [])) for (const key of Object.keys(entry.markers || {})) {
-    const address = `${key}:${entry.date}`; rawCounts.set(address, (rawCounts.get(address) || 0) + 1);
+    const address = `${key}:${entry.date}`;
+    rawCounts.set(address, (rawCounts.get(address) || 0) + 1);
+    selectedPanels.set(address, entry.panelId);
   }
   for (const entry of sourceEntries) for (const [key, value] of Object.entries(entry.markers || {})) if (finite(value)) {
     const address = `${key}:${entry.date}`; if (!activeResults.has(address)) activeResults.set(address, []); activeResults.get(address)!.push(entry);
@@ -49,10 +54,10 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
     if (key.startsWith('@')) return !!sourceEnabled(key.slice(1));
     if (!known(key) || visited.has(key)) return false;
     if (!date) return true;
-    if (rawCounts.has(`${key}:${date}`) && !activeResults.has(`${key}:${date}`)) return false;
     const next = new Set(visited).add(key);
     const marker = projections.get(key), index = marker?.singlePoint ? 0 : dateIndices.get(date) ?? -1;
     const dependencies = [...(marker?.contextDependencies?.[index] || [])];
+    if (!dependencies.length && rawCounts.has(`${key}:${date}`) && !activeResults.has(`${key}:${date}`)) return false;
     for (const entry of byDate.get(date) || []) {
       if (!finite(entry.markers?.[key])) continue;
       const source = entry.markerSources?.[key];
@@ -89,27 +94,92 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
     for (const entry of visibleEntries) for (const key of Object.keys(entry.markers || {})) {
       const address = `${key}:${entry.date}`; counts.set(address, (counts.get(address) || 0) + 1);
     }
+    const labCollections: LabViewCollections = {};
+    const selectedCollections = new Map<string, LabViewCollection>();
+    for (const [date, rows] of contexts) {
+      if (multiple.has(date)) labCollections[date] = Object.create(null);
+      const day = labCollections[date];
+      rows.forEach((row, index) => {
+        const collection = { index, context: row.context || {} };
+        for (const key of Object.keys(row.markers || {})) {
+          const address = `${key}:${date}`;
+          if (counts.get(address) !== 1) continue;
+          if (day) day[key] = collection;
+          if (selectedPanels.get(address) === row.panelId) selectedCollections.set(address, collection);
+        }
+      });
+    }
+    function automaticCollection(date: string, dependencies: readonly string[]): LabViewCollection | undefined {
+      const index = dateIndices.get(date) ?? -1;
+      const collections = dependencies.filter(input => !input.startsWith('@')).map(input => {
+        const address = `${input}:${date}`;
+        if ((counts.get(address) || 0) > 1) return undefined;
+        const nested = projections.get(input)?.contextDependencies?.[index];
+        return nested?.length ? automaticCollection(date, nested) : selectedCollections.get(address);
+      });
+      const first = collections[0];
+      return first && collections.every(collection => collection === first) ? first : undefined;
+    }
     const categories: ActiveData['categories'] = {};
+    const includeCycle = sourceEnabled('insight-cards');
     for (const [categoryKey, category] of Object.entries(data.categories)) {
       const markers: typeof category.markers = {};
       for (const [markerKey, marker] of Object.entries(category.markers)) {
         const key = getMarkerStorageDotKey(marker, `${categoryKey}_${markerKey}`);
         if (!key || !allows(key)) continue;
         const valueDates = marker.singlePoint || category.singlePoint ? [marker.singleDate || category.singleDate || ''] : dates;
+        const replacements = new Map<number, number>();
         const values = marker.values.map((value, i) => {
-          const address = `${key}:${valueDates[i]}`, active = activeResults.get(address);
-          if (!allows(key, valueDates[i]) || (counts.get(address) || 0) > 1) return null;
+          const date = valueDates[i] || '', address = `${key}:${date}`, active = activeResults.get(address);
+          if (!allows(key, date) || (counts.get(address) || 0) > 1) return null;
+          const dependencies = marker.contextDependencies?.[i];
+          if (dependencies?.length) {
+            // A cached automatic result still belongs to the inputs that produced it.
+            const collection = automaticCollection(date, dependencies);
+            if (!collection) return null;
+            const day = labCollections[date];
+            if (day && value != null) day[key] = collection;
+            return value;
+          }
           // A stale removed sibling may still own the cached date-wide value.
           // Select the sole surviving sample's canonical value in that case.
-          if (active?.length === 1 && (rawCounts.get(address) || 0) > 1) return convertCanonicalToDisplay(key, active[0]!.markers![key]!, state.unitSystem, imported.customMarkers?.[key]?.unit || null);
+          if (active?.length === 1 && (rawCounts.get(address) || 0) > 1 && !selectedCollections.has(address)) {
+            const canonicalValue = active[0]!.markers![key]!;
+            replacements.set(i, canonicalValue);
+            return convertCanonicalToDisplay(key, canonicalValue, state.unitSystem, imported.customMarkers?.[key]?.unit || null);
+          }
           return value;
         });
-        const next = { ...marker, values, contextSampleCount: visibleEntries.filter(entry => finite(entry.markers?.[key]) && (counts.get(`${key}:${entry.date}`) || 0) > 1).length };
+        const next: ActiveMarker = { ...marker, values, contextSampleCount: visibleEntries.filter(entry => finite(entry.markers?.[key]) && (counts.get(`${key}:${entry.date}`) || 0) > 1).length };
+        const phaseAllowed = (i: number) => {
+          const date = valueDates[i] || '';
+          return includeCycle && values[i] != null && (!data.labCollections?.[date] || rawCounts.get(`${key}:${date}`) === 1);
+        };
         // Rebuild the display baseline after source and date permissions below.
         delete next.personalBaselines;
         for (const field of dateFields) if (Array.isArray(marker[field])) {
           // Do not attach one draw's phase or contextual range to another draw.
-          Object.assign(next, { [field]: marker[field]!.map((value, i) => multiple.has(valueDates[i] || '') || field.startsWith('phase') && !sourceEnabled('insight-cards') || values[i] == null ? null : value) });
+          Object.assign(next, { [field]: marker[field]!.map((value, i) => {
+            if (field.startsWith('phase')) return phaseAllowed(i) ? value : null;
+            if (values[i] == null) return null;
+            // A TyG result with no applicable guidance must stay unrated.
+            if (key === 'calculatedRatios.tygIndex') return value;
+            return multiple.has(valueDates[i] || '') ? null : value;
+          }) });
+        }
+        const canonical = marker.canonicalScoring as CanonicalScoringMarker | undefined;
+        if (canonical && (canonical.phaseRefRanges || replacements.size)) {
+          const scoring = { ...canonical };
+          if (replacements.size) {
+            scoring.values = [...canonical.values];
+            for (const [i, value] of replacements) scoring.values[canonical.dateIndices?.[valueDates[i]!] ?? i] = value;
+          }
+          if (canonical.phaseRefRanges) {
+            const allowed = new Set(valueDates.flatMap((date, i) => phaseAllowed(i) ? [canonical.dateIndices?.[date] ?? i] : []));
+            scoring.phaseRefRanges = canonical.phaseRefRanges.map((range, i) => allowed.has(i) ? range : null);
+            if (canonical.phaseLabels) scoring.phaseLabels = canonical.phaseLabels.map((label, i) => allowed.has(i) ? label : null);
+          }
+          next.canonicalScoring = scoring;
         }
         markers[markerKey] = next;
       }
@@ -126,7 +196,7 @@ export function createLabContextDisclosure(options: Pick<LabContextOptions, 'ski
     }
     const contextExcludedMarkers = Object.entries(registry).flatMap(([category, row]) => Object.keys(row.markers).map(key => `${category}.${key}`)).filter(key => !allows(key));
     const result: ActiveData = { ...data, categories, contextExcludedMarkers, dates: projectedDates, dateLabels: indices.map(i => data.dateLabels?.[i] || dates[i]!),
-      entryContextByDate: Object.fromEntries([...contexts].filter(([date, rows]) => rows.length === 1 && !multiple.has(date)).map(([date, rows]) => [date, rows[0]!.context || {}])) };
+      labCollections, entryContextByDate: Object.fromEntries([...contexts].filter(([date, rows]) => rows.length === 1 && !multiple.has(date)).map(([date, rows]) => [date, rows[0]!.context || {}])) };
     delete result.phaseLabels; delete result.phaseDisplayLabels; delete result.phaseCycleDays; delete result.phaseSources;
     return result;
   }

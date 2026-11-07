@@ -53,6 +53,12 @@ export function nativeWithBioAgeAnnotations(value:unknown):OwnedNode {
  expect(root.children).toHaveLength(1);
  const element=root.children![0]!;
  expect(element.type).toBe(1);expect(classes(element)).toBe('db-hero-bio');
+ const left=element.children!.find(node=>classes(node)==='db-hero-bio-left')!;
+ const label=left.children!.find(node=>classes(node)==='db-hero-bio-label')!;
+ const chronological=label.children!.findIndex(node=>classes(node)==='actual');
+ expect(chronological).toBeGreaterThanOrEqual(0);
+ // This historical receipt has no clock date, so the new date block is empty.
+ label.children!.splice(chronological+1,0,literal('\n          '),comment('[-1'),comment(']'));
  element.children=[...element.children!,comment('')];
  root.children=[comment('['),comment('[0'),comment(''),element,comment(''),comment(']'),comment(']')];
  return root;

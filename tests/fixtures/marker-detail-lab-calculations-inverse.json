@@ -1,0 +1,52 @@
+{
+  "file": "js/marker-detail-modal-impl.ts",
+  "currentSHA256": "9ed0ccec428854cadca33cc57eb858f576ddc36c22704d539e091147476c63d2",
+  "restoredSHA256": "f3c2a1cf9e70e21d8d77eef1c70c49dad68e864049dd4bc42cdb0db1d624f42f",
+  "edits": [
+    {
+      "start": 1919,
+      "before": "import { fractionalAgeAtDate } from './marker-context-ranges.js';\nimport { getBiologyProfileContext } from './profile-context.js';\nimport { sameLabViewCollection } from './lab-view-collections.js';\n",
+      "after": ""
+    },
+    {
+      "start": 25673,
+      "before": "    const reportedTyg = dotKey === 'calculatedRatios.tygIndex' && point.entry != null;\n    const ri = point.multipleSamples || reportedTyg ? { min: null, max: null } : (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);\n",
+      "after": "    const ri = point.multipleSamples ? { min: null, max: null } : (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);\n"
+    },
+    {
+      "start": 26063,
+      "before": "    const sl = reportedTyg ? 'Reported TyG formula unverified' : point.multipleSamples ? 'No sample-specific range' : s===\"normal\"?\"\\u2713 In Range\":s===\"high\"?\"\\u25B2 Above Range\":s===\"low\"?\"\\u25BC Below Range\":s === 'unrated' ? 'No range' : \"Unknown\";\n",
+      "after": "    const sl = point.multipleSamples ? 'No sample-specific range' : s===\"normal\"?\"\\u2713 In Range\":s===\"high\"?\"\\u25B2 Above Range\":s===\"low\"?\"\\u25BC Below Range\":s === 'unrated' ? 'No range' : \"Unknown\";\n"
+    },
+    {
+      "start": 34147,
+      "before": "    const clockIssue = (clockInputs: typeof inputs, index: number) => {\n      const date = data.dates[index];\n      if (!date) return null;\n      if (getBiologyProfileContext().lowMuscleMass) return 'Creatinine-based biological age is unavailable with low-muscle context';\n      if (!sameLabViewCollection(data.labCollections, date, clockInputs.map(([cat, key]) => `${cat}.${key}`))) {\n        return 'Clock inputs must come from one collection';\n",
+      "after": "    // Biological age clocks: per-date gap check, CRP fallback, unit sanity\n    const _isBioAgeClock = dotKey === 'calculatedRatios.phenoAge' || dotKey === 'calculatedRatios.bortzAge';\n    if (_isBioAgeClock && state.profileDob) {\n      // For CRP check: accept either hs-CRP or standard CRP\n      const _hasCRPonDate = (idx: number) => {\n        const hs = activeMarker('proteins', 'hsCRP')?.values?.[idx];\n        const std = activeMarker('proteins', 'crp')?.values?.[idx];\n        return hs != null || std != null;\n      };\n      // Override the missing check for CRP \u2014 it's satisfied by either marker\n      const crpInInputs = inputs.some(([, key]) => key === 'hsCRP');\n      if (crpInInputs && missing.some(([, key]) => key === 'hsCRP')) {\n        const hasAnyCRP = activeMarker('proteins', 'hsCRP')?.values?.some(v => v != null)\n          || activeMarker('proteins', 'crp')?.values?.some(v => v != null);\n        if (hasAnyCRP) {\n          // Remove CRP from missing list \u2014 it's covered by the fallback\n          const idx = missing.findIndex(([, key]) => key === 'hsCRP');\n          if (idx >= 0) missing.splice(idx, 1);\n          // Re-generate missing message\n          if (missing.length > 0) {\n            const mi = issues.findIndex(s => s.startsWith('Missing:'));\n            if (mi >= 0) issues[mi] = `Missing: ${missing.map(m => m[2]).join(', ')}`;\n          } else {\n            const mi = issues.findIndex(s => s.startsWith('Missing:'));\n            if (mi >= 0) issues.splice(mi, 1);\n          }\n        }\n"
+    },
+    {
+      "start": 34602,
+      "before": "      return null;\n    };\n    const isClock = dotKey === 'calculatedRatios.phenoAge' || dotKey === 'calculatedRatios.bortzAge';\n    if (isClock && state.profileDob) {\n      const index = bioAgeReferenceIndex(data, marker, latestPoint);\n      const status = bioAgeInputStatusAtIndex(data, index, inputs);\n      const unavailable = status.filter(item => !item.present);\n      if (index >= 0 && unavailable.length && unavailable.some(item => !missing.some(([, , label]) => item.label === label))) {\n        issues.push(`Missing or unusable on ${data.dateLabels[index]}: ${unavailable.map(item => item.label).join(', ')}`);\n      }\n      if (index >= 0 && fractionalAgeAtDate(state.profileDob, data.dates[index]!) == null) {\n        issues.push('Date of birth must be before the panel date');\n      } else if (!unavailable.length) {\n        const issue = clockIssue(inputs, index);\n        if (issue) issues.push(issue);\n",
+      "after": "      if (missing.length === 0) {\n        const latestIdx = data.dates.length - 1;\n        if (latestIdx >= 0) {\n          const nullAt = inputs.filter(([cat, key]) => {\n            if (key === 'hsCRP') return !_hasCRPonDate(latestIdx);\n            const v = activeMarker(cat, key)?.values?.[latestIdx];\n            return v == null;\n          });\n          if (nullAt.length > 0) {\n            issues.push(`Missing on latest date (${data.dateLabels[latestIdx]}): ${nullAt.map(m => m[2]).join(', ')}`);\n          }\n          // CRP value sanity\n          const crpVal = activeMarker('proteins', 'hsCRP')?.values?.[latestIdx]\n            ?? activeMarker('proteins', 'crp')?.values?.[latestIdx];\n          if (crpVal != null && crpVal <= 0) {\n            issues.push('CRP is zero or negative \u2014 cannot calculate (log undefined)');\n          }\n          // Unit sanity warnings\n          const albVal = activeMarker('proteins', 'albumin')?.values?.[latestIdx];\n          if (albVal != null && albVal > 10) {\n            issues.push(`Albumin value ${albVal} looks like g/dL \u2014 expected g/L (typically 35\u201355)`);\n          }\n          const lymphVal = activeMarker('differential', 'lymphocytesPct')?.values?.[latestIdx];\n          if (lymphVal != null && lymphVal > 1) {\n            issues.push(`Lymphocytes % value ${lymphVal} looks like a percentage \u2014 expected fraction 0\u20131 (e.g. 0.28)`);\n          }\n          const alpVal = activeMarker('biochemistry', 'alp')?.values?.[latestIdx];\n          if (alpVal != null && alpVal > 10) {\n            issues.push(`ALP value ${alpVal} looks like U/L \u2014 expected \u00b5kat/L (typically 0.5\u20132.0)`);\n          }\n        }\n"
+    },
+    {
+      "start": 35533,
+      "before": "    // The combined trend contains only draws with both clock results.\n",
+      "after": "    // Biological Age: show component breakdown. The dashboard can show a\n    // value from whichever component is non-null, so the modal should not\n    // describe that as a generic \"Not calculated\" error.\n"
+    },
+    {
+      "start": 36175,
+      "before": "      const usableAge = refDate ? fractionalAgeAtDate(state.profileDob, refDate) : null;\n",
+      "after": "      const age = state.profileDob && refDate\n        ? ((new Date((refDate as string) + 'T00:00:00').getTime() - new Date(state.profileDob + 'T00:00:00').getTime()) / (365.25*24*60*60*1000))\n        : null;\n      const usableAge = typeof age === 'number' && Number.isFinite(age) && age > 0\n        ? age\n        : null;\n"
+    },
+    {
+      "start": 38281,
+      "before": "        } else if (!missing.length) {\n          componentHeader = ({kind: 'unavailable-heading', name: captureMarkerDetailText(name)} satisfies MarkerDetailBioAgeView);\n",
+      "after": ""
+    },
+    {
+      "start": 39167,
+      "before": "      const breakdownIssues = [...new Set([\n        ...issues, profileIssue,\n        pheno == null && phenoStatus.every(item => item.present) ? clockIssue(BIO_AGE_PHENO_INPUTS, refIdx) : null,\n        bortz == null && bortzStatus.every(item => item.present) ? clockIssue(BIO_AGE_BORTZ_INPUTS, refIdx) : null,\n      ].filter((issue): issue is string => !!issue))];\n",
+      "after": "      const breakdownIssues = profileIssue ? [...issues, profileIssue] : issues;\n"
+    }
+  ]
+}

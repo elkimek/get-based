@@ -338,6 +338,7 @@ deploy/profile-share/data/
 # Native lab mutation and merge foundations
 /js/lab-entry.js
 /js/lab-panel-identity.js
+/js/lab-view-collections.js
 /js/lab-panel-deletions.js
 /js/lab-panel-mutations.js
 /js/lab-marker-mutations.js

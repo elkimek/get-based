@@ -3,6 +3,7 @@ import {renderHTML} from './components/DashboardLabSummary.svelte.html.js';
 export interface DashboardBioAgeView {
   readonly kind: 'bio-age'; readonly interactive: boolean; readonly id: string | null; readonly accessibleLabel: string | null;
   readonly display: string; readonly name: string; readonly chronological: string; readonly difference: string;
+  readonly drawDate?: string | null;
   readonly phenoValue: string; readonly bortzValue: string; readonly width: string;
 }
 export interface DashboardCorrelationPairView {

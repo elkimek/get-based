@@ -182,7 +182,7 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
       'differential.lymphocytesPct': 0.30, // fraction 0-1 (→ % via ×100)
       'biochemistry.alt': 0.4,           // µkat/L (→ U/L via ×60)
       'hormones.shbg': 40,               // nmol/L
-      'vitamins.vitaminD': 60,           // nmol/L (→ ng/mL via ×0.4006)
+      'vitamins.vitaminD': 60,           // UK Biobank field 30890, nmol/L
       'biochemistry.glucose': 5.5,       // mmol/L
       'hematology.mch': 31.0,            // pg
       'lipids.apoAI': 1.5                // g/L
@@ -193,9 +193,29 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   let bortzVal = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
 
   // BAA = sum((centered - mean) × coeff) for all 22 features, biological age = age + 10 × BAA
-  // Result: 45.7 years
+  // Result with the UK Biobank vitamin D unit: 43.3 years
   assert('Bortz Age computes with all 22 markers', bortzVal != null, `got ${bortzVal}`);
-  assert('Bortz Age value is 45.7', bortzVal === 45.7, `expected 45.7, got ${bortzVal}`);
+  assert('Bortz Age value is 43.3', bortzVal === 43.3, `expected 43.3, got ${bortzVal}`);
+
+  // Longevity Tools' public 53-year-old sample, converted to canonical storage.
+  state.profileDob = '1973-01-01';
+  state.importedData.entries = [{ date: '2026-01-01', markers: {
+    'proteins.albumin': 46, 'proteins.hsCRP': 0.55,
+    'biochemistry.creatinine': 84.1, 'biochemistry.glucose': 92.1 / 18.018, 'biochemistry.alp': 45.1 / 60,
+    'biochemistry.urea': 4.62, 'biochemistry.cystatinC': 1.01, 'biochemistry.ggt': 13.25 / 60, 'biochemistry.alt': 18.1 / 60,
+    'differential.lymphocytesPct': 0.325, 'differential.monocytes': 0.51, 'differential.neutrophils': 3.79,
+    'hematology.mcv': 86.1, 'hematology.rdwcv': 13.8, 'hematology.wbc': 4.5, 'hematology.rbc': 5.1, 'hematology.mch': 30.4,
+    'lipids.cholesterol': 4.17, 'lipids.apoAI': 1.53, 'diabetes.hba1c': (5.2 - 2.15) * 10.929,
+    'hormones.shbg': 35.1, 'vitamins.vitaminD': 25.7 / 0.4006,
+  } }];
+  for (const system of ['EU', 'US'] as const) {
+    state.unitSystem = system;
+    const clocks = dataModule.getActiveData().categories.calculatedRatios!.markers;
+    assert(`Public sample matches Bortz 47.8 and PhenoAge 44.2 with ${system} display`,
+      clocks.bortzAge!.values[0] === 47.8 && clocks.phenoAge!.values[0] === 44.2);
+  }
+  state.unitSystem = 'EU';
+  state.profileDob = '1980-06-15';
 
   // ── Bortz: missing one marker → null ──
   state.importedData.entries = [{
@@ -243,7 +263,6 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   // vitaminD uses scaleFactor 0.4006 (nmol/L → ng/mL)
   assert('Bortz features include µkat/L→U/L conversion (×60)', dataSrc.includes('60], // µkat/L→U/L'));
   assert('Bortz features include fraction→% conversion (×100)', dataSrc.includes('100], // fraction→%'));
-  assert('Bortz features include nmol/L→ng/mL conversion (×0.4006)', dataSrc.includes('0.4006'));
 
   // ═══════════════════════════════════════
   // 3. Biological Age (combined)
@@ -274,21 +293,21 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   const phenoCheck = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   const bortzCheck = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
 
-  // biologicalAge = (phenoAge + bortzAge) / 2 = (39.3 + 45.7) / 2 = 42.5
+  // biologicalAge = (phenoAge + bortzAge) / 2 = (39.3 + 43.3) / 2 = 41.3
   assert('Biological Age is average of PhenoAge + Bortz', bioAge != null, `got ${bioAge}`);
-  assert('Biological Age is 42.5', bioAge === 42.5, `expected 42.5, got ${bioAge}`);
+  assert('Biological Age is 41.3', bioAge === 41.3, `expected 41.3, got ${bioAge}`);
   assert('Biological Age equals (PhenoAge + Bortz) / 2',
     bioAge === Math.round((((phenoCheck as number) + (bortzCheck as number)) / 2) * 10) / 10,
     `${bioAge} vs (${phenoCheck} + ${bortzCheck}) / 2`);
   const dashboardLabRenderersSrc = fs.readFileSync(path.join(_ROOT, 'js/dashboard-lab-widget-renderers.js'), 'utf-8');
   assert('Dashboard Biological Age widget reads calculated biologicalAge marker',
-    dashboardLabRenderersSrc.includes("['calculatedRatios', 'biologicalAge']"));
+    dashboardLabRenderersSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'biologicalAge')"));
   assert('Dashboard Biological Age widget reads calculated PhenoAge row',
     dashboardLabRenderersSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')"));
   assert('Dashboard Biological Age widget reads calculated Bortz row',
     dashboardLabRenderersSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'bortzAge')"));
 
-  // ── Biological Age: only PhenoAge available → uses PhenoAge alone ──
+  // ── Biological Age: a single clock does not enter the combined series ──
   state.importedData.entries = [{
     date: '2025-06-15',
     markers: {
@@ -304,8 +323,20 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   const phenoOnly = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   const bortzNull = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
   assert('Bortz is null when missing markers', bortzNull == null, `got ${bortzNull}`);
-  assert('Biological Age falls back to PhenoAge alone', bioAgePheno === phenoOnly,
+  assert('PhenoAge remains available and combined age is empty', phenoOnly === 39.3 && bioAgePheno == null,
     `bioAge=${bioAgePheno}, phenoAge=${phenoOnly}`);
+
+  const phenoEntry = state.importedData.entries[0]!;
+  const { 'hematology.wbc': wbc, ...partialPheno } = phenoEntry.markers!;
+  state.importedData.entries = [
+    { ...phenoEntry, panelId: 'morning', markers: partialPheno, context: { fasting: true, sampleTime: '08:00' } },
+    { ...phenoEntry, panelId: 'afternoon', markers: { 'hematology.wbc': wbc! }, context: { fasting: false, sampleTime: '14:00' } },
+  ];
+  data = dataModule.getActiveData();
+  assert('PhenoAge refuses distinct partial panels sharing a calendar date',
+    data.categories.calculatedRatios!.markers.phenoAge!.values[0] == null);
+  assert('Morning glucose retains the fasting context of its own sample',
+    data.labCollections?.[phenoEntry.date]?.['biochemistry.glucose']?.context.fasting === true);
 
   // ── Biological Age: both null → null ──
   state.profileDob = null;
@@ -767,6 +798,31 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
       && dataModule.getEffectiveRangeForDate(nonFastingTyg, 0, 'reference').max == null
       && dataModule.getEffectiveRangeForDate(nonFastingTyg, 0, 'optimal').max == null
       && nonFastingTyg.contextRangeLabels?.[0] === 'Requires fasting sample');
+
+  const reportedTyg = Math.log(150 * 110) / 2;
+  state.importedData.refOverrides = {
+    ...(state.importedData.refOverrides || {}),
+    'calculatedRatios.tygIndex': { refMin: 0, refMax: 4.7, refSource: 'import' },
+  };
+  state.importedData.entries = [
+    { date: '2025-06-15', context: { fasting: true }, markers: {
+      'lipids.triglycerides': 150 / 88.57, 'biochemistry.glucose': 110 / 18.018, 'calculatedRatios.tygIndex': reportedTyg,
+    } },
+    { date: '2025-06-16', markers: { 'calculatedRatios.tygIndex': reportedTyg } },
+  ];
+  data = dataModule.getActiveData();
+  const checkedTyg = data.categories.calculatedRatios!.markers.tygIndex!;
+  assert('TyG prefers a known same-collection formula and preserves the original report',
+    checkedTyg.values[0] === 9.018 && state.importedData.entries[0]!.markers!['calculatedRatios.tygIndex'] === reportedTyg
+      && checkedTyg.contextDependencies?.[0]?.includes('biochemistry.glucose'));
+  assert('A recalculated TyG uses the app scale even when the source report supplies a 4.x cutoff',
+    dataModule.getEffectiveRangeForDate(checkedTyg, 0, 'reference').max === 8.6
+      && state.importedData.refOverrides['calculatedRatios.tygIndex']?.refMax === 4.7);
+  assert('Report-only TyG remains visible without app guidance in either range mode',
+    checkedTyg.values[1] === reportedTyg && checkedTyg.contextDependencies?.[1]?.length === 0
+      && dataModule.getEffectiveRangeForDate(checkedTyg, 1, 'reference').max == null
+      && dataModule.getEffectiveRangeForDate(checkedTyg, 1, 'optimal').max == null);
+  delete state.importedData.refOverrides['calculatedRatios.tygIndex'];
 
   state.profileDob = '2000-06-15';
   state.importedData.entries = [{

@@ -20,6 +20,9 @@ import { markerRangeSuggestionIssueUrl } from './marker-range-suggestions.js';
 import { getAlternateUnitForProfile } from './unit-profiles.js';
 import { getManualOriginalForMarker } from './marker-detail-store.js';
 import { buildMarkerHistoryMetadata, markerHistorySamplePoints } from './marker-detail-history.js';
+import { fractionalAgeAtDate } from './marker-context-ranges.js';
+import { getBiologyProfileContext } from './profile-context.js';
+import { sameLabViewCollection } from './lab-view-collections.js';
 import {
   BIO_AGE_BORTZ_INPUTS,
   BIO_AGE_PHENO_INPUTS,
@@ -435,10 +438,11 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
   const historyRows: HistoryRow[] = [];
   for (const point of visibleHistoryPoints) {
     const { v, i } = point;
-    const ri = point.multipleSamples ? { min: null, max: null } : (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);
+    const reportedTyg = dotKey === 'calculatedRatios.tygIndex' && point.entry != null;
+    const ri = point.multipleSamples || reportedTyg ? { min: null, max: null } : (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);
     const hasPointRange = ri.min != null || ri.max != null;
     const s = hasPointRange ? getStatus(v, ri.min, ri.max) : 'unrated';
-    const sl = point.multipleSamples ? 'No sample-specific range' : s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":s === 'unrated' ? 'No range' : "Unknown";
+    const sl = reportedTyg ? 'Reported TyG formula unverified' : point.multipleSamples ? 'No sample-specific range' : s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":s === 'unrated' ? 'No range' : "Unknown";
     const phaseLabel = !point.multipleSamples && marker.phaseLabels && marker.phaseLabels[i];
     const phaseInfo = phaseLabel ? ({ kind: "phase", phase: `${phaseLabel}`, minimum: `${formatValue(ri.min)}`, maximum: `${formatValue(ri.max)}` } satisfies MarkerDetailHistoryView) : null;
     const rawDate = marker.singlePoint ? null : data.dates[i];
@@ -542,82 +546,38 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
     if (missing.length > 0) {
       issues.push(`Missing: ${missing.map(m => m[2]).join(', ')}`);
     }
-    // Biological age clocks: per-date gap check, CRP fallback, unit sanity
-    const _isBioAgeClock = dotKey === 'calculatedRatios.phenoAge' || dotKey === 'calculatedRatios.bortzAge';
-    if (_isBioAgeClock && state.profileDob) {
-      // For CRP check: accept either hs-CRP or standard CRP
-      const _hasCRPonDate = (idx: number) => {
-        const hs = activeMarker('proteins', 'hsCRP')?.values?.[idx];
-        const std = activeMarker('proteins', 'crp')?.values?.[idx];
-        return hs != null || std != null;
-      };
-      // Override the missing check for CRP — it's satisfied by either marker
-      const crpInInputs = inputs.some(([, key]) => key === 'hsCRP');
-      if (crpInInputs && missing.some(([, key]) => key === 'hsCRP')) {
-        const hasAnyCRP = activeMarker('proteins', 'hsCRP')?.values?.some(v => v != null)
-          || activeMarker('proteins', 'crp')?.values?.some(v => v != null);
-        if (hasAnyCRP) {
-          // Remove CRP from missing list — it's covered by the fallback
-          const idx = missing.findIndex(([, key]) => key === 'hsCRP');
-          if (idx >= 0) missing.splice(idx, 1);
-          // Re-generate missing message
-          if (missing.length > 0) {
-            const mi = issues.findIndex(s => s.startsWith('Missing:'));
-            if (mi >= 0) issues[mi] = `Missing: ${missing.map(m => m[2]).join(', ')}`;
-          } else {
-            const mi = issues.findIndex(s => s.startsWith('Missing:'));
-            if (mi >= 0) issues.splice(mi, 1);
-          }
-        }
+    const clockIssue = (clockInputs: typeof inputs, index: number) => {
+      const date = data.dates[index];
+      if (!date) return null;
+      if (getBiologyProfileContext().lowMuscleMass) return 'Creatinine-based biological age is unavailable with low-muscle context';
+      if (!sameLabViewCollection(data.labCollections, date, clockInputs.map(([cat, key]) => `${cat}.${key}`))) {
+        return 'Clock inputs must come from one collection';
       }
-      if (missing.length === 0) {
-        const latestIdx = data.dates.length - 1;
-        if (latestIdx >= 0) {
-          const nullAt = inputs.filter(([cat, key]) => {
-            if (key === 'hsCRP') return !_hasCRPonDate(latestIdx);
-            const v = activeMarker(cat, key)?.values?.[latestIdx];
-            return v == null;
-          });
-          if (nullAt.length > 0) {
-            issues.push(`Missing on latest date (${data.dateLabels[latestIdx]}): ${nullAt.map(m => m[2]).join(', ')}`);
-          }
-          // CRP value sanity
-          const crpVal = activeMarker('proteins', 'hsCRP')?.values?.[latestIdx]
-            ?? activeMarker('proteins', 'crp')?.values?.[latestIdx];
-          if (crpVal != null && crpVal <= 0) {
-            issues.push('CRP is zero or negative — cannot calculate (log undefined)');
-          }
-          // Unit sanity warnings
-          const albVal = activeMarker('proteins', 'albumin')?.values?.[latestIdx];
-          if (albVal != null && albVal > 10) {
-            issues.push(`Albumin value ${albVal} looks like g/dL — expected g/L (typically 35–55)`);
-          }
-          const lymphVal = activeMarker('differential', 'lymphocytesPct')?.values?.[latestIdx];
-          if (lymphVal != null && lymphVal > 1) {
-            issues.push(`Lymphocytes % value ${lymphVal} looks like a percentage — expected fraction 0–1 (e.g. 0.28)`);
-          }
-          const alpVal = activeMarker('biochemistry', 'alp')?.values?.[latestIdx];
-          if (alpVal != null && alpVal > 10) {
-            issues.push(`ALP value ${alpVal} looks like U/L — expected µkat/L (typically 0.5–2.0)`);
-          }
-        }
+      return null;
+    };
+    const isClock = dotKey === 'calculatedRatios.phenoAge' || dotKey === 'calculatedRatios.bortzAge';
+    if (isClock && state.profileDob) {
+      const index = bioAgeReferenceIndex(data, marker, latestPoint);
+      const status = bioAgeInputStatusAtIndex(data, index, inputs);
+      const unavailable = status.filter(item => !item.present);
+      if (index >= 0 && unavailable.length && unavailable.some(item => !missing.some(([, , label]) => item.label === label))) {
+        issues.push(`Missing or unusable on ${data.dateLabels[index]}: ${unavailable.map(item => item.label).join(', ')}`);
+      }
+      if (index >= 0 && fractionalAgeAtDate(state.profileDob, data.dates[index]!) == null) {
+        issues.push('Date of birth must be before the panel date');
+      } else if (!unavailable.length) {
+        const issue = clockIssue(inputs, index);
+        if (issue) issues.push(issue);
       }
     }
-    // Biological Age: show component breakdown. The dashboard can show a
-    // value from whichever component is non-null, so the modal should not
-    // describe that as a generic "Not calculated" error.
+    // The combined trend contains only draws with both clock results.
     if (dotKey === 'calculatedRatios.biologicalAge') {
       const refIdx = (bioAgeReferenceIndex as (data:MarkerModalData,marker:unknown,point:MarkerModalPoint|null)=>number)(data, marker, latestPoint);
       const refDate = refIdx >= 0 ? data.dates?.[refIdx] : null;
       const refDateLabel = refIdx >= 0 ? (data.dateLabels?.[refIdx] || refDate || '') : '';
       const pheno = refIdx >= 0 ? activeMarker('calculatedRatios', 'phenoAge')?.values?.[refIdx] : null;
       const bortz = refIdx >= 0 ? activeMarker('calculatedRatios', 'bortzAge')?.values?.[refIdx] : null;
-      const age = state.profileDob && refDate
-        ? ((new Date((refDate as string) + 'T00:00:00').getTime() - new Date(state.profileDob + 'T00:00:00').getTime()) / (365.25*24*60*60*1000))
-        : null;
-      const usableAge = typeof age === 'number' && Number.isFinite(age) && age > 0
-        ? age
-        : null;
+      const usableAge = refDate ? fractionalAgeAtDate(state.profileDob, refDate) : null;
       const profileRequirement = !state.profileDob
         ? { label: 'Date of birth', present: false, kind: 'profile' }
         : (refDate && usableAge == null)
@@ -643,6 +603,8 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
         if (value != null) {
           const delta = usableAge != null ? ({kind: "delta", sign: `${value - usableAge > 0 ? '+' : ''}`, years: `${(value - usableAge).toFixed(1)}`} satisfies MarkerDetailBioAgeView) : null;
           componentHeader = ({kind: "present-heading", name: `${captureMarkerDetailText(name)}`, value: `${formatValue(value)}`, delta: delta} satisfies MarkerDetailBioAgeView);
+        } else if (!missing.length) {
+          componentHeader = ({kind: 'unavailable-heading', name: captureMarkerDetailText(name)} satisfies MarkerDetailBioAgeView);
         } else {
           const noun = missing.length === 1 ? 'input' : 'inputs';
           componentHeader = ({kind: "missing-heading", name: `${captureMarkerDetailText(name)}`, missing: `${missing.length}`, total: `${status.length}`, noun: `${noun}`} satisfies MarkerDetailBioAgeView);
@@ -653,7 +615,11 @@ function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
       const dateNote = refDateLabel
         ? ({kind: "panel-date", date: `${captureMarkerDetailText(refDateLabel)}`} satisfies MarkerDetailBioAgeView)
         : null;
-      const breakdownIssues = profileIssue ? [...issues, profileIssue] : issues;
+      const breakdownIssues = [...new Set([
+        ...issues, profileIssue,
+        pheno == null && phenoStatus.every(item => item.present) ? clockIssue(BIO_AGE_PHENO_INPUTS, refIdx) : null,
+        bortz == null && bortzStatus.every(item => item.present) ? clockIssue(BIO_AGE_BORTZ_INPUTS, refIdx) : null,
+      ].filter((issue): issue is string => !!issue))];
       const issueNote = breakdownIssues.length > 0
         ? ({kind: "warning", issues: `${breakdownIssues.map(captureMarkerDetailText).join('. ')}`} satisfies MarkerDetailBioAgeView)
         : null;

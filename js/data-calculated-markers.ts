@@ -2,7 +2,9 @@
 
 import { state } from './state.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { wholeAgeAtDate } from './marker-context-ranges.js';
+import { fractionalAgeAtDate, wholeAgeAtDate } from './marker-context-ranges.js';
+import { sameLabViewCollection, type LabViewCollections } from './lab-view-collections.js';
+import { MARKER_SCHEMA, OPTIMAL_RANGES } from './schema.js';
 
 import type { MarkerViewData, MarkerValues, MarkerViewRange } from './data-view-types.js';
 import type { LabCollectionContext } from '../types/lab-data.js';
@@ -13,13 +15,34 @@ interface CalculatedMarkerInput {
   sortedDates: string[];
   entryContextByDate: Record<string, LabCollectionContext>;
   refOverrides: Record<string, unknown>;
+  labCollections?: LabViewCollections;
 }
 type ContextGuidance = {range: MarkerViewRange; label: string} | null;
+
+const calculatedInputs: Record<string, string[]> = {
+  tgHdlRatio: ['lipids.triglycerides', 'lipids.hdl'], ldlHdlRatio: ['lipids.ldl', 'lipids.hdl'],
+  cholHdlRatio: ['lipids.cholesterol', 'lipids.hdl'], apoBapoAIRatio: ['lipids.apoB', 'lipids.apoAI'],
+  nlr: ['differential.neutrophils', 'differential.lymphocytes'], plr: ['hematology.platelets', 'differential.lymphocytes'],
+  mlr: ['differential.monocytes', 'differential.lymphocytes'], deRitisRatio: ['biochemistry.ast', 'biochemistry.alt'],
+  cd4Cd8Ratio: ['lymphocyteSubsets.cd4', 'lymphocyteSubsets.cd8'],
+  lmr: ['differential.lymphocytes', 'differential.monocytes'],
+  copperZincRatio: ['electrolytes.copper', 'electrolytes.zinc'], ft3ft4Ratio: ['thyroid.ft3', 'thyroid.ft4'],
+  bunCreatRatio: ['biochemistry.urea', 'biochemistry.creatinine'],
+  freeWaterDeficit: ['electrolytes.sodium', '@wearables', '@insight-cards'],
+  crpHdlRatio: ['proteins.hsCRP', 'lipids.hdl'], atherogenicIndexPlasma: ['lipids.triglycerides', 'lipids.hdl'],
+  tygIndex: ['lipids.triglycerides', 'biochemistry.glucose'],
+  albuminGlobulinRatio: ['proteins.albumin'], fib4Index: ['biochemistry.ast', 'biochemistry.alt', 'hematology.platelets', '@insight-cards'],
+  systemicImmuneInflammationIndex: ['hematology.platelets', 'differential.neutrophils', 'differential.lymphocytes'],
+  anionGap: ['electrolytes.sodium', 'electrolytes.chloride', 'biochemistry.bicarbonate'],
+  phenoAge: ['proteins.albumin', 'biochemistry.creatinine', 'biochemistry.glucose', 'proteins.hsCRP', 'differential.lymphocytesPct', 'hematology.mcv', 'hematology.rdwcv', 'biochemistry.alp', 'hematology.wbc', '@insight-cards'],
+  bortzAge: ['proteins.albumin', 'biochemistry.alp', 'biochemistry.urea', 'lipids.cholesterol', 'biochemistry.creatinine', 'biochemistry.cystatinC', 'diabetes.hba1c', 'proteins.hsCRP', 'biochemistry.ggt', 'hematology.rbc', 'hematology.mcv', 'hematology.rdwcv', 'differential.monocytes', 'differential.neutrophils', 'differential.lymphocytesPct', 'biochemistry.alt', 'hormones.shbg', 'vitamins.vitaminD', 'biochemistry.glucose', 'hematology.mch', 'lipids.apoAI', '@insight-cards'],
+  biologicalAge: [],
+};
 
 /**
  * Populate calculated-marker values and date-specific guidance in-place.
  */
-export function populateCalculatedMarkers({ data, sortedDates, entryContextByDate, refOverrides }: CalculatedMarkerInput) {
+export function populateCalculatedMarkers({ data, sortedDates, entryContextByDate, refOverrides, labCollections }: CalculatedMarkerInput) {
   // Calculate ratios from component markers
   const ratios = data.categories.calculatedRatios;
   if (ratios) {
@@ -28,6 +51,12 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       const cat = data.categories[catKey];
       return cat && cat.markers[markerKey] ? cat.markers[markerKey]!.values : null;
     };
+    const sharesCollection = (markerKey: string, i: number, dependencies = calculatedInputs[markerKey]!) => {
+      const date = sortedDates[i]!;
+      return !labCollections?.[date] || sameLabViewCollection(labCollections, date, dependencies.filter(key => !key.startsWith('@')));
+    };
+    const collectionContext = (date: string, key: string) =>
+      labCollections?.[date]?.[key]?.context ?? entryContextByDate[date];
     const divide = (numVals: MarkerValues | null | undefined, denVals: MarkerValues | null | undefined) => {
       if (!numVals || !denVals) return sortedDates.map(() => null);
       return sortedDates.map((_, i) => {
@@ -38,7 +67,8 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
     // A value explicitly printed by the reporting lab is the canonical value
     // for that draw. Calculate the ratio only when the report did not provide
     // it, so rounding/formula differences never create a second visible value.
-    const preferDirectReport = (direct: MarkerValues | null | undefined, computed: MarkerValues) => computed.map((value, i) => direct?.[i] ?? value ?? null);
+    const preferDirectReport = (key: string, direct: MarkerValues | null | undefined, computed: MarkerValues) =>
+      computed.map((value, i) => direct?.[i] ?? (value != null && sharesCollection(key, i) ? value : null));
     const hasReferenceOverride = (dotKey: string) => {
       const override = refOverrides[dotKey];
       return !!override && (Object.prototype.hasOwnProperty.call(override, 'refMin')
@@ -54,23 +84,17 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       marker.contextRangeLabels = guidance.map(item => item?.label || null);
     };
     // Helper: chronological age at blood draw date
-    const _ageAt = (dateStr: string) => {
-      if (!state.profileDob) return null;
-      const dob = new Date(state.profileDob + 'T00:00:00');
-      const draw = new Date(dateStr + 'T00:00:00');
-      const age = (draw.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-      return age > 0 ? age : null;
-    };
+    const _ageAt = (dateStr: string) => fractionalAgeAtDate(state.profileDob, dateStr);
     const setReportedRatio = (markerKey: string, numeratorCategory: string, numeratorKey: string, denominatorCategory: string, denominatorKey: string) => {
       const direct = getVals('calculatedRatios', markerKey);
-      ratios.markers[markerKey]!.values = preferDirectReport(direct,
+      ratios.markers[markerKey]!.values = preferDirectReport(markerKey, direct,
         divide(getVals(numeratorCategory, numeratorKey), getVals(denominatorCategory, denominatorKey)));
     };
     setReportedRatio('tgHdlRatio', 'lipids', 'triglycerides', 'lipids', 'hdl');
     setReportedRatio('ldlHdlRatio', 'lipids', 'ldl', 'lipids', 'hdl');
     const directCholHdlVals = getVals('calculatedRatios', 'cholHdlRatio');
     const computedCholHdlVals = divide(getVals('lipids', 'cholesterol'), getVals('lipids', 'hdl'));
-    ratios.markers.cholHdlRatio!.values = preferDirectReport(directCholHdlVals, computedCholHdlVals);
+    ratios.markers.cholHdlRatio!.values = preferDirectReport('cholHdlRatio', directCholHdlVals, computedCholHdlVals);
     setReportedRatio('apoBapoAIRatio', 'lipids', 'apoB', 'lipids', 'apoAI');
     setReportedRatio('nlr', 'differential', 'neutrophils', 'differential', 'lymphocytes');
     setReportedRatio('plr', 'hematology', 'platelets', 'differential', 'lymphocytes');
@@ -86,7 +110,7 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
         const ratio = Math.round((n / d) * 1000) / 1000;
         return Number.isFinite(ratio) ? ratio : null;
       });
-      ratios.markers[markerKey]!.values = preferDirectReport(getVals('calculatedRatios', markerKey), computed);
+      ratios.markers[markerKey]!.values = preferDirectReport(markerKey, getVals('calculatedRatios', markerKey), computed);
     };
     setCountRatio('cd4Cd8Ratio', 'lymphocyteSubsets', 'cd4', 'cd8');
     setCountRatio('lmr', 'differential', 'lymphocytes', 'monocytes');
@@ -103,7 +127,7 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       if (u == null || c == null || c === 0) return null;
       return Math.round((u * 2.801) / (c * 0.01131) * 10) / 10;
     });
-    ratios.markers.bunCreatRatio!.values = preferDirectReport(directBunCreatVals, computedBunCreatVals);
+    ratios.markers.bunCreatRatio!.values = preferDirectReport('bunCreatRatio', directBunCreatVals, computedBunCreatVals);
 
     // Free Water Deficit — TBW × (Na/140 − 1), uses latest weight or 70kg fallback.
     // Weight now lives in the wearables summary (single source of truth after
@@ -139,7 +163,7 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       // App convention: CRP mg/L ÷ HDL mg/dL; published papers rescale this ratio differently.
       return Math.round((crp / (hdl * 38.67)) * 10000) / 10000;
     });
-    ratios.markers.crpHdlRatio!.values = preferDirectReport(directCrpHdlVals, computedCrpHdlVals);
+    ratios.markers.crpHdlRatio!.values = preferDirectReport('crpHdlRatio', directCrpHdlVals, computedCrpHdlVals);
 
     const triglycerideVals = getVals('lipids', 'triglycerides');
     const hdlVals = getVals('lipids', 'hdl');
@@ -160,18 +184,50 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       if (triglycerides == null || hdl == null || triglycerides <= 0 || hdl <= 0) return null;
       return Math.round(Math.log10(triglycerides / hdl) * 1000) / 1000;
     });
-    ratios.markers.atherogenicIndexPlasma!.values = preferDirectReport(directAipVals, computedAipVals);
+    ratios.markers.atherogenicIndexPlasma!.values = preferDirectReport('atherogenicIndexPlasma', directAipVals, computedAipVals);
 
     const directTygVals = getVals('calculatedRatios', 'tygIndex');
     const computedTygVals = sortedDates.map((_, i) => {
       const triglycerides = triglycerideVals?.[i];
       const glucose = glucoseVals?.[i];
-      if (triglycerides == null || glucose == null || triglycerides <= 0 || glucose <= 0) return null;
+      if (triglycerides == null || glucose == null || triglycerides <= 0 || glucose <= 0 || !sharesCollection('tygIndex', i)) return null;
       const triglyceridesMgDl = triglycerides * 88.57;
       const glucoseMgDl = glucose * 18.018;
       return Math.round(Math.log((triglyceridesMgDl * glucoseMgDl) / 2) * 1000) / 1000;
     });
-    ratios.markers.tygIndex!.values = preferDirectReport(directTygVals, computedTygVals);
+    // Reports may use either ln(TG × glucose / 2) or ln(TG × glucose) / 2.
+    // Use a known convention when the source inputs can be paired. The original
+    // report value remains stored and can be shown without app guidance.
+    const tyg = ratios.markers.tygIndex!;
+    // An imported lab cutoff may describe the report's formula, even when the
+    // app can recalculate the value. Keep it on the source report.
+    if (tyg.referenceRangeSource === 'import') {
+      const defaults = MARKER_SCHEMA.calculatedRatios!.markers.tygIndex!;
+      tyg.refMin = defaults.refMin;
+      tyg.refMax = state.profileSex === 'female' ? defaults.refMax_f : defaults.refMax;
+      delete tyg.referenceRangeSource;
+    }
+    if (tyg.optimalRangeSource === 'import') {
+      const defaults = OPTIMAL_RANGES['calculatedRatios.tygIndex']!;
+      tyg.optimalMin = defaults.optimalMin;
+      tyg.optimalMax = defaults.optimalMax;
+      delete tyg.optimalRangeSource;
+    }
+    tyg.values = computedTygVals.map((value, i) => value ?? directTygVals?.[i] ?? null);
+    const tygLabels = sortedDates.map((date, i) => {
+      if (computedTygVals[i] != null && collectionContext(date, 'biochemistry.glucose')?.fasting === false) return 'Requires fasting sample';
+      if (computedTygVals[i] == null && directTygVals?.[i] != null) return 'Reported TyG formula unverified';
+      return null;
+    });
+    if (tygLabels.some(Boolean)) {
+      const unavailable = tygLabels.map(label => label ? { min: null, max: null } : null);
+      Object.assign(tyg, {
+        contextRefRanges: unavailable,
+        contextRangeLabels: tygLabels,
+        contextOptimalRanges: unavailable,
+        contextOptimalRangeLabels: tygLabels,
+      });
+    }
 
     const directAlbuminGlobulinVals = getVals('calculatedRatios', 'albuminGlobulinRatio');
     const computedAlbuminGlobulinVals = sortedDates.map((_, i) => {
@@ -181,10 +237,11 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
         ? totalProteinVals![i]! - albumin
         : null;
       const globulin = measuredGlobulin != null ? measuredGlobulin : calculatedGlobulin;
-      if (albumin == null || globulin == null || globulin <= 0) return null;
+      const globulinKey = measuredGlobulin != null ? 'proteins.globulin' : 'proteins.totalProtein';
+      if (albumin == null || globulin == null || globulin <= 0 || !sharesCollection('albuminGlobulinRatio', i, ['proteins.albumin', globulinKey])) return null;
       return Math.round((albumin / globulin) * 1000) / 1000;
     });
-    ratios.markers.albuminGlobulinRatio!.values = preferDirectReport(directAlbuminGlobulinVals, computedAlbuminGlobulinVals);
+    ratios.markers.albuminGlobulinRatio!.values = preferDirectReport('albuminGlobulinRatio', directAlbuminGlobulinVals, computedAlbuminGlobulinVals);
 
     const directFib4Vals = getVals('calculatedRatios', 'fib4Index');
     const computedFib4Vals = sortedDates.map((dateStr, i) => {
@@ -197,7 +254,7 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       const altUnitsPerLitre = alt * 60;
       return Math.round((age * astUnitsPerLitre) / (platelets * Math.sqrt(altUnitsPerLitre)) * 100) / 100;
     });
-    ratios.markers.fib4Index!.values = preferDirectReport(directFib4Vals, computedFib4Vals);
+    ratios.markers.fib4Index!.values = preferDirectReport('fib4Index', directFib4Vals, computedFib4Vals);
 
     const directSiiVals = getVals('calculatedRatios', 'systemicImmuneInflammationIndex');
     const computedSiiVals = sortedDates.map((_, i) => {
@@ -207,7 +264,7 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       if (platelets == null || neutrophils == null || lymphocytes == null || platelets < 0 || neutrophils < 0 || lymphocytes <= 0) return null;
       return Math.round((platelets * neutrophils / lymphocytes) * 10) / 10;
     });
-    ratios.markers.systemicImmuneInflammationIndex!.values = preferDirectReport(directSiiVals, computedSiiVals);
+    ratios.markers.systemicImmuneInflammationIndex!.values = preferDirectReport('systemicImmuneInflammationIndex', directSiiVals, computedSiiVals);
 
     const directAnionGapVals = getVals('calculatedRatios', 'anionGap');
     const sodiumValsForGap = getVals('electrolytes', 'sodium');
@@ -220,7 +277,7 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       if (sodium == null || chloride == null || bicarbonate == null) return null;
       return Math.round((sodium - chloride - bicarbonate) * 10) / 10;
     });
-    ratios.markers.anionGap!.values = preferDirectReport(directAnionGapVals, computedAnionGapVals);
+    ratios.markers.anionGap!.values = preferDirectReport('anionGap', directAnionGapVals, computedAnionGapVals);
 
     // Date-specific guidance augments the broad schema defaults. A range from
     // the user's report or a manual edit takes priority and disables these
@@ -258,13 +315,9 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       });
     }
 
-    setContextGuidance('tygIndex', (dateStr) => {
-      if (entryContextByDate[dateStr]?.fasting !== false) return null;
-      return { range: { min: null, max: null }, label: 'Requires fasting sample' };
-    });
-
-    setContextGuidance('fib4Index', (dateStr) => {
-      if (entryContextByDate[dateStr]?.acuteIllness === true) {
+    setContextGuidance('fib4Index', (dateStr, i) => {
+      const key = directFib4Vals?.[i] != null ? 'calculatedRatios.fib4Index' : 'biochemistry.ast';
+      if (collectionContext(dateStr, key)?.acuteIllness === true) {
         return { range: { min: null, max: null }, label: 'Not validated in acute illness' };
       }
       const age = wholeAgeAtDate(state.profileDob, dateStr);
@@ -285,7 +338,7 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
 
     // PhenoAge (Levine 2018) — biological age from 9 biomarkers + chronological age
     ratios.markers.phenoAge!.values = sortedDates.map((dateStr, i) => {
-      if (creatinineContaminated) return null;
+      if (creatinineContaminated || !sharesCollection('phenoAge', i)) return null;
       const age = _ageAt(dateStr);
       if (age == null) return null;
       const albumin_si   = getVals('proteins', 'albumin')?.[i];        // g/L
@@ -349,14 +402,14 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
       [() => getVals('differential', 'lymphocytesPct'),    28.582, -0.0108, false, 60,    'ceil', 100], // fraction→%
       [() => getVals('biochemistry', 'alt'),                3.078, -0.312,  true,  29,    'ceil', 60],  // µkat/L→U/L, log
       [() => getVals('hormones', 'shbg'),                   3.820,  0.292,  true,  null,  null],        // log
-      [() => getVals('vitamins', 'vitaminD'),               3.605, -0.265,  true,  112.6, 'ceil', 0.4006], // nmol/L→ng/mL, log
+      [() => getVals('vitamins', 'vitaminD'),               3.605, -0.265,  true,  112.6, 'ceil'], // UK Biobank field 30890, nmol/L before log
       [() => getVals('biochemistry', 'glucose'),            4.956,  0.0322, false, 4.44,  'floor'],
       [() => getVals('hematology', 'mch'),                 31.840,  0.0275, false, 25.7,  'floor'],
       [() => getVals('lipids', 'apoAI'),                    1.524, -0.185,  false, 1.82,  'ceil'],
     ]);
 
     ratios.markers.bortzAge!.values = sortedDates.map((dateStr, i) => {
-      if (creatinineContaminated) return null;
+      if (creatinineContaminated || !sharesCollection('bortzAge', i)) return null;
       const age = _ageAt(dateStr);
       if (age == null) return null;
       const crp = _getCRP(i);
@@ -388,39 +441,19 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
     ratios.markers.biologicalAge!.values = sortedDates.map((_, i) => {
       const pheno = ratios.markers.phenoAge!.values![i];
       const bortz = ratios.markers.bortzAge!.values![i];
-      if (pheno != null && bortz != null) return Math.round(((pheno + bortz) / 2) * 10) / 10;
-      if (pheno != null) return pheno;
-      if (bortz != null) return bortz;
-      return null;
+      return pheno != null && bortz != null ? Math.round(((pheno + bortz) / 2) * 10) / 10 : null;
     });
     // Record the actual automatic-value boundary, separately from formulae and
     // report values. Context projections must not disclose a hidden input via
     // a ratio or age estimate. Explicit report ratios have no inferred inputs.
-    const inputs: Record<string, string[]> = {
-      tgHdlRatio: ['lipids.triglycerides', 'lipids.hdl'], ldlHdlRatio: ['lipids.ldl', 'lipids.hdl'],
-      cholHdlRatio: ['lipids.cholesterol', 'lipids.hdl'], apoBapoAIRatio: ['lipids.apoB', 'lipids.apoAI'],
-      nlr: ['differential.neutrophils', 'differential.lymphocytes'], plr: ['hematology.platelets', 'differential.lymphocytes'],
-      mlr: ['differential.monocytes', 'differential.lymphocytes'], deRitisRatio: ['biochemistry.ast', 'biochemistry.alt'],
-      cd4Cd8Ratio: ['lymphocyteSubsets.cd4', 'lymphocyteSubsets.cd8'],
-      lmr: ['differential.lymphocytes', 'differential.monocytes'],
-      copperZincRatio: ['electrolytes.copper', 'electrolytes.zinc'], ft3ft4Ratio: ['thyroid.ft3', 'thyroid.ft4'],
-      bunCreatRatio: ['biochemistry.urea', 'biochemistry.creatinine'],
-      freeWaterDeficit: ['electrolytes.sodium', '@wearables', '@insight-cards'],
-      crpHdlRatio: ['proteins.hsCRP', 'lipids.hdl'], atherogenicIndexPlasma: ['lipids.triglycerides', 'lipids.hdl'],
-      tygIndex: ['lipids.triglycerides', 'biochemistry.glucose'],
-      albuminGlobulinRatio: ['proteins.albumin'], fib4Index: ['biochemistry.ast', 'biochemistry.alt', 'hematology.platelets', '@insight-cards'],
-      systemicImmuneInflammationIndex: ['hematology.platelets', 'differential.neutrophils', 'differential.lymphocytes'],
-      anionGap: ['electrolytes.sodium', 'electrolytes.chloride', 'biochemistry.bicarbonate'],
-      phenoAge: ['proteins.albumin', 'biochemistry.creatinine', 'biochemistry.glucose', 'proteins.hsCRP', 'differential.lymphocytesPct', 'hematology.mcv', 'hematology.rdwcv', 'biochemistry.alp', 'hematology.wbc', '@insight-cards'],
-      bortzAge: ['proteins.albumin', 'biochemistry.alp', 'biochemistry.urea', 'lipids.cholesterol', 'biochemistry.creatinine', 'biochemistry.cystatinC', 'diabetes.hba1c', 'proteins.hsCRP', 'biochemistry.ggt', 'hematology.rbc', 'hematology.mcv', 'hematology.rdwcv', 'differential.monocytes', 'differential.neutrophils', 'differential.lymphocytesPct', 'biochemistry.alt', 'hormones.shbg', 'vitamins.vitaminD', 'biochemistry.glucose', 'hematology.mch', 'lipids.apoAI', '@insight-cards'],
-      biologicalAge: [],
-    };
     const alwaysAutomatic = new Set(['freeWaterDeficit', 'phenoAge', 'bortzAge', 'biologicalAge']);
-    for (const [key, dependencies] of Object.entries(inputs)) {
+    for (const [key, dependencies] of Object.entries(calculatedInputs)) {
       const marker = ratios.markers[key];
       if (!marker) continue;
       marker.contextDependencies = sortedDates.map((_, i) => {
-        if (marker.values?.[i] == null || (!alwaysAutomatic.has(key) && reportedValues[key]?.[i] != null)) return [];
+        if (marker.values?.[i] == null || (key === 'tygIndex'
+          ? computedTygVals[i] == null
+          : !alwaysAutomatic.has(key) && reportedValues[key]?.[i] != null)) return [];
         if (key === 'albuminGlobulinRatio') return [...dependencies, ...(globulinVals?.[i] != null ? ['proteins.globulin'] : ['proteins.totalProtein'])];
         if (key === 'biologicalAge') return [
           ...(ratios.markers.phenoAge?.values?.[i] != null ? ['calculatedRatios.phenoAge'] : []),
@@ -428,6 +461,12 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
         ];
         return dependencies;
       });
+      for (const [i, dependencies] of marker.contextDependencies.entries()) {
+        if (!dependencies.length) continue;
+        const day = labCollections?.[sortedDates[i]!];
+        const collection = day?.[dependencies[0]!];
+        if (day && collection) day[`calculatedRatios.${key}`] = collection;
+      }
     }
   }
 
