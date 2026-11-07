@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 2094 |
-| Internal import edges | 7044 |
+| Internal import edges | 7045 |
 | Dynamic internal edges | 216 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -76,7 +76,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`shared/agent-data-contract.ts`](shared/agent-data-contract.ts) | 63 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 30 |
 | [`js/api.ts`](js/api.ts) | 58 | [`js/sync-configure.ts`](js/sync-configure.ts) | 30 |
 | [`js/crypto.ts`](js/crypto.ts) | 48 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
-| [`js/schema.ts`](js/schema.ts) | 44 | [`js/agent-data-apply.ts`](js/agent-data-apply.ts) | 27 |
+| [`js/schema.ts`](js/schema.ts) | 45 | [`js/agent-data-apply.ts`](js/agent-data-apply.ts) | 27 |
 | [`js/data-merge.ts`](js/data-merge.ts) | 43 | [`js/export.ts`](js/export.ts) | 27 |
 | [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 39 | [`js/marker-detail-modal-impl.ts`](js/marker-detail-modal-impl.ts) | 27 |
 | [`js/lab-context-settings.ts`](js/lab-context-settings.ts) | 34 | [`js/chat-empty-state.ts`](js/chat-empty-state.ts) | 26 |
@@ -2015,7 +2015,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>data</code> family — 13 modules</summary>
 
-- [`js/data-calculated-markers.ts`](js/data-calculated-markers.ts) → [`js/lab-view-collections.ts`](js/lab-view-collections.ts), [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts)
+- [`js/data-calculated-markers.ts`](js/data-calculated-markers.ts) → [`js/lab-view-collections.ts`](js/lab-view-collections.ts), [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts)
 - [`js/data-core-types.ts`](js/data-core-types.ts) → no in-scope imports
 - [`js/data-core.ts`](js/data-core.ts) → [`js/custom-marker-core.ts`](js/custom-marker-core.ts), [`js/lab-ordering-view.ts`](js/lab-ordering-view.ts), [`js/marker-baseline.ts`](js/marker-baseline.ts), [`js/marker-range-core.ts`](js/marker-range-core.ts)
 - [`js/data-custom-markers.ts`](js/data-custom-markers.ts) → no in-scope imports

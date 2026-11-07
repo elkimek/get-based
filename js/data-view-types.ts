@@ -12,6 +12,8 @@ export interface MarkerViewDefinition {
   unit?: string | undefined;
   refMin?: number | null | undefined;
   refMax?: number | null | undefined;
+  optimalMin?: number | null | undefined;
+  optimalMax?: number | null | undefined;
   values?: MarkerValues;
   /** Inputs used by an automatic value at each date; @ keys are context sources. */
   contextDependencies?: readonly (readonly string[])[];
@@ -49,8 +51,6 @@ export interface ActiveMarker extends MarkerViewDefinition {
   values: Array<number | null>;
   contextSampleCount?: number | null;
   personalBaselines?: Array<MarkerBaseline | null>;
-  optimalMin?: number | null | undefined;
-  optimalMax?: number | null | undefined;
   refMin_f?: number | null;
   refMax_f?: number | null;
   singlePoint?: boolean;

@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { fractionalAgeAtDate, wholeAgeAtDate } from './marker-context-ranges.js';
 import { sameLabViewCollection, type LabViewCollections } from './lab-view-collections.js';
+import { MARKER_SCHEMA, OPTIMAL_RANGES } from './schema.js';
 
 import type { MarkerViewData, MarkerValues, MarkerViewRange } from './data-view-types.js';
 import type { LabCollectionContext } from '../types/lab-data.js';
@@ -198,6 +199,20 @@ export function populateCalculatedMarkers({ data, sortedDates, entryContextByDat
     // Use a known convention when the source inputs can be paired. The original
     // report value remains stored and can be shown without app guidance.
     const tyg = ratios.markers.tygIndex!;
+    // An imported lab cutoff may describe the report's formula, even when the
+    // app can recalculate the value. Keep it on the source report.
+    if (tyg.referenceRangeSource === 'import') {
+      const defaults = MARKER_SCHEMA.calculatedRatios!.markers.tygIndex!;
+      tyg.refMin = defaults.refMin;
+      tyg.refMax = state.profileSex === 'female' ? defaults.refMax_f : defaults.refMax;
+      delete tyg.referenceRangeSource;
+    }
+    if (tyg.optimalRangeSource === 'import') {
+      const defaults = OPTIMAL_RANGES['calculatedRatios.tygIndex']!;
+      tyg.optimalMin = defaults.optimalMin;
+      tyg.optimalMax = defaults.optimalMax;
+      delete tyg.optimalRangeSource;
+    }
     tyg.values = computedTygVals.map((value, i) => value ?? directTygVals?.[i] ?? null);
     const tygLabels = sortedDates.map((date, i) => {
       if (computedTygVals[i] != null && collectionContext(date, 'biochemistry.glucose')?.fasting === false) return 'Requires fasting sample';

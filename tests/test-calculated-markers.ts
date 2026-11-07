@@ -800,6 +800,10 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
       && nonFastingTyg.contextRangeLabels?.[0] === 'Requires fasting sample');
 
   const reportedTyg = Math.log(150 * 110) / 2;
+  state.importedData.refOverrides = {
+    ...(state.importedData.refOverrides || {}),
+    'calculatedRatios.tygIndex': { refMin: 0, refMax: 4.7, refSource: 'import' },
+  };
   state.importedData.entries = [
     { date: '2025-06-15', context: { fasting: true }, markers: {
       'lipids.triglycerides': 150 / 88.57, 'biochemistry.glucose': 110 / 18.018, 'calculatedRatios.tygIndex': reportedTyg,
@@ -811,10 +815,14 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   assert('TyG prefers a known same-collection formula and preserves the original report',
     checkedTyg.values[0] === 9.018 && state.importedData.entries[0]!.markers!['calculatedRatios.tygIndex'] === reportedTyg
       && checkedTyg.contextDependencies?.[0]?.includes('biochemistry.glucose'));
+  assert('A recalculated TyG uses the app scale even when the source report supplies a 4.x cutoff',
+    dataModule.getEffectiveRangeForDate(checkedTyg, 0, 'reference').max === 8.6
+      && state.importedData.refOverrides['calculatedRatios.tygIndex']?.refMax === 4.7);
   assert('Report-only TyG remains visible without app guidance in either range mode',
     checkedTyg.values[1] === reportedTyg && checkedTyg.contextDependencies?.[1]?.length === 0
       && dataModule.getEffectiveRangeForDate(checkedTyg, 1, 'reference').max == null
       && dataModule.getEffectiveRangeForDate(checkedTyg, 1, 'optimal').max == null);
+  delete state.importedData.refOverrides['calculatedRatios.tygIndex'];
 
   state.profileDob = '2000-06-15';
   state.importedData.entries = [{
