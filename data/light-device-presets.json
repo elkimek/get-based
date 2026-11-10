@@ -171,7 +171,7 @@
       ],
       "peakShareBasis": "measured-band-split",
       "irradianceBasis": "measured-spectrometer",
-      "specSourceUrl": "https://www.mitochondriak.sk/blog/infrapanel-maxi-uvb-pod-spektrometrom/",
+      "specSourceUrl": "https://www.mitochondriak.com/mitochondriak-maxi-uvb/",
       "channels": ["vitamin_d", "pomc", "no_cv", "pbm_red", "pbm_nir"],
       "channelGroups": [
         { "id": "uvb", "label": "UVB (295 nm nominal)", "peaks": [299] },
@@ -192,7 +192,7 @@
         { "id": "uvb-only", "label": "UVB only (isolated)", "groups": ["uvb"] }
       ],
       "catalogSlug": "mitochondriak-maxi-uvb",
-      "notes": "90 × 30 cm hybrid panel. Uses the vendor’s October 2026 spectrometer band measurements at 30, 50, 70 and 100 cm. The 30 cm point is for comparison; the vendor specifies 50–60 cm or farther. UVB and UVA use measured peaks of 299 and 386 nm. Red/NIR uses the on-axis OHSP-350UVF spectrum from Mitochondriak Lab protocol ML-2026-10-MAXI-UVB, resampled to 5 nm and normalized to its reported band totals. Individual LED counts and the illumination pattern across the beam are unknown. Estimates use continuous-output measurements; phase-specific intensity and pulse settings are not published."
+      "notes": "90 × 30 cm hybrid panel. The vendor product gallery shows three 10 × 10 LED blocks, with 24 LEDs at nominal 295 nm, 12 each at 380 and 480 nm, and 42 each at 630, 670, 760, 810, 830 and 850 nm. Dose uses the vendor’s October 2026 spectrometer measurements at 30, 50, 70 and 100 cm. The 30 cm point is for comparison; the vendor specifies 50–60 cm or farther. UVB and UVA use measured peaks of 299 and 386 nm. Red/NIR uses the on-axis OHSP-350UVF spectrum from Mitochondriak Lab protocol ML-2026-10-MAXI-UVB, resampled to 5 nm and normalized to its reported band totals. The local irradiance across the beam and the program’s phase-specific intensity and pulse settings are unverified."
     },
     {
       "id": "chroma-trinity",
