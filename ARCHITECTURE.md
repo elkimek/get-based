@@ -891,6 +891,16 @@ labels, private metadata or retained raw history to the model. New completed
 sessions require reported time with an explicit offset, duration, distance, body
 area and eye-protection fact; missing inputs do not become native form defaults.
 New or corrected completion times cannot be in the future.
+Curated device measurements can supply peak powers and full-spectrum UV index
+by distance. The engine interpolates the powers separately before applying
+mode groups and integrates each recorded program phase for its actual duration.
+Grouped completed sessions retain ordered region selections and share time,
+distance and mode across placements. Coverage uses the union of regions.
+Local fluence and erythemal dose report the highest modeled dose on a region,
+including repeated exposure where placements share that region.
+Native range logging stages one completed record per local calendar day in one
+write, skips days with an existing completed session for the device and mode,
+and requires a reported start time on each date.
 The shared Light staging owner copies only its named payload fields onto the
 canonical baseline. After commit it rebases those fields against their captured
 source, adopting accepted repairs while retaining unrelated/newer drafts and

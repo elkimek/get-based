@@ -44,7 +44,7 @@ test.describe('coarse-pointer touch targets', () => {
         expect(await root.evaluate(element => element.scrollWidth - element.clientWidth), `${width}/${theme} overflow`).toBeLessThanOrEqual(1);
         const violations = await root.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) })));
         expect(violations, `${width}/${theme} accessibility`).toEqual([]);
-        for (const control of await root.locator('button:not([tabindex="-1"]),input:not([type="hidden"]):not([type="checkbox"]),select,textarea').all()) {
+        for (const control of await root.locator(':is(button:not([tabindex="-1"]),input:not([type="hidden"]):not([type="checkbox"]),select,textarea):visible').all()) {
           const label = await control.evaluate(element => element.id || element.textContent);
           const box = await control.boundingBox(); expect(box!.width, `${label} width`).toBeGreaterThanOrEqual(44); expect(box!.height, `${label} height`).toBeGreaterThanOrEqual(44);
         }
@@ -105,4 +105,42 @@ test('device form keyboard modes preserve fresh UV confirmation and distance con
   await dialog.getByRole('button', { name: 'Save session', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { deviceSaved: unknown[] }).deviceSaved)).toEqual([{ deviceId: 'panel', durationMin: 7, distanceCm: 30, bodyArea: 'torso', bodyAreas: ['breast-chest'], eyesProtected: false, mode: 'red' }]);
+});
+
+test('Maxi UVB logs four placements as one session per date and retains overlap on reload', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 850 });
+  expect(await page.evaluate(async () => {
+    const devices = await import('/js/light-devices.js');
+    const device = await devices.addDeviceFromPreset('mitochondriak-maxi-uvb');
+    return device && devices.openDeviceSessionDialog(device.id);
+  })).toBe(true);
+  const dialog = page.getByRole('dialog', { name: 'Log device session' });
+  await dialog.getByRole('radio', { name: 'Vitamin D program' }).click();
+  await expect(dialog.locator('#dev-session-duration')).toHaveValue('5');
+  await expect(dialog.getByRole('button', { name: 'Start timer' })).toBeHidden();
+  await expect(dialog.locator('#dev-session-eyes')).not.toBeChecked();
+  await dialog.locator('.toggle-switch').click();
+  await expect(dialog.locator('#dev-session-eyes')).toBeChecked();
+  await dialog.getByLabel('Four placements in one session').check();
+  await dialog.getByLabel('Edit placement').selectOption({ label: 'Lower front' });
+  await dialog.locator('[data-region="abdomen"][data-view="front"]').press('Space');
+  await dialog.getByLabel('Log a past date range').check();
+  await dialog.getByLabel('First date').fill('2026-01-11');
+  await dialog.getByLabel('Last date').fill('2026-01-13');
+  await dialog.getByLabel('Start time each day (local)').fill('12:30');
+  expect(await dialog.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+  await dialog.getByRole('button', { name: 'Save date range' }).click();
+  await expect(dialog).toBeHidden();
+  await page.reload();
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.importedData?.deviceSessions?.map(session => ({
+      durationMin: session.durationMin,
+      mode: session.mode,
+      day: new Date(session.startedAt).getDate(),
+      hour: new Date(session.startedAt).getHours(),
+      abdomenPasses: session.bodyPlacements?.filter(areas => areas.includes('abdomen')).length,
+      sed: session.safety?.erythemalSED,
+    }));
+  })).toEqual([11, 12, 13].map(day => ({ durationMin: 20, mode: 'vitamin-d', day, hour: 12, abdomenPasses: 2, sed: expect.closeTo(1.62) })));
 });

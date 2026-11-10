@@ -4,6 +4,7 @@ export interface DeviceSessionDialogDeps {
   hydrateDevicesFromPresets?: (() => Promise<unknown>) | null;
   getDevices?: typeof import('./light-devices-store.js').getDevices;
   logDeviceSession?: typeof import('./light-devices-store.js').logDeviceSession;
+  logDeviceSessionRange?: typeof import('./light-devices-store.js').logDeviceSessionRange;
   getActiveDeviceSession?: typeof import('./light-devices-store.js').getActiveDeviceSession;
   startDeviceSession?: typeof import('./light-devices-store.js').startDeviceSession;
   ensureActiveDeviceTicker?: () => unknown;
@@ -25,7 +26,14 @@ import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, bindBodySilhouette, projectBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
-import { deviceEmitsUV } from './light-device-session-engine.js';
+import { deviceEmitsUV, deviceProgramMinutes } from './light-device-session-engine.js';
+
+const FOUR_PLACEMENT_REGIONS = [
+  ['breast-chest', 'torso-front', 'abdomen', 'arms-front'],
+  ['legs-front'],
+  ['torso-back', 'arms-back'],
+  ['glutes', 'legs-back'],
+];
 
 function _resolveSessionDialogDeps(deps: DeviceSessionDialogDeps = {}) {
   return {
@@ -104,6 +112,7 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
     hydrateDevicesFromPresets,
     getDevices,
     logDeviceSession,
+    logDeviceSessionRange,
     getActiveDeviceSession,
     startDeviceSession,
     ensureActiveDeviceTicker,
@@ -131,6 +140,8 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   if (options.isCurrent?.() === false) return false;
   const device = getDevices?.()?.find(d => d.id === deviceId);
   if (!device) return false;
+  const profileId = state.currentProfile;
+  const profileData = state.importedData;
 
   // Prefill from the user's last logged session on this device. First-time
   // logs fall through to vendor reference distance + sensible defaults.
@@ -138,7 +149,8 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   const defaultDistanceCm = Number.isFinite(last.distanceCm) && last.distanceCm! > 0
     ? last.distanceCm!
     : (device.recommendedDistanceCm || 15);
-  const defaultRegions = _defaultRegionsForLastSession(last);
+  const lastPlacements = last.bodyPlacements?.length === 4 ? last.bodyPlacements : null;
+  const defaultRegions = lastPlacements?.[0] || _defaultRegionsForLastSession(last);
 
   // Mode picker renders only for devices with multiple valid modes.
   const validModes = Array.isArray(device.modes)
@@ -155,12 +167,12 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   // Never prefill a first UV session with the generic ten-minute PBM default.
   // Thirty seconds is only a neutral input starting point, not guidance.
   const defaultDuration = Number.isFinite(last.durationMin) && last.durationMin! > 0
-    ? last.durationMin!
+    ? last.durationMin! / (lastPlacements?.length ?? 1)
     : (isUVDevice ? 0.5 : 10);
   const isEyeLightDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device.type as string) && !isUVDevice;
   const defaultEyeControlChecked = isEyeLightDevice
     ? last.eyesProtected !== true
-    : last.eyesProtected !== false;
+    : deviceProgramMinutes(device, initialMode) === null && last.eyesProtected !== false;
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -170,12 +182,29 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
     silhouetteView: projectBodySilhouette ? projectBodySilhouette(new Set(defaultRegions)) : null,
   });
   _wireDeviceSessionModal(overlay, closeDialog);
+  const canSave = () => overlay.isConnected && state.currentProfile === profileId && state.importedData === profileData;
   overlay.querySelectorAll('[data-device-session-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);
   });
 
   const ambientEyeTypes = ['sad', 'dawn-sim', 'full-spectrum'];
   const durationInput = _input(overlay, '#dev-session-duration');
+  const fourPlacements = _input(overlay, '#dev-session-four-placements')!;
+  const placementPicker = overlay.querySelector<HTMLSelectElement>('#dev-session-placement')!;
+  const rangeInput = _input(overlay, '#dev-session-range')!;
+  const timerButton = _button(overlay, '#dev-session-start');
+  const saveButton = _button(overlay, '#dev-session-save');
+  const readMode = () => showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : initialMode;
+  const syncLogControls = () => {
+    const program = deviceProgramMinutes(device, readMode());
+    if (timerButton) timerButton.hidden = fourPlacements.checked || rangeInput.checked || program !== null;
+    if (saveButton) saveButton.textContent = rangeInput.checked ? 'Save date range' : 'Save session';
+    overlay.querySelector('#dev-session-duration-label')!.textContent = fourPlacements.checked ? 'Minutes per placement' : 'Duration (minutes)';
+    overlay.querySelector('#dev-session-timing')!.textContent = program !== null
+      ? 'Vitamin D cycle: 1 min red/NIR, 3 min all bands, 1 min red/NIR. Record the time actually used in one cycle.'
+      : 'Record the time actually used. Follow the device timer and instructions.';
+    if (durationInput) durationInput.max = String(program ?? (fourPlacements.checked ? 150 : 600));
+  };
   let durationEdited = false;
   durationInput?.addEventListener('input', () => { durationEdited = true; });
   let eyeControlKind = isUVDevice ? 'uv' : isEyeLightDevice ? 'ambient' : 'protection';
@@ -213,6 +242,9 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
       (b as HTMLElement).tabIndex = active ? 0 : -1;
     }
     syncEyeControlForMode(mode);
+    const program = deviceProgramMinutes(device, mode);
+    if (program !== null && durationInput) durationInput.value = String(program);
+    syncLogControls();
   };
   for (const rawBtn of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
     const btn = (rawBtn as HTMLElement);
@@ -251,6 +283,10 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   }
 
   const selectedRegions = new Set(defaultRegions);
+  let singlePlacement = lastPlacements ? ['breast-chest'] : defaultRegions.slice();
+  const placements = (lastPlacements || FOUR_PLACEMENT_REGIONS).map(areas => areas.slice());
+  let placementIndex = 0;
+  fourPlacements.checked = !!lastPlacements;
   const fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
   const labelByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.label]));
   const silhouetteSlot = overlay.querySelector('#dev-session-silhouette-slot');
@@ -273,14 +309,42 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   }
   updateAreaHint(selectedRegions);
 
-  overlay.querySelector('#dev-session-clear')?.addEventListener('click', () => {
-    selectedRegions.clear();
+  const refreshRegions = () => {
     if (silhouetteSlot && projectBodySilhouette) {
       const silhouetteView = projectBodySilhouette(selectedRegions);
       silhouetteSlot.innerHTML = silhouetteView ? renderBodyPickerHTML({ view: silhouetteView }) : '';
     }
     updateAreaHint(selectedRegions);
+  };
+  const showRegions = (regions: string[]) => {
+    selectedRegions.clear();
+    for (const region of regions) selectedRegions.add(region);
+    refreshRegions();
+  };
+  const placementFields = overlay.querySelector<HTMLElement>('#dev-session-placements')!;
+  placementFields.hidden = !fourPlacements.checked;
+  fourPlacements.addEventListener('change', () => {
+    placementFields.hidden = !fourPlacements.checked;
+    if (fourPlacements.checked) {
+      singlePlacement = [...selectedRegions];
+      showRegions(placements[placementIndex]!);
+    } else {
+      placements[placementIndex] = [...selectedRegions];
+      showRegions(singlePlacement);
+    }
+    syncLogControls();
   });
+  placementPicker.addEventListener('change', () => {
+    placements[placementIndex] = [...selectedRegions];
+    placementIndex = Number(placementPicker.value);
+    showRegions(placements[placementIndex]!);
+  });
+  overlay.querySelector('#dev-session-clear')?.addEventListener('click', () => showRegions([]));
+  rangeInput.addEventListener('change', () => {
+    overlay.querySelector<HTMLElement>('#dev-session-range-fields')!.hidden = !rangeInput.checked;
+    syncLogControls();
+  });
+  syncLogControls();
 
   for (const btn of overlay.querySelectorAll('.dev-unit-btn')) {
     btn.addEventListener('click', () => {
@@ -304,39 +368,73 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
     });
   }
 
-  _button(overlay, '#dev-session-save')?.addEventListener('click', async () => {
-    const durationMin = parseFloat(_input(overlay, '#dev-session-duration')?.value || '');
-    if (!Number.isFinite(durationMin) || durationMin <= 0 || durationMin > 600) {
-      showNotification('Enter the actual duration between 0.1 and 600 minutes.', 'error');
+  let submitting = false;
+  saveButton?.addEventListener('click', async () => {
+    if (submitting || !canSave()) return;
+    const minutes = Number(durationInput?.value);
+    const max = Number(durationInput?.max);
+    if (!Number.isFinite(minutes) || minutes < 0.1 || minutes > max) {
+      showNotification(`Enter the actual duration between 0.1 and ${max} minutes.`, 'error');
       return;
     }
     const distanceCm = _readDistanceCm(overlay, device.recommendedDistanceCm || 15);
-    const bodyAreas = Array.from(selectedRegions);
+    const grouped = fourPlacements.checked;
+    if (grouped) {
+      placements[placementIndex] = [...selectedRegions];
+      if (placements.some(areas => !areas.length)) {
+        showNotification('Pick the treated regions in all four placements.', 'error');
+        return;
+      }
+    }
+    const bodyAreas = grouped ? [...new Set(placements.flat())] : [...selectedRegions];
     if (bodyAreas.length === 0) {
       _showEmptyRegionError(updateAreaHint, selectedRegions, hint);
       return;
     }
-    const mode = showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : null;
+    const mode = readMode();
     const bodyArea = _broadAreaForRegions(bodyAreas);
     const emitsUV = deviceEmitsUV(device, mode);
     const eyeChecked = !!_input(overlay, '#dev-session-eyes')?.checked;
     const eyeLightForMode = ambientEyeTypes.includes(device.type as string) && !emitsUV;
     const eyesProtected = eyeLightForMode ? !eyeChecked : eyeChecked;
-    if (emitsUV && !eyesProtected) {
-      const saveUnsafe = await showConfirmDialog('This records UV exposure without UV-rated goggles. Save it as an unsafe past exposure?');
-      if (!saveUnsafe) return;
+    const durationMin = grouped ? minutes * placements.length : minutes;
+    const input = { deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode,
+      ...(grouped ? { bodyPlacements: placements.map(areas => areas.slice()) } : {}) };
+    const range = rangeInput.checked ? {
+      startDate: _input(overlay, '#dev-session-from')!.value,
+      endDate: _input(overlay, '#dev-session-to')!.value,
+      startTime: _input(overlay, '#dev-session-time')!.value,
+    } : null;
+    submitting = true;
+    saveButton.disabled = true;
+    try {
+      if (emitsUV && !eyesProtected && !await showConfirmDialog('This records UV exposure without UV-rated goggles. Save it as an unsafe past exposure?')) return;
+      if (!canSave()) return;
+      if (range) {
+        const result = await logDeviceSessionRange?.(input, range, canSave);
+        if (!result) {
+          showNotification('Could not save the date range. Check the distance, dates and local start time. Enter up to 366 completed days with each session ending on its start date.', 'error');
+          return;
+        }
+        showNotification(`${result.saved} sessions saved.${result.skipped ? ` ${result.skipped} days already logged.` : ''}`);
+      } else {
+        const saved = await logDeviceSession?.(input);
+        if (!saved) {
+          showNotification('The session could not be saved. Check the duration and distance.', 'error');
+          return;
+        }
+        showNotification(`${durationMin} min ${escapeHTML(device.brand)} session saved.`);
+      }
+      closeDialog();
+      navigate?.('light');
+    } finally {
+      submitting = false;
+      saveButton.disabled = false;
     }
-    const saved = await logDeviceSession!({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
-    if (!saved) {
-      showNotification('The session could not be saved. Check the duration and distance.', 'error');
-      return;
-    }
-    closeDialog();
-    showNotification(`${durationMin} min ${escapeHTML(device.brand)} session saved.`);
-    navigate?.('light');
   });
 
-  _button(overlay, '#dev-session-start')?.addEventListener('click', async () => {
+  timerButton?.addEventListener('click', async () => {
+    if (timerButton.hidden || submitting || !canSave()) return;
     if (getActiveDeviceSession!()) {
       showNotification('Another device session is already running. Stop it first.', 'error');
       return;

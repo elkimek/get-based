@@ -141,7 +141,7 @@ export function rollingVitaminDIU(days: unknown = 7) {
     if (!sess.endedAt || sess.endedAt < cutoff) continue;
     if (!sess.doses?.vitamin_d) continue;
     const bodyFrac = getDeviceBodyFraction(sess, fracByKey);
-    add(localDayKey(sess.endedAt), vitaminDIUPerSession(sess.doses.vitamin_d, fitzForDevice, null, false, genetics, bodyFrac));
+    add(localDayKey(sess.endedAt), vitaminDIUPerSession(sess.doses.vitamin_d, sess.fitzpatrick || fitzForDevice, null, false, genetics, bodyFrac));
   }
   let total = 0;
   for (const iu of Object.values(dayTotals)) total += Math.min(iu, dailyCap);
@@ -192,7 +192,7 @@ export function dailyVitaminDIUBreakdown(days: unknown = 7) {
     const au = sess.doses?.vitamin_d;
     if (!Number.isFinite(au) || (au as number) <= 0) continue;
     const bodyFrac = getDeviceBodyFraction(sess, fracByKey);
-    buckets[i]!.device += vitaminDIUPerSession(au as number, fitzForDevice, null, false, genetics, bodyFrac);
+    buckets[i]!.device += vitaminDIUPerSession(au as number, sess.fitzpatrick || fitzForDevice, null, false, genetics, bodyFrac);
   }
   for (const b of buckets) {
     const total = b.sun + b.device;
@@ -236,7 +236,7 @@ export function cumulativeVitaminDIUToday() {
     if (!sess.endedAt || sess.endedAt < dayStart) continue;
     if (!sess.doses?.vitamin_d) continue;
     const bodyFrac = getDeviceBodyFraction(sess, fracByKey);
-    total += vitaminDIUPerSession(sess.doses.vitamin_d, fitzForDevice, null, false, genetics, bodyFrac);
+    total += vitaminDIUPerSession(sess.doses.vitamin_d, sess.fitzpatrick || fitzForDevice, null, false, genetics, bodyFrac);
   }
   return Math.min(total, cap);
 }

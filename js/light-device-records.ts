@@ -62,8 +62,14 @@ function publicRecord(data: ProfileData, resource: LightDeviceResource, id: stri
   const session = raw as DeviceSessionRecord;
   if (!Number.isFinite(session.startedAt) || session.endedAt != null && !Number.isFinite(session.endedAt) || session.editHistory != null && !Array.isArray(session.editHistory)) throw new Error('Review this older session and its source history in the normal editor.');
   if (session.bodyAreas != null && (!Array.isArray(session.bodyAreas) || session.bodyAreas.some(region => typeof region !== 'string')) || session.notes != null && typeof session.notes !== 'string') throw new Error('Review this older session in its editor.');
+  const bodyPlacements = session.bodyPlacements;
+  if (bodyPlacements != null && (!Array.isArray(bodyPlacements) || bodyPlacements.length < 2 || bodyPlacements.length > 4
+    || bodyPlacements.some(areas => !Array.isArray(areas) || !areas.length || areas.some(key => !BODY_REGIONS.some(region => region.key === key))))) {
+    throw new Error('Review the recorded placements in the session details.');
+  }
   return { id: session.id, deviceId: session.deviceId ?? null, startedAt: new Date(session.startedAt).toISOString(), endedAt: session.endedAt == null ? null : new Date(session.endedAt).toISOString(), active: !session.endedAt,
     durationMin: session.durationMin ?? null, distanceCm: session.distanceCm ?? null, bodyArea: session.bodyArea ?? null, bodyAreas: session.bodyAreas ?? null, eyesProtected: session.eyesProtected ?? null, mode: session.mode ?? null, notes: session.notes ?? '',
+    ...(bodyPlacements ? { bodyPlacements } : {}),
     doses: dosePublic(session.doses), safety: session.safety ? Object.fromEntries(Object.entries(session.safety).filter(([field, value]) => ['hasUV', 'erythemalSED', 'conservativeBaseMedFraction', 'ocularActinicUV', 'ocularUvaJPerM2', 'unsafeEyeExposure'].includes(field) && (value == null || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value)))) : null, calculationStatus: typeof session.calculationStatus === 'string' && ['computed', 'partial', 'unavailable', 'pending', 'device-unavailable', 'mode-unavailable', 'estimated', 'reference-only'].includes(session.calculationStatus) ? session.calculationStatus : 'unknown',
     device: devicePublic(data.lightDevices?.find(device => device.id === session.deviceId) || session.deviceSnapshot), previousEditCount: Array.isArray(session.editHistory) ? session.editHistory.length : 0 };
 }

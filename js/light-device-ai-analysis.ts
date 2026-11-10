@@ -44,6 +44,7 @@ export function getDeviceSessionFingerprint(sess: DeviceSessionRecord | null | u
     sess.metrics?.photopicLux != null ? Math.round(sess.metrics.photopicLux) : '',
     sess.metrics?.melanopicEdiLux != null ? Math.round(sess.metrics.melanopicEdiLux) : '',
   ];
+  if (sess.bodyPlacements?.length) parts.push(JSON.stringify(sess.bodyPlacements));
   const device = getDevices().find(d => d.id === sess.deviceId) || sess.deviceSnapshot || null;
   if (device) {
     parts.push(
@@ -146,7 +147,15 @@ export function buildDeviceSessionContext(sess: DeviceSessionRecord | null | und
         }
         const peaksList = Array.from(firingPeaks).sort((a, b) => a - b);
         lines.push(`Mode: ${resolved.label || resolved.id}${isDefault ? ' (device default)' : ' (user-selected, off-default)'}`);
-        if (firingGroups) lines.push(`Firing LED groups: ${firingGroups}`);
+        if (resolved.phases?.length) {
+          let remaining = (sess.durationMin || 0) / (sess.bodyPlacements?.length || 1);
+          const phases = resolved.phases.flatMap(phase => {
+            const minutes = Math.min(remaining, phase.minutes);
+            remaining -= minutes;
+            return minutes > 0 ? [`${_formatNumber(minutes)} min ${_safeText(device.modes?.find(mode => mode.id === phase.mode)?.label || phase.mode)}`] : [];
+          });
+          lines.push(`Recorded program phases per placement: ${phases.join(', ')}`);
+        } else if (firingGroups) lines.push(`Firing LED groups: ${firingGroups}`);
         if (peaksList.length && peaksList.length < (device.peakWavelengths?.length || 0)) {
           lines.push(`Peaks actually firing this session: ${peaksList.map(w => w + ' nm').join(', ')} (subset of full panel)`);
         }
@@ -160,6 +169,10 @@ export function buildDeviceSessionContext(sess: DeviceSessionRecord | null | und
   lines.push('### Session parameters');
   lines.push(`Working distance: ${sess.distanceCm || '—'} cm`);
   lines.push(`Body area: ${sess.bodyArea || '—'}`);
+  if (sess.bodyPlacements?.length) {
+    lines.push(`Sequential placements: ${sess.bodyPlacements.map(areas => areas.map(key => BODY_REGIONS.find(region => region.key === key)?.label).filter(Boolean).join(', ')).join(' | ')}`);
+    lines.push('Local PBM and erythemal estimates describe the highest modeled dose to a selected region.');
+  }
   const hasUV = sess.safety?.hasUV === true;
   lines.push(`Eyes: ${hasUV
     ? (sess.eyesProtected ? 'UV-rated protection recorded' : 'UV-rated protection NOT recorded')

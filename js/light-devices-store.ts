@@ -7,8 +7,8 @@ import { captureLightEnvironmentWrite, commitLightEnvironmentWrite, queueLightEn
 import { profileDataValuesEqual } from './profile-data-writes.js';
 import { DEVICE_ENGINE_VERSION } from './light-device-session-engine.js';
 import { requestDeviceSessionAnalysis } from './light-sun-analysis-runtime.js';
-export type { LightDeviceRecord, DeviceSessionRecord, DeviceSessionInput, CustomDeviceInput } from './light-device-mutations.js';
-import type { LightDeviceRecord, DeviceSessionRecord, DeviceSessionInput, CustomDeviceInput } from './light-device-mutations.js';
+export type { LightDeviceRecord, DeviceSessionRecord, DeviceSessionInput, DeviceSessionDateRange, CustomDeviceInput } from './light-device-mutations.js';
+import type { LightDeviceRecord, DeviceSessionRecord, DeviceSessionInput, DeviceSessionDateRange, CustomDeviceInput } from './light-device-mutations.js';
 
 interface LightDevicesStoreDeps { maybeAnalyzeDeviceSessionAfterFinish(session: DeviceSessionRecord): unknown }
 const storeDeps: LightDevicesStoreDeps = { maybeAnalyzeDeviceSessionAfterFinish: requestDeviceSessionAnalysis };
@@ -40,8 +40,11 @@ export async function deleteDevice(id: string) { return change(next => mutations
 export async function logDeviceSession(input: DeviceSessionInput = {}) {
   const data = state.importedData; return currentSession(await change(next => mutations.logDeviceSession(next, input), null, record => analyze(currentSession(record, data))), data);
 }
+export async function logDeviceSessionRange(input: DeviceSessionInput, range: DeviceSessionDateRange, canCommit: () => boolean) {
+  return change(next => mutations.logDeviceSessionRange(next, input, range), null, undefined, canCommit);
+}
 export function getActiveDeviceSession() { return state.importedData ? mutations.getActiveDeviceSession(state.importedData) : null; }
-export async function startDeviceSession(input: Omit<DeviceSessionInput, 'durationMin' | 'notes'> = {}) { return change(next => mutations.startDeviceSession(next, input), null); }
+export async function startDeviceSession(input: Parameters<typeof mutations.startDeviceSession>[1] = {}) { return change(next => mutations.startDeviceSession(next, input), null); }
 export async function stopDeviceSession(id?: string | null) {
   const data = state.importedData; return currentSession(await change(next => mutations.stopDeviceSession(next, id), null, record => analyze(currentSession(record, data))), data);
 }

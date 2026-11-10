@@ -120,25 +120,31 @@
       "brand": "Mitochondriak",
       "model": "Maxi UVB",
       "type": "uvb",
-      "peakWavelengths": [295, 380, 480, 630, 670, 760, 810, 830, 850],
-      "mwPerCm2At15cm": 57.5,
-      "recommendedDistanceCm": 30,
+      "peakWavelengths": [299, 386, 480, 630, 670, 760, 810, 830, 850],
+      "mwPerCm2At15cm": 49,
+      "recommendedDistanceCm": 50,
       "irradianceByDistanceCm": [
-        { "distanceCm": 30, "mwPerCm2": 57.5 },
-        { "distanceCm": 70, "mwPerCm2": 34.61 }
+        { "distanceCm": 30, "mwPerCm2": 56, "peakMwPerCm2": [0.078, 0.84, 0.57, 9, 9, 9, 9, 9, 9], "uvIndex": 19 },
+        { "distanceCm": 50, "mwPerCm2": 49, "peakMwPerCm2": [0.074, 0.66, 0.66, 8.5, 8.5, 7.5, 7.5, 7.5, 7.5], "uvIndex": 18 },
+        { "distanceCm": 70, "mwPerCm2": 43, "peakMwPerCm2": [0.056, 0.54, 0.71, 7.5, 7.5, 6.5, 6.5, 6.5, 6.5], "uvIndex": 14 },
+        { "distanceCm": 100, "mwPerCm2": 37, "peakMwPerCm2": [0.039, 0.49, 0.63, 6.5, 6.5, 5.5, 5.5, 5.5, 5.5], "uvIndex": 10 }
       ],
-      "peakShares": [0.004045, 0.009621, 0.012712, 0.221737, 0.221737, 0.132537, 0.132537, 0.132537, 0.132537],
       "peakShareBasis": "measured-band-split",
       "irradianceBasis": "measured-spectrometer",
-      "specSourceUrl": "https://www.mitochondriak.com/mitochondriak-maxi-uvb/",
+      "specSourceUrl": "https://www.mitochondriak.sk/blog/infrapanel-maxi-uvb-pod-spektrometrom/",
       "channels": ["vitamin_d", "pomc", "no_cv", "pbm_red", "pbm_nir"],
       "channelGroups": [
-        { "id": "uvb", "label": "UVB 295 nm", "peaks": [295] },
-        { "id": "uva-blue", "label": "UVA + blue", "peaks": [380, 480] },
-        { "id": "red-nir", "label": "Red + NIR",  "peaks": [630, 670, 760, 810, 830, 850] }
+        { "id": "uvb", "label": "UVB (295 nm nominal)", "peaks": [299] },
+        { "id": "uva-blue", "label": "UVA + blue", "peaks": [386, 480] },
+        { "id": "red-nir", "label": "Red + NIR", "peaks": [630, 670, 760, 810, 830, 850] }
       ],
       "modes": [
         { "id": "red-nir-only", "label": "Red/NIR only", "groups": ["red-nir"], "default": true },
+        { "id": "vitamin-d", "label": "Vitamin D program", "groups": ["uvb", "uva-blue", "red-nir"], "phases": [
+          { "mode": "red-nir-only", "minutes": 1 },
+          { "mode": "all-on", "minutes": 3 },
+          { "mode": "red-nir-only", "minutes": 1 }
+        ] },
         { "id": "all-on", "label": "All bands (UV + blue + red/NIR)", "groups": ["uvb", "uva-blue", "red-nir"] },
         { "id": "uva-blue-red-nir", "label": "UVA + blue + red/NIR", "groups": ["uva-blue", "red-nir"] },
         { "id": "uvb-red-nir", "label": "UVB + red/NIR", "groups": ["uvb", "red-nir"] },
@@ -146,7 +152,7 @@
         { "id": "uvb-only", "label": "UVB only (isolated)", "groups": ["uvb"] }
       ],
       "catalogSlug": "mitochondriak-maxi-uvb",
-      "notes": "Half-body hybrid panel. Current vendor spectrometer data reports 57.5 mW/cm² total at 30 cm and a 70 cm band split of UVB 0.140, UVA 0.333, blue 0.440, red 15.350, and NIR 18.350 mW/cm². UV groups can be controlled independently; the vendor recommends pairing UV with red/NIR."
+      "notes": "90 × 30 cm hybrid panel. Uses the vendor’s October 2026 spectrometer band measurements at 30, 50, 70 and 100 cm. The 30 cm point is for comparison; the vendor specifies 50–60 cm or farther. UVB and UVA use measured peaks of 299 and 386 nm. Red/NIR band power is split equally among each band’s nominal LEDs. Estimates use continuous-output measurements; phase-specific intensity and pulse settings are not published."
     },
     {
       "id": "chroma-trinity",

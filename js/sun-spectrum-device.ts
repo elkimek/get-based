@@ -1,5 +1,8 @@
 export interface SpectralDistribution { wavelengths: number[]; irradiance: number[] }
-interface SpectrumDeviceMode { id?: string; default?: unknown; groups?: string[] | null }
+interface SpectrumDeviceMode {
+  id?: string; default?: unknown; groups?: string[] | null;
+  phases?: Array<{ mode: string; minutes: number }>;
+}
 interface SpectrumChannelGroup { id?: string; peaks?: number[] | null }
 interface SpectrumCouplingRule { if?: string; requires?: string[] | null; reason?: string }
 export interface SpectralDevice {
