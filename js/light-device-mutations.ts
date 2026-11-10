@@ -648,11 +648,12 @@ export function updateDeviceRecord(data: ProfileData, id: string, patch: CustomD
   if (!temporary) return null;
   getDevices(data).pop();
   const allowed = ['brand', 'model', 'notes', 'specSourceUrl', ...LIGHT_DEVICE_SPEC_FIELDS];
-  if (Object.hasOwn(patch, 'modes')) {
+  if (modeled) {
     for (const mode of temporary.modes ?? []) {
       const originalMode = before.modes?.find(candidate => candidate.id === mode.id);
       if (originalMode?.phases) mode.phases = originalMode.phases;
     }
+    if (temporary.modes?.some(mode => mode.phases && deviceProgramMinutes(temporary, mode.id) === null)) return null;
   }
   for (const key of allowed) if (Object.hasOwn(patch, key)) device[key] = patch[key as keyof CustomDeviceInput] === null ? null : temporary[key];
   if (overridesBandCalibration(before, patch) && !Object.hasOwn(patch, 'irradianceByDistanceCm')

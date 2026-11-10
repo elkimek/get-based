@@ -88,6 +88,14 @@ describe('Maxi UVB measured bands and Vitamin D timing', () => {
     expect(session.safety!.uvDoseStatus).toBe('unavailable');
     expect(session.doses!.vitamin_d).toBeUndefined();
   });
+
+  test('rejects device edits that would leave a program with an unresolved phase', () => {
+    const profile = { lightDevices: [], deviceSessions: [] } as unknown as ProfileData;
+    const device = addDeviceFromPresetRecord(profile, preset)!;
+    const modes = device.modes!.filter(mode => mode.id !== 'red-nir-only');
+    expect(updateDeviceRecord(profile, device.id, { modes })).toBeNull();
+    expect(device.modes!.some(mode => mode.id === 'red-nir-only')).toBe(true);
+  });
 });
 
 test('bulk logging creates one grouped completed record per local day, with safe retries', () => {

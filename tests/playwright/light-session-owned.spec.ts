@@ -2,6 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 import { createDefaultProfileData } from '../../js/profile.js';
 import { seedLightPageFixture } from '../helpers/light-page-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import type { DeviceSessionRecord } from '../../js/light-devices-store.js';
 
 test.beforeEach(async ({ context, page }) => {
   await installDiscussionFixture(context);
@@ -111,7 +112,7 @@ test('Maxi UVB logs four placements as one session per date and retains overlap 
   await page.setViewportSize({ width: 360, height: 850 });
   expect(await page.evaluate(async () => {
     const devices = await import('/js/light-devices.js');
-    const device = await devices.addDeviceFromPreset('mitochondriak-maxi-uvb');
+    const device = await devices.addDeviceFromPreset('mitochondriak-maxi-uvb') as { id: string } | null;
     return device && devices.openDeviceSessionDialog(device.id);
   })).toBe(true);
   const dialog = page.getByRole('dialog', { name: 'Log device session' });
@@ -134,7 +135,8 @@ test('Maxi UVB logs four placements as one session per date and retains overlap 
   await page.reload();
   await expect.poll(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    return state.importedData?.deviceSessions?.map(session => ({
+    const sessions = state.importedData?.deviceSessions as DeviceSessionRecord[] | undefined;
+    return sessions?.map(session => ({
       durationMin: session.durationMin,
       mode: session.mode,
       day: new Date(session.startedAt).getDate(),
