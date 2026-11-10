@@ -93,4 +93,5 @@ export interface SessionDetailView {
   readonly notes: string;
   readonly canEditDuration: boolean;
   readonly canEditMode: boolean;
+  readonly canEditPlacements?: boolean;
 }

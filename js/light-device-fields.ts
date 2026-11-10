@@ -1,4 +1,13 @@
 // Bounded command schema; physics and persistence remain lazy feature owners.
+import { BODY_REGIONS } from './sun-body-regions.js';
+
+const REGION_KEYS = new Set(BODY_REGIONS.map(region => region.key));
+export function validDeviceBodyPlacements(value: unknown): value is string[][] {
+  return Array.isArray(value) && value.length >= 2 && value.length <= 4
+    && value.every(areas => Array.isArray(areas) && areas.length > 0 && areas.length <= REGION_KEYS.size
+      && new Set(areas).size === areas.length && areas.every(key => REGION_KEYS.has(key)));
+}
+
 export type LightDeviceResource = 'lightDevices' | 'lightDeviceSessions';
 export const isLightDeviceResource = (value: string): value is LightDeviceResource => value === 'lightDevices' || value === 'lightDeviceSessions';
 export const LIGHT_DEVICE_PAYLOAD_FIELDS = ['lightDevices', 'deviceSessions'] as const;
@@ -10,4 +19,4 @@ export const lightDeviceFields = { brand: 'Reported brand, 1–120 characters', 
   mwPerCm2At15cm: 'Reported irradiance mW/cm² at the device reference distance, nonnegative or null', lux: 'Reported reference photopic lux, nonnegative or null', recommendedDistanceCm: 'Reference distance cm, 1–1000 or null', irradianceByDistanceCm: 'Reported array of {distanceCm,mwPerCm2}, or null', distanceModel: ['reference-only', 'point-source'],
   melanopicDER: 'Reported positive DER, or null', melanopicEdiLux: 'Reported positive melanopic EDI lux, or null', melanopicBasis: 'Reported basis, or null', irradianceBasis: 'Reported basis, or null',
   channelGroups: 'Reported array of {id,label?,peaks:[nm]}, or null', modes: 'Reported array of {id,label?,groups:[groupId],default?}, or null', coupling: 'Reported array of {if:groupId,requires:[groupId],reason?}, or null', specSourceUrl: 'Reported source URL, or null; retained locally', notes: 'Text, max 2000 characters' };
-export const lightDeviceSessionFields = { deviceId: 'Exact current device ID for a new completed session', startedAt: 'Actual start time: ISO 8601 with explicit Z/UTC offset; do not infer a clock time from a date', durationMin: 'Minutes, 0–600', distanceCm: 'Actual distance cm, 1–1000', bodyArea: ['targeted', 'face', 'torso', 'arms', 'legs', 'whole-body'], bodyAreas: 'Precise region keys from the exact read, or null for the broad bodyArea', eyesProtected: 'Reported boolean; never infer protection', mode: 'Exact supported mode ID, or null only for devices without modes', notes: 'Text, max 2000 characters' };
+export const lightDeviceSessionFields = { deviceId: 'Exact current device ID for a new completed session', startedAt: 'Actual start time: ISO 8601 with explicit Z/UTC offset; do not infer a clock time from a date', durationMin: 'Minutes, 0–600', distanceCm: 'Actual distance cm, 1–1000', bodyArea: ['targeted', 'face', 'torso', 'arms', 'legs', 'whole-body'], bodyAreas: 'Precise region keys from the exact read, or null for the broad bodyArea', bodyPlacements: 'Update a completed grouped session with one nonempty list of exact region keys per recorded placement, in order. Keep the placement count. Omit bodyArea and bodyAreas.', eyesProtected: 'Reported boolean; never infer protection', mode: 'Exact supported mode ID, or null only for devices without modes', notes: 'Text, max 2000 characters' };

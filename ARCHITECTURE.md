@@ -900,6 +900,8 @@ Grouped completed sessions retain ordered region selections and share time,
 distance and mode across placements. Coverage uses the union of regions.
 Local fluence and erythemal dose report the highest modeled dose on a region,
 including repeated exposure where placements share that region.
+Placement corrections keep the recorded pass count, rebuild the region union,
+and recalculate estimates through the same completed-session correction path.
 Native range logging stages one completed record per local calendar day in one
 write, skips days with an existing completed session for the device and mode,
 and requires a reported start time on each date.

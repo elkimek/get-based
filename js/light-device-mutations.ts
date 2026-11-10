@@ -15,7 +15,7 @@ import {
   resolveDeviceMode,
 } from './light-device-session-engine.js';
 import { createUniqueId } from './unique-id.js';
-import { LIGHT_DEVICE_SPEC_FIELDS } from './light-device-fields.js';
+import { LIGHT_DEVICE_SPEC_FIELDS, validDeviceBodyPlacements } from './light-device-fields.js';
 import { validateModeCoupling } from './sun-spectrum.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 
@@ -284,8 +284,8 @@ export function logDeviceSession(data: ProfileData, { deviceId, durationMin = 0,
   if (!device) return null;
   const safeDuration = validDuration(durationMin);
   const safeDistance = validDistance(distanceCm);
-  const placements = Array.isArray(bodyPlacements) ? bodyPlacements.map(normalizedBodyAreas) : null;
-  if (bodyPlacements != null && (!placements || placements.length < 2 || placements.length > 4 || placements.some(areas => !areas?.length))) return null;
+  if (bodyPlacements != null && !validDeviceBodyPlacements(bodyPlacements)) return null;
+  const placements = bodyPlacements?.map(areas => areas.slice());
   const safeBodyAreas = normalizedBodyAreas(placements ? placements.flat() : bodyAreas);
   if (safeDuration == null || safeDistance == null) return null;
   if (!validProgramDuration(device, mode, safeDuration, placements?.length)) return null;
@@ -303,7 +303,7 @@ export function logDeviceSession(data: ProfileData, { deviceId, durationMin = 0,
     // bodyAreas[] is the precise-region field; bodyArea remains as a
     // denormalized broad-zone hint for legacy readers + listing rows.
     bodyAreas: safeBodyAreas,
-    ...(placements ? { bodyPlacements: placements as string[][] } : {}),
+    ...(placements ? { bodyPlacements: placements } : {}),
     eyesProtected: !!eyesProtected,
     fitzpatrick: data?.sunDefaults?.fitzpatrick || null,
     mode,
@@ -445,8 +445,23 @@ export function updateDeviceSession(data: ProfileData, id: string, patch: Record
   if (!sess) return null;
   if (sess.editHistory != null && !Array.isArray(sess.editHistory)) return null;
   const original = structuredClone(sess);
-  const editable = ['startedAt', 'durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'notes', 'mode'];
+  const editable = ['startedAt', 'durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'bodyPlacements', 'eyesProtected', 'notes', 'mode'];
   const normalizedPatch: Record<string, unknown> = { ...patch };
+  if (sess.bodyPlacements?.length && ('bodyArea' in patch || 'bodyAreas' in patch)) return null;
+  if ('bodyPlacements' in patch) {
+    const placements = patch.bodyPlacements;
+    const recorded = sess.bodyPlacements;
+    if (!sess.endedAt || !validDeviceBodyPlacements(placements) || !validDeviceBodyPlacements(recorded) || recorded.length !== placements.length) return null;
+    const changed = placements.some((areas, index) => {
+      const before = recorded[index]!;
+      return before.length !== areas.length || areas.some(area => !before.includes(area));
+    });
+    if (changed) {
+      normalizedPatch.bodyPlacements = placements.map(areas => areas.slice());
+      normalizedPatch.bodyAreas = [...new Set(placements.flat())];
+      normalizedPatch.bodyArea = 'targeted';
+    } else delete normalizedPatch.bodyPlacements;
+  }
   if ('durationMin' in normalizedPatch) {
     const duration = validDuration(normalizedPatch.durationMin);
     if (duration == null) return null;
@@ -466,7 +481,6 @@ export function updateDeviceSession(data: ProfileData, id: string, patch: Record
   if ('eyesProtected' in normalizedPatch) normalizedPatch.eyesProtected = !!normalizedPatch.eyesProtected;
   if ('notes' in normalizedPatch) normalizedPatch.notes = String(normalizedPatch.notes || '').slice(0, 2000);
   if ('startedAt' in normalizedPatch && (typeof normalizedPatch.startedAt !== 'number' || !Number.isSafeInteger(normalizedPatch.startedAt) || normalizedPatch.startedAt < 0)) return null;
-  if (sess.bodyPlacements?.length && ('bodyArea' in normalizedPatch || 'bodyAreas' in normalizedPatch)) return null;
   const device = sessionDevice(data, sess);
   const nextMode = 'mode' in normalizedPatch ? normalizedPatch.mode as string | null : sess.mode;
   if (!validProgramDuration(device, nextMode, Number(normalizedPatch.durationMin ?? sess.durationMin ?? 0), sess.bodyPlacements?.length)) return null;
@@ -493,13 +507,15 @@ export function updateDeviceSession(data: ProfileData, id: string, patch: Record
         }
       }
       sess[k] = normalizedPatch[k];
-      if (['startedAt', 'durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'mode'].includes(k)) needsRecompute = true;
+      if (k !== 'notes') needsRecompute = true;
     }
   }
   // Re-derive endedAt + dose if duration changed so stored duration and
   // channel doses cannot drift.
   if (needsRecompute && sess.endedAt && Number.isFinite(sess.durationMin)) {
-    sess.endedAt = sess.startedAt + sess.durationMin! * 60 * 1000;
+    if (!('bodyPlacements' in normalizedPatch) || 'startedAt' in normalizedPatch || 'durationMin' in normalizedPatch) {
+      sess.endedAt = sess.startedAt + sess.durationMin! * 60 * 1000;
+    }
     const liveDevice = getDevices(data).find(device => device.id === sess.deviceId) || null;
     if (liveDevice) sess.deviceSnapshot = deviceSnapshot(liveDevice);
     const device = liveDevice || sess.deviceSnapshot || null;

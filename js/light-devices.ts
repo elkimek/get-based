@@ -36,6 +36,7 @@ import { CHANNEL_DISPLAY } from './sun.js';
 import { BODY_REGIONS, bindBodySilhouette, projectBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
 import { deviceEmitsUV } from './light-device-session-engine.js';
+import { validDeviceBodyPlacements } from './light-device-fields.js';
 import { reopenSunSetup } from './sun-defaults.js';
 import {
   addCustomDevice,
@@ -129,6 +130,7 @@ configureLightDeviceModalLoader({
     getDevices,
     logDeviceSession,
     logDeviceSessionRange,
+    updateDeviceSession,
     getActiveDeviceSession,
     startDeviceSession,
     ensureActiveDeviceTicker,
@@ -397,7 +399,7 @@ export function openDeviceSessionDetail(id?: string): HTMLElement | undefined {
       ...(modeLabel ? [detailField('Mode', modeLabel)] : [])] : [],
     inputsEmpty: 'The device specification is unavailable.', location: null,
     sourceUrl: device ? _safeHttpUrl(device.specSourceUrl) || '' : '', notes: sess.notes || '',
-    canEditDuration: true, canEditMode,
+    canEditDuration: true, canEditMode, canEditPlacements: !!device && !!sess.endedAt && validDeviceBodyPlacements(sess.bodyPlacements),
   } });
   _wireModal(overlay, closeDialog);
   overlay.addEventListener('click', (event) => {
@@ -422,6 +424,22 @@ export function openDeviceSessionDetail(id?: string): HTMLElement | undefined {
     if (target.closest('#device-detail-edit-mode')) {
       closeDialog();
       editDeviceSessionMode(sess.id);
+      return;
+    }
+    if (target.closest('#device-detail-edit-placements')) {
+      const owner = captureDeviceEditOwner(sess.id);
+      closeDialog();
+      void openDeviceSessionDialog(sess.deviceId, {
+        isCurrent: owner.unchanged,
+        editPlacements: {
+          session: sess,
+          onSaved: () => {
+            if (!owner.current()) return;
+            refreshLightDevicesView();
+            openDeviceSessionDetail(sess.id);
+          },
+        },
+      });
       return;
     }
     if (target.closest('#device-detail-delete')) {

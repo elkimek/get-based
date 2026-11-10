@@ -5,6 +5,7 @@ export interface DeviceSessionDialogDeps {
   getDevices?: typeof import('./light-devices-store.js').getDevices;
   logDeviceSession?: typeof import('./light-devices-store.js').logDeviceSession;
   logDeviceSessionRange?: typeof import('./light-devices-store.js').logDeviceSessionRange;
+  updateDeviceSession?: typeof import('./light-devices-store.js').updateDeviceSession;
   getActiveDeviceSession?: typeof import('./light-devices-store.js').getActiveDeviceSession;
   startDeviceSession?: typeof import('./light-devices-store.js').startDeviceSession;
   ensureActiveDeviceTicker?: () => unknown;
@@ -12,6 +13,11 @@ export interface DeviceSessionDialogDeps {
   projectBodySilhouette?: ((selected: Set<string>) => BodyPickerView | null) | null;
   bindBodySilhouette?: typeof bindBodySilhouette | null;
   navigate?: ((route: string) => unknown) | null; openLightSetup?: (() => unknown) | null;
+}
+export interface DeviceSessionDialogOptions {
+  isCurrent?: () => boolean;
+  hydrate?: boolean;
+  editPlacements?: { session: DeviceSessionRecord; onSaved: () => void };
 }
 
 // light-device-session-modal.js — Log/start light therapy device sessions.
@@ -27,6 +33,7 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 import { BODY_REGIONS, bindBodySilhouette, projectBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
 import { deviceEmitsUV, deviceProgramMinutes } from './light-device-session-engine.js';
+import { validDeviceBodyPlacements } from './light-device-fields.js';
 
 const FOUR_PLACEMENT_REGIONS = [
   ['breast-chest', 'torso-front', 'abdomen', 'arms-front'],
@@ -105,14 +112,17 @@ function _showEmptyRegionError(updateAreaHint: (selected: Set<string>) => void, 
   setTimeout(() => hintEl?.classList.remove('sun-silhouette-hint-error'), 2500);
 }
 
-export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSessionDialogDeps = {}, options: { isCurrent?: () => boolean; hydrate?: boolean } = {}) {
+export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSessionDialogDeps = {}, options: DeviceSessionDialogOptions = {}) {
   if (options.isCurrent?.() === false) return false;
+  const editing = options.editPlacements;
+  if (editing && (!editing.session.endedAt || !validDeviceBodyPlacements(editing.session.bodyPlacements))) return false;
   const resolvedDeps = _resolveSessionDialogDeps(deps);
   const {
     hydrateDevicesFromPresets,
     getDevices,
     logDeviceSession,
     logDeviceSessionRange,
+    updateDeviceSession,
     getActiveDeviceSession,
     startDeviceSession,
     ensureActiveDeviceTicker,
@@ -124,7 +134,7 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   } = resolvedDeps;
 
   const configuredFitz = state.importedData?.sunDefaults?.fitzpatrick || null;
-  if (!/^(I|II|III|IV|V|VI)$/.test(String(configuredFitz || ''))) {
+  if (!editing && !/^(I|II|III|IV|V|VI)$/.test(String(configuredFitz || ''))) {
     showNotification(
       'Confirm your Fitzpatrick skin type in Light setup before starting or logging a light-device session.',
       'info',
@@ -136,20 +146,20 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
 
   // Lazy hydrate covers page-opened-mid-init / cold preset cache cases so
   // the dialog renders with the latest mode/coupling schema.
-  if (options.hydrate !== false) await hydrateDevicesFromPresets?.().catch(() => {});
+  if (!editing && options.hydrate !== false) await hydrateDevicesFromPresets?.().catch(() => {});
   if (options.isCurrent?.() === false) return false;
-  const device = getDevices?.()?.find(d => d.id === deviceId);
+  const device = getDevices?.()?.find(d => d.id === deviceId) || editing?.session.deviceSnapshot;
   if (!device) return false;
   const profileId = state.currentProfile;
   const profileData = state.importedData;
 
   // Prefill from the user's last logged session on this device. First-time
   // logs fall through to vendor reference distance + sensible defaults.
-  const last = device.lastSession || {};
+  const last = editing?.session || device.lastSession || {};
   const defaultDistanceCm = Number.isFinite(last.distanceCm) && last.distanceCm! > 0
     ? last.distanceCm!
     : (device.recommendedDistanceCm || 15);
-  const lastPlacements = last.bodyPlacements?.length === 4 ? last.bodyPlacements : null;
+  const lastPlacements = editing ? editing.session.bodyPlacements! : last.bodyPlacements?.length === 4 ? last.bodyPlacements : null;
   const defaultRegions = lastPlacements?.[0] || _defaultRegionsForLastSession(last);
 
   // Mode picker renders only for devices with multiple valid modes.
@@ -178,11 +188,15 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
   overlay.innerHTML = renderHTML({ kind: 'device',
-    view: projectDeviceSessionForm({ device, validModes, defaultMode, defaultDuration, defaultDistanceCm, useUS: state.unitSystem === 'US', isUVDevice, isEyeLightDevice, defaultEyeControlChecked }),
+    view: {
+      ...projectDeviceSessionForm({ device, validModes, defaultMode, defaultDuration, defaultDistanceCm, useUS: state.unitSystem === 'US', isUVDevice, isEyeLightDevice, defaultEyeControlChecked }),
+      ...(editing ? { editPlacementCount: lastPlacements!.length } : {}),
+    },
     silhouetteView: projectBodySilhouette ? projectBodySilhouette(new Set(defaultRegions)) : null,
   });
   _wireDeviceSessionModal(overlay, closeDialog);
-  const canSave = () => overlay.isConnected && state.currentProfile === profileId && state.importedData === profileData;
+  const canSave = () => overlay.isConnected && state.currentProfile === profileId && state.importedData === profileData
+    && (!editing || options.isCurrent?.() !== false);
   overlay.querySelectorAll('[data-device-session-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);
   });
@@ -197,8 +211,8 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
   const readMode = () => showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : initialMode;
   const syncLogControls = () => {
     const program = deviceProgramMinutes(device, readMode());
-    if (timerButton) timerButton.hidden = fourPlacements.checked || rangeInput.checked || program !== null;
-    if (saveButton) saveButton.textContent = rangeInput.checked ? 'Save date range' : 'Save session';
+    if (timerButton) timerButton.hidden = !!editing || fourPlacements.checked || rangeInput.checked || program !== null;
+    if (saveButton) saveButton.textContent = editing ? 'Save placements' : rangeInput.checked ? 'Save date range' : 'Save session';
     overlay.querySelector('#dev-session-duration-label')!.textContent = fourPlacements.checked ? 'Minutes per placement' : 'Duration (minutes)';
     overlay.querySelector('#dev-session-timing')!.textContent = program !== null
       ? 'Vitamin D cycle: 1 min red/NIR, 3 min all bands, 1 min red/NIR. Record the time actually used in one cycle.'
@@ -370,19 +384,26 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
 
   let submitting = false;
   saveButton?.addEventListener('click', async () => {
-    if (submitting || !canSave()) return;
+    if (submitting) return;
+    if (!canSave()) {
+      if (editing && overlay.isConnected) {
+        closeDialog();
+        showNotification('This session or device changed. Reopen the editor.', 'warning');
+      }
+      return;
+    }
     const minutes = Number(durationInput?.value);
     const max = Number(durationInput?.max);
-    if (!Number.isFinite(minutes) || minutes < 0.1 || minutes > max) {
+    if (!editing && (!Number.isFinite(minutes) || minutes < 0.1 || minutes > max)) {
       showNotification(`Enter the actual duration between 0.1 and ${max} minutes.`, 'error');
       return;
     }
     const distanceCm = _readDistanceCm(overlay, device.recommendedDistanceCm || 15);
-    const grouped = fourPlacements.checked;
+    const grouped = !!editing || fourPlacements.checked;
     if (grouped) {
       placements[placementIndex] = [...selectedRegions];
       if (placements.some(areas => !areas.length)) {
-        showNotification('Pick the treated regions in all four placements.', 'error');
+        showNotification('Pick the treated regions in every placement.', 'error');
         return;
       }
     }
@@ -408,6 +429,17 @@ export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSess
     submitting = true;
     saveButton.disabled = true;
     try {
+      if (editing) {
+        const saved = await updateDeviceSession?.(editing.session.id, { bodyPlacements: input.bodyPlacements }, { canCommit: canSave });
+        if (!saved) {
+          showNotification('The placements could not be updated. Reopen the session and try again.', 'error');
+          return;
+        }
+        closeDialog();
+        showNotification('Placements updated. Doses recomputed.', 'success');
+        editing.onSaved();
+        return;
+      }
       if (emitsUV && !eyesProtected && !await showConfirmDialog('This records UV exposure without UV-rated goggles. Save it as an unsafe past exposure?')) return;
       if (!canSave()) return;
       if (range) {

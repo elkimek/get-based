@@ -108,7 +108,7 @@ test('device form keyboard modes preserve fresh UV confirmation and distance con
   expect(await page.evaluate(() => (window as unknown as { deviceSaved: unknown[] }).deviceSaved)).toEqual([{ deviceId: 'panel', durationMin: 7, distanceCm: 30, bodyArea: 'torso', bodyAreas: ['breast-chest'], eyesProtected: false, mode: 'red' }]);
 });
 
-test('Maxi UVB logs four placements as one session per date and retains overlap on reload', async ({ page }) => {
+test('Maxi UVB logs four placements per date and corrects a saved overlap', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 850 });
   expect(await page.evaluate(async () => {
     const devices = await import('/js/light-devices.js');
@@ -145,4 +145,25 @@ test('Maxi UVB logs four placements as one session per date and retains overlap 
       sed: session.safety?.erythemalSED,
     }));
   })).toEqual([11, 12, 13].map(day => ({ durationMin: 20, mode: 'vitamin-d', day, hour: 12, abdomenPasses: 2, sed: expect.closeTo(1.62) })));
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const sessions = state.importedData?.deviceSessions as DeviceSessionRecord[];
+    const id = sessions.find(session => new Date(session.startedAt).getDate() === 11)!.id;
+    (await import('/js/light-devices.js')).openDeviceSessionDetail(id);
+  });
+  await page.getByRole('button', { name: 'Edit placements', exact: true }).click();
+  const editor = page.getByRole('dialog', { name: 'Edit device placements' });
+  await editor.getByLabel('Edit placement').selectOption({ label: 'Lower front' });
+  const abdomen = editor.locator('[data-region="abdomen"][data-view="front"]');
+  await expect(abdomen).toHaveAttribute('aria-pressed', 'true');
+  await abdomen.press('Space');
+  await editor.getByRole('button', { name: 'Save placements' }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.getByText(/Highest local erythemal dose: 0\.81 SED/)).toBeVisible();
+  await expect.poll(() => page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const sessions = state.importedData?.deviceSessions as DeviceSessionRecord[];
+    return sessions.map(session => [session.durationMin, session.safety?.erythemalSED]);
+  })).toEqual([[20, expect.closeTo(0.81)], [20, expect.closeTo(1.62)], [20, expect.closeTo(1.62)]]);
 });

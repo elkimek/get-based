@@ -81,6 +81,7 @@ export interface DeviceSessionFormView {
   readonly name: string; readonly modes: Array<{ readonly id: string; readonly label: string }>; readonly defaultMode: string | null;
   readonly duration: number; readonly distance: number; readonly unit: 'cm' | 'in'; readonly referenceCm: number; readonly distanceHint: string;
   readonly eyeLabel: string; readonly eyesChecked: boolean;
+  readonly editPlacementCount?: number;
 }
 export function projectDeviceSessionForm(input: { device: LightDeviceRecord; validModes: NonNullable<LightDeviceRecord['modes']>; defaultMode: string | null; defaultDuration: number; defaultDistanceCm: number; useUS: boolean; isUVDevice: boolean; isEyeLightDevice: boolean; defaultEyeControlChecked: boolean }): DeviceSessionFormView {
   const { device, defaultDistanceCm } = input;
