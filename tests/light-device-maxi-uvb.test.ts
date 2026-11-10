@@ -39,8 +39,17 @@ describe('Maxi UVB measured bands and Vitamin D timing', () => {
     expect(at60.safety.erythemalSED).toBeCloseTo(0.72);
     expect(at70.safety.erythemalSED).toBeCloseTo(0.63);
     expect(at70.doses.vitamin_d! / at50.doses.vitamin_d!).toBeCloseTo(0.056 / 0.074);
-    expect(at70.doses.pbm_red! / at50.doses.pbm_red!).toBeCloseTo(15 / 17);
-    expect(at70.doses.pbm_nir! / at50.doses.pbm_nir!).toBeCloseTo(26 / 30);
+    // Expected weighted J/cm² from the 1 nm OHSP spectra, normalized to the
+    // lab protocol's red and NIR band totals. The app integrates 5 nm bins.
+    expect(Math.abs(at50.doses.pbm_red! / 10000 - 2.67643)).toBeLessThan(0.01);
+    expect(Math.abs(at50.doses.pbm_nir! / 10000 - 3.98524)).toBeLessThan(0.01);
+    expect(Math.abs(at70.doses.pbm_red! / 10000 - 2.20640)).toBeLessThan(0.01);
+    expect(Math.abs(at70.doses.pbm_nir! / 10000 - 3.49683)).toBeLessThan(0.01);
+    expect(at60.doses.pbm_red).toBeCloseTo((at50.doses.pbm_red! + at70.doses.pbm_red!) / 2);
+    expect(at60.doses.pbm_nir).toBeCloseTo((at50.doses.pbm_nir! + at70.doses.pbm_nir!) / 2);
+    const uvOnly = computeDeviceSessionDoses({ ...program, mode: 'uvb-only' });
+    expect(uvOnly.doses.pbm_red).toBe(0);
+    expect(uvOnly.doses.pbm_nir).toBe(0);
     const outside = computeDeviceSessionDoses({ ...program, distanceCm: 110 });
     expect(outside.safety.uvDoseStatus).toBe('unavailable');
     expect(outside.doses.vitamin_d).toBeUndefined();

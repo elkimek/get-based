@@ -891,9 +891,11 @@ labels, private metadata or retained raw history to the model. New completed
 sessions require reported time with an explicit offset, duration, distance, body
 area and eye-protection fact; missing inputs do not become native form defaults.
 New or corrected completion times cannot be in the future.
-Curated device measurements can supply peak powers and full-spectrum UV index
-by distance. The engine interpolates the powers separately before applying
-mode groups and integrates each recorded program phase for its actual duration.
+Curated device measurements can supply peak powers, red/NIR spectral samples,
+and full-spectrum UV index by distance. The engine interpolates the readings
+before applying mode groups and integrates each recorded program phase for its
+actual duration. On-axis spectral samples describe wavelength output at the
+measurement location. Region selection supplies modeled coverage.
 Grouped completed sessions retain ordered region selections and share time,
 distance and mode across placements. Coverage uses the union of regions.
 Local fluence and erythemal dose report the highest modeled dose on a region,

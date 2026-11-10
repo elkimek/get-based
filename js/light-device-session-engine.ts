@@ -16,13 +16,18 @@ import {
   validateModeCoupling as validateDeviceModeCoupling,
 } from './sun-spectrum.js';
 
-export const DEVICE_ENGINE_VERSION = 7;
+export const DEVICE_ENGINE_VERSION = 8;
+
+const RED_NIR_SPECTRUM_START_NM = 600;
+const RED_NIR_SPECTRUM_LENGTH = 81;
 
 interface IrradianceReading {
   distanceCm: number;
   mwPerCm2: number;
   peakMwPerCm2?: number[];
   uvIndex?: number;
+  // On-axis W/m²/nm, in the same 5 nm cells as the action-spectrum grid.
+  redNirSpectrum?: number[];
 }
 
 export interface DeviceModel extends SpectralDevice {
@@ -142,12 +147,16 @@ function measuredSpectrumInput(device: DeviceModel | null | undefined, distanceC
   if (!a || !b) return null;
   const t = a === b ? 0 : (actual - a.distanceCm) / (b.distanceCm - a.distanceCm);
   const peakShares = a.peakMwPerCm2!.map((value, index) => value + t * (b.peakMwPerCm2![index]! - value));
+  const validRedNir = (values: number[] | undefined): values is number[] => Array.isArray(values)
+    && values.length === RED_NIR_SPECTRUM_LENGTH && values.every(value => Number.isFinite(value) && value >= 0);
   return {
     peakShares,
     mwPerCm2At15cm: peakShares.reduce((sum, value) => sum + value, 0),
     uvIndex: typeof a.uvIndex === 'number' && a.uvIndex >= 0 && Number.isFinite(a.uvIndex)
       && typeof b.uvIndex === 'number' && b.uvIndex >= 0 && Number.isFinite(b.uvIndex)
       ? a.uvIndex + t * (b.uvIndex - a.uvIndex) : null,
+    redNirSpectrum: validRedNir(a.redNirSpectrum) && validRedNir(b.redNirSpectrum)
+      ? a.redNirSpectrum.map((value, index) => value + t * (b.redNirSpectrum![index]! - value)) : null,
   };
 }
 
@@ -305,9 +314,18 @@ function computeSingleDeviceExposure({
 
   if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
     const baseSpec = synthesizeDeviceSpectrum(effectiveDevice!);
+    const redNirPeaks = sourcePeaks.filter(nm => nm >= RED_NIR_SPECTRUM_START_NM);
+    const measuredRedNir = measured?.redNirSpectrum && redNirPeaks.length > 0
+      && redNirPeaks.every(nm => effectivePeaks.includes(nm)) ? measured.redNirSpectrum : null;
     const spectrum = {
       wavelengths: baseSpec.wavelengths,
-      irradiance: measured ? baseSpec.irradiance : baseSpec.irradiance.map(v => v * distanceFactor),
+      irradiance: baseSpec.irradiance.map((value, index) => {
+        const nm = baseSpec.wavelengths[index]!;
+        if (measuredRedNir && nm >= RED_NIR_SPECTRUM_START_NM) {
+          return measuredRedNir[(nm - RED_NIR_SPECTRUM_START_NM) / 5] ?? 0;
+        }
+        return measured ? value : value * distanceFactor;
+      }),
     };
     doses = computeChannelDoses({
       spectrum,
@@ -391,7 +409,7 @@ function computeSingleDeviceExposure({
       ? 'Reference irradiance is a curated estimate rather than a device-specific radiometer measurement.'
       : 'The provenance of the stored reference irradiance is not recorded.');
   }
-  if (measured) warnings.push('Uses vendor band measurements at continuous output with a modeled spectrum. Program intensity, pulsing and illumination across the body can change actual exposure.');
+  if (measured) warnings.push('Uses on-axis vendor measurements at continuous output. Dose can vary across the panel footprint and with program intensity or pulsing.');
   const modelStatus = warnings.some(warning => /unavailable|withheld|no usable/i.test(warning))
     ? 'partial'
     : (distanceInfo.basis === 'reference-only' || distanceInfo.basis === 'measured-boundary' ? 'reference-only' : 'computed');
