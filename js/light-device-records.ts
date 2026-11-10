@@ -6,7 +6,7 @@ import { state } from './state.js';
 import { readAgentProfileRecords } from './agent-profile-record-store.js';
 import { profileDataValuesEqual } from './profile-data-writes.js';
 import { commitLightEnvironmentWrite, queueLightEnvironmentWrite } from './light-env-record-store.js';
-import { LIGHT_DEVICE_FIELDS, LIGHT_DEVICE_PAYLOAD_FIELDS, LIGHT_DEVICE_SPEC_FIELDS, isLightDeviceResource } from './light-device-fields.js';
+import { LIGHT_DEVICE_FIELDS, LIGHT_DEVICE_PAYLOAD_FIELDS, LIGHT_DEVICE_SPEC_FIELDS, isLightDeviceResource, validDeviceBodyPlacements } from './light-device-fields.js';
 import type { LightDeviceResource } from './light-device-fields.js';
 import { parseLightDeviceSnapshot, validateLightDevicePatch } from './light-device-proposals.js';
 import type { LightDeviceSnapshot, LightDevicePlan } from './light-device-proposals.js';
@@ -62,8 +62,13 @@ function publicRecord(data: ProfileData, resource: LightDeviceResource, id: stri
   const session = raw as DeviceSessionRecord;
   if (!Number.isFinite(session.startedAt) || session.endedAt != null && !Number.isFinite(session.endedAt) || session.editHistory != null && !Array.isArray(session.editHistory)) throw new Error('Review this older session and its source history in the normal editor.');
   if (session.bodyAreas != null && (!Array.isArray(session.bodyAreas) || session.bodyAreas.some(region => typeof region !== 'string')) || session.notes != null && typeof session.notes !== 'string') throw new Error('Review this older session in its editor.');
+  const bodyPlacements = session.bodyPlacements;
+  if (bodyPlacements != null && !validDeviceBodyPlacements(bodyPlacements)) {
+    throw new Error('Review the recorded placements in the session details.');
+  }
   return { id: session.id, deviceId: session.deviceId ?? null, startedAt: new Date(session.startedAt).toISOString(), endedAt: session.endedAt == null ? null : new Date(session.endedAt).toISOString(), active: !session.endedAt,
     durationMin: session.durationMin ?? null, distanceCm: session.distanceCm ?? null, bodyArea: session.bodyArea ?? null, bodyAreas: session.bodyAreas ?? null, eyesProtected: session.eyesProtected ?? null, mode: session.mode ?? null, notes: session.notes ?? '',
+    ...(bodyPlacements ? { bodyPlacements } : {}),
     doses: dosePublic(session.doses), safety: session.safety ? Object.fromEntries(Object.entries(session.safety).filter(([field, value]) => ['hasUV', 'erythemalSED', 'conservativeBaseMedFraction', 'ocularActinicUV', 'ocularUvaJPerM2', 'unsafeEyeExposure'].includes(field) && (value == null || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value)))) : null, calculationStatus: typeof session.calculationStatus === 'string' && ['computed', 'partial', 'unavailable', 'pending', 'device-unavailable', 'mode-unavailable', 'estimated', 'reference-only'].includes(session.calculationStatus) ? session.calculationStatus : 'unknown',
     device: devicePublic(data.lightDevices?.find(device => device.id === session.deviceId) || session.deviceSnapshot), previousEditCount: Array.isArray(session.editHistory) ? session.editHistory.length : 0 };
 }
@@ -114,6 +119,7 @@ function compute(data: ProfileData, proposal: AgentDataProposal) {
       if (Array.isArray(device.modes) && device.modes.length && (typeof mode !== 'string' || !device.modes.some(value => value.id === mode) || !validateModeCoupling(device, mode).ok)) throw new Error('Choose the exact reported valid device mode; no default will be inferred.');
       if ((!device.modes || !device.modes.length) && mode != null) throw new Error('This device has no declared mode identities.');
       if (Array.isArray(patch.bodyAreas) && patch.bodyAreas.some(region => !BODY_REGIONS.some(candidate => candidate.key === region))) throw new Error('Choose exact supported body-region keys.');
+      if (validDeviceBodyPlacements(patch.bodyPlacements) && patch.bodyPlacements.length !== existing?.bodyPlacements?.length) throw new Error('Keep the recorded number of placements when correcting their regions.');
       const normalized: Record<string, unknown> = { ...patch, ...(typeof patch.startedAt === 'string' ? { startedAt: Date.parse(patch.startedAt) } : {}) };
       if (operation === 'add' || 'startedAt' in normalized || 'durationMin' in normalized) {
         const start = normalized.startedAt ?? existing?.startedAt, duration = normalized.durationMin ?? existing?.durationMin;

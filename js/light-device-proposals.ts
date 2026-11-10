@@ -1,7 +1,7 @@
 // Pure schemas/review projection; device physics and storage load on demand.
 import type { AgentDataProposal } from '../shared/agent-data-contract.js';
 import { agentDataObject, parseAgentDataPatch, validAgentDate, validateFieldNames } from '../shared/agent-data-contract.js';
-import { isLightDeviceResource, lightDeviceFields, lightDeviceSessionFields, LIGHT_DEVICE_TYPES } from './light-device-fields.js';
+import { isLightDeviceResource, lightDeviceFields, lightDeviceSessionFields, LIGHT_DEVICE_TYPES, validDeviceBodyPlacements } from './light-device-fields.js';
 import type { LightDeviceResource } from './light-device-fields.js';
 
 export function lightDeviceCapabilities(resource: LightDeviceResource) {
@@ -63,6 +63,7 @@ export function validateLightDevicePatch(resource: LightDeviceResource, operatio
     if ('distanceCm' in patch) number(patch.distanceCm, 'distance cm', 1, 1000);
     if ('bodyArea' in patch && !lightDeviceSessionFields.bodyArea.includes(String(patch.bodyArea))) throw new Error('Choose a supported body area.');
     if ('bodyAreas' in patch && patch.bodyAreas !== null) { const values = array(patch.bodyAreas, 'body regions'); if (!values.length || values.some(value => typeof value !== 'string') || new Set(values).size !== values.length) throw new Error('Choose distinct precise body regions or null for a broad area.'); }
+    if ('bodyPlacements' in patch && (operation !== 'update' || 'bodyArea' in patch || 'bodyAreas' in patch || !validDeviceBodyPlacements(patch.bodyPlacements))) throw new Error('For a grouped-session correction, report the precise regions for each placement in order.');
     if ('eyesProtected' in patch && typeof patch.eyesProtected !== 'boolean') throw new Error('Report eye protection as a boolean.');
     if ('mode' in patch && patch.mode !== null && typeof patch.mode !== 'string') throw new Error('Choose a supported mode ID or null.');
     if ('notes' in patch && (typeof patch.notes !== 'string' || patch.notes.length > 2000)) throw new Error('Supply notes up to 2000 characters.');

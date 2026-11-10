@@ -15,7 +15,7 @@ import type { ProfileData } from '../types/app-state.js';
 
 const previous = { profile: state.currentProfile, data: state.importedData };
 let profile: string, key: string, previousStore: ReturnType<typeof configureLightDevicesStore>;
-const evidence = 'My recorded panel session was actually 20 minutes, not 10. Remove my recorded panel. The panel is called Corrected Panel.';
+const evidence = 'My recorded panel session was actually 20 minutes, not 10. Remove my recorded panel. The panel is called Corrected Panel. The first placement covered my front torso and the second covered my front legs.';
 const stored = async () => JSON.parse((await storage.encryptedGetItem(key))!) as ProfileData;
 const tools = () => createAgentToolRuntime({ readContext: () => '', userMessage: evidence, ...createBrowserAgentToolDependencies(profile) });
 async function propose(resource = 'lightDeviceSessions', id = '', patch = '{"durationMin":20}', operation = 'update', create = false) {
@@ -54,6 +54,25 @@ it('reviews and applies a duration correction with recomputed doses and a matchi
   expect(after.durationMin).toBe(20); expect(after.endedAt).toBe(after.startedAt + 20 * 60000);
   expect(after.doses!.pbm_red).toBeCloseTo(session.doses!.pbm_red! * 2, 8); expect(after.deviceSnapshot).toEqual(session.deviceSnapshot);
   expect((await stored()).contextNotes).toBe(before.contextNotes);
+});
+it('reviews a grouped placement correction, then recalculates only that record on Apply', async () => {
+  const grouped = await logDeviceSession({
+    deviceId: 'dev-panel', durationMin: 10, distanceCm: 15, eyesProtected: true,
+    bodyPlacements: [['torso-front'], ['torso-front', 'legs-front']],
+  });
+  expect(grouped).not.toBeNull();
+  const before = await stored(), patch = { bodyPlacements: [['torso-front'], ['legs-front']] };
+  const recorded = before.deviceSessions!.find(row => row.id === grouped!.id)!;
+  expect(await updateDeviceSession(grouped!.id, { bodyPlacements: [...patch.bodyPlacements, ['torso-back']] })).toBeNull();
+  const { current, draft } = await propose('lightDeviceSessions', grouped!.id, JSON.stringify(patch));
+  expect(current.current.bodyPlacements).toEqual(recorded.bodyPlacements);
+  expect(await stored()).toEqual(before);
+  await applyAgentDraft(draft);
+  const saved = await stored(), after = saved.deviceSessions!.find(row => row.id === grouped!.id)!;
+  expect(after).toMatchObject({ ...patch, bodyAreas: ['torso-front', 'legs-front'], startedAt: recorded.startedAt, endedAt: recorded.endedAt, durationMin: 10 });
+  expect(after.doses!.pbm_red).toBeCloseTo(recorded.doses!.pbm_red! / 2, 8);
+  expect(after.editHistory).toHaveLength(1);
+  expect(saved.deviceSessions![0]).toEqual(before.deviceSessions![0]);
 });
 it('a failed native session correction cannot change the visible record or announce analysis', async () => {
   const before = await stored(), id = before.deviceSessions![0]!.id, write = storage.encryptedSetItem;

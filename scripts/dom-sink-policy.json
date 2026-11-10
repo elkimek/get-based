@@ -375,7 +375,7 @@
     },
     "js/light-device-session-modal.js": {
       "count": 2,
-      "digest": "7d0222f3ba327278f792fd51eb666bd9e7c8b480d0f42be6fe6ddb7ffa5640aa",
+      "digest": "e57817d09736699ed24a80ea0d0e92df87a63ccb52acc48a68b2d13eb73d2b65",
       "kinds": {
         "innerHTML": 2
       }
@@ -389,7 +389,7 @@
     },
     "js/light-devices.js": {
       "count": 3,
-      "digest": "7cbcd2746258eb9ff096605eb98b076c377d7134d8cb79aecdcc32e9e02840ee",
+      "digest": "541cee2d7568090955fde97eb65c43897affa2048949ccd3438773e186a56260",
       "kinds": {
         "innerHTML": 3
       }

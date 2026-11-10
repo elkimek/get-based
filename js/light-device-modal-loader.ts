@@ -1,5 +1,5 @@
 import type { LightDeviceSetupDeps } from './light-device-setup-modal.js';
-import type { DeviceSessionDialogDeps } from './light-device-session-modal.js';
+import type { DeviceSessionDialogDeps, DeviceSessionDialogOptions } from './light-device-session-modal.js';
 
 type LightDeviceSetupModule = typeof import('./light-device-setup-modal.js');
 type LightDeviceSessionModule = typeof import('./light-device-session-modal.js');
@@ -77,7 +77,7 @@ export function loadLightDeviceSessionModule() {
   return sessionModuleLoader.load();
 }
 
-export async function openDeviceSessionDialog(deviceId?: string | null, options: { isCurrent?: () => boolean; hydrate?: boolean } = {}) {
+export async function openDeviceSessionDialog(deviceId?: string | null, options: DeviceSessionDialogOptions = {}) {
   try {
     const module = sessionModuleLoader.module || await loadLightDeviceSessionModule();
     if (options.isCurrent?.() === false) return false;

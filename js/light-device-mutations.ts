@@ -11,10 +11,11 @@ import {
   DEVICE_ENGINE_VERSION,
   computeDeviceSessionDoses,
   deviceEmitsUV,
+  deviceProgramMinutes,
   resolveDeviceMode,
 } from './light-device-session-engine.js';
 import { createUniqueId } from './unique-id.js';
-import { LIGHT_DEVICE_SPEC_FIELDS } from './light-device-fields.js';
+import { LIGHT_DEVICE_SPEC_FIELDS, validDeviceBodyPlacements } from './light-device-fields.js';
 import { validateModeCoupling } from './sun-spectrum.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 
@@ -26,12 +27,13 @@ export interface LightDeviceRecord extends DeviceModel {
   channelGroups?: Array<NonNullable<DeviceModel['channelGroups']>[number] & { label?: string }> | null | undefined;
   modes?: Array<NonNullable<DeviceModel['modes']>[number] & { label?: string }> | null | undefined;
   addedAt?: number; updatedAt?: number; specEditedAt?: number;
-  lastSession?: Pick<DeviceSessionRecord, 'durationMin' | 'distanceCm' | 'bodyArea' | 'bodyAreas' | 'eyesProtected' | 'mode'>;
+  lastSession?: Pick<DeviceSessionRecord, 'durationMin' | 'distanceCm' | 'bodyArea' | 'bodyAreas' | 'bodyPlacements' | 'eyesProtected' | 'mode'>;
   [key: string]: unknown;
 }
 export interface DeviceSessionRecord {
   id: string; deviceId?: string | undefined; startedAt: number; endedAt?: number | null;
   durationMin?: number | undefined; distanceCm?: number | undefined; bodyArea?: string | undefined; bodyAreas?: string[] | null | undefined;
+  bodyPlacements?: string[][];
   eyesProtected?: boolean | undefined; fitzpatrick?: string | null; mode?: string | null | undefined;
   deviceSnapshot?: LightDeviceRecord | null; notes?: string; updatedAt?: number;
   doses?: ComputedDeviceSession['doses'] | null; safety?: ComputedDeviceSession['safety'] | null;
@@ -43,7 +45,9 @@ export interface DeviceSessionRecord {
 export interface DeviceSessionInput {
   deviceId?: string; durationMin?: number; distanceCm?: number; bodyArea?: string;
   bodyAreas?: string[] | null; eyesProtected?: boolean; notes?: string; mode?: string | null;
+  bodyPlacements?: string[][];
 }
+export interface DeviceSessionDateRange { startDate: string; endDate: string; startTime: string }
 export type CustomDeviceInput = Partial<Pick<LightDeviceRecord,
   'brand' | 'model' | 'type' | 'peakWavelengths' | 'peakShares' | 'peakShareBasis'
   | 'irradianceByDistanceCm' | 'distanceModel' | 'melanopicBasis' | 'irradianceBasis'
@@ -55,6 +59,15 @@ export type CustomDeviceInput = Partial<Pick<LightDeviceRecord,
 const MAX_DEVICE_SESSION_MIN = 600;
 const VALID_BODY_REGIONS = new Set(BODY_REGIONS.map(region => region.key));
 const VALID_BROAD_AREAS = new Set(['targeted', 'face', 'torso', 'arms', 'legs', 'whole-body']);
+const BAND_CALIBRATION_FIELDS = ['peakWavelengths', 'peakShares', 'mwPerCm2At15cm', 'recommendedDistanceCm'] as const;
+
+function overridesBandCalibration(device: LightDeviceRecord, patch: CustomDeviceInput) {
+  return BAND_CALIBRATION_FIELDS.some(key => Object.hasOwn(patch, key) && JSON.stringify(device[key]) !== JSON.stringify(patch[key]));
+}
+
+function totalIrradianceOnly(table: LightDeviceRecord['irradianceByDistanceCm']) {
+  return Array.isArray(table) ? table.filter(Boolean).map(({ distanceCm, mwPerCm2 }) => ({ distanceCm, mwPerCm2 })) : null;
+}
 
 function safeText(value: unknown, maxLength = 120) {
   return String(value || '').trim().slice(0, maxLength);
@@ -103,6 +116,11 @@ function validDuration(value: unknown) {
   return Number.isFinite(number) && number >= 0 && number <= MAX_DEVICE_SESSION_MIN ? number : null;
 }
 
+function validProgramDuration(device: LightDeviceRecord | null, mode: string | null | undefined, minutes: number, placementCount = 1) {
+  const limit = deviceProgramMinutes(device, resolveDeviceMode(device, mode));
+  return limit === null || minutes / placementCount <= limit;
+}
+
 function validDistance(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) && number >= 1 && number <= 1000 ? number : null;
@@ -147,6 +165,7 @@ function computeRecordedSessionDoses(device: LightDeviceRecord, sess: DeviceSess
     distanceCm: sess.distanceCm,
     bodyArea: sess.bodyArea,
     bodyAreas: sess.bodyAreas,
+    bodyPlacements: sess.bodyPlacements,
     eyesProtected: sess.eyesProtected,
     mode: sess.mode,
   });
@@ -190,7 +209,9 @@ export function addDeviceFromPresetRecord(data: ProfileData, preset: LightDevice
     mwPerCm2At15cm: overrides.mwPerCm2At15cm ?? preset.mwPerCm2At15cm ?? null,
     lux: overrides.lux ?? preset.lux ?? null,
     recommendedDistanceCm: overrides.recommendedDistanceCm ?? preset.recommendedDistanceCm ?? 15,
-    irradianceByDistanceCm: overrides.irradianceByDistanceCm || preset.irradianceByDistanceCm || null,
+    irradianceByDistanceCm: overrides.irradianceByDistanceCm
+      || (overridesBandCalibration(preset, overrides) ? totalIrradianceOnly(preset.irradianceByDistanceCm) : preset.irradianceByDistanceCm)
+      || null,
     distanceModel: overrides.distanceModel || preset.distanceModel || 'reference-only',
     melanopicDER: overrides.melanopicDER ?? preset.melanopicDER ?? null,
     melanopicEdiLux: overrides.melanopicEdiLux ?? preset.melanopicEdiLux ?? null,
@@ -256,57 +277,97 @@ export function deleteDevice(data: ProfileData, id: string, now = Date.now()) {
   return true;
 }
 
-export function logDeviceSession(data: ProfileData, { deviceId, durationMin = 0, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '', mode = null }: DeviceSessionInput = {}, { now = Date.now(), id = createUniqueId('devsess_') } = {}) {
+export function logDeviceSession(data: ProfileData, { deviceId, durationMin = 0, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, bodyPlacements, eyesProtected = true, notes = '', mode = null }: DeviceSessionInput = {}, {
+  now = Date.now(), endedAt = now, id = createUniqueId('devsess_'),
+}: { now?: number; endedAt?: number; id?: string } = {}) {
   const device = getDevices(data).find(d => d.id === deviceId);
   if (!device) return null;
   const safeDuration = validDuration(durationMin);
   const safeDistance = validDistance(distanceCm);
-  const safeBodyAreas = normalizedBodyAreas(bodyAreas);
+  if (bodyPlacements != null && !validDeviceBodyPlacements(bodyPlacements)) return null;
+  const placements = bodyPlacements?.map(areas => areas.slice());
+  const safeBodyAreas = normalizedBodyAreas(placements ? placements.flat() : bodyAreas);
   if (safeDuration == null || safeDistance == null) return null;
+  if (!validProgramDuration(device, mode, safeDuration, placements?.length)) return null;
   if (Array.isArray(bodyAreas) && (!safeBodyAreas || safeBodyAreas.length === 0)) return null;
   const safeBodyArea = VALID_BROAD_AREAS.has(bodyArea) ? bodyArea : 'targeted';
   const seconds = safeDuration * 60;
-  const computed = computeDeviceSessionDoses({
-    device,
-    durationMin: safeDuration,
-    distanceCm: safeDistance,
-    bodyArea: safeBodyArea,
-    bodyAreas: safeBodyAreas,
-    eyesProtected: !!eyesProtected,
-    mode,
-  });
-
   const session: DeviceSessionRecord = {
     id,
     deviceId,
-    startedAt: now - seconds * 1000,
-    endedAt: now,
+    startedAt: endedAt - seconds * 1000,
+    endedAt,
     durationMin: safeDuration,
     distanceCm: safeDistance,
     bodyArea: safeBodyArea,
     // bodyAreas[] is the precise-region field; bodyArea remains as a
     // denormalized broad-zone hint for legacy readers + listing rows.
     bodyAreas: safeBodyAreas,
+    ...(placements ? { bodyPlacements: placements } : {}),
     eyesProtected: !!eyesProtected,
     fitzpatrick: data?.sunDefaults?.fitzpatrick || null,
-    mode: computed.mode,
+    mode,
     deviceSnapshot: deviceSnapshot(device),
     notes: String(notes || '').slice(0, 2000),
   };
-  applyComputedSessionFields(session, computed);
+  applyComputedSessionFields(session, computeRecordedSessionDoses(device, session, safeDuration));
   getDeviceSessions(data).push(session);
   // Remember user params for the next log dialog. Notes intentionally stay
   // per-session and are not carried forward.
-  device.lastSession = { durationMin: safeDuration, distanceCm: safeDistance, bodyArea: safeBodyArea, bodyAreas: session.bodyAreas, eyesProtected: !!eyesProtected, mode: computed.mode };
-  device.updatedAt = now;
+  device.lastSession = { durationMin: safeDuration, distanceCm: safeDistance, bodyArea: safeBodyArea, bodyAreas: session.bodyAreas,
+    ...(session.bodyPlacements ? { bodyPlacements: session.bodyPlacements } : {}), eyesProtected: !!eyesProtected, mode: session.mode };
+  device.updatedAt = Math.max(now, (device.updatedAt || 0) + 1);
   return session;
+}
+
+export const MAX_DEVICE_RANGE_DAYS = 366;
+
+function localCalendarKey(timestamp: number) {
+  const date = new Date(timestamp);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export function logDeviceSessionRange(data: ProfileData, input: DeviceSessionInput, range: DeviceSessionDateRange, now = Date.now()) {
+  const { startDate, endDate, startTime } = range;
+  if (![startDate, endDate].every(date => /^\d{4}-\d{2}-\d{2}$/.test(date)) || !/^\d{2}:\d{2}$/.test(startTime)) return null;
+  const first = Date.parse(`${startDate}T00:00:00Z`), last = Date.parse(`${endDate}T00:00:00Z`);
+  const count = (last - first) / 86400000 + 1;
+  const duration = validDuration(input.durationMin);
+  const device = getDevices(data).find(candidate => candidate.id === input.deviceId);
+  if (!device || duration === null || duration <= 0 || !Number.isInteger(count) || count < 1 || count > MAX_DEVICE_RANGE_DAYS) return null;
+  if (new Date(first).toISOString().slice(0, 10) !== startDate || new Date(last).toISOString().slice(0, 10) !== endDate) return null;
+  const mode = resolveDeviceMode(device, input.mode);
+  const existing = new Set(getDeviceSessions(data)
+    .filter(session => session.deviceId === device.id && session.endedAt && session.mode === mode)
+    .map(session => localCalendarKey(session.startedAt)));
+  const starts: number[] = [];
+  for (let index = 0; index < count; index++) {
+    // Step calendar labels independently of daylight saving, then resolve
+    // the reported local clock time anew on each date.
+    const date = new Date(first + index * 86400000).toISOString().slice(0, 10);
+    const start = new Date(`${date}T${startTime}`);
+    const end = start.getTime() + duration * 60000;
+    if (!Number.isFinite(end) || start.getTime() < 0 || end > now || localCalendarKey(end) !== date
+      || start.toTimeString().slice(0, 5) !== startTime) return null;
+    if (!existing.has(date)) starts.push(start.getTime());
+  }
+  if (!starts.length) return { saved: 0, skipped: count };
+  const session = logDeviceSession(data, input, { now, endedAt: starts[0]! + duration * 60000 });
+  if (!session) return null;
+  session.updatedAt = now;
+  for (const startedAt of starts.slice(1)) {
+    const record = structuredClone(session);
+    getDeviceSessions(data).push({ ...record, id: createUniqueId('devsess_'), startedAt, endedAt: startedAt + duration * 60000 });
+  }
+  return { saved: starts.length, skipped: count - starts.length };
 }
 
 export function getActiveDeviceSession(data: ProfileData) {
   return getDeviceSessions(data).find(s => !s.endedAt) || null;
 }
 
-export function startDeviceSession(data: ProfileData, { deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true, mode = null }: Omit<DeviceSessionInput, 'durationMin' | 'notes'> = {}, { now = Date.now(), id = createUniqueId('devsess_') } = {}) {
+export function startDeviceSession(data: ProfileData, { deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true, mode = null }: Omit<DeviceSessionInput, 'durationMin' | 'notes' | 'bodyPlacements'> = {}, { now = Date.now(), id = createUniqueId('devsess_') } = {}) {
   // Reject a second active timer - one session at a time keeps the
   // active-card UI unambiguous and matches sun-session semantics.
   if (getActiveDeviceSession(data)) return null;
@@ -315,6 +376,7 @@ export function startDeviceSession(data: ProfileData, { deviceId, distanceCm = 1
   const safeDistance = validDistance(distanceCm);
   const safeBodyAreas = normalizedBodyAreas(bodyAreas);
   if (safeDistance == null) return null;
+  if (deviceProgramMinutes(device, resolveDeviceMode(device, mode)) !== null) return null;
   if (Array.isArray(bodyAreas) && (!safeBodyAreas || safeBodyAreas.length === 0)) return null;
   const safeBodyArea = VALID_BROAD_AREAS.has(bodyArea) ? bodyArea : 'targeted';
   const resolvedMode = resolveDeviceMode(device, mode);
@@ -383,8 +445,23 @@ export function updateDeviceSession(data: ProfileData, id: string, patch: Record
   if (!sess) return null;
   if (sess.editHistory != null && !Array.isArray(sess.editHistory)) return null;
   const original = structuredClone(sess);
-  const editable = ['startedAt', 'durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'notes', 'mode'];
+  const editable = ['startedAt', 'durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'bodyPlacements', 'eyesProtected', 'notes', 'mode'];
   const normalizedPatch: Record<string, unknown> = { ...patch };
+  if (sess.bodyPlacements?.length && ('bodyArea' in patch || 'bodyAreas' in patch)) return null;
+  if ('bodyPlacements' in patch) {
+    const placements = patch.bodyPlacements;
+    const recorded = sess.bodyPlacements;
+    if (!sess.endedAt || !validDeviceBodyPlacements(placements) || !validDeviceBodyPlacements(recorded) || recorded.length !== placements.length) return null;
+    const changed = placements.some((areas, index) => {
+      const before = recorded[index]!;
+      return before.length !== areas.length || areas.some(area => !before.includes(area));
+    });
+    if (changed) {
+      normalizedPatch.bodyPlacements = placements.map(areas => areas.slice());
+      normalizedPatch.bodyAreas = [...new Set(placements.flat())];
+      normalizedPatch.bodyArea = 'targeted';
+    } else delete normalizedPatch.bodyPlacements;
+  }
   if ('durationMin' in normalizedPatch) {
     const duration = validDuration(normalizedPatch.durationMin);
     if (duration == null) return null;
@@ -404,6 +481,9 @@ export function updateDeviceSession(data: ProfileData, id: string, patch: Record
   if ('eyesProtected' in normalizedPatch) normalizedPatch.eyesProtected = !!normalizedPatch.eyesProtected;
   if ('notes' in normalizedPatch) normalizedPatch.notes = String(normalizedPatch.notes || '').slice(0, 2000);
   if ('startedAt' in normalizedPatch && (typeof normalizedPatch.startedAt !== 'number' || !Number.isSafeInteger(normalizedPatch.startedAt) || normalizedPatch.startedAt < 0)) return null;
+  const device = sessionDevice(data, sess);
+  const nextMode = 'mode' in normalizedPatch ? normalizedPatch.mode as string | null : sess.mode;
+  if (!validProgramDuration(device, nextMode, Number(normalizedPatch.durationMin ?? sess.durationMin ?? 0), sess.bodyPlacements?.length)) return null;
   let needsRecompute = false;
   for (const k of editable) {
     if (k in normalizedPatch && normalizedPatch[k] !== sess[k]) {
@@ -427,13 +507,15 @@ export function updateDeviceSession(data: ProfileData, id: string, patch: Record
         }
       }
       sess[k] = normalizedPatch[k];
-      if (['startedAt', 'durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'mode'].includes(k)) needsRecompute = true;
+      if (k !== 'notes') needsRecompute = true;
     }
   }
   // Re-derive endedAt + dose if duration changed so stored duration and
   // channel doses cannot drift.
   if (needsRecompute && sess.endedAt && Number.isFinite(sess.durationMin)) {
-    sess.endedAt = sess.startedAt + sess.durationMin! * 60 * 1000;
+    if (!('bodyPlacements' in normalizedPatch) || 'startedAt' in normalizedPatch || 'durationMin' in normalizedPatch) {
+      sess.endedAt = sess.startedAt + sess.durationMin! * 60 * 1000;
+    }
     const liveDevice = getDevices(data).find(device => device.id === sess.deviceId) || null;
     if (liveDevice) sess.deviceSnapshot = deviceSnapshot(liveDevice);
     const device = liveDevice || sess.deviceSnapshot || null;
@@ -582,7 +664,18 @@ export function updateDeviceRecord(data: ProfileData, id: string, patch: CustomD
   if (!temporary) return null;
   getDevices(data).pop();
   const allowed = ['brand', 'model', 'notes', 'specSourceUrl', ...LIGHT_DEVICE_SPEC_FIELDS];
+  if (modeled) {
+    for (const mode of temporary.modes ?? []) {
+      const originalMode = before.modes?.find(candidate => candidate.id === mode.id);
+      if (originalMode?.phases) mode.phases = originalMode.phases;
+    }
+    if (temporary.modes?.some(mode => mode.phases && deviceProgramMinutes(temporary, mode.id) === null)) return null;
+  }
   for (const key of allowed) if (Object.hasOwn(patch, key)) device[key] = patch[key as keyof CustomDeviceInput] === null ? null : temporary[key];
+  if (overridesBandCalibration(before, patch) && !Object.hasOwn(patch, 'irradianceByDistanceCm')
+    && Array.isArray(before.irradianceByDistanceCm) && before.irradianceByDistanceCm.some(row => row?.peakMwPerCm2)) {
+    device.irradianceByDistanceCm = totalIrradianceOnly(before.irradianceByDistanceCm);
+  }
   if (Object.hasOwn(patch, 'peakWavelengths') || Object.hasOwn(patch, 'type')) device.channels = temporary.channels ?? null;
   if (Object.hasOwn(patch, 'peakWavelengths') || Object.hasOwn(patch, 'peakShares')) { device.peakShares = temporary.peakShares ?? null; if (input.peakShares === null && !Object.hasOwn(patch, 'peakShareBasis')) device.peakShareBasis = null; }
   if (allowed.every(key => JSON.stringify(before[key] ?? null) === JSON.stringify(device[key] ?? null))) return device;
@@ -593,7 +686,8 @@ export function updateDeviceRecord(data: ProfileData, id: string, patch: CustomD
   if (modeled) for (const session of sessions) {
     const original = structuredClone(session);
     session.deviceSnapshot = deviceSnapshot(device);
-    if (Array.isArray(device.modes) && device.modes.length && (!device.modes.some(mode => mode.id === session.mode) || !validateModeCoupling(device, session.mode || '').ok)) {
+    const lostProgram = deviceProgramMinutes(before, session.mode) !== null && deviceProgramMinutes(device, session.mode) === null;
+    if (lostProgram || Array.isArray(device.modes) && device.modes.length && (!device.modes.some(mode => mode.id === session.mode) || !validateModeCoupling(device, session.mode || '').ok)) {
       session.doses = null; session.safety = null; session.metrics = null;
       session.calculation = { status: 'mode-unavailable', warnings: ['The recorded mode is unavailable under the corrected device specification.'] };
       session.calculationStatus = 'mode-unavailable'; delete session.aiAnalysis;

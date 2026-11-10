@@ -36,6 +36,7 @@ import { CHANNEL_DISPLAY } from './sun.js';
 import { BODY_REGIONS, bindBodySilhouette, projectBodySilhouette } from './sun-body-silhouette.js';
 import { validateModeCoupling } from './sun-spectrum.js';
 import { deviceEmitsUV } from './light-device-session-engine.js';
+import { validDeviceBodyPlacements } from './light-device-fields.js';
 import { reopenSunSetup } from './sun-defaults.js';
 import {
   addCustomDevice,
@@ -47,6 +48,7 @@ import {
   getDevices,
   hydrateDevicesFromPresetRecords,
   logDeviceSession,
+  logDeviceSessionRange,
   rehydrateStaleDeviceSessions,
   rollingDeviceTotals,
   startDeviceSession,
@@ -127,6 +129,8 @@ configureLightDeviceModalLoader({
     hydrateDevicesFromPresets,
     getDevices,
     logDeviceSession,
+    logDeviceSessionRange,
+    updateDeviceSession,
     getActiveDeviceSession,
     startDeviceSession,
     ensureActiveDeviceTicker,
@@ -378,7 +382,12 @@ export function openDeviceSessionDetail(id?: string): HTMLElement | undefined {
       detailField('Source', devName, 'Recorded source')],
     setup: [detailField('Device', devName + (typeLabel !== '—' ? ` · ${typeLabel}` : '')),
       ...(modeLabel ? [detailField('Mode', modeLabel)] : []), detailField('Distance', distanceStr),
-      detailField('Body area', areaLabel), detailField('Eyes', eyesLabel)],
+      detailField('Body area', areaLabel),
+      ...(sess.bodyPlacements || []).map((regions, index) => detailField(
+        `Placement ${index + 1} · ${Number(((sess.durationMin || 0) / sess.bodyPlacements!.length).toFixed(2))} min`,
+        regions.map(key => BODY_REGIONS.find(region => region.key === key)?.label || key).join(', '),
+      )),
+      detailField('Eyes', eyesLabel)],
     notices: deviceDetailNotices(sess), calculation: null, channels: channelRows,
     channelsEmpty: 'No modeled light signals are available for this session.',
     signalsDescription: 'Estimated stimulation from the recorded device setup. These are not universal dose targets.',
@@ -390,7 +399,7 @@ export function openDeviceSessionDetail(id?: string): HTMLElement | undefined {
       ...(modeLabel ? [detailField('Mode', modeLabel)] : [])] : [],
     inputsEmpty: 'The device specification is unavailable.', location: null,
     sourceUrl: device ? _safeHttpUrl(device.specSourceUrl) || '' : '', notes: sess.notes || '',
-    canEditDuration: true, canEditMode,
+    canEditDuration: true, canEditMode, canEditPlacements: !!device && !!sess.endedAt && validDeviceBodyPlacements(sess.bodyPlacements),
   } });
   _wireModal(overlay, closeDialog);
   overlay.addEventListener('click', (event) => {
@@ -415,6 +424,22 @@ export function openDeviceSessionDetail(id?: string): HTMLElement | undefined {
     if (target.closest('#device-detail-edit-mode')) {
       closeDialog();
       editDeviceSessionMode(sess.id);
+      return;
+    }
+    if (target.closest('#device-detail-edit-placements')) {
+      const owner = captureDeviceEditOwner(sess.id);
+      closeDialog();
+      void openDeviceSessionDialog(sess.deviceId, {
+        isCurrent: owner.unchanged,
+        editPlacements: {
+          session: sess,
+          onSaved: () => {
+            if (!owner.current()) return;
+            refreshLightDevicesView();
+            openDeviceSessionDetail(sess.id);
+          },
+        },
+      });
       return;
     }
     if (target.closest('#device-detail-delete')) {

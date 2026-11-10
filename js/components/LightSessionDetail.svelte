@@ -84,6 +84,7 @@
     <div class="modal-actions gb:light-detail:mt-[18px] gb:light-detail:flex gb:light-detail:flex-wrap gb:light-detail:gap-2">
       {#if view.canEditDuration}<button type="button" class={action} id={view.kind === 'device' ? 'device-detail-edit-duration' : undefined} data-sun-session-action={view.kind === 'sun' ? 'edit-duration' : undefined} data-sun-session-id={view.kind === 'sun' ? view.id : undefined} title={view.kind === 'sun' ? 'Override the session duration. Use when a re-end on a second device set it wrong, or you forgot to stop on time.' : 'Override the session duration. Use when you forgot to stop the timer or stopped late.'}>Edit duration</button>{/if}
       {#if view.canEditMode}<button type="button" class={action} id="device-detail-edit-mode" title="Change which LED-group mode the session ran in. Doses recompute on save.">Edit mode</button>{/if}
+      {#if view.canEditPlacements}<button type="button" class={action} id="device-detail-edit-placements">Edit placements</button>{/if}
       <button type="button" class={`${action} gb:light-detail:border-danger gb:light-detail:text-danger-ink`} id={view.kind === 'device' ? 'device-detail-delete' : undefined} data-sun-session-action={view.kind === 'sun' ? 'delete-session' : undefined} data-sun-session-id={view.kind === 'sun' ? view.id : undefined} data-sun-session-close-modal={view.kind === 'sun' ? 'true' : undefined}>Delete session</button>
     </div>
   </div>

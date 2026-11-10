@@ -37,7 +37,7 @@ export function deviceDetailNotices(session: DeviceSessionRecord): SessionDetail
   if (safety?.hasUV) {
     const modeled = (safety.uvDoseStatus === 'modeled' || safety.uvDoseStatus == null) && Number.isFinite(safety.erythemalSED);
     const summary = modeled
-      ? `Local erythemal dose: ${Number(safety.erythemalSED).toFixed(2)} SED${Number.isFinite(safety.conservativeBaseMedFraction) ? ` · ${Math.round(Number(safety.conservativeBaseMedFraction) * 100)}% of a conservative Type I base MED` : ''}${Number(safety.ocularActinicUV) > 0 ? ` · ocular actinic UV: ${Number(safety.ocularActinicUV).toFixed(1)} J/m²` : ''}${Number(safety.ocularUvaJPerM2) > 0 ? ` · ocular UVA: ${Number(safety.ocularUvaJPerM2).toFixed(1)} J/m²` : ''}. This is a model, not a personal threshold.`
+      ? `${session.bodyPlacements?.length ? 'Highest local' : 'Local'} erythemal dose: ${Number(safety.erythemalSED).toFixed(2)} SED${Number.isFinite(safety.conservativeBaseMedFraction) ? ` · ${Math.round(Number(safety.conservativeBaseMedFraction) * 100)}% of a conservative Type I base MED` : ''}${Number(safety.ocularActinicUV) > 0 ? ` · ocular actinic UV: ${Number(safety.ocularActinicUV).toFixed(1)} J/m²` : ''}${Number(safety.ocularUvaJPerM2) > 0 ? ` · ocular UVA: ${Number(safety.ocularUvaJPerM2).toFixed(1)} J/m²` : ''}. This is a model, not a personal threshold.`
       : 'UV was emitted, but the spectral output, band split, or distance basis is insufficient for a defensible number. Burn dose, ocular dose, and vitamin-D output are not calculated.';
     notices.push({ title: safety.unsafeEyeExposure ? '⚠ UV eye protection was not recorded' : modeled ? 'UV dose model' : 'UV dose unavailable',
       text: `${summary} Closed eyelids are not UV protection.`, danger: !!safety.unsafeEyeExposure });
@@ -93,4 +93,5 @@ export interface SessionDetailView {
   readonly notes: string;
   readonly canEditDuration: boolean;
   readonly canEditMode: boolean;
+  readonly canEditPlacements?: boolean;
 }
