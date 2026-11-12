@@ -14,13 +14,13 @@ it('gives exactly 30 days and retains recovery at the boundary and afterward', (
   for (const now of [cutoff, cutoff+365*24*60*60*1000]) expect(getHostedTransition('https://app.getbased.health', now, policy)?.phase).toBe('recovery');
 });
 it('does not apply the official hosted cutoff to independent self-hosted origins', () => {
-  for (const origin of ['http://127.0.0.1:8000','http://localhost:8000','https://your-host.example','https://host.tailnet.ts.net','https://app.getbased.health.example','https://demo.getbased.health']) {
+  for (const origin of ['http://127.0.0.1:8000','http://localhost:8000','https://your-host.example','https://host.tailnet.ts.net','https://app.getbased.health.example','https://demo.getbased.health', 'http://independent.onion']) {
     expect(getHostedTransition(origin, Date.parse(policy.announcedAt)+365*24*60*60*1000, policy)).toBeNull();
   }
 });
 
 it('covers canonical public aliases without allowing a spelling or port bypass', () => {
   const now = Date.parse(policy.announcedAt) + 31*24*60*60*1000;
-  for (const origin of ['https://get-based.vercel.app', 'https://APP.GETBASED.HEALTH:443', 'https://app.getbased.health.']) expect(getHostedTransition(origin, now, policy)?.phase).toBe('recovery');
+  for (const origin of ['https://get-based.vercel.app', 'https://APP.GETBASED.HEALTH:443', 'https://app.getbased.health.', 'http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion']) expect(getHostedTransition(origin, now, policy)?.phase).toBe('recovery');
   for (const origin of ['', 'null', 'https://app.getbased.health.example', 'https://app.getbased.health:8443']) expect(getHostedTransition(origin, now, policy)).toBeNull();
 });

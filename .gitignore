@@ -4169,3 +4169,8 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /js/components/HostedTransitionBanner.svelte.native.js
 
 /lib/hosted-transition.js
+
+/js/readonly-demo-entry.js
+/js/readonly-demo-model.js
+/scripts/build-readonly-demo.mjs
+/scripts/readonly-demo-data.mjs

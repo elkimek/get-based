@@ -1988,3 +1988,15 @@ before reading a request body or contacting an upstream. The encrypted Sync rela
 is separate and remains available during migration. Cached older software cannot
 be remotely erased or revoked; recovery and original browser records are retained.
 The demo must use a separate origin and contain only fictional, read-only data.
+
+
+## Isolated public demo
+
+`readonly-demo-entry.ts` mounts `ReadonlyDemo.svelte` using the dedicated
+`build-readonly-demo.mts` artifact. Its build-only fixture projection accepts
+only committed fictional demo records. The artifact includes one Svelte bundle,
+local styles and fonts; it excludes the application, APIs and service worker.
+Lens and sample-profile controls change component state only. It has no personal
+input, persistence, provider connections or network requests. Its CSP forbids
+connections and form submission. Deploy this artifact to its own origin; the
+existing application origin retains migration and recovery access.

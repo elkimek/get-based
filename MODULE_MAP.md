@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2119 |
-| Internal import edges | 7109 |
+| Modules | 2122 |
+| Internal import edges | 7111 |
 | Dynamic internal edges | 218 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -4417,9 +4417,17 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>readonly</code> family — 1 module</summary>
+<details><summary><code>readonly</code> family — 3 modules</summary>
 
+- [`js/readonly-demo-entry.ts`](js/readonly-demo-entry.ts) → [`js/components/ReadonlyDemo.svelte`](js/components/ReadonlyDemo.svelte)
+- [`js/readonly-demo-model.ts`](js/readonly-demo-model.ts) → no in-scope imports
 - [`js/readonly-history-surfaces.ts`](js/readonly-history-surfaces.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>ReadonlyDemo.svelte</code> family — 1 module</summary>
+
+- [`js/components/ReadonlyDemo.svelte`](js/components/ReadonlyDemo.svelte) → [`js/readonly-demo-model.ts`](js/readonly-demo-model.ts)
 
 </details>
 
