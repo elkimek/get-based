@@ -87,6 +87,17 @@ export async function createSelfHostServer(options: {
 }
 
 async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (args.length === 1 && ['--help', '-h'].includes(args[0]!)) {
+    console.log('Usage: getbased [--help | --version]\nStarts the production app at http://127.0.0.1:8000/app.\nKeep this terminal running. Press Ctrl+C to stop.\nFor private HTTPS: tailscale serve --bg http://127.0.0.1:8000\nChoose the HTTPS address before restoring browser data.\nSet GETBASED_SELF_HOST_PORT to use another fixed port.'); return;
+  }
+  if (args.length === 1 && ['--version', '-v'].includes(args[0]!)) {
+    const manifest = JSON.parse(await fs.readFile(path.join(ROOT, 'package.json'), 'utf8')) as {version: string};
+    console.log(manifest.version); return;
+  }
+  if (args.length) throw new Error('Unknown option. Run getbased --help.');
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  if (major !== 24 || minor! < 20) throw new Error('getbased requires Node.js 24.20 or later within version 24.');
   const port = selfHostPort(process.env.GETBASED_SELF_HOST_PORT);
   let server: http.Server;
   try { server = await createSelfHostServer(); }

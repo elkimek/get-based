@@ -73,7 +73,9 @@
     "preperformance:check": "npm run typescript:build",
     "preperformance:native:check": "npm run typescript:build",
     "preself-host": "npm run typescript:build",
-    "self-host": "node server/self-host-server.js"
+    "self-host": "node server/self-host-server.js",
+    "self-host:package": "node scripts/build-self-host-package.mjs",
+    "preself-host:package": "npm run typescript:build"
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.11.0",

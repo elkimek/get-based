@@ -4128,3 +4128,35 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 
 # Self-host server runtime output
 /server/self-host-server.js
+
+# Portable migration runtime output
+/js/migration-entry.js
+/js/migration-view.js
+/js/migration-archive.js
+/js/migration-restore.js
+/js/migration-database.js
+/js/migration-files.js
+/js/migration-portable.js
+/js/migration-codec.js
+/js/migration-crypto.js
+/js/migration-clients.js
+/js/migration-navigation.js
+/js/profile-defaults.js
+/js/components/MigrationRecovery.svelte.native.js
+/tests/helpers/migration-memory.js
+
+/js/structured-value-codec.js
+/js/storage-object-codec.js
+
+/js/migration-snapshots.js
+
+
+/js/sync-delta-reset.js
+
+/scripts/build-self-host-package.mjs
+
+/js/migration-digest.js
+
+/scripts/static-raw-encoding.mjs
+
+/scripts/self-host-install-smoke.mjs

@@ -19,6 +19,7 @@ export class ChatAttachmentDrafts {
   hasWork(key: string): boolean {
     const draft = this.drafts.get(key); return !!draft && (draft.attachments.length > 0 || draft.reservations.size > 0);
   }
+  hasAnyWork(): boolean {return [...this.drafts.values()].some(draft => draft.attachments.length > 0 || draft.reservations.size > 0);}
   delete(key: string): void { this.drafts.delete(key); }
   replace(key: string, attachments: ChatAttachment[]): void {
     this.drafts.set(key, { attachments, reservations: new Map() });

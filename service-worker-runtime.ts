@@ -434,6 +434,12 @@ function installServiceWorkerRuntime({
   scope.addEventListener('message', (event) => {
     const data = event.data as { type?: unknown; buildId?: unknown } | null | undefined;
     const source = event.source;
+    if (data?.type === 'MIGRATION_CLIENT_CENSUS' && isSameOriginMessage(event) && event.ports?.[0]) {
+      const port = event.ports[0];
+      event.waitUntil(scope.clients.matchAll({type: 'window', includeUncontrolled: true})
+        .then(clients => { port.postMessage({type: 'MIGRATION_CLIENT_CENSUS', windows: clients.length}); }));
+      return;
+    }
     if (data?.type === 'SKIP_WAITING' && isSameOriginMessage(event)) {
       if (!isProduction || !buildId) { void scope.skipWaiting(); return; }
       event.waitUntil((async () => {
@@ -619,7 +625,8 @@ function installServiceWorkerRuntime({
     if (event.request.mode === 'navigate') {
       if (!isProduction) {
         event.respondWith(
-          fetchAndCache(event.request, event).catch(() => ownedNavigationShell()) as Promise<Response>
+          fetchAndCache(event.request, event).catch(async () => (url.pathname === '/app/migration.html'
+            ? await matchCurrentCache('/app/migration.html') : undefined) || ownedNavigationShell()) as Promise<Response>
         );
         return;
       }
@@ -628,9 +635,10 @@ function installServiceWorkerRuntime({
         // A fresh deployment's HTML is not evidence for this worker's build.
         // Never promote unproven network documents into its owned app cache.
         const fetchNavigation = () => buildId ? fetch(event.request) : fetchAndCache(event.request, event);
-        const cached = await matchCurrentCache(event.request);
+        const cached = (await matchCurrentCache(event.request))
+          || (url.pathname === '/app/migration.html' ? await matchCurrentCache('/app/migration.html') : undefined);
         if (cached) {
-          if (appDocument && cached.status === 200 && buildId && event.resultingClientId
+          if ((appDocument || url.pathname === '/app/migration.html') && cached.status === 200 && buildId && event.resultingClientId
             && await resolveCacheName() === `labcharts-vbuild-${buildId}`) {
             clientBuilds.set(event.resultingClientId, buildId);
           }

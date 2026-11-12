@@ -1,3 +1,4 @@
+import {verifyStaticRawModule} from '../scripts/static-raw-encoding.mjs';
 import assert from 'node:assert/strict';
 import {STARTUP_DATA_MODULES} from '../scripts/startup-data-chunks.mjs';
 import {createHash} from 'node:crypto';
@@ -120,6 +121,7 @@ beforeAll(async () => {
       assert.equal(createHash('sha256').update(await fs.readFile(supplied)).digest('hex'), encoding[1], 'Exact complete compact encoding: ' + url);
       continue;
     }
+    if (rawAssets.has(url)) {await verifyStaticRawModule(url, canonical.toString(), await fs.readFile(supplied, 'utf8')); continue;}
     let expected = canonical;
     if (url.startsWith('/data/') && url.endsWith('.json')) {
       // Independent character scan, separate from the producer's regex.

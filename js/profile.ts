@@ -1,3 +1,5 @@
+import { createDefaultProfileData } from './profile-defaults.js';
+export { createDefaultProfileData } from './profile-defaults.js';
 import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 import { rememberProfileData, profileDataValuesEqual } from './profile-data-writes.js';
 import { configureProfileSelectionOwner } from './profile-selection-runtime.js';
@@ -31,7 +33,7 @@ import {
 } from './profile-sync-policy.js';
 export { migrateProfileData, profileStorageKey };
 import type { Biometrics } from '../types/profile-context-data.js';
-import type { ProfileData, NormalizedProfileData } from '../types/app-state.js';
+import type { ProfileData } from '../types/app-state.js';
 import type { StoredProfileRecord, ProfileListStoreDeps } from './profile-list-store.js';
 
 interface ProfileDeps {
@@ -195,50 +197,6 @@ function _normalizeProfileId(id: unknown): string {
   return String(id || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 128);
 }
 
-export function createDefaultProfileData(): NormalizedProfileData {
-  return {
-    entries: [],
-    notes: [],
-    supplements: [],
-    healthGoals: [],
-    diagnoses: null,
-    diet: null,
-    exercise: null,
-    sleepRest: null,
-    lightCircadian: null,
-    stress: null,
-    loveLife: null,
-    environment: null,
-    interpretiveLens: '',
-    contextNotes: '',
-    menstrualCycle: null,
-    emfAssessment: null,
-    genetics: null,
-    customMarkers: {},
-    markerPlacements: {},
-    markerNotes: {},
-    markerValueNotes: {},
-    biologyScoreAI: {},
-    contextSourceSettings: {},
-    nutritionContextDays: 30,
-    nutritionTargets: null,
-    nutritionMeals: [],
-    changeHistory: [],
-    importSnapshots: [],
-    biometrics: null,
-    manualValues: {},
-    manualMetricTombstones: {},
-    sunSessions: [],
-    deviceSessions: [],
-    lightDevices: [],
-    lightEnvironment: null,
-    lightMeasurements: [],
-    lightAudits: [],
-    sunCorrelations: null,
-    lifelightProfile: null,
-    sunDefaults: null
-  };
-}
 
 function queueProfileSync(profileId: string, importedData: ProfileData | null = null) {
   queueEligibleProfileSync(profileId, getProfiles(), importedData, profileDeps);

@@ -4,6 +4,7 @@
   let { children }: { children: Snippet } = $props();
   let failed = $state(false);
   onMount(() => {
+    if (localStorage.getItem('labcharts-migration-pending')) { location.replace('/app/migration.html'); return; }
     // Shared domain services initialize after the route's components hydrate.
     document.documentElement.dataset.shellFramework = 'sveltekit';
     void import('../../../main.js').catch(() => { failed = true; });

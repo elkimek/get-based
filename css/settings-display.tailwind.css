@@ -8,6 +8,7 @@
 @source "../js/components/AiSettings.svelte";
 @source "../js/components/AutoImportFeedSettings.svelte";
 @source "../js/components/BackupSettings.svelte";
+@source "../js/components/MigrationRecovery.svelte";
 @source "../js/components/CliAgentModels.svelte";
 @source "../js/components/CliAgentSettings.svelte";
 @source "../js/components/CustomSettings.svelte";

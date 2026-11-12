@@ -9,6 +9,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/dashboard-composition-loader.js',
   '/js/dashboard-light-widget-presentation.js', '/js/components/DashboardLightWidgetBody.svelte.html.js', '/version.js', '/service-worker-runtime.js',
   '/service-worker-assets.js', '/shared/agent-host-protocol.js', '/shared/agent-tool-contract.js', '/index.html',
+  '/js/migration-navigation.js', '/js/migration-view.js', '/js/migration-archive.js', '/js/migration-restore.js', '/js/migration-database.js', '/js/migration-files.js', '/js/migration-portable.js', '/js/migration-codec.js', '/js/structured-value-codec.js', '/js/storage-object-codec.js', '/js/migration-crypto.js', '/js/migration-clients.js', '/js/profile-defaults.js', '/js/components/MigrationRecovery.svelte.native.js',
+  '/app/migration.html', '/js/sync-delta-reset.js', '/js/migration-digest.js', '/js/migration-snapshots.js', '/js/migration-entry.js',
   '/app', '/styles.css', '/css/app-shell.css', '/css/import.css',
   '/css/emf.css', '/css/modal-shared.css', '/css/dashboard-core.css', '/css/dashboard-widgets.css',
   '/css/dashboard-welcome.css', '/css/dashboard-data.css', '/css/category-views.css', '/css/context-profile.css',
