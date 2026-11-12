@@ -110,6 +110,7 @@ async function apply(page: Page, encrypted: boolean) {
   if (encrypted) await page.locator('#migration-import-original').fill(appPassword);
   await page.getByRole('checkbox').check();
   await page.getByRole('button', {name: 'Restore migration file', exact: true}).click();
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false', {timeout: 30000});
 }
 for (const encrypted of [false, true]) test('migration recovers ' + (encrypted ? 'passphrase and browser protected' : 'browser protected') + ' data through the standalone UI', async ({page, browser}) => {
   test.setTimeout(120000);
