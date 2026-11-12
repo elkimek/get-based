@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {expect,test,type Page} from '@playwright/test';
 import {createDefaultProfileData,migrateProfileData} from '../../js/profile.js';
+import {verifyStaticRawModule} from '../../scripts/static-raw-encoding.mjs';
 import {productionRawModuleAssets} from '../../scripts/build-production.mjs';
 import {startKitServer} from './kit-release-server.js';
 import {artifactInputs,cacheReceipt,profile,activate} from './kit-native-receipts.js';
@@ -56,7 +57,7 @@ test('static startup banner first construction offline and two zero-page cold la
   for(const name of [...analytics,...updates])expect(nativeDeclarations).toContain("'/"+name+"'");
   // Original architecture retains the Update entry and its exact static-import graph. No five-raw/five-bundle guess.
   const requiredRaw=['/js/service-worker-update.js',...updates.map(name=>'/'+name)];
-  for(const name of requiredRaw){expect(rawAssets.has(name)).toBe(true);expect(await fs.readFile(path.join(artifact.directory,name.slice(1)))).toEqual(await fs.readFile(name.slice(1)));}
+  for(const name of requiredRaw){expect(rawAssets.has(name)).toBe(true);await verifyStaticRawModule(name,await fs.readFile(name.slice(1),'utf8'),await fs.readFile(path.join(artifact.directory,name.slice(1)),'utf8'));}
   for(const name of analytics){const required=rawAssets.has('/'+name);expect(artifact.files.some(row=>row.path==='/'+name)).toBe(required);}
   const worker=await fs.readFile(path.join(artifact.directory,'service-worker.js'),'utf8');
   const shell=JSON.parse(worker.match(/const APP_SHELL = (\[[\s\S]*?\]);/)![1]!) as string[];
