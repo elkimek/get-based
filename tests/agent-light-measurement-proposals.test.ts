@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { createDefaultProfileData, profileStorageKey } from '../js/profile.js';
 import { saveImportedData } from '../js/data.js';
@@ -144,5 +144,8 @@ it('keeps saved checkpoint history visible after the final live room is removed'
   const { renderEnvironmentSection } = await import('../js/light-env.js'); expect(renderEnvironmentSection()).toContain('Light audits');
 });
 
-import { retiredRecordActions } from './helpers/retired-health-record-actions.js';
-retiredRecordActions('lightAudits',['add','update','remove']);
+import { retiredRecordActionCase } from './helpers/retired-health-record-actions.js';
+describe('lightAudits native-only actions', () => {
+  const verify = retiredRecordActionCase('lightAudits');
+  it.each(['add','update','remove'])('keeps lightAudits %s in native UI, including historical proposal replay', verify);
+});

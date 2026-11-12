@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { createProfile, createDefaultProfileData, getProfiles, saveProfiles, profileStorageKey } from '../js/profile.js';
 import { saveImportedData } from '../js/data.js';
@@ -24,8 +24,13 @@ afterEach(async () => {
   state.currentProfile = original.profile; state.importedData = original.data; state.chatHistory = original.history; state.currentThreadId = original.thread; state.profileSex = original.sex; state.noteOverlayMode = original.notes; state.suppOverlayMode = original.supps; state.phaseOverlayMode = original.cycle;
   if (active === null) localStorage.removeItem('labcharts-active-profile'); else localStorage.setItem('labcharts-active-profile', active);
 });
-import { defineRetiredManagement } from './helpers/chat-management-retirement.js';
-defineRetiredManagement('labs.overlays');
+import { retiredManagementCases } from './helpers/chat-management-retirement.js';
+describe('labs.overlays remains native-only', () => {
+  const cases = retiredManagementCases('labs.overlays');
+  it('creates no snapshot or proposal and invokes no injected native handler', cases.noProposal);
+  it.each(['pending','applying','changed','undone','discarded','expired','conflict','unknown'])('cannot execute or grant Undo from a stored %s label', cases.storedLabel);
+  it('does not restore management authority after off/on or a fresh native-looking lease', cases.noAuthority);
+});
 
 it('rolls back a partially failed multi-switch save before publishing cached modes', async () => {
   const writer = Storage.prototype.setItem; vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, name, value) { if (name === profileStorageKey(profile, 'suppOverlay')) throw new Error('No space'); return writer.call(this, name, value); });

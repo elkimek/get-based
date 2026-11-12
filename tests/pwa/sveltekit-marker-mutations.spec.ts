@@ -1,3 +1,4 @@
+import {installControlledOpenRouter} from '../helpers/controlled-openrouter.js';
 import fs from 'node:fs/promises';
 import {expect, test, type Page} from '@playwright/test';
 import {startKitServer} from './kit-release-server.js';
@@ -86,20 +87,20 @@ test('reviewed chat sample cycle edits load offline and preserve independent dra
     { id: 'legacy', evidence: 'My legacy sample was collected at 10:00. Keep all its original cycle details.', patch: { sampleTime: '10:00' } },
   ];
   let stage = 0, round = 0;
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON();
-    if (!body.tools) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] }) }); return; }
+  await installControlledOpenRouter(context, async body => {
+
+    if (!body.tools) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] }) }; }
     let call: AIToolCall | undefined; const change = changes[stage]!;
     if (round === 0) call = { id: 'read-sample', type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'labSamples', recordId: change.id }) } };
     if (round === 1) {
-      const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true); const snapshot = JSON.parse(result.contentItems[0].text);
+      const result = JSON.parse(body.messages.at(-1)!.content); expect(result.success).toBe(true); const snapshot = JSON.parse(result.contentItems[0].text);
       if (stage === 0) expect(snapshot.current.cycle).toEqual({ cycleDay: 14, cyclePhase: 'follicular', cyclePhaseDetail: null, cyclePhaseSource: 'predicted' });
       if (stage === 1) expect(snapshot.current.cycle).toEqual({ cycleDay: 21, cyclePhase: 'luteal', cyclePhaseDetail: 'mid_luteal', cyclePhaseSource: 'recorded' });
       if (stage === 2) expect(snapshot.current.cycle).toEqual({ cycleDay: 'Legacy day unknown', cyclePhase: 'Late luteal', cyclePhaseDetail: 'Legacy detail', cyclePhaseSource: null });
       call = { id: 'draft-sample', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'labSamples', operation: 'update', snapshotId: snapshot.snapshotId, patch: JSON.stringify(change.patch), evidence: change.evidence, reason: 'Explicit sample fact correction.' }) } };
     }
-    if (round === 2) { const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0].text)).toEqual({ draftId: expect.any(String), status: 'pending_user_approval', summary: 'Lab Samples · update' }); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review this sample correction before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    if (round === 2) { const result = JSON.parse(body.messages.at(-1)!.content); expect(result.success).toBe(true); expect(JSON.parse(result.contentItems[0].text)).toEqual({ draftId: expect.any(String), status: 'pending_user_approval', summary: 'Lab Samples · update' }); }
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review this sample correction before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   async function reviewChange() {
     if (await page.locator('#modal-overlay').isVisible()) await closeMarker(page);

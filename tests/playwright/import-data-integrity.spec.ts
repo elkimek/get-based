@@ -10,15 +10,20 @@ test('commit rejects duplicate and blank rows, and preserves custom units across
     commit.configurePdfImportCommitDeps({ maybeShowEncryptionNudge: () => {} });
     (await import('/js/pdf-import-review-runtime.js')).configurePdfImportReviewRuntimeDeps({ buildSidebar: () => {}, navigate: () => {}, updateHeaderDates: () => {} });
     (state as {importedData: unknown}).importedData = { entries: [], customMarkers: {}, importSnapshots: [] };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic lab fixture could not save');
     const glucose = (value: number) => ({ rawName: 'Glucose', value, unit: 'mmol/l', matched: true, mappedKey: 'biochemistry.glucose' });
+    const samples = await import('/js/lab-report-samples.js');
+    const selectSample = () => { const pending = review.getPendingImport()!; const options = samples.importReviewSampleOptions(pending, state.importedData, state.currentProfile).options; if (options.length) samples.chooseImportSample(pending, state.importedData, state.currentProfile, options[0]!.value); };
     const run = async (markers: NonNullable<Parameters<typeof review.showImportPreview>[0]>['markers'], date = '2026-01-01') => {
       review.showImportPreview({ date, fileName: 'synthetic.pdf', markers });
+      selectSample();
       await commit.confirmImport();
     };
     await run([glucose(5), glucose(7)]);
     const duplicateBlocked = state.importedData.entries.length === 0 && !!review.getPendingImport();
     await run([glucose(5)]);
     review.showImportPreview({ date: '2026-01-01', fileName: 'blank.pdf', markers: [glucose(8)] });
+    selectSample();
     const input = document.querySelector<HTMLInputElement>('.import-value-input');
     input!.value = '';
     input!.dispatchEvent(new Event('change', { bubbles: true }));
@@ -49,6 +54,7 @@ test('matched custom marker ranges use the saved unit after import and snapshot 
     (await import('/js/pdf-import-review-runtime.js')).configurePdfImportReviewRuntimeDeps({ buildSidebar: () => {}, navigate: () => {}, updateHeaderDates: () => {} });
     const key = 'auditSpecialty.analyte';
     (state as {importedData: unknown}).importedData = { entries: [], customMarkers: { [key]: { name: 'Analyte', unit: 'mg/l' } }, importSnapshots: [] };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic lab fixture could not save');
     for (const [date, value, unit, refMin, refMax] of [
       ['2026-01-01', 10, 'mg/l', 5, 20], ['2026-02-01', 1, 'g/l', 0.5, 2],
     ] as [string, number, string, number, number][]) {
@@ -73,6 +79,7 @@ test('client round trip preserves entry metadata and bundle merge retains other 
     const { importDataJSON } = await import('/js/export-import.js');
     const original = { date: '2026-01-01', markers: { 'biochemistry.glucose': 5, 'biochemistry.alt': 0.5 }, context: { sampleTime: '08:00', fasting: true, cyclePhase: 'luteal' }, collectionContextSources: { fasting: { snapshotId: 'report', at: 100 } }, deletedMarkers: { 'biochemistry.ast': 150 } };
     (state as {importedData: unknown}).importedData = { entries: [original] };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic lab fixture could not save');
     await data.saveImportedData();
     const exported = await (await import('/js/export.js')).buildClientExportObject(state.currentProfile, false, false);
     await importDataJSON(new File([JSON.stringify(exported)], 'synthetic.json'));
@@ -97,6 +104,7 @@ test('aborted storage transactions reject and failed edits roll back', async ({ 
     const { profileStorageKey } = await import('/js/profile.js');
     const key = profileStorageKey(state.currentProfile, 'imported');
     (state as {importedData: unknown}).importedData = { entries: [{ date: '2026-01-01', markers: { 'biochemistry.glucose': 5 } }] };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic lab fixture could not save');
     await saveImportedData();
     const original = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args) {
@@ -123,6 +131,7 @@ test('failed profile reads retain data and block saves until a successful retry'
     const id = state.currentProfile;
     const key = profileStorageKey(id, 'imported');
     (state as {importedData: unknown}).importedData = { entries: [{ date: '2026-01-01', markers: { 'biochemistry.glucose': 5 } }] };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic lab fixture could not save');
     await saveImportedData();
     const original = IDBObjectStore.prototype.get;
     IDBObjectStore.prototype.get = function (name) {
