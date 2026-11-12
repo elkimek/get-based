@@ -5,7 +5,8 @@ export const HOSTED_TRANSITION_POLICY: Readonly<HostedTransitionPolicy> = Object
   announcedAt: null, announcementUrl: null, demoUrl: null,
 });
 export const HOSTED_NOTICE_DAYS = 30;
-const HOSTED_ORIGINS = new Set(['https://app.getbased.health', 'https://getbased.health', 'https://www.getbased.health', 'https://get-based.vercel.app']);
+const HOSTED_ORIGINS = new Set(['https://app.getbased.health', 'https://getbased.health', 'https://www.getbased.health', 'https://get-based.vercel.app',
+  'http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion']);
 export interface HostedTransition {phase: 'notice' | 'recovery'; announcedAt: number; cutoffAt: number; announcementUrl: string | null; demoUrl: string | null}
 export function getHostedTransition(origin: string, now = Date.now(), policy: Readonly<HostedTransitionPolicy> = HOSTED_TRANSITION_POLICY): HostedTransition | null {
   let canonical: string;

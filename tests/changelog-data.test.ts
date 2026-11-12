@@ -41,12 +41,12 @@ function archiveLiteral(source:string):string {
 }
 // Appending a new release must preserve the previous current entries and the
 // independently qualified 1.22-and-earlier archive; never replace their pins.
-function previousCurrentLiteral(source:string,version:'1.26.0'|'1.25.0'|'1.24.0'|'1.23.0'='1.24.0'):string {
+function previousCurrentLiteral(source:string,version:'1.27.0'|'1.26.0'|'1.25.0'|'1.24.0'|'1.23.0'='1.24.0'):string {
  return withParsedSource(source,'js/changelog-data.ts',file=>{
   const statement=file.statements[2];assert(statement&&ts.isVariableStatement(statement));
   const value=statement.declarationList.declarations[0]?.initializer;
   assert(value&&ts.isArrayLiteralExpression(value));
-  const previous=value.elements[version==='1.26.0'?1:version==='1.25.0'?2:version==='1.24.0'?3:4];assert(previous&&ts.isObjectLiteralExpression(previous));
+  const previous=value.elements[version==='1.27.0'?1:version==='1.26.0'?2:version==='1.25.0'?3:version==='1.24.0'?4:5];assert(previous&&ts.isObjectLiteralExpression(previous));
   const property=previous.properties[0];assert(property&&ts.isPropertyAssignment(property));
   assert(ts.isIdentifier(property.name)&&property.name.text==='version');
   assert(ts.isStringLiteral(property.initializer)&&property.initializer.text===version);
@@ -55,6 +55,11 @@ function previousCurrentLiteral(source:string,version:'1.26.0'|'1.25.0'|'1.24.0'
 }
 function qualifiedOriginalArchive(source:string):string {
  archiveLiteral(source); // Validate the complete current declaration first.
+ const chatUpdates=previousCurrentLiteral(source,'1.27.0');
+ assert.equal(Buffer.byteLength(chatUpdates),473);
+ assert.equal(sha(chatUpdates),'d166083e379a180dcb749abfc4d1b2a4c1bcedeca1feaa4a8b9d365e45dcb7aa');
+ const chatInsertion='  '+chatUpdates+',\n';
+ assert.equal(source.split(chatInsertion).length,2,'Exactly one health updates release entry');
  const baselines=previousCurrentLiteral(source,'1.26.0');
  assert.equal(Buffer.byteLength(baselines),724);
  assert.equal(sha(baselines),'f6a99c4139d274de0644b2c3d6a56012df679aeef4a29828161263ea4bf83fa7');
@@ -75,9 +80,9 @@ function qualifiedOriginalArchive(source:string):string {
  assert.equal(source.split(insertion).length,2,'Exactly one previous release entry');
  const typescriptInsertion='  '+typescript+',\n';
  assert.equal(source.split(typescriptInsertion).length,2,'Exactly one TypeScript release entry');
- return archiveLiteral(source.replace(baselinesInsertion,'').replace(bodyMeasurementsInsertion,'').replace(insertion,'').replace(typescriptInsertion,''));
+ return archiveLiteral(source.replace(chatInsertion,'').replace(baselinesInsertion,'').replace(bodyMeasurementsInsertion,'').replace(insertion,'').replace(typescriptInsertion,''));
 }
-it('keeps previous releases byte-exact beside the new health updates through chat release',()=>{
+it('keeps previous releases byte-exact beside the self-hosted migration release',()=>{
  const baselines=previousCurrentLiteral(dataSource,'1.26.0');
  expect(Buffer.byteLength(baselines)).toBe(724);
  expect(sha(baselines)).toBe('f6a99c4139d274de0644b2c3d6a56012df679aeef4a29828161263ea4bf83fa7');
@@ -92,10 +97,10 @@ it('keeps previous releases byte-exact beside the new health updates through cha
  expect(sha(typescript)).toBe('d5eb37abdea9fd02d4f6518c230143c75367a4de877a5a9c68aad3ffb81bdd1a');
  const versionSource=readFileSync('version.ts','utf8');
  expect(versionSource.match(/self\.APP_VERSION = '([^']+)';/)?.[1]).toBe(CURRENT_RELEASE.version);
- expect(CURRENT_RELEASE.version).toBe('1.27.0');
- expect(CURRENT_RELEASE.date).toBe('2026-11-02');
- expect(CURRENT_RELEASE.title).toBe('Update your health records in chat');
- expect(CURRENT_RELEASE.items).toHaveLength(3);
+ expect(CURRENT_RELEASE.version).toBe('1.28.0');
+ expect(CURRENT_RELEASE.date).toBe('2026-11-12');
+ expect(CURRENT_RELEASE.title).toBe('Move getbased to your own devices');
+ expect(CURRENT_RELEASE.items).toHaveLength(4);
 });
 it('moves the exact original 82166-byte archive and leaves every controller statement unchanged',()=>{
  const literal=qualifiedOriginalArchive(dataSource);

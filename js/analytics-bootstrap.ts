@@ -1,14 +1,13 @@
 // Cookieless Umami analytics — opt-out via Settings → Privacy. Skips on
-// file:// (offline export), .onion (Tor), local dev hosts, and when explicitly
-// disabled. An offline PWA waits for its first reconnect.
+// all self-hosted origins (including private HTTPS), file exports, Tor and
+// explicit opt-outs. An offline PWA waits for its first reconnect.
 (() => {
-  const isDevHost = location.hostname === 'localhost'
-    || location.hostname === '127.0.0.1'
-    || location.hostname.endsWith('.local')
-    || location.hostname.endsWith('.localhost');
-  const canUseUmami = location.protocol !== 'file:'
-    && !location.hostname.endsWith('.onion')
-    && !isDevHost;
+  // Classic bootstrap stays import-free. Match the official host boundary in
+  // url-safety.ts; private/self-hosted origins never load official telemetry.
+  const hostname = location.hostname.toLowerCase().replace(/\.$/, '');
+  const officialHost = hostname === 'getbased.health' || hostname.endsWith('.getbased.health')
+    || hostname === 'get-based.vercel.app' || hostname === 'get-based-managed-subscription-v2.vercel.app';
+  const canUseUmami = location.protocol === 'https:' && officialHost;
   let scriptAdded = false;
   function loadUmami() {
     if (!canUseUmami
