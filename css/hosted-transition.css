@@ -1,0 +1,6 @@
+.hosted-transition-banner {display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border-bottom:2px solid currentColor;background:var(--bg-secondary);color:var(--text-primary);font-size:14px;line-height:1.5}
+.hosted-transition-banner span {flex:1 1 340px}
+.hosted-transition-banner button,.hosted-transition-banner a {font:inherit;color:inherit;min-height:44px;display:inline-flex;align-items:center;padding:8px 10px}
+.hosted-transition-banner button {border:1px solid currentColor;border-radius:6px;background:transparent;cursor:pointer}
+.hosted-transition-banner a {text-decoration:underline}
+.hosted-transition-banner :focus-visible {outline:3px solid currentColor;outline-offset:3px}

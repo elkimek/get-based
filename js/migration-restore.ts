@@ -1,3 +1,4 @@
+import {getHostedTransition} from '../shared/hosted-transition.js';
 import { existingMigrationDatabases, readMigrationDatabase, writeMigrationDatabase, MIGRATION_DATABASE, MIGRATION_PENDING_KEY } from './migration-database.js';
 import { readMigrationFiles, writeMigrationFiles } from './migration-files.js';
 import { inspectMigrationArchive, readMigrationLocal, validateMigrationArchive } from './migration-archive.js';
@@ -106,6 +107,7 @@ function verificationShape(data: {local: Record<string, string>; databases: unkn
   return {local, databases: data.databases, files: data.files, credentials: data.credentials};
 }
 export async function restoreMigrationArchive(blob: Blob, password: string, originalPassphrase: string, progress: (text: string) => void = () => {}): Promise<MigrationArchive> {
+  if (getHostedTransition(location.origin)?.phase === 'recovery') throw new Error('This hosted address is available for recovery only. Restore the migration file at your self-hosted address.');
   const archive = await inspectMigrationArchive(blob, password);
   const sourceKey = await sourceMigrationKey(archive.local, originalPassphrase);
   const storedProfiles = archive.local['labcharts-profiles'];

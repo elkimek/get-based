@@ -1,3 +1,4 @@
+import {showHostedTransitionNotice} from './hosted-transition-notice.js';
 // startup-ui.js - first-render UI bootstrap after profile/OAuth startup
 
 import { applyProfileDisplayState } from './startup-profile.js';
@@ -118,8 +119,12 @@ function scheduleStartupNudges() {
   // Terms/Privacy acceptance must explicitly accept before continuing. It is
   // local-first, so this is stored per browser/device rather than emailed.
   const legalGateShown = maybeShowLegalConsentGate();
-  if (!legalGateShown) maybeShowChangelog();
-  else startupRuntime().addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true });
+  const showReleaseNotices = () => {
+    const notice = showHostedTransitionNotice();
+    if (notice) void notice.then(() => maybeShowChangelog()); else maybeShowChangelog();
+  };
+  if (!legalGateShown) showReleaseNotices();
+  else startupRuntime().addEventListener('legal-consent-accepted', showReleaseNotices, { once: true });
   // First-launch transparency banner about anonymous analytics appears once,
   // never again after the user clicks either "Got it" or "Turn off". Keep it
   // behind the legal gate so the user does not get competing prompts. What's

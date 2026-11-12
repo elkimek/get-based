@@ -16,11 +16,12 @@
 <main class="gb:protection:max-w-[760px] gb:protection:mx-auto gb:protection:p-4 gb:protection:text-ink gb:protection:[font-family:inherit]" data-migration-view aria-busy={view.busy}>
   <a href="https://docs.getbased.health/guides/self-hosting" target="_blank" rel="noreferrer">Installation guide</a>
   {#if !view.pending}<a href="/app">Back to getbased</a>{/if}
-  <h1>Move your getbased data</h1>
+  <h1>{view.recoveryOnly ? 'Recover your hosted records' : 'Move your getbased data'}</h1>
   <p>Keep this browser's data until you have restored your migration file and checked the records at your new address.</p>
   <p role="status" aria-live="polite">{view.status}</p>
   {#if view.downloadKind}<button type="button" class={PROTECTION_PRIMARY} disabled={view.busy} onclick={() => actions.download()}>{view.downloadKind === 'migration' ? 'Download migration file' : 'Download saved backup'}</button>{/if}
   {#if view.error}<p role="alert" class="gb:protection:text-red">{view.error}</p>{/if}
+  {#if view.recoveryOnly}<p>Personal use of this hosted app has ended. Download your saved records here, then restore them at your own self-hosted address. Recovery remains available at this original address. Keep this browser data until you have checked the destination.</p>{/if}
   {#if view.complete}
     <section class={sectionClass}>
       <h2>Recovery verified</h2>
@@ -46,7 +47,7 @@
         <p>The password protects all archived data, including credentials and wallet recovery records. Keep it separately from the file. Wearable logins, Companion pairing, backup folder permissions and downloaded models need setup again.</p>
       </section>
     {/if}
-    <section class={sectionClass}>
+    {#if !view.recoveryOnly}<section class={sectionClass}>
       <h2>{view.pending ? 'Resume recovery' : '2. Restore at your new address'}</h2>
       <p>Some browsers keep installed-app storage separate. If you plan to use the installed app, install and open it before restoring.</p>
       <p>Use the same full HTTPS address on each device. This browser must be a fresh installation. Existing records and connected accounts are protected from being overwritten.</p>
@@ -72,6 +73,7 @@
         </div>
       {/if}
     </section>
+    {/if}
     {#if view.snapshots.length && !view.pending}
       <section class={sectionClass}>
         <h2>Recover an older saved backup</h2>

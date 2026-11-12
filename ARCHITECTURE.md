@@ -1972,3 +1972,19 @@ The self-host package contains the assembled public artifact, canonical security
 headers and a built Node-only loopback server. It carries no rendering/build
 runtime or credential configuration. The browser remains the data owner;
 private Tailscale HTTPS does not make the host a shared health-data server.
+
+## Hosted transition boundary
+
+`main.ts` and the Kit route gate choose recovery before loading `main-runtime.ts`.
+The shared public hosting policy applies only to exact official origins and stays
+inactive until an actual announcement timestamp is configured. A dated first-use
+notice and persistent migration entry precede a 30-day cutoff. Updated hosted
+launches then keep exports at the original origin and refuse imports; self-hosts
+retain normal behavior. A retained pending-import file remains downloadable.
+
+`lib/hosted-transition.ts` binds HTTP request and caller origins to that policy.
+The operated proxy rejects personal requests from the retired hosted origin
+before reading a request body or contacting an upstream. The encrypted Sync relay
+is separate and remains available during migration. Cached older software cannot
+be remotely erased or revoked; recovery and original browser records are retained.
+The demo must use a separate origin and contain only fictional, read-only data.

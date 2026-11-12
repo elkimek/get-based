@@ -14,7 +14,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMPONENT = path.join(ROOT, 'js/components/DisplaySettings.svelte');
 // Public synchronous HTML facades; child components compose through their owners.
 export const HTML_COMPONENTS = new Set([
-  'AppShell', 'LegalFirstLaunchBody', 'LegalFirstLaunchBoot', 'FooterCommitLink', 'DesktopDashboardPage', 'MobileDashboardPage', 'DashboardWidgetFrame', 'DashboardWidgetBody', 'DashboardLabSummary', 'LegalConsentModal', 'EMFPhoto', 'MobileBottomNavigation', 'SupplementImportReview', 'SupplementImportProgress', 'SupplementImpact', 'SupplementEditor', 'SupplementExpanded', 'RestoredThreadList', 'DashboardGenomeWidget', 'DashboardKeyTrends', 'FocusCard', 'LensDataPage',
+  'HostedTransitionBanner', 'AppShell', 'LegalFirstLaunchBody', 'LegalFirstLaunchBoot', 'FooterCommitLink', 'DesktopDashboardPage', 'MobileDashboardPage', 'DashboardWidgetFrame', 'DashboardWidgetBody', 'DashboardLabSummary', 'LegalConsentModal', 'EMFPhoto', 'MobileBottomNavigation', 'SupplementImportReview', 'SupplementImportProgress', 'SupplementImpact', 'SupplementEditor', 'SupplementExpanded', 'RestoredThreadList', 'DashboardGenomeWidget', 'DashboardKeyTrends', 'FocusCard', 'LensDataPage',
   'SupplementTimeline', 'SupplementTimelineRow', 'SupplementTimelineBar', 'SupplementMitoEvidence',
   'SupplementIngredientRow', 'SupplementPeriodRow', 'SupplementQualityRow', 'SupplementForm',
   'EmojiPicker', 'EMFInterpretationModal', 'EMFInterpretationStatus', 'EMFComparison', 'EMFEditor', 'EMFImportPreview', 'DashboardMtdnaStudy', 'DashboardMtdnaPanel', 'DashboardGenomeLoading', 'DashboardGenomeRows', 'DashboardAIRow', 'DashboardAICta',

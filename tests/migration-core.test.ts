@@ -9,7 +9,8 @@ import { readMigrationDatabase, writeMigrationDatabase, MIGRATION_PENDING_KEY } 
 import type { MigrationDatabase } from '../js/migration-database.js';
 import { MigrationMemoryDirectory, memoryStorage } from './helpers/migration-memory.js';
 
-const faults = vi.hoisted(() => ({clients: vi.fn(async () => {}), writes: 0, failAt: 0}));
+const faults = vi.hoisted(() => ({clients: vi.fn(async () => {}), writes: 0, failAt: 0, hostedRecovery: false}));
+vi.mock('../shared/hosted-transition.js', () => ({getHostedTransition: () => faults.hostedRecovery ? {phase: 'recovery'} : null}));
 vi.mock('../js/migration-clients.js', async load => ({...await load<typeof import('../js/migration-clients.js')>(), requireSingleMigrationClient: faults.clients}));
 vi.mock('../js/migration-database.js', async load => {
   const actual = await load<typeof import('../js/migration-database.js')>();
@@ -30,7 +31,7 @@ function origin() {
   vi.stubGlobal('navigator', {storage: {getDirectory: async () => root},
     locks: {request: async (_name: string, _options: unknown, callback: () => Promise<unknown>) => callback()}});
 }
-beforeEach(() => { faults.clients.mockReset().mockResolvedValue(); faults.writes = 0; faults.failAt = 0; origin(); });
+beforeEach(() => { faults.clients.mockReset().mockResolvedValue(); faults.writes = 0; faults.failAt = 0; faults.hostedRecovery = false; origin(); });
 afterEach(() => {vi.restoreAllMocks(); vi.unstubAllGlobals();});
 
 async function wrapString(key: CryptoKey, value: string) {
@@ -244,4 +245,18 @@ it('finishes native pending persona recovery before collecting without copying i
   expect(localStorage.getItem(catalog)).toBe('[]'); expect(localStorage.getItem(deleted)).toBeNull();
   expect(localStorage.getItem('labcharts-synthetic-persona-transaction-pending')).toBeNull();
   expect(archive.databases.find(db => db.name === 'labcharts-blobs')!.stores[0]!.records.some(row => String(row.key).includes('persona-transaction'))).toBe(false);
+});
+
+it('rejects hosted recovery imports before reading or changing destination data', async () => {
+  await source(); const blob = await buildMigrationArchive(password, ''); origin(); faults.hostedRecovery = true;
+  await expect(restoreMigrationArchive(blob, password, '')).rejects.toThrow('recovery only');
+  expect(localStorage.length).toBe(0); expect(await indexedDB.databases()).toEqual([]);
+});
+
+it('refuses to silently omit a configured legacy Sync identity before its vault handoff', async () => {
+  await source();
+  await writeMigrationDatabase({name: 'getbased-evolu8-identity', version: 1, stores: [{name: 'identity', keyPath: null, autoIncrement: false, indexes: [], records: []}]});
+  localStorage.removeItem('labcharts-sync-evolu8-identity-token'); localStorage.setItem('labcharts-sync-paused', 'true');
+  await expect(buildMigrationArchive(password, '')).rejects.toThrow('finish Sync identity recovery');
+  expect(localStorage.getItem('labcharts-sync-enabled')).toBe('true');
 });

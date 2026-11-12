@@ -78,7 +78,7 @@ export async function makeMigrationPortable(localSource: Record<string, string>,
   let syncRecovery: MigrationSyncRecovery | null = null;
   const identity = databases.find(db => db.name === 'getbased-evolu8-identity');
   const identityValue = identity?.stores.find(store => store.name === 'identity')?.records.find(record => record.key === 'app-owner')?.value;
-  if (!identityValue && localSource['labcharts-sync-evolu8-identity-token']) throw new Error('Open the app to finish Sync identity recovery, then return here.');
+  if (!identityValue && (localSource['labcharts-sync-evolu8-identity-token'] || localSource['labcharts-sync-enabled'] === 'true')) throw new Error('Open the app to finish Sync identity recovery, then return here.');
   if (identityValue) {
     const saved = object(identityValue);
     if (saved.token === localSource['labcharts-sync-evolu8-identity-token'] && typeof saved.mnemonic === 'string' && typeof saved.ownerId === 'string') {

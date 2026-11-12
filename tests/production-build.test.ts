@@ -350,9 +350,13 @@ describe('shipping SvelteKit production build', () => {
     const chunk = [...chunks][0]!;
     // Kit loads the actual application through its route boundary; its HTML
     // loader entry alone is not the application startup dependency graph.
-    const main = [...sourceMaps].filter(([, sources]) => sources.some(source => source.endsWith('/js/main.js'))).map(([url]) => url);
-    expect(main, 'One real application main owner').toHaveLength(1);
-    expect(closure(entryPoints, true).has(main[0]!), 'Kit reaches the real application').toBe(true);
+    const gate = [...sourceMaps].filter(([, sources]) => sources.some(source => source.endsWith('/js/main.js'))).map(([url]) => url);
+    const main = [...sourceMaps].filter(([, sources]) => sources.some(source => source.endsWith('/js/main-runtime.js'))).map(([url]) => url);
+    expect(gate, 'One pre-initialization application gate').toHaveLength(1);
+    expect(main, 'One real application startup owner').toHaveLength(1);
+    expect(closure(entryPoints, true).has(gate[0]!), 'Kit reaches the startup gate').toBe(true);
+    expect(closure(gate, true).has(main[0]!), 'The gate reaches the real application').toBe(true);
+    expect(closure(gate, false).has(main[0]!), 'Recovery is chosen before app initialization').toBe(false);
     expect(closure(main, false).has(chunk), 'Real application startup statically reaches the data group').toBe(true);
     const actual = sourceMaps.get(chunk)!.map(source => source.replace(/^.*?\/(js|shared)\//, '$1/'));
     expect(actual.sort()).toEqual([...owners].sort());
