@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import {constants} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -8,6 +9,15 @@ import {fileURLToPath} from 'node:url';
 import {build} from 'rolldown';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
+async function readPublicArtifactFile(file: string): Promise<Buffer> {
+  const handle = await fs.open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.nlink !== 1) throw new Error('A self-host package requires regular files without hard links.');
+    return await handle.readFile();
+  } finally {await handle.close();}
+}
+
 export async function buildSelfHostPackage(options: {artifact?: string; output?: string} = {}) {
   const artifact = await fs.realpath(path.resolve(ROOT, options.artifact ?? 'dist'));
   const metrics = JSON.parse(await fs.readFile(path.join(artifact, 'build-metrics.json'), 'utf8')) as {static?: unknown; buildId?: unknown; revision?: unknown};
@@ -32,8 +42,7 @@ export async function buildSelfHostPackage(options: {artifact?: string; output?:
         if (entry.isSymbolicLink()) throw new Error('A self-host package cannot contain symlinks.');
         if (entry.isDirectory()) await copy(name);
         else if (entry.isFile()) {
-          const stat = await fs.lstat(source); if (stat.nlink !== 1) throw new Error('A self-host package cannot contain hard links.');
-          const body = await fs.readFile(source), target = path.join(directory, 'dist', name);
+          const body = await readPublicArtifactFile(source), target = path.join(directory, 'dist', name);
           await fs.mkdir(path.dirname(target), {recursive: true}); await fs.writeFile(target, body);
           files.push({file: 'dist/' + name.replaceAll(path.sep, '/'), sha256: createHash('sha256').update(body).digest('hex'), bytes: body.length});
         } else throw new Error('Unsupported public artifact file.');
