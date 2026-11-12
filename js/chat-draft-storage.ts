@@ -1,3 +1,4 @@
+import { configureMigrationDraftFlush } from './migration-navigation.js';
 // chat-draft-storage.js — encrypted, device-local composer draft persistence.
 
 import { encryptedGetItem, encryptedRemoveItem, encryptedSetItem } from './crypto.js';
@@ -83,3 +84,18 @@ export function flushStoredChatDraft(profileId: string, threadId: string) {
   cancelScheduledWrite(key);
   return queueCachedValue(key);
 }
+
+/** Persist and verify every known composer draft before a full-page migration. */
+export async function flushAllStoredChatDraftsForMigration(): Promise<void> {
+  const index: unknown = JSON.parse((await encryptedGetItem('labcharts-profiles', {throwOnDecryptError: true})) || '[]');
+  if (!Array.isArray(index)) throw new Error('The profile index could not be read before saving drafts.');
+  const prefixes = index.flatMap(profile => typeof profile?.id === 'string' ? ['labcharts-' + profile.id + '-chatDraft_'] : []);
+  const expected = new Map([...knownDrafts].filter(key => prefixes.some(prefix => key.startsWith(prefix))).map(key => [key, draftCache.get(key) || '']));
+  await Promise.all([...expected.keys()].map(key => {cancelScheduledWrite(key); return queueCachedValue(key);}));
+  for (const [key, value] of expected) {
+    if ((draftCache.get(key) || '') !== value || (await encryptedGetItem(key, {throwOnDecryptError: true}) || '') !== value) {
+      throw new Error('A text draft could not be saved or changed while migration was starting. Keep this page open and retry.');
+    }
+  }
+}
+configureMigrationDraftFlush(flushAllStoredChatDraftsForMigration);

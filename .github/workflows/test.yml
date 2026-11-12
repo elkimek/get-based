@@ -99,6 +99,14 @@ jobs:
         run: node scripts/build-sveltekit.mjs --output dist
       - name: Verify exact assembled shipping contracts
         run: node node_modules/vitest/vitest.mjs run tests/production-build.test.ts
+      - name: Package the exact qualified self-host artifact
+        run: node scripts/build-self-host-package.mjs --artifact dist --output artifacts/self-host
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: self-host-package
+          path: artifacts/self-host
+          if-no-files-found: error
+          retention-days: 14
       - name: Record the selected SvelteKit collection without launching browsers
         if: steps.plan.outputs.kit == 'true'
         run: node scripts/ci-plan.mjs --collect-kit --output "$CI_TEST_PLAN"

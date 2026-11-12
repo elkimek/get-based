@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2096 |
-| Internal import edges | 7054 |
-| Dynamic internal edges | 216 |
+| Modules | 2114 |
+| Internal import edges | 7098 |
+| Dynamic internal edges | 217 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -888,7 +888,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-discussion-ui.ts`](js/chat-discussion-ui.ts) → [`js/chat-composer.ts`](js/chat-composer.ts), [`js/chat-discussion-picker.ts`](js/chat-discussion-picker.ts), [`js/chat-discussion-state.ts`](js/chat-discussion-state.ts), [`js/chat-discussion-view.ts`](js/chat-discussion-view.ts), [`js/state.ts`](js/state.ts)
 - [`js/chat-discussion-view.ts`](js/chat-discussion-view.ts) → no in-scope imports
 - [`js/chat-discussion.ts`](js/chat-discussion.ts) → [`js/chat-discussion-callbacks.ts`](js/chat-discussion-callbacks.ts), [`js/chat-discussion-flow.ts`](js/chat-discussion-flow.ts), [`js/chat-discussion-state.ts`](js/chat-discussion-state.ts), [`js/chat-discussion-ui.ts`](js/chat-discussion-ui.ts)
-- [`js/chat-draft-storage.ts`](js/chat-draft-storage.ts) → [`js/crypto.ts`](js/crypto.ts)
+- [`js/chat-draft-storage.ts`](js/chat-draft-storage.ts) → [`js/crypto.ts`](js/crypto.ts), [`js/migration-navigation.ts`](js/migration-navigation.ts)
 - [`js/chat-empty-catalog-component.ts`](js/chat-empty-catalog-component.ts) → [`js/components/ChatEmptyState.svelte`](js/components/ChatEmptyState.svelte), [`js/state.ts`](js/state.ts)
 - [`js/chat-empty-presentation.ts`](js/chat-empty-presentation.ts) → [`js/chat-onboarding-presentation.ts`](js/chat-onboarding-presentation.ts)
 - [`js/chat-empty-state.ts`](js/chat-empty-state.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-empty-catalog-component.ts`](js/chat-empty-catalog-component.ts), [`js/chat-empty-presentation.ts`](js/chat-empty-presentation.ts), [`js/chat-onboarding-presentation.ts`](js/chat-onboarding-presentation.ts), [`js/chat-onboarding.ts`](js/chat-onboarding.ts), [`js/chat-optional-onboarding-presentation.ts`](js/chat-optional-onboarding-presentation.ts), [`js/chat-optional-setup-component.ts`](js/chat-optional-setup-component.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-profile-onboarding.ts`](js/chat-profile-onboarding.ts), [`js/chat-profile-setup-component.ts`](js/chat-profile-setup-component.ts), [`js/chat-provider-setup-component.ts`](js/chat-provider-setup-component.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/components/ChatEmptyState.svelte`](js/components/ChatEmptyState.svelte), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/context-cards.ts`](js/context-cards.ts), [`js/cycle.ts`](js/cycle.ts), [`js/data.ts`](js/data.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/state.ts`](js/state.ts), [`js/supplements.ts`](js/supplements.ts), [`js/utils.ts`](js/utils.ts)
@@ -899,7 +899,7 @@ Native browser modules shipped with the static application.
 - [`js/chat-history.ts`](js/chat-history.ts) → [`js/chat-header-view.ts`](js/chat-header-view.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts), [`js/chat-summaries.ts`](js/chat-summaries.ts), [`js/chat-thread-index-storage.ts`](js/chat-thread-index-storage.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`shared/agent-data-contract.ts`](shared/agent-data-contract.ts), [`shared/agent-tool-contract.ts`](shared/agent-tool-contract.ts)
 - [`js/chat-icons.ts`](js/chat-icons.ts) → no in-scope imports
 - [`js/chat-image-lightbox-component.ts`](js/chat-image-lightbox-component.ts) → [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/components/ChatImageLightbox.svelte`](js/components/ChatImageLightbox.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts)
-- [`js/chat-images.ts`](js/chat-images.ts) → [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/chat-attachment-drafts.ts`](js/chat-attachment-drafts.ts), [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-image-lightbox-component.ts`](js/chat-image-lightbox-component.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/import-file-input.ts`](js/import-file-input.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-images.ts`](js/chat-images.ts) → [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/chat-attachment-drafts.ts`](js/chat-attachment-drafts.ts), [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-image-lightbox-component.ts`](js/chat-image-lightbox-component.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/import-file-input.ts`](js/import-file-input.ts), [`js/migration-navigation.ts`](js/migration-navigation.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-layout-classes.ts`](js/chat-layout-classes.ts) → no in-scope imports
 - [`js/chat-layout-view.ts`](js/chat-layout-view.ts) → no in-scope imports
 - [`js/chat-layout.ts`](js/chat-layout.ts) → [`js/chat-layout-view.ts`](js/chat-layout-view.ts)
@@ -1606,8 +1606,8 @@ Native browser modules shipped with the static application.
 
 - [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts) → no in-scope imports
 - [`js/crypto-prepared-write.ts`](js/crypto-prepared-write.ts) → no in-scope imports
-- [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/passphrase-component.ts`](js/passphrase-component.ts), [`js/passphrase-controller.ts`](js/passphrase-controller.ts), [`js/settings-protection-component.ts`](js/settings-protection-component.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/crypto.ts`](js/crypto.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/base64.ts`](js/base64.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-prepared-write.ts`](js/crypto-prepared-write.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/persona-storage-transaction.ts`](js/persona-storage-transaction.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage-contract.ts`](js/wearables-whoop-storage-contract.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
+- [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/migration-navigation.ts`](js/migration-navigation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/passphrase-component.ts`](js/passphrase-component.ts), [`js/passphrase-controller.ts`](js/passphrase-controller.ts), [`js/settings-protection-component.ts`](js/settings-protection-component.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/crypto.ts`](js/crypto.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/base64.ts`](js/base64.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-prepared-write.ts`](js/crypto-prepared-write.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/persona-storage-transaction.ts`](js/persona-storage-transaction.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/storage-object-codec.ts`](js/storage-object-codec.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage-contract.ts`](js/wearables-whoop-storage-contract.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
 
 </details>
 
@@ -3770,6 +3770,30 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>migration</code> family — 13 modules</summary>
+
+- [`js/migration-archive.ts`](js/migration-archive.ts) → [`js/lens-local-lock.ts`](js/lens-local-lock.ts), [`js/migration-clients.ts`](js/migration-clients.ts), [`js/migration-codec.ts`](js/migration-codec.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/migration-database.ts`](js/migration-database.ts), [`js/migration-digest.ts`](js/migration-digest.ts), [`js/migration-files.ts`](js/migration-files.ts), [`js/migration-portable.ts`](js/migration-portable.ts), [`js/persona-storage-transaction.ts`](js/persona-storage-transaction.ts) *(dynamic)*
+- [`js/migration-clients.ts`](js/migration-clients.ts) → no in-scope imports
+- [`js/migration-codec.ts`](js/migration-codec.ts) → [`js/structured-value-codec.ts`](js/structured-value-codec.ts)
+- [`js/migration-crypto.ts`](js/migration-crypto.ts) → [`js/base64.ts`](js/base64.ts), [`js/migration-codec.ts`](js/migration-codec.ts)
+- [`js/migration-database.ts`](js/migration-database.ts) → no in-scope imports
+- [`js/migration-digest.ts`](js/migration-digest.ts) → [`js/migration-codec.ts`](js/migration-codec.ts)
+- [`js/migration-entry.ts`](js/migration-entry.ts) → [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/components/MigrationRecovery.svelte`](js/components/MigrationRecovery.svelte), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-database.ts`](js/migration-database.ts), [`js/migration-restore.ts`](js/migration-restore.ts), [`js/migration-snapshots.ts`](js/migration-snapshots.ts), [`js/migration-view.ts`](js/migration-view.ts)
+- [`js/migration-files.ts`](js/migration-files.ts) → [`js/base64.ts`](js/base64.ts)
+- [`js/migration-navigation.ts`](js/migration-navigation.ts) → no in-scope imports
+- [`js/migration-portable.ts`](js/migration-portable.ts) → [`js/base64.ts`](js/base64.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/storage-object-codec.ts`](js/storage-object-codec.ts)
+- [`js/migration-restore.ts`](js/migration-restore.ts) → [`js/lens-local-lock.ts`](js/lens-local-lock.ts), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-clients.ts`](js/migration-clients.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/migration-database.ts`](js/migration-database.ts), [`js/migration-digest.ts`](js/migration-digest.ts), [`js/migration-files.ts`](js/migration-files.ts), [`js/migration-portable.ts`](js/migration-portable.ts), [`js/profile-defaults.ts`](js/profile-defaults.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts)
+- [`js/migration-snapshots.ts`](js/migration-snapshots.ts) → [`js/migration-database.ts`](js/migration-database.ts)
+- [`js/migration-view.ts`](js/migration-view.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>MigrationRecovery.svelte</code> family — 1 module</summary>
+
+- [`js/components/MigrationRecovery.svelte`](js/components/MigrationRecovery.svelte) → [`js/settings-protection-classes.ts`](js/settings-protection-classes.ts)
+
+</details>
+
 <details><summary><code>mobile</code> family — 6 modules</summary>
 
 - [`js/mobile-dashboard-hydration.ts`](js/mobile-dashboard-hydration.ts) → [`js/components/MobileDashboardPage.svelte`](js/components/MobileDashboardPage.svelte), [`js/dashboard-page-owner.ts`](js/dashboard-page-owner.ts)
@@ -4266,7 +4290,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>profile</code> family — 22 modules</summary>
+<details><summary><code>profile</code> family — 23 modules</summary>
 
 - [`js/profile-button-presentation.ts`](js/profile-button-presentation.ts) → no in-scope imports
 - [`js/profile-button-rendering.ts`](js/profile-button-rendering.ts) → [`js/components/ProfileButtonPresentation.svelte`](js/components/ProfileButtonPresentation.svelte)
@@ -4274,6 +4298,7 @@ Native browser modules shipped with the static application.
 - [`js/profile-context.ts`](js/profile-context.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
 - [`js/profile-data-migrations.ts`](js/profile-data-migrations.ts) → [`js/context-card-legacy.ts`](js/context-card-legacy.ts), [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/custom-marker-identity.ts`](js/custom-marker-identity.ts), [`js/custom-marker-lifecycle.ts`](js/custom-marker-lifecycle.ts), [`js/genetics-snp-lifecycle.ts`](js/genetics-snp-lifecycle.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/marker-placement.ts`](js/marker-placement.ts), [`js/profile-import-provenance.ts`](js/profile-import-provenance.ts), [`js/profile-marker-migrations.ts`](js/profile-marker-migrations.ts), [`js/schema.ts`](js/schema.ts), [`js/specialty-marker-catalog.ts`](js/specialty-marker-catalog.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
 - [`js/profile-data-writes.ts`](js/profile-data-writes.ts) → [`js/custom-marker-lifecycle.ts`](js/custom-marker-lifecycle.ts), [`js/genetics-lifecycle.ts`](js/genetics-lifecycle.ts), [`js/genetics-snp-lifecycle.ts`](js/genetics-snp-lifecycle.ts), [`js/lab-ordering-core.ts`](js/lab-ordering-core.ts), [`js/lab-panel-deletions.ts`](js/lab-panel-deletions.ts), [`js/lab-panel-identity.ts`](js/lab-panel-identity.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts)
+- [`js/profile-defaults.ts`](js/profile-defaults.ts) → no in-scope imports
 - [`js/profile-fatty-acid-migrations.ts`](js/profile-fatty-acid-migrations.ts) → [`js/specialty-marker-catalog.ts`](js/specialty-marker-catalog.ts)
 - [`js/profile-import-provenance.ts`](js/profile-import-provenance.ts) → [`js/schema.ts`](js/schema.ts)
 - [`js/profile-list-store.ts`](js/profile-list-store.ts) → [`js/crypto.ts`](js/crypto.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
@@ -4289,7 +4314,7 @@ Native browser modules shipped with the static application.
 - [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts) → [`js/agent-access-legacy-source.ts`](js/agent-access-legacy-source.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/crypto.ts`](js/crypto.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
 - [`js/profile-storage-key.ts`](js/profile-storage-key.ts) → no in-scope imports
 - [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts) → no in-scope imports
-- [`js/profile.ts`](js/profile.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/constants.ts`](js/constants.ts), [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/crypto.ts`](js/crypto.ts), [`js/profile-chat-state.ts`](js/profile-chat-state.ts), [`js/profile-data-migrations.ts`](js/profile-data-migrations.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-list-store.ts`](js/profile-list-store.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile-selection-runtime.ts`](js/profile-selection-runtime.ts), [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/profile.ts`](js/profile.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/constants.ts`](js/constants.ts), [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/crypto.ts`](js/crypto.ts), [`js/profile-chat-state.ts`](js/profile-chat-state.ts), [`js/profile-data-migrations.ts`](js/profile-data-migrations.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-defaults.ts`](js/profile-defaults.ts), [`js/profile-list-store.ts`](js/profile-list-store.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile-selection-runtime.ts`](js/profile-selection-runtime.ts), [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/sync-profile-fields.ts`](js/sync-profile-fields.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -4684,6 +4709,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>storage</code> family — 1 module</summary>
+
+- [`js/storage-object-codec.ts`](js/storage-object-codec.ts) → [`js/structured-value-codec.ts`](js/structured-value-codec.ts)
+
+</details>
+
+<details><summary><code>structured</code> family — 1 module</summary>
+
+- [`js/structured-value-codec.ts`](js/structured-value-codec.ts) → [`js/base64.ts`](js/base64.ts)
+
+</details>
+
 <details><summary><code>sun</code> family — 52 modules</summary>
 
 - [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte)
@@ -4908,11 +4945,11 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>sync</code> family — 94 modules</summary>
+<details><summary><code>sync</code> family — 95 modules</summary>
 
 - [`js/sync-actions.ts`](js/sync-actions.ts) → [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/state.ts`](js/state.ts), [`js/sync-cutover.ts`](js/sync-cutover.ts), [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-scalar-snapshot.ts`](js/sync-scalar-snapshot.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-storage-cleanup.ts`](js/sync-storage-cleanup.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-apply.ts`](js/sync-apply.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/lens-config-store.ts`](js/lens-config-store.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts), [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts)
-- [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts) → [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/sync-delta-snapshot.ts`](js/sync-delta-snapshot.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/unique-id.ts`](js/unique-id.ts)
+- [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts) → [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/sync-delta-reset.ts`](js/sync-delta-reset.ts), [`js/sync-dirty-state.ts`](js/sync-dirty-state.ts), [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/sync-chat-apply.ts`](js/sync-chat-apply.ts) → [`js/chat-personality-storage.ts`](js/chat-personality-storage.ts), [`js/chat-thread-index-storage.ts`](js/chat-thread-index-storage.ts), [`js/crypto.ts`](js/crypto.ts), [`js/sync-chat-local-state.ts`](js/sync-chat-local-state.ts), [`js/sync-chat-merge.ts`](js/sync-chat-merge.ts) *(dynamic)*, [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts), [`js/sync-state.ts`](js/sync-state.ts)
 - [`js/sync-chat-local-state.ts`](js/sync-chat-local-state.ts) → [`js/state.ts`](js/state.ts)
 - [`js/sync-chat-merge.ts`](js/sync-chat-merge.ts) → [`js/chat-personality-merge.ts`](js/chat-personality-merge.ts)
@@ -4933,10 +4970,11 @@ Native browser modules shipped with the static application.
 - [`js/sync-delta-pull-snapshot.ts`](js/sync-delta-pull-snapshot.ts) → no in-scope imports
 - [`js/sync-delta-readiness.ts`](js/sync-delta-readiness.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/state.ts`](js/state.ts), [`js/sync-delta-observability-context.ts`](js/sync-delta-observability-context.ts), [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts)
 - [`js/sync-delta-registry.ts`](js/sync-delta-registry.ts) → [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts), [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts)
+- [`js/sync-delta-reset.ts`](js/sync-delta-reset.ts) → no in-scope imports
 - [`js/sync-delta-row-codec.ts`](js/sync-delta-row-codec.ts) → [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts)
 - [`js/sync-delta-scalar-merge.ts`](js/sync-delta-scalar-merge.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/genetics-lifecycle.ts`](js/genetics-lifecycle.ts), [`js/genetics-snp-lifecycle.ts`](js/genetics-snp-lifecycle.ts), [`js/sync-conflict-order.ts`](js/sync-conflict-order.ts), [`js/sync-delta-pull-snapshot.ts`](js/sync-delta-pull-snapshot.ts), [`js/sync-delta-row-codec.ts`](js/sync-delta-row-codec.ts), [`js/sync-scalar-snapshot.ts`](js/sync-scalar-snapshot.ts)
 - [`js/sync-delta-scalar-planner.ts`](js/sync-delta-scalar-planner.ts) → [`js/sync-conflict-order.ts`](js/sync-conflict-order.ts), [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-planner-context.ts`](js/sync-delta-planner-context.ts), [`js/sync-delta-row-codec.ts`](js/sync-delta-row-codec.ts), [`js/sync-delta-snapshot.ts`](js/sync-delta-snapshot.ts), [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts), [`js/sync-scalar-snapshot.ts`](js/sync-scalar-snapshot.ts)
-- [`js/sync-delta-snapshot.ts`](js/sync-delta-snapshot.ts) → [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts), [`js/sync-scalar-snapshot.ts`](js/sync-scalar-snapshot.ts)
+- [`js/sync-delta-snapshot.ts`](js/sync-delta-snapshot.ts) → [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-reset.ts`](js/sync-delta-reset.ts), [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts), [`js/sync-scalar-snapshot.ts`](js/sync-scalar-snapshot.ts)
 - [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts) → [`js/sync-delta-id.ts`](js/sync-delta-id.ts)
 - [`js/sync-delta-surfaces.ts`](js/sync-delta-surfaces.ts) → no in-scope imports
 - [`js/sync-delta-telemetry.ts`](js/sync-delta-telemetry.ts) → [`js/sync-delta-pull-snapshot.ts`](js/sync-delta-pull-snapshot.ts)

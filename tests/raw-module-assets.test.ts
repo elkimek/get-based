@@ -152,7 +152,16 @@ const previouslyQuoteRetained = [
 
 it('keeps precisely the genuine raw graph and public files while pruning bundled source entries', async () => {
   const raw = await productionRawModuleAssets();
-  expect([...raw].sort()).toEqual([
+  const recovery = [
+    '/js/backup-serialization.js', '/js/base64.js', '/js/blob-storage.js', '/js/components/MigrationRecovery.svelte.native.js',
+    '/js/migration-archive.js', '/js/migration-clients.js', '/js/migration-codec.js', '/js/migration-crypto.js',
+    '/js/migration-database.js', '/js/migration-digest.js', '/js/migration-entry.js', '/js/migration-files.js',
+    '/js/migration-portable.js', '/js/migration-restore.js', '/js/migration-snapshots.js', '/js/migration-view.js',
+    '/js/native-command-locks.js', '/js/persona-storage-transaction.js', '/js/profile-defaults.js', '/js/profile-sync-policy.js',
+    '/js/settings-protection-classes.js', '/js/storage-object-codec.js', '/js/structured-value-codec.js',
+    '/js/sync-backup-restore-state.js', '/js/sync-delta-reset.js', '/js/sync-dirty-state.js', '/js/sync-payload-codec.js',
+  ];
+  expect([...raw].sort()).toEqual([...recovery,
     '/js/analytics-bootstrap.js', '/js/caught-error.js',
     '/js/components/VersionUpdateBody.svelte.html.js', '/js/components/VersionUpdateCopy.svelte.html.js',
     '/js/extra-theme-bootstrap.js',
@@ -166,7 +175,7 @@ it('keeps precisely the genuine raw graph and public files while pruning bundled
     '/js/version-update-rendering.js', '/js/voice-local-stt-worker.js',
     '/js/voice-local-tts-worker.js', '/js/voice-model-catalog.js',
     '/shared/agent-data-contract.js', '/vendor/sha256.js',
-  ]);
+  ].sort());
   expect(previouslyQuoteRetained).toHaveLength(22);
   const beforeFiles = await Promise.all(previouslyQuoteRetained.map(url => fs.readFile(url.slice(1))));
   const source = inlineServiceWorkerAssets(await fs.readFile('service-worker.js', 'utf8'), await fs.readFile('service-worker-assets.js', 'utf8'));

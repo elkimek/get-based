@@ -1,3 +1,4 @@
+import { configureMigrationAttachmentCheck } from './migration-navigation.js';
 // Attachment processing, ephemeral profile/thread queues and health-file imports.
 // Shared Svelte components own previews, inputs, drop feedback and the lightbox.
 // The configured send-button callback is the only back-reference into chat-send.
@@ -19,6 +20,9 @@ const MAX_AGENT_ATTACHMENTS = 4;
 const MAX_TOTAL_ATTACHMENT_BYTES = 18 * 1024 * 1024;
 const THUMB_SIZE = 80;
 const pendingAttachmentsByThread = new ChatAttachmentDrafts();
+configureMigrationAttachmentCheck(() => {
+  if (pendingAttachmentsByThread.hasAnyWork()) throw new Error('Save or remove unsent image attachments before starting migration. Their originals are only held in memory.');
+});
 const sentMessageAttachments = new WeakMap<object, ChatAttachment[]>();
 const chatImageDeps: { updateSendButtonState: unknown; importFiles: unknown; } = {
   updateSendButtonState: () => { },

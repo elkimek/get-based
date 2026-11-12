@@ -4,6 +4,16 @@ The production app can run on your own computer. This source-based setup needs
 [Git](https://git-scm.com/downloads), Node.js **24.20 or later within version 24**,
 npm and a current browser. Use a terminal on Linux or macOS, or PowerShell on Windows.
 
+## Prebuilt package
+
+`npm run self-host:package -- --artifact dist --output artifacts` packages the
+qualified production app and a dependency-free Node server into an npm tarball
+and SHA-256 checksum. The package version comes from the artifact's `APP_VERSION`.
+Users download that release asset, install it with `npm install --global ./getbased-self-host.tgz`,
+and run `getbased`. `--help` and `--version` work without starting the listener.
+The same package runs on Linux, macOS and Windows with Node.js 24.20 or later
+within version 24. This does not install a startup service.
+
 ## Build and start
 
 ```bash
@@ -62,27 +72,33 @@ computer awake.
 
 ## Move records without losing the original
 
-Open the original getbased address in the browser profile or installed PWA
-where your records live. A new address cannot read another address's browser
-storage.
+Use **Settings → Data → Backup & Restore → Start migration** at the original
+address, or its same-origin `/app/migration.html` recovery screen. This entry
+stays inside the installed app's `/app` scope. Save/remove unsent image originals
+before leaving the app; the native action flushes and verifies saved text drafts.
 
-1. In **Settings → Data → Backup & Restore**, choose **Download Backup**.
-   Keep the file and the passphrase if the backup is encrypted.
-2. To recover an older saved backup, expand **Recent snapshots** and choose
-   **Download** beside that snapshot. This does not restore it over your current
-   records. A snapshot only contains the data saved at its displayed time.
-3. Open your chosen self-hosted HTTPS address and use **Restore Backup**.
-   Read the confirmation, particularly if the destination already has records.
-4. Check every profile, important dates, notes, sent chats and supported wearable
-   history. Reload and unlock again if applicable. Keep the original browser
-   storage and the backup file until you have checked the recovered records.
+Create and download an encrypted migration file, inspect it at the final
+self-hosted HTTPS address, and restore into a fresh browser installation. Install
+and open a destination PWA before restoring if that is the intended storage
+context. Keep the source browser and passphrase until profiles, dates, notes,
+chats, meals, wearable history, Knowledge Base files and wallet have been checked
+after a reload. Sync is paused at the destination until explicitly resumed.
 
-Ordinary backups are not complete device migrations. Unsent chat drafts,
-WHOOP/Google Health raw histories, local Knowledge Base libraries, downloaded
-models, wallet funds and wearable authentication need separate recovery or
-setup. Do not erase the source on the strength of a successful ordinary restore.
-Use the wallet's own export/recovery controls for funds; reconnect wearable
-providers and reselect any automatic backup folder on the new origin.
+The archive carries all recognized application localStorage, IndexedDB stores
+and local Knowledge Base OPFS files. Browser-bound data is decrypted locally
+and protected by the archive password; the destination generates fresh
+non-exportable keys. OAuth logins, Companion pairing and folder permissions
+need setup again. Models and regeneratable caches are excluded. Wallet proofs,
+counters and recovery journals are retained without making a mint request;
+spending should continue from one active installation only.
+
+Saved ordinary snapshots can be prepared and downloaded from the recovery
+screen without unlocking or replacing the source. They remain partial backups,
+not a complete migration. The current archive format has a 512 MiB decoded limit
+and uses in-memory WebCrypto; large installations need additional recovery
+qualification before a hosted cutoff. The public
+[migration guide](https://docs.getbased.health/guides/move-to-self-hosting)
+contains the user steps and recovery table.
 
 ## Use more than one device
 
@@ -144,6 +160,6 @@ Before restricting personal-data use, qualify a portable archive for every
 irreplaceable store, fresh-origin recovery, interrupted exports/restores,
 existing destination conflicts, encryption and multi-device setup. Provide a
 first-visit notice and a persistent recovery entry, with a separate completion
-step after users check the destination. Announce the change before the cutoff
+step after users check the destination. Give users 30 days from the actual published announcement before the cutoff
 and keep the official encrypted relay available during migration. The ordinary
 backup controls described above do not establish this complete migration path.

@@ -24,6 +24,7 @@
     <p>Wearable connections must be reconnected. Unsent chat drafts, WHOOP and Google Health raw histories, local Knowledge Base libraries, downloaded models, and wallet funds are not included in this backup. Keep this browser's data until you have checked your new installation.</p>
   </details>
   <div class={PROTECTION_ACTIONS}>
+    <button type="button" class={PROTECTION_PRIMARY} data-crypto-action="open-migration">Start migration</button>
     <button type="button" class={PROTECTION_PRIMARY} data-crypto-action="export-backup">Download Backup</button>
     <button type="button" class={PROTECTION_SECONDARY} onclick={() => fileInput?.click()}>Restore Backup</button>
     <input bind:this={fileInput} type="file" accept=".json" class="gb:protection:hidden" hidden aria-label="Restore Backup file" data-crypto-action="import-backup">
