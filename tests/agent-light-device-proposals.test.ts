@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { createDefaultProfileData, profileStorageKey } from '../js/profile.js';
 import { saveImportedData } from '../js/data.js';
@@ -196,5 +196,8 @@ it('preset hydration adopts its accepted fields over their unsaved deletion and 
   expect(await hydrateDevicesFromPresetRecords([preset])).toBe(false);
 });
 
-import { retiredRecordActions } from './helpers/retired-health-record-actions.js';
-retiredRecordActions('lightDevices',['add','update','remove']);
+import { retiredRecordActionCase } from './helpers/retired-health-record-actions.js';
+describe('lightDevices native-only actions', () => {
+  const verify = retiredRecordActionCase('lightDevices');
+  it.each(['add','update','remove'])('keeps lightDevices %s in native UI, including historical proposal replay', verify);
+});

@@ -6,6 +6,7 @@ test.beforeEach(async ({ page }) => {
     const [{ state }, store] = await Promise.all([import('/js/state.js'), import('/js/sun-sessions-store.js?recovery-browser')]);
     state.currentProfile = 'sun-recovery';
     (state as {importedData: unknown}).importedData = { entries: [], sunSessions: [], sunDefaults: { fitzpatrick: 'II' } };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Synthetic Sun fixture could not save');
     (store.configureSunSessionsStore as (deps: Omit<NonNullable<Parameters<typeof store.configureSunSessionsStore>[0]>, 'reconstructSpectrum' | 'computeChannelDoses'> & {reconstructSpectrum?: () => unknown; computeChannelDoses?: (options: {durationMin: number}) => unknown}) => ReturnType<typeof store.configureSunSessionsStore>)({
       fetchAtmosphere: async () => ({ uvIndex: 3 }), reconstructSpectrum: () => ({}),
       computeChannelDoses: ({ durationMin }) => ({ vitamin_d: durationMin }),

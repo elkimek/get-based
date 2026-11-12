@@ -1,6 +1,6 @@
 // sync-backup-restore-state.js - durable handoff from backup restore to Sync.
 
-import { clearProfileDeltaSnapshots } from './sync-delta-snapshot.js';
+import { clearProfileDeltaSnapshots } from './sync-delta-reset.js';
 import { discardSyncProfileDirty, getSyncDirtyToken, markSyncProfileDirty } from './sync-dirty-state.js';
 import { clearProfileSyncDeleteState, getProfileSyncBlockReason } from './profile-sync-policy.js';
 import { createUniqueId } from './unique-id.js';

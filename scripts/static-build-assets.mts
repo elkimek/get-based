@@ -9,6 +9,7 @@ import {parseAppShellEntries} from './app-shell-budget.mjs';
 /** Static build contracts shared by both production entrypoints. */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PRODUCTION_RAW_MODULE_ROOTS = new Set([
+  '/js/migration-entry.js',
   '/js/theme-bootstrap.js',
   '/js/extra-theme-bootstrap.js',
   '/js/analytics-bootstrap.js',

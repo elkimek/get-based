@@ -1,3 +1,4 @@
+import {installControlledOpenRouter} from '../helpers/controlled-openrouter.js';
 import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
@@ -32,20 +33,20 @@ test('EMF chat correction preserves private evidence and survives a stopped-orig
   }, { seeded, registry });
   const statement = 'My bedroom AC electric reading is now 2 V/m.';
   let round = 0; const wire: number[] = [], background: string[] = [], errors: string[] = [], receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(body.model).toBe('openai/synthetic-emf'); expect(JSON.stringify(body)).not.toMatch(/emf-private-sentinel|\/private\//);
-    if (!body.tools) { const system = String(body.messages[0]?.content || ''); expect(system).toMatch(/^Based on this person's lab data and profile context/); background.push('native context-card summary'); await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }); return; }
+  await installControlledOpenRouter(context, async body => {
+ expect(body.model).toBe('openai/synthetic-emf'); expect(JSON.stringify(body)).not.toMatch(/emf-private-sentinel|\/private\//);
+    if (!body.tools) { const system = String(body.messages[0]?.content || ''); expect(system).toMatch(/^Based on this person's lab data and profile context/); background.push('native context-card summary'); return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }; }
     wire.push(round);
     let call: AIToolCall | undefined;
     if (round === 0) call = { id: 'list-emf', type: 'function', function: { name: 'getbased_read_data', arguments: '{"resource":"emfMeasurements"}' } };
-    if (round === 1) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const rows = JSON.parse(response.contentItems[0].text); expect(rows.records).toHaveLength(1);
+    if (round === 1) { const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); const rows = JSON.parse(response.contentItems[0].text); expect(rows.records).toHaveLength(1);
       call = { id: 'read-emf', type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'emfMeasurements', recordId: rows.records[0].recordId }) } };
     }
-    if (round === 2) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const read = JSON.parse(response.contentItems[0].text);
+    if (round === 2) { const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); const read = JSON.parse(response.contentItems[0].text);
       call = { id: 'draft-emf', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'emfMeasurements', operation: 'update', snapshotId: read.snapshotId, patch: '{"value":2,"unit":"V/m"}', evidence: statement, reason: 'The user reported a corrected room reading.' }) } };
     }
-    if (round === 3) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); expect(JSON.parse(response.contentItems[0].text).review.applied).toBe(false); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the EMF reading correction before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    if (round === 3) { const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); expect(JSON.parse(response.contentItems[0].text).review.applied).toBe(false); }
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the EMF reading correction before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', opened => opened.on('pageerror', error => errors.push(error.message))); const server = await startKitServer(artifact.directory); let stopped = false;
   try {
@@ -71,6 +72,6 @@ test('EMF chat correction preserves private evidence and survives a stopped-orig
     await expect(page.locator('[data-emf-measurement-type="acElectric"]')).toHaveValue('2'); await expect(page.locator('.ctx-tag.active').filter({ hasText: 'custom mitigation' })).toBeVisible();
     expect(await profile(page, artifact.state)).toEqual(receipts.applied); expect(errors).toEqual([]); expect(await artifactInputs(owners, ['css/emf.css'])).toEqual(artifact);
   } finally {
-    await info.attach('static-emf-chat-receipt', { body: JSON.stringify({ artifact, receipts, wire, background, errors, stopped, boundary: 'Real shared chat sender and canonical save, controlled provider, trusted keyboard Apply, full private storage/live equality, mobile/axe/source/cache checks, stopped-origin zero-page cold launch and ordinary EMF editor. No live provider inference or remote sync.' }, null, 2), contentType: 'application/json' }); if (!stopped) await server.close();
+    await info.attach('static-emf-chat-receipt', { body: JSON.stringify({ artifact, receipts, wire, background, errors, stopped, boundary: 'Real shared chat sender and canonical save, controlled provider, trusted keyboard Apply, full private storage/live equality, mobile/axe/source/cache checks, stopped-origin zero-page cold launch and ordinary EMF editor. Narrow in-page model fixture, without provider HTTP transport. No live provider inference or remote sync.' }, null, 2), contentType: 'application/json' }); if (!stopped) await server.close();
   }
 });

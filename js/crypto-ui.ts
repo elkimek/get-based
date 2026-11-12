@@ -1,3 +1,4 @@
+import { openMigrationRecovery } from './migration-navigation.js';
 // crypto-ui.ts — Encryption dialogs, nudges, delegates, and settings UI owner.
 
 import { openUnlockDialog, openEnableDialog, openChangeDialog } from './passphrase-controller.js';
@@ -15,6 +16,7 @@ import {
   loadDataProtectionStylesheetForAction,
 } from './modal-lifecycle.js';
 import {
+  exportAutoBackup,
   exportEncryptedBackup,
   getAutoBackupSnapshots,
   getFolderBackupState,
@@ -94,7 +96,15 @@ function handleCryptoActionClick(event: Event) {
   else if (action === 'disable-encryption') disableEncryption();
   else if (action === 'enable-encryption') showEnableEncryptionModal();
   else if (action === 'export-backup') exportEncryptedBackup();
+  else if (action === 'open-migration') {
+    void openMigrationRecovery().catch(error => showNotification(getErrorMessage(error), 'error'));
+  }
   else if (action === 'toggle-backup-snapshots') toggleBackupSnapshots();
+  else if (action === 'export-auto-backup') {
+    const id = readSnapshotActionId(actionElement);
+    if (id == null) return;
+    void exportAutoBackup(id);
+  }
   else if (action === 'restore-auto-backup') {
     const id = readSnapshotActionId(actionElement);
     if (id == null) return;

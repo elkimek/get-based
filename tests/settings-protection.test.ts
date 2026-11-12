@@ -7,9 +7,9 @@ import { preparePassphrasePresentation } from '../js/passphrase-component.js';
 import { getFolderBackupSnapshot, getBackupSnapshotRows } from '../js/settings-protection-view.js';
 import * as utils from '../js/utils.js';
 import { disposePassphraseDialog } from '../js/passphrase-component.js';
-const mocks = vi.hoisted(() => ({ download: vi.fn(), restore: vi.fn(), import: vi.fn(), snapshots: vi.fn(),
+const mocks = vi.hoisted(() => ({ download: vi.fn(), snapshotDownload: vi.fn(), restore: vi.fn(), import: vi.fn(), snapshots: vi.fn(),
   folder: vi.fn(() => ({ supported: false, folderName: null, permissionLost: false, lastBackup: null })) }));
-vi.mock('../js/backup.js', () => ({ exportEncryptedBackup: mocks.download, importEncryptedBackup: mocks.import,
+vi.mock('../js/backup.js', () => ({ exportAutoBackup: mocks.snapshotDownload, exportEncryptedBackup: mocks.download, importEncryptedBackup: mocks.import,
   getAutoBackupSnapshots: mocks.snapshots, getFolderBackupState: mocks.folder, restoreAutoBackup: mocks.restore, MAX_SNAPSHOTS: 5 }));
 let enabled = false;
 let previous: ReturnType<typeof configureCryptoUi>;
@@ -79,6 +79,11 @@ describe('owned Security and Backup settings', () => {
     expect(list.querySelectorAll('.backup-snapshot-item')).toHaveLength(2);
     expect(list.textContent).toContain('2 profile(s) • encrypted'); expect(list.textContent).toContain('? profile(s)');
     const restore = list.querySelectorAll<HTMLButtonElement>('[data-crypto-action="restore-auto-backup"]');
+    const download = list.querySelectorAll<HTMLButtonElement>('[data-crypto-action="export-auto-backup"]');
+    expect(download).toHaveLength(2);
+    expect(download[0]!.getAttribute('aria-label')).toContain('Download snapshot from');
+    download[0]!.click(); expect(mocks.snapshotDownload).toHaveBeenCalledWith(42);
+    download[1]!.click(); expect(mocks.snapshotDownload).toHaveBeenCalledWith(summaries[1]!.id);
     expect(restore[0]!.dataset.cryptoSnapshotIdType).toBe('number'); restore[0]!.click(); expect(mocks.restore).toHaveBeenCalledWith(42);
     expect(restore[1]!.dataset.cryptoSnapshotId).toBe(summaries[1]!.id); restore[1]!.click(); expect(mocks.restore).toHaveBeenCalledWith(summaries[1]!.id);
     expect(list.querySelector('img,script')).toBeNull();

@@ -4,6 +4,11 @@ import { CURRENT_RELEASE } from './changelog-current.js';
 // Shared authored notes; retry controllers retain their own evaluation and delegates.
 export const CHANGELOG: readonly ChangelogEntry[] = [
   CURRENT_RELEASE,
+  { version: '1.27.0', date: '2026-11-02', title: 'Update your health records in chat', items: [
+  '<b>Tell chat what changed.</b> Share a new health goal, a change in your routine, or paste a health summary. getbased can suggest updates to your records.',
+  '<b>Review before saving.</b> Apply the changes you want or discard them. Chat saves health changes only after you approve.',
+  '<b>You choose.</b> Turn Health updates through chat on or off in Settings → AI.',
+] },
   { version: '1.26.0', date: '2026-11-01', title: 'Personal baselines and immune markers', items: [
   '<b>See your personal baseline.</b> Marker charts can now show a baseline from your previous results, helping you compare a new reading with your own history.',
   '<b>Get more context in chat.</b> AI can consider your baseline alongside lab and optimal ranges when explaining changes in your results.',

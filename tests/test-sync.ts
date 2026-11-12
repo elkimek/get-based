@@ -951,9 +951,10 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('deleteProfile in profile.js calls deleteProfileFromRelay',
     /deleteProfile\([\s\S]+?deleteProfileFromRelay/.test(profileSrc));
   assert('profile.js exposes default importedData factory',
-    profileSrc.includes('export function createDefaultProfileData')
-      && profileSrc.includes('entries: []')
-      && profileSrc.includes('sunSessions: []'));
+    profileSrc.includes("export { createDefaultProfileData } from './profile-defaults.js';")
+      && read('js/profile-defaults.js').includes('export function createDefaultProfileData')
+      && read('js/profile-defaults.js').includes('entries: []')
+      && read('js/profile-defaults.js').includes('sunSessions: []'));
   assert('createProfile queues profile sync with default importedData',
     /createProfile[\s\S]{0,1200}queueProfileSync\(id,\s*createDefaultProfileData\(\)\)/.test(profileSrc));
   assert('profile metadata changes queue profile sync',

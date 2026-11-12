@@ -29,6 +29,29 @@ and unchanged synthetic localStorage/IndexedDB data.
 
 ## Choose checks for the change
 
+Saved-snapshot downloads must preserve the source browser's profiles, encryption
+settings and backup timestamps. Check a removed snapshot, an aborted read after
+request success, and download failure. Real browser acceptance downloads through
+Backup settings and restores plaintext and encrypted snapshots on another origin,
+including a subsequent reload and retained wearable history. These checks do not
+establish complete migration coverage for stores excluded by the backup format.
+
+Standalone migration acceptance covers plaintext and passphrase protection,
+device-only histories and metadata, every saved meal beyond ordinary backup
+limits, source preservation, persona crash recovery, destination conflicts,
+quota interruption/resume, and final receipt/fence crash ordering. Native
+browser acceptance uses the actual Settings action to flush drafts and verifies
+the restored Knowledge Base with its real Worker. Shipping Chromium and Firefox
+cases restore and resume offline, then start the real cached app and cold-launch
+it again. Cocoa WebKit uses the existing qualified persistent OPFS context.
+These synthetic cases do not certify every data volume or physical device.
+
+The prebuilt tarball test installs into an empty prefix without dependencies or
+install scripts and starts the installed CLI. Keep production resource limits,
+exact public-body/graph qualification and all compiler safety flags intact.
+Raw-module whitespace compaction is accepted only when the complete executable
+syntax and legal notices match; otherwise the original source body is retained.
+
 Run relevant tests and lightweight compiler, architecture, quality, and build
 checks locally. Use the commands in [CONTRIBUTING.md](../CONTRIBUTING.md).
 Do not run the exhaustive browser or coverage matrix locally by default.

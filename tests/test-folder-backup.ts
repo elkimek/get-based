@@ -127,7 +127,10 @@ const exportModule = await import('../js/export.js');
     assert('backup.js has getFolderBackupState', src.includes('function getFolderBackupState'));
     assert('backup.js has writeFolderBackup', src.includes('async function writeFolderBackup'));
     assert('backup.js has showDirectoryPicker check', src.includes('showDirectoryPicker'));
-    assert('backup.js has folder-handle store constant', src.includes("'folder-handle'"));
+    assert('backup.js uses the shared folder-handle store constant',
+      src.includes("FOLDER_HANDLE_STORE } from './backup-storage.js'")
+      && read('/js/backup-storage.js').includes("export const FOLDER_HANDLE_STORE = 'folder-handle';")
+      && src.includes('db.transaction(FOLDER_HANDLE_STORE'));
     assert('performAutoBackup calls writeFolderBackup', src.includes('writeFolderBackup()'));
     assert('writeFolderBackup uses buildBackupSnapshot', src.includes('buildBackupSnapshot()'));
   } catch (e) {

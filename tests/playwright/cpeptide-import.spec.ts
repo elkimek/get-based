@@ -13,7 +13,12 @@ test('EU C-peptide imports keep picomoles and saved reviews repair legacy values
     state.profileSex = null;
     state.profileDob = null;
     (state as { importedData: unknown }).importedData = { entries: [{ date: '2026-10-01', markers: { 'biochemistry.glucose': 5 } }], importSnapshots: [], customMarkers: {} };
+    if (!await data.saveImportedData()) throw new Error('Synthetic lab fixture could not save');
     review.showImportPreview({ date: '2026-10-01', fileName: 'synthetic-cpeptide.pdf', markers: [{ rawName: 'C-peptide', matched: true, mappedKey: 'diabetes.cPeptide', value: 662, unit: 'pmol/L', refMin: 165.5, refMax: 993 }] });
+    const samples = await import('/js/lab-report-samples.js');
+    const pending = review.getPendingImport()!;
+    const destination = samples.importReviewSampleOptions(pending, state.importedData, state.currentProfile).options[0]!;
+    samples.chooseImportSample(pending, state.importedData, state.currentProfile, destination.value);
     await commit.confirmImport();
     data.invalidateActiveDataCache();
     const snapshot = state.importedData.importSnapshots[0];
@@ -33,6 +38,7 @@ test('EU C-peptide imports keep picomoles and saved reviews repair legacy values
     const { state } = await import('/js/state.js');
     state.importedData.entries[0]!.markers['diabetes.cPeptide'] = 662;
     Object.assign(state.importedData.refOverrides['diabetes.cPeptide'], { refMin: 165.5, refMax: 993 });
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Legacy fixture could not save');
   });
   for (let attempt = 0; attempt < 2; attempt++) {
     await page.evaluate(async id => {

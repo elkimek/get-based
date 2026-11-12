@@ -1,3 +1,4 @@
+import {installControlledOpenRouter} from '../helpers/controlled-openrouter.js';
 import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-release-server.js';
@@ -33,21 +34,21 @@ test('static device session correction and refused catalog writes retain source 
   }, { seeded, registry });
   const statements = { duration: 'My recorded panel session actually started at 2026-10-23T10:00:00Z and lasted 20 minutes.', specification: 'My panel reference irradiance is actually 40 mW per square centimetre at its recorded 15 cm reference distance.', removeDevice: 'Remove my panel from my saved Light devices, keeping its recorded sessions.' };
   let stage: keyof typeof statements = 'duration', round = 0, sessionId = ''; const wire: unknown[] = [], errors: string[] = [];
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(JSON.stringify(body)).not.toMatch(/\/private\/|device-private-sentinel/);
-    if (!body.tools) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled device verdict","detail":"Synthetic recorded-session fixture."}' }, finish_reason: 'stop' }] }) }); return; }
+  await installControlledOpenRouter(context, async body => {
+ expect(JSON.stringify(body)).not.toMatch(/\/private\/|device-private-sentinel/);
+    if (!body.tools) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled device verdict","detail":"Synthetic recorded-session fixture."}' }, finish_reason: 'stop' }] }) }; }
     wire.push({ stage, round }); const resource = stage === 'duration' ? 'lightDeviceSessions' : 'lightDevices'; let call: AIToolCall | undefined;
     if (round === 0) call = { id: `read-${stage}`, type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource, recordId: stage === 'duration' ? sessionId : 'dev-panel' }) } };
     if (round === 1) {
-      const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text);
+      const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text);
       call = { id: `draft-${stage}`, type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource, operation: stage === 'removeDevice' ? 'remove' : 'update', snapshotId: current.snapshotId, patch: stage === 'duration' ? '{"durationMin":20,"startedAt":"2026-10-23T10:00:00Z"}' : stage === 'specification' ? '{"mwPerCm2At15cm":40}' : '{}', evidence: statements[stage], reason: 'The user explicitly reported this correction or removal.' }) } };
     }
     if (round === 2) {
-      const result = JSON.parse(body.messages.at(-1).content);
+      const result = JSON.parse(body.messages.at(-1)!.content);
       if (stage === 'duration') { expect(result.success).toBe(true); const review = JSON.parse(result.contentItems[0].text).review; expect(review.applied).toBe(false); expect(review.effects.recalculatedSessions).toHaveLength(1); expect(review.effects.recalculatedSessions[0].afterDoses.pbm_red).toBeCloseTo(review.effects.recalculatedSessions[0].beforeDoses.pbm_red * 2, 8); }
       else { expect(result.success).toBe(false); expect(result.contentItems[0].text).toBe(`Error: ${CHAT_NATIVE_UI_NOTICE}`); }
     }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'duration' ? 'Review the device/session correction and retained history before applying.' : `Use the native device editor (${stage}).` }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'duration' ? 'Review the device/session correction and retained history before applying.' : `Use the native device editor (${stage}).` }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false; const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};

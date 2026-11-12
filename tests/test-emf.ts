@@ -137,7 +137,7 @@ assert('45b. EMF runtime exposes only the lazy cross-module entry points',
   typeof emfRuntimeMod.configureEMFRuntimeDeps === 'function' &&
   typeof emfRuntimeMod.openEMFAssessmentEditor === 'function' &&
   typeof emfRuntimeMod.closeEMFInterpretation === 'function');
-const mainSrc = read('js/main.js');
+const mainSrc = read('js/main-runtime.js');
 const orchestratorSrc = read('js/startup-orchestrator.js');
 assert('45c. startup-orchestrator.js does not import an EMF facade', !orchestratorSrc.includes('emf-facade'));
 assert('45d. former EMF globals are not installed', emfWindowFns.every(fn => typeof (window as unknown as Record<string, unknown>)[fn] === 'undefined'));
