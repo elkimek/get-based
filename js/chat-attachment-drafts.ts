@@ -20,6 +20,17 @@ export class ChatAttachmentDrafts {
     const draft = this.drafts.get(key); return !!draft && (draft.attachments.length > 0 || draft.reservations.size > 0);
   }
   hasAnyWork(): boolean {return [...this.drafts.values()].some(draft => draft.attachments.length > 0 || draft.reservations.size > 0);}
+  snapshotForMigration() {
+    const attachments = [...this.drafts.values()].flatMap(draft => draft.attachments);
+    const pending = [...this.drafts.values()].some(draft => draft.reservations.size > 0);
+    const values = attachments.map(image => [image, image.base64, image.mediaType, image.name] as const);
+    return {attachments, pending, isCurrent: () => {
+      const current = [...this.drafts.values()];
+      const images = current.flatMap(draft => draft.attachments);
+      return !current.some(draft => draft.reservations.size > 0) && images.length === values.length
+        && images.every((image, index) => {const prior = values[index]!; return image === prior[0] && image.base64 === prior[1] && image.mediaType === prior[2] && image.name === prior[3];});
+    }};
+  }
   delete(key: string): void { this.drafts.delete(key); }
   replace(key: string, attachments: ChatAttachment[]): void {
     this.drafts.set(key, { attachments, reservations: new Map() });

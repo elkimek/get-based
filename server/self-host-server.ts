@@ -113,7 +113,7 @@ async function main(): Promise<void> {
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && await fs.realpath(process.argv[1]).catch(() => null) === fileURLToPath(import.meta.url)) {
   void main().catch(error => {
     const code = (error as NodeJS.ErrnoException).code;
     console.error(code === 'EADDRINUSE'

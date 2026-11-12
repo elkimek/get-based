@@ -4174,3 +4174,5 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /js/readonly-demo-model.js
 /scripts/build-readonly-demo.mjs
 /scripts/readonly-demo-data.mjs
+
+/js/hosted-transition-monitor.js

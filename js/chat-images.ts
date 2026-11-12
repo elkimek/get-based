@@ -1,4 +1,4 @@
-import { configureMigrationAttachmentCheck } from './migration-navigation.js';
+import { configureMigrationAttachmentCheck, configureMigrationUnsavedWork } from './migration-navigation.js';
 // Attachment processing, ephemeral profile/thread queues and health-file imports.
 // Shared Svelte components own previews, inputs, drop feedback and the lightbox.
 // The configured send-button callback is the only back-reference into chat-send.
@@ -22,6 +22,15 @@ const THUMB_SIZE = 80;
 const pendingAttachmentsByThread = new ChatAttachmentDrafts();
 configureMigrationAttachmentCheck(() => {
   if (pendingAttachmentsByThread.hasAnyWork()) throw new Error('Save or remove unsent image attachments before starting migration. Their originals are only held in memory.');
+});
+configureMigrationUnsavedWork('image drafts', () => {
+  const snapshot = pendingAttachmentsByThread.snapshotForMigration();
+  return {pending: snapshot.pending, isCurrent: snapshot.isCurrent, files: snapshot.attachments.map((image, index) => {
+    if (typeof image.base64 !== 'string' || typeof image.mediaType !== 'string') throw new Error('An image is still being prepared. Keep this page open and retry.');
+    const binary = atob(image.base64), bytes = Uint8Array.from(binary, value => value.charCodeAt(0));
+    const name = typeof image.name === 'string' && image.name ? image.name.replace(/[\\/]/g, '_') : 'unsent-image-' + (index + 1);
+    return {name, blob: new Blob([bytes], {type: image.mediaType})};
+  })};
 });
 const sentMessageAttachments = new WeakMap<object, ChatAttachment[]>();
 const chatImageDeps: { updateSendButtonState: unknown; importFiles: unknown; } = {

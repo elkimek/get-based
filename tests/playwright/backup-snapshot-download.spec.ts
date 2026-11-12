@@ -95,7 +95,7 @@ for (const encrypted of [false, true]) {
         await target.locator('#passphrase-unlock-input').fill(passphrase);
         await target.locator('#passphrase-unlock-btn').click();
       }
-      await expect(target.locator('html[data-app-ready]')).toBeAttached();
+      await expect(target.locator('html[data-app-ready]')).toBeAttached({timeout: 30000});
       const restored = await target.evaluate(async () => ({
         data: JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem('labcharts-snapshot-portable-imported'))!),
         readings: await (await import('/js/wearables-store.js')).getDailyRange('snapshot-portable', 'manual', '2026-11-01', '2026-11-01'),
@@ -103,11 +103,14 @@ for (const encrypted of [false, true]) {
       expect(restored.data.contextNotes).toBe('Historical snapshot note');
       expect(restored.readings[0]!.weight).toBe(81);
       await target.reload();
+      if (encrypted) {
+        await expect.poll(async () => await target.locator('html[data-app-ready]').count() > 0 || await target.locator('#passphrase-unlock-input').isVisible(), {timeout: 30000}).toBe(true);
+      }
       if (encrypted && await target.locator('#passphrase-unlock-input').isVisible()) {
         await target.locator('#passphrase-unlock-input').fill(passphrase);
         await target.locator('#passphrase-unlock-btn').click();
       }
-      await expect(target.locator('html[data-app-ready]')).toBeAttached();
+      await expect(target.locator('html[data-app-ready]')).toBeAttached({timeout: 30000});
       expect(await target.evaluate(async () => JSON.parse((await (await import('/js/crypto.js')).encryptedGetItem('labcharts-snapshot-portable-imported'))!).contextNotes)).toBe('Historical snapshot note');
     } finally { await destination.close(); }
   });

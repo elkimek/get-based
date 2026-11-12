@@ -4,6 +4,18 @@ import { ChatAttachmentDrafts, type AttachmentReservation } from '../js/chat-att
 import { ownChatAttachments, publishChatAttachments, configureChatAttachmentActions, chatAttachmentActions, chatAttachmentImageURL, pasteChatAttachments, dropChatAttachments } from '../js/chat-attachment-view.js';
 const reserved = (value: AttachmentReservation | string): AttachmentReservation => { expect(typeof value).toBe('object'); return value as AttachmentReservation; };
 describe('ephemeral attachment drafts', () => {
+  it('captures every pending scope without consuming images and rejects changed or preparing originals', () => {
+    const drafts = new ChatAttachmentDrafts();
+    const image = {base64: 'synthetic bytes', mediaType: 'image/png', name: 'original.png'};
+    drafts.get('first').push(image); drafts.get('second').push({base64: 'other bytes', mediaType: 'image/png', name: 'other.png'});
+    const snapshot = drafts.snapshotForMigration(); expect(snapshot.attachments).toHaveLength(2); expect(snapshot.pending).toBe(false); expect(snapshot.isCurrent()).toBe(true);
+    expect(drafts.get('first')[0]).toBe(image);
+    image.base64 = 'changed bytes'; expect(snapshot.isCurrent()).toBe(false);
+    const pending = reserved(drafts.reserve('third', 1, 5, 18));
+    expect(drafts.snapshotForMigration().pending).toBe(true); drafts.release(pending);
+    expect(drafts.get('second')).toHaveLength(1);
+  });
+
   it('identifies accepted and preparing images without creating a draft for another scope', () => {
     const drafts = new ChatAttachmentDrafts(); expect(drafts.hasWork('origin')).toBe(false);
     const read = reserved(drafts.reserve('origin', 2, 5, 18)); expect(drafts.hasWork('origin')).toBe(true); expect(drafts.hasWork('target')).toBe(false);

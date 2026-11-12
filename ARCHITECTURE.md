@@ -1981,6 +1981,15 @@ inactive until an actual announcement timestamp is configured. A dated first-use
 notice and persistent migration entry precede a 30-day cutoff. Updated hosted
 launches then keep exports at the original origin and refuse imports; self-hosts
 retain normal behavior. A retained pending-import file remains downloadable.
+`hosted-transition-monitor.ts` checks wall time, page visibility, focus and
+page-show events so an open or suspended tab cannot continue normal editing past
+the cutoff. Its modal retains the current page, saves text drafts and offers
+explicit downloads of in-memory text and image copies when a normal handoff
+cannot finish. Those work copies are unencrypted and require explicit user
+confirmation before navigation; a changed snapshot or pending image read blocks
+that confirmation. Application owners register these snapshots through the
+leaf `migration-navigation.ts` boundary without moving ephemeral images into
+persistent chat storage.
 
 `lib/hosted-transition.ts` binds HTTP request and caller origins to that policy.
 The operated proxy rejects personal requests from the retired hosted origin
