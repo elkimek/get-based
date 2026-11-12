@@ -38,7 +38,7 @@ const _realFetch = globalThis.fetch;
   const viewsRuntimeApi = await import('../js/views-runtime.js');
   const recRuntimeSrc = await fetchWithRetry('js/recommendations-runtime.js');
   const recRegionSrc = await fetchWithRetry('js/recommendations-region.js');
-  const mainSrc = await fetchWithRetry('js/main.js');
+  const mainSrc = await fetchWithRetry('js/main-runtime.js');
   const chatSendSrc = await fetchWithRetry('js/chat-send.js');
   const viewsSrc = await fetchWithRetry('js/navigation-views.js');
   const chartCardSrc = read('js/components/CategoryChartCard.svelte');
@@ -230,7 +230,7 @@ const _realFetch = globalThis.fetch;
   const appFeatureModulesSrc = await fetchWithRetry('js/app-feature-modules.js');
   const appHealthDataModulesSrc = await fetchWithRetry('js/app-health-data-modules.js');
   const healthDataLoaderSrc = await fetchWithRetry('js/health-data-loader.js');
-  assert('main.js imports every startup module in order', hasDirectStartupImports(mainSrc));
+  assert('main-runtime.js imports every startup module in order', hasDirectStartupImports(mainSrc));
   assert('app-feature-modules.js lazy-loads health data modules',
     appFeatureModulesSrc.includes("import './health-data-loader.js'")
       && healthDataLoaderSrc.includes("import('./recommendations.js')"));
