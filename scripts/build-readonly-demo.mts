@@ -15,15 +15,15 @@ export async function buildReadonlyDemo(directory = path.join(ROOT, 'artifacts/p
     JSON.parse(await fs.readFile(path.join(ROOT, `data/demo-${id}.json`), 'utf8')) as Parameters<typeof projectDemoFixture>[1], MARKER_SCHEMA)));
   const component = path.join(ROOT, 'js/components/ReadonlyDemo.svelte');
   const entry = path.join(ROOT, 'js/readonly-demo-entry.js');
-  const result = await build({input: entry, platform: 'browser', write: false,
+  const result = await build({input: 'getbased:public-demo-entry', platform: 'browser', write: false,
     plugins: [{name: 'readonly-public-demo',
       resolveId(id) {
-        if (id === 'getbased:public-demo-data') return id;
+        if (id === 'getbased:public-demo-entry') return id;
         if (id.endsWith('/ReadonlyDemo.svelte.native.js')) return 'getbased:demo-component';
         return null;
       },
       async load(id) {
-        if (id === 'getbased:public-demo-data') return `export const profiles = ${JSON.stringify(profiles)};`;
+        if (id === 'getbased:public-demo-entry') return `import {mountReadonlyDemo} from ${JSON.stringify(entry)}; mountReadonlyDemo(${JSON.stringify(profiles)});`;
         if (id === 'getbased:demo-component') return `export {default} from ${JSON.stringify(component)}; export {mount} from 'svelte';`;
         if (id !== component) return null;
         const compiled = compile(await fs.readFile(component, 'utf8'), {filename: component, generate: 'client', css: 'external', dev: false});
