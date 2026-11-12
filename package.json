@@ -71,7 +71,9 @@
     "benchmark:local": "node scripts/benchmark-static.mjs",
     "performance:native:check": "playwright test --config=playwright.native-compat.config.js tests/native-compat/cold-load-budget.spec.ts --workers=1",
     "preperformance:check": "npm run typescript:build",
-    "preperformance:native:check": "npm run typescript:build"
+    "preperformance:native:check": "npm run typescript:build",
+    "preself-host": "npm run typescript:build",
+    "self-host": "node server/self-host-server.js"
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.11.0",

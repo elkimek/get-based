@@ -65,7 +65,24 @@ provider credentials and integration requirements; see the
 [profile-share service](deploy/profile-share/README.md) and
 [environment example](.env.local.example). Do not put credentials in browser source.
 
-## Run locally
+## Self-host
+
+Build and run the production app on your computer:
+
+```bash
+git clone https://github.com/elkimek/get-based
+cd get-based
+npm ci
+npm run production:build
+npm run self-host
+```
+
+Use **Node.js 24.20 or later within version 24**. The server listens only on
+`127.0.0.1:8000`. For a private HTTPS address on your computer, phone and tablet,
+follow the [self-hosting guide](engineering/self-hosting.md). It covers Tailscale,
+backups, browser storage, updates and optional services.
+
+## Develop locally
 
 Use **Node.js 24** and a modern browser:
 

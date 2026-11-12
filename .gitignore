@@ -4125,3 +4125,6 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /js/marker-baseline.js
 
 /js/marker-chart-scale.js
+
+# Self-host server runtime output
+/server/self-host-server.js

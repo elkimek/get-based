@@ -18,7 +18,9 @@ npm run test:sveltekit
 `production:check` validates a disposable artifact. `sveltekit:build` retains the
 local acceptance artifact at `.local-notes/sveltekit-build`; `test:sveltekit`
 builds that artifact first and runs its configured browser cases. The npm
-pre-hooks compile authored sources. Local building does not publish the app.
+pre-hooks compile authored sources. Local building does not publish the app. After building, `npm run self-host`
+serves only `dist/` on loopback with the security headers from `vercel.json`.
+See the [self-hosting guide](self-hosting.md) for private HTTPS and recovery.
 
 Serve the artifact with the `/app` rewrite to `/index.html`, existing MIME types
 and deployed CSP. `/`, `/index.html`, `/app` and `/app/` remain document aliases;
@@ -124,6 +126,11 @@ private-field, async save and style ownership rules live in
 [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ## Offline assets and atomic updates
+
+Pinned production builds register the existing service worker on loopback and
+local hostnames without a development query parameter. Unpinned source builds
+keep development registration opt-in. The loopback static server does not supply
+an independent updater or modify the public app artifact.
 
 The existing root service worker is the sole offline/update owner. Kit must not
 register another worker or poll an independent version. App-shell declarations
