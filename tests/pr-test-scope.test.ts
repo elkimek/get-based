@@ -408,7 +408,7 @@ describe('implicit framework and retired owner scope', () => {
       .toEqual(['js/components/svelte-html-attributes.d.ts']);
   });
 
-  it.each(['js/kit/hooks.ts', 'js/kit/routes/app/+layout.ts'])('selects actual static artifact and alias contracts for discovered %s', source => {
+  it.each(['js/kit/hooks.ts', 'js/kit/routes/app/+layout.ts', 'js/kit/routes/app/+layout.svelte'])('selects actual static artifact and alias contracts for discovered %s', source => {
     const plan = createTestPlan(new Map([
       [source, 'export const prerender = true;'],
       ['tests/production-build.test.ts', ''],
