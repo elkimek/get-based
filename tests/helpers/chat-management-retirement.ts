@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, vi } from 'vitest';
 import { state } from '../../js/state.js';
 import { createAppControlSession } from '../../js/app-control-session.js';
 import { executeAppControl } from '../../js/app-control-commands.js';
@@ -8,8 +8,7 @@ import { renderHTML } from '../../js/components/ChatMessageActions.svelte.html.j
 import { chatReviewLifecycle } from '../../shared/chat-review-contract.js';
 import { setChatControlsEnabled } from '../../js/chat-control-settings.js';
 
-export function defineRetiredManagement(action: 'display.preferences' | 'assistant.selection' | 'assistant.connection' | 'profile.selection' | 'labs.overlays') {
-  describe(`${action} remains native-only`, () => {
+export function retiredManagementCases(action: 'display.preferences' | 'assistant.selection' | 'assistant.connection' | 'profile.selection' | 'labs.overlays') {
     let previous: { profile: string; thread: typeof state.currentThreadId; data: typeof state.importedData; history: typeof state.chatHistory };
     let permission: string | null;
     const selection = { backend: 'direct' as const, provider: 'custom', target: '', model: 'model-a', effort: '' };
@@ -35,7 +34,7 @@ export function defineRetiredManagement(action: 'display.preferences' | 'assista
       Object.assign(state, { currentProfile: previous.profile, currentThreadId: previous.thread, importedData: previous.data, chatHistory: previous.history });
       if (permission === null) localStorage.removeItem('getbased-chat-controls'); else localStorage.setItem('getbased-chat-controls', permission);
     });
-    it('creates no snapshot or proposal and invokes no injected native handler', async () => {
+    return { noProposal: async () => {
       const native = vi.fn(), before = footprint(), health = structuredClone(state.importedData);
       const session = createAppControlSession('My previous request', () => true, new AbortController().signal);
       const runtime = createAgentToolRuntime({ readContext: () => 'Permitted health context', listAppActions: native, readAppState: native, prepareAppControl: native });
@@ -48,8 +47,7 @@ export function defineRetiredManagement(action: 'display.preferences' | 'assista
       expect(session.tools.listAppActions().actions).toEqual([]); expect(session.finish()).toEqual([]);
       expect(runtime.getDrafts()).toEqual([]); expect(runtime.getOutcome().reviews).toEqual([]); expect(native).not.toHaveBeenCalled();
       expect(state.importedData).toEqual(health); expect(footprint()).toEqual(before);
-    });
-    it.each(['pending','applying','changed','undone','discarded','expired','conflict','unknown'])('cannot execute or grant Undo from a stored %s label', async status => {
+    }, storedLabel: async (status: string) => {
       const old = record(status), before = footprint(), health = structuredClone(state.importedData), allowed = vi.fn(() => true);
       const normalized = normalizeAppControls([old], true); expect(normalized).toHaveLength(1);
       expect(normalized[0]!.undoAvailable).not.toBe(true); expect(normalized[0]!.status).not.toBe('pending'); expect(normalized[0]!.status).not.toBe('applying');
@@ -58,12 +56,10 @@ export function defineRetiredManagement(action: 'display.preferences' | 'assista
       for (const undo of [false,true]) await expect(executeAppControl(old, undo, allowed)).rejects.toThrow('native settings');
       expect(allowed).not.toHaveBeenCalled(); expect(state.currentProfile).toBe('origin'); expect(state.currentThreadId).toBe('origin-thread');
       expect(state.importedData).toEqual(health); expect(footprint()).toEqual(before);
-    });
-    it('does not restore management authority after off/on or a fresh native-looking lease', async () => {
+    }, noAuthority: async () => {
       await setChatControlsEnabled(false); await setChatControlsEnabled(true);
       const before = footprint(), health = structuredClone(state.importedData), old = { ...record('pending'), leaseId: crypto.randomUUID() };
       for (const undo of [false,true]) await expect(executeAppControl(old, undo, () => true)).rejects.toThrow('native settings');
       expect(state.importedData).toEqual(health); expect(footprint()).toEqual(before);
-    });
-  });
+    }};
 }
