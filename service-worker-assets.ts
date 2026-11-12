@@ -271,6 +271,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/therapy-correlation-view.js', '/js/mobile-dashboard.js', '/js/views.js', '/js/recommendations-runtime.js',
   '/js/recommendations-products.js', '/js/recommendations.js', '/js/recommendations-region.js', '/js/crypto.js',
   '/js/base64.js', '/js/crypto-ui.js', '/js/data-wipe.js', '/js/backup-cycle.js',
+  '/js/backup-storage.js', '/js/backup-snapshot-download.js',
   '/js/backup-serialization.js', '/js/backup.js', '/js/backup-chat-storage.js', '/js/lab-context.js', '/js/lab-context-assembly.js', '/js/lab-context-loader.js',
   '/js/lab-context-cache.js', '/js/lab-context-collection.js', '/js/lab-context-disclosure.js', '/js/lab-sample-cycle.js', '/js/lab-context-runtime.js', '/js/lab-context-change-timeline.js',
   '/js/lab-context-output.js', '/js/lab-context-settings.js', '/js/lab-context-wearables.js', '/js/markdown.js',

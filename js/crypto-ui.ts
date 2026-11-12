@@ -15,6 +15,7 @@ import {
   loadDataProtectionStylesheetForAction,
 } from './modal-lifecycle.js';
 import {
+  exportAutoBackup,
   exportEncryptedBackup,
   getAutoBackupSnapshots,
   getFolderBackupState,
@@ -95,6 +96,11 @@ function handleCryptoActionClick(event: Event) {
   else if (action === 'enable-encryption') showEnableEncryptionModal();
   else if (action === 'export-backup') exportEncryptedBackup();
   else if (action === 'toggle-backup-snapshots') toggleBackupSnapshots();
+  else if (action === 'export-auto-backup') {
+    const id = readSnapshotActionId(actionElement);
+    if (id == null) return;
+    void exportAutoBackup(id);
+  }
   else if (action === 'restore-auto-backup') {
     const id = readSnapshotActionId(actionElement);
     if (id == null) return;
