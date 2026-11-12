@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { stripTypeScriptTypes } from 'node:module';
 const original = fs.readFileSync(process.argv[1], 'utf8');
-async function run(readyState, fail = false, holdRestore = false, holdNavigation = false, failNavigation = false, containedNavigationFailure = false) {
+async function run(readyState, fail = false, holdRestore = false, holdNavigation = false, failNavigation = false, containedNavigationFailure = false, pendingMigration = false) {
   const calls = [], errors = [];
   let release, releaseNavigation;
   const navigation = holdNavigation ? new Promise(resolve => { releaseNavigation = resolve; }) : undefined;
@@ -18,7 +18,9 @@ async function run(readyState, fail = false, holdRestore = false, holdNavigation
   const document = new EventTarget();
   document.readyState = readyState;
   document.documentElement = { dataset: {} };
-  const context = vm.createContext({ document, console: { error: (...args) => errors.push(args) } });
+  const localStorage = { getItem: key => key === 'labcharts-migration-pending' && pendingMigration ? 'pending' : null };
+  const location = { replace: url => calls.push('redirect:' + url) };
+  const context = vm.createContext({ document, localStorage, location, console: { error: (...args) => errors.push(args) } });
   const module = new vm.SourceTextModule(stripTypeScriptTypes(original, { mode: 'strip' }), { context });
   await module.link(specifier => {
     const line = original.split('\n').find(line => line.endsWith("from '" + specifier + "';"));
@@ -56,6 +58,7 @@ const result = {};
 for (const state of ['loading', 'interactive', 'complete']) result[state] = await run(state);
 result.deferred = await run('complete', false, true);
 result.failure = await run('complete', true);
+result.migration = await run('complete', false, false, false, false, false, true);
 result.navigation = await run('complete', false, false, true);
 result.navigationFailure = await run('complete', false, false, false, true);
 result.containedNavigationFailure = await run('complete', false, false, false, false, true);
@@ -69,6 +72,13 @@ const startupOrder = ['initializeStartupFoundation', 'initializeProfileData', 'r
   'handleStartupOAuthCallbacks', 'renderStartupUI', 'runAppExtensionStartup', 'restorePendingImportReviewDraft'];
 
 describe('startup document event boundary', () => {
+  it('keeps interrupted migration outside profile initialization', () => {
+    const actual = evidence.migration!;
+    expect(actual.ready).toBe(false);
+    expect(actual.errors).toBe(0);
+    expect(actual.calls.length).toBeGreaterThan(0);
+    expect(actual.calls.every(name => name === 'redirect:/app/migration.html')).toBe(true);
+  });
   it.each(['loading', 'interactive', 'complete'])('starts once when the document is %s', readyState => {
     const actual = evidence[readyState]!;
     expect(actual.ready).toBe(true);
