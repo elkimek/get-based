@@ -56,6 +56,7 @@ const actions: MigrationActions = {
   }),
   restore: (password, original) => run(async () => {
     if (!selected || !inspected) throw new Error('Check the migration file first.');
+    update({status: 'Checking the destination and preparing recovery tools…'});
     try {
       inspected = await restoreMigrationArchive(selected, password, original, status => update({status}));
       update({summary: summary(inspected), complete: true, pending: false, status: 'Recovery passed verification. Your source records have not been erased.'});

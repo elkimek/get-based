@@ -80,6 +80,7 @@ for (const encrypted of [false, true]) test('shipping recovery preserves ' + (en
     const restore = async () => {
       if (encrypted) await target.locator('#migration-import-original').fill(original);
       await target.getByRole('checkbox').check(); await target.getByRole('button', {name: 'Restore migration file', exact: true}).click();
+      await expect(target.getByRole('main')).toHaveAttribute('aria-busy', 'false', {timeout: 30000});
     };
     await inspect();
     await target.evaluate(() => {
