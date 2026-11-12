@@ -448,7 +448,7 @@ return (async function () {
     assert('device-session-ai-analysis.js no longer served', ghost === false);
 
     // app-feature-modules.js no longer imports it.
-    const main = await fetchSrc('js/main.js');
+    const main = await fetchSrc('js/main-runtime.js');
     const appFeatures = await fetchSrc('js/app-feature-modules.js');
     const appFoundationFeatures = await fetchSrc('js/app-foundation-modules.js');
     const appHealthDataFeatures = await fetchSrc('js/app-health-data-modules.js');

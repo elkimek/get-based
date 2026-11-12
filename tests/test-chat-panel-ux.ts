@@ -134,7 +134,7 @@ return (async function() {
       // The legacy nudge handler was removed (backdrop is now pointer-
       // events:none, so clicks never reach it anyway). Verify by
       // inspecting main.js source — the nudge code path is gone.
-      const mainSrc = await fetch('js/main.js').then(r => r.text());
+      const mainSrc = await fetch('js/main-runtime.js').then(r => r.text());
       assert('main.js no longer contains chat-backdrop modal-nudge handler',
         !/e\.target\.id === "chat-backdrop".*modal-nudge/.test(mainSrc));
     }

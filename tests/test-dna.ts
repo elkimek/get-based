@@ -433,11 +433,11 @@ assert('DNA UI actions are module exports',
 // ═══════════════════════════════════════
 console.log('12. Source Integration');
 
-const mainSrc = await fetchWithRetry('js/main.js');
+const mainSrc = await fetchWithRetry('js/main-runtime.js');
 const appFeatureModulesSrc = await fetchWithRetry('js/app-feature-modules.js');
 const appHealthDataModulesSrc = await fetchWithRetry('js/app-health-data-modules.js');
 const healthDataLoaderSrc = await fetchWithRetry('js/health-data-loader.js');
-assert('main.js imports every startup module in order', hasDirectStartupImports(mainSrc));
+assert('main-runtime.js imports every startup module in order', hasDirectStartupImports(mainSrc));
 assert('app-feature-modules.js lazy-loads health data modules',
   appFeatureModulesSrc.includes("'./health-data-loader.js'")
     && healthDataLoaderSrc.includes("import('./dna.js')"));
