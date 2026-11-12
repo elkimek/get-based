@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2094 |
-| Internal import edges | 7048 |
+| Modules | 2096 |
+| Internal import edges | 7054 |
 | Dynamic internal edges | 216 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -66,8 +66,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/state.ts`](js/state.ts) | 340 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 81 |
-| [`js/utils.ts`](js/utils.ts) | 271 | [`js/agent-data-bindings.ts`](js/agent-data-bindings.ts) | 45 |
-| [`js/caught-error.ts`](js/caught-error.ts) | 97 | [`js/chat-send.ts`](js/chat-send.ts) | 41 |
+| [`js/utils.ts`](js/utils.ts) | 272 | [`js/agent-data-bindings.ts`](js/agent-data-bindings.ts) | 45 |
+| [`js/caught-error.ts`](js/caught-error.ts) | 98 | [`js/chat-send.ts`](js/chat-send.ts) | 41 |
 | [`js/data.ts`](js/data.ts) | 97 | [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 86 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/profile.ts`](js/profile.ts) | 71 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -304,14 +304,16 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>backup</code> family — 6 modules</summary>
+<details><summary><code>backup</code> family — 8 modules</summary>
 
 - [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts) → [`js/persona-storage-transaction.ts`](js/persona-storage-transaction.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts)
 - [`js/backup-cycle.ts`](js/backup-cycle.ts) → [`js/cycle-store.ts`](js/cycle-store.ts)
 - [`js/backup-folder-component.ts`](js/backup-folder-component.ts) → [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts), [`js/components/FolderBackupSettings.svelte`](js/components/FolderBackupSettings.svelte)
 - [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts) → no in-scope imports
 - [`js/backup-serialization.ts`](js/backup-serialization.ts) → [`js/base64.ts`](js/base64.ts), [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts)
-- [`js/backup.ts`](js/backup.ts) → [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts), [`js/backup-cycle.ts`](js/backup-cycle.ts) *(dynamic)*, [`js/backup-folder-component.ts`](js/backup-folder-component.ts) *(dynamic)*, [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts), [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-config-store.ts`](js/lens-config-store.ts), [`js/persona-storage-transaction.ts`](js/persona-storage-transaction.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
+- [`js/backup-snapshot-download.ts`](js/backup-snapshot-download.ts) → [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/backup-storage.ts`](js/backup-storage.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/backup-storage.ts`](js/backup-storage.ts) → no in-scope imports
+- [`js/backup.ts`](js/backup.ts) → [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts), [`js/backup-cycle.ts`](js/backup-cycle.ts) *(dynamic)*, [`js/backup-folder-component.ts`](js/backup-folder-component.ts) *(dynamic)*, [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts), [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/backup-snapshot-download.ts`](js/backup-snapshot-download.ts), [`js/backup-storage.ts`](js/backup-storage.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/lens-config-store.ts`](js/lens-config-store.ts), [`js/persona-storage-transaction.ts`](js/persona-storage-transaction.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
 
 </details>
 

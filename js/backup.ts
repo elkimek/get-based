@@ -1,3 +1,6 @@
+import { openBackupDB, BACKUP_STORE, FOLDER_HANDLE_STORE } from './backup-storage.js';
+export { openBackupDB } from './backup-storage.js';
+export { exportAutoBackup } from './backup-snapshot-download.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
 import { getErrorMessage, getErrorName } from './caught-error.js';
@@ -471,46 +474,14 @@ export function importEncryptedBackup(file: Blob): Promise<void> {
 // ═══════════════════════════════════════════════
 // AUTO-BACKUP (IndexedDB)
 // ═══════════════════════════════════════════════
-const BACKUP_DB_NAME = 'labcharts-backups';
-const BACKUP_STORE = 'snapshots';
-const FOLDER_HANDLE_STORE = 'folder-handle';
 export const MAX_SNAPSHOTS = 5;
 const AUTO_BACKUP_COOLDOWN = 300000; // 5 minutes
 let _autoBackupTimer: ReturnType<typeof setTimeout> | null = null;
-let _dbPromise: Promise<IDBDatabase> | null = null;
 
 // Folder backup state
 let _folderHandle: BackupDirectory | null = null;
 let _folderPermissionLost = false;
 let _folderWriteInProgress = false;
-
-export function openBackupDB() {
-  if (_dbPromise) return _dbPromise;
-  let blocked = false;
-  const pending = new Promise<IDBDatabase>((resolve, reject) => {
-    const req = indexedDB.open(BACKUP_DB_NAME, 2);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(BACKUP_STORE)) {
-        db.createObjectStore(BACKUP_STORE, { keyPath: 'id', autoIncrement: true });
-      }
-      if (!db.objectStoreNames.contains(FOLDER_HANDLE_STORE)) {
-        db.createObjectStore(FOLDER_HANDLE_STORE);
-      }
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      if (blocked) { db.close(); if (_dbPromise === pending) _dbPromise = null; return; }
-      db.onversionchange = () => { db.close(); if (_dbPromise === pending) _dbPromise = null; };
-      resolve(db);
-    };
-    req.onblocked = () => { blocked = true; reject(new Error('Backup storage is blocked by another open tab.')); };
-    req.onerror = () => { if (_dbPromise === pending) _dbPromise = null; reject(req.error); };
-  });
-  _dbPromise = pending;
-  void pending.catch(() => { if (!blocked && _dbPromise === pending) _dbPromise = null; });
-  return pending;
-}
 
 async function performAutoBackup() {
   try {

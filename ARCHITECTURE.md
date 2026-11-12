@@ -418,6 +418,12 @@ migrations resolve recovery before reading or transforming the pair. Sync, JSON
 export and full-backup collection hold the same native lock across their persona snapshot.
 `backup-chat-storage.ts` collects raw conversation envelopes and the committed
 persona pair; `backup.ts` retains recovery and collection sequencing.
+The shared backup-storage owner retains the automatic-snapshot and folder-handle
+database lifecycle. Saved automatic snapshots can be downloaded through Backup
+settings without restoring them. The backup-snapshot-download owner reads one
+committed snapshot transaction, preserves its
+ciphertext and serialization, and never acknowledges a backup of current data.
+An interrupted read or missing snapshot cannot fall back to exporting current data.
 Journal transitions and cleanup use a conditional IndexedDB transaction so a
 replaced recovery owner cannot be overwritten between a read and its write.
 Profile cleanup removes the journal backend and its local fence. An unproved recovery

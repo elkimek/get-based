@@ -42,6 +42,13 @@ sources while collecting coverage: every run needs its own transform witnesses.
 The native producer regression repeats real Node and jsdom suites with the cache
 enabled to verify that each run produces a complete, independently valid receipt.
 
+Saved-snapshot downloads must preserve the source browser's profiles, encryption
+settings and backup timestamps. Check a removed snapshot, an aborted read after
+request success, and download failure. Real browser acceptance downloads through
+Backup settings and restores plaintext and encrypted snapshots on another origin,
+including a subsequent reload and retained wearable history. These checks do not
+establish complete migration coverage for stores excluded by the backup format.
+
 Run relevant tests and lightweight compiler, architecture, quality, and build
 checks locally. Use the commands in [CONTRIBUTING.md](../CONTRIBUTING.md).
 Do not run the exhaustive browser or coverage matrix locally by default.
