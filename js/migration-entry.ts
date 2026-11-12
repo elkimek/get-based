@@ -1,8 +1,8 @@
+import {getHostedTransition} from '../shared/hosted-transition.js';
 import MigrationRecovery, {mount, flushSync} from './components/MigrationRecovery.svelte.native.js';
 import { initialMigrationView } from './migration-view.js';
 import { buildMigrationArchive, inspectMigrationArchive } from './migration-archive.js';
 import { getPendingMigration, restoreMigrationArchive } from './migration-restore.js';
-import { existingMigrationDatabases } from './migration-database.js';
 import { migrationSnapshotCatalog, readMigrationSnapshot } from './migration-snapshots.js';
 import type { MigrationSnapshotLabel } from './migration-snapshots.js';
 import { serializeBackupSnapshot } from './backup-serialization.js';
@@ -48,6 +48,7 @@ const actions: MigrationActions = {
     } catch {update({error: 'The download could not start. Keep this page open and try the Download button again.'});}
   },
   inspect: (file, password) => run(async () => {
+    if (getHostedTransition(location.origin)?.phase === 'recovery') throw new Error('Use your self-hosted address to inspect and restore a migration file.');
     inspected = null; update({summary: null});
     const pending = await getPendingMigration(); selected = file ?? pending?.blob ?? null;
     if (!selected) throw new Error('Choose a migration file.');
@@ -83,12 +84,14 @@ target.replaceChildren();
 view = mount(MigrationRecovery, {target, props: {initial: state, actions}});
 void run(async () => {
   const pending = await getPendingMigration();
-  const names = await existingMigrationDatabases();
-  if (names.includes('labcharts-backups')) {
+  const recoveryOnly = getHostedTransition(location.origin)?.phase === 'recovery';
+  if (pending && recoveryOnly) preparedDownload = {blob: pending.blob, name: 'getbased-pending-migration.json'};
+  const databases = await indexedDB.databases();
+  if (databases.some(database => database.name === 'labcharts-backups')) {
     snapshots = await migrationSnapshotCatalog();
   }
-  update({pending: !!pending || !!localStorage.getItem('labcharts-migration-pending'), sourceEncrypted: localStorage.getItem('labcharts-encryption-enabled') === 'true',
+  update({recoveryOnly, downloadKind: pending && recoveryOnly ? 'migration' : null, pending: !!pending || !!localStorage.getItem('labcharts-migration-pending'), sourceEncrypted: localStorage.getItem('labcharts-encryption-enabled') === 'true',
     snapshots: snapshots.map((record, index) => ({index, date: typeof record.createdAt === 'string' && Number.isFinite(Date.parse(record.createdAt)) ? new Date(record.createdAt).toLocaleString() : 'Undated snapshot', encrypted: !!record.encrypted})),
-    status: pending ? 'A destination recovery is pending. Enter the migration password to resume.' : 'Your source records stay in this browser throughout migration.'});
+    status: pending && recoveryOnly ? 'Download the retained original migration file and restore it at your self-hosted address. Partial records here are retained.' : pending ? 'A destination recovery is pending. Enter the migration password to resume.' : 'Your source records stay in this browser throughout migration.'});
   document.documentElement.dataset.migrationReady = '';
 });

@@ -214,3 +214,23 @@ test('another source window prevents export until it closes', async ({page, cont
   await other.close();
   expect((await exportFile(page, false)).length).toBeGreaterThan(0);
 });
+
+test('an unsupported store blocks migration while saved snapshot recovery remains available', async ({page}) => {
+  await prepare(page, '/app?dev-sw=1'); await seed(page, false);
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {const r = indexedDB.open('getbased-future-fixture', 1); r.onupgradeneeded = () => r.result.createObjectStore('future'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);});
+    await new Promise<void>((resolve, reject) => {const tx = db.transaction('future', 'readwrite'); tx.objectStore('future').put('retain this synthetic future record', 'synthetic'); tx.oncomplete = () => resolve(); tx.onabort = () => reject(tx.error);}); db.close();
+  });
+  await openMigration(page);
+  await page.getByRole('button', {name: 'Prepare saved backup', exact: true}).last().click();
+  await expect(page.getByRole('button', {name: 'Download saved backup', exact: true})).toBeEnabled();
+  const downloading = page.waitForEvent('download'); await page.getByRole('button', {name: 'Download saved backup', exact: true}).click();
+  expect((await downloading).suggestedFilename()).toBe('getbased-saved-snapshot.json');
+  await page.locator('#migration-password').fill(archivePassword); await page.locator('#migration-confirm').fill(archivePassword);
+  await page.getByRole('button', {name: 'Prepare migration file', exact: true}).click();
+  await expect(page.getByRole('alert')).toContainText('unrecognized application database');
+  expect(await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>(resolve => {const r = indexedDB.open('getbased-future-fixture'); r.onsuccess = () => resolve(r.result);});
+    try {return await new Promise(resolve => {const tx = db.transaction('future', 'readonly'), r = tx.objectStore('future').get('synthetic'); tx.oncomplete = () => resolve(r.result);});} finally {db.close();}
+  })).toBe('retain this synthetic future record');
+});

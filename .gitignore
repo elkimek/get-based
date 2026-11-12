@@ -4160,3 +4160,12 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /scripts/static-raw-encoding.mjs
 
 /scripts/self-host-install-smoke.mjs
+
+/js/main-runtime.js
+/shared/hosted-transition.js
+
+/js/hosted-transition-notice.js
+/js/components/HostedTransitionBanner.svelte.html.js
+/js/components/HostedTransitionBanner.svelte.native.js
+
+/lib/hosted-transition.js

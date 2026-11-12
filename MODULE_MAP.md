@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2114 |
-| Internal import edges | 7098 |
-| Dynamic internal edges | 217 |
+| Modules | 2119 |
+| Internal import edges | 7109 |
+| Dynamic internal edges | 218 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -66,7 +66,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/state.ts`](js/state.ts) | 340 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 81 |
-| [`js/utils.ts`](js/utils.ts) | 272 | [`js/agent-data-bindings.ts`](js/agent-data-bindings.ts) | 45 |
+| [`js/utils.ts`](js/utils.ts) | 273 | [`js/agent-data-bindings.ts`](js/agent-data-bindings.ts) | 45 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 98 | [`js/chat-send.ts`](js/chat-send.ts) | 41 |
 | [`js/data.ts`](js/data.ts) | 97 | [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 86 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
@@ -108,7 +108,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>+layout.svelte</code> family — 1 module</summary>
 
-- [`js/kit/routes/app/+layout.svelte`](js/kit/routes/app/+layout.svelte) → [`js/main.ts`](js/main.ts) *(dynamic)*
+- [`js/kit/routes/app/+layout.svelte`](js/kit/routes/app/+layout.svelte) → [`js/main.ts`](js/main.ts) *(dynamic)*, [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 
 </details>
 
@@ -2423,6 +2423,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>hosted</code> family — 1 module</summary>
+
+- [`js/hosted-transition-notice.ts`](js/hosted-transition-notice.ts) → [`js/components/HostedTransitionBanner.svelte`](js/components/HostedTransitionBanner.svelte), [`js/migration-navigation.ts`](js/migration-navigation.ts), [`js/utils.ts`](js/utils.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
+
+</details>
+
+<details><summary><code>HostedTransitionBanner.svelte</code> family — 1 module</summary>
+
+- [`js/components/HostedTransitionBanner.svelte`](js/components/HostedTransitionBanner.svelte) → no in-scope imports
+
+</details>
+
 <details><summary><code>identities</code> family — 1 module</summary>
 
 - [`js/marker-schema/identities.ts`](js/marker-schema/identities.ts) → no in-scope imports
@@ -3628,9 +3640,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>main</code> family — 1 module</summary>
+<details><summary><code>main</code> family — 2 modules</summary>
 
-- [`js/main.ts`](js/main.ts) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-navigation-loader.ts`](js/app-navigation-loader.ts), [`js/app-shell-component.ts`](js/app-shell-component.ts), [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/navigation-views.ts`](js/navigation-views.ts), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/main-runtime.ts`](js/main-runtime.ts) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-navigation-loader.ts`](js/app-navigation-loader.ts), [`js/app-shell-component.ts`](js/app-shell-component.ts), [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/navigation-views.ts`](js/navigation-views.ts), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/main.ts`](js/main.ts) → [`js/main-runtime.ts`](js/main-runtime.ts) *(dynamic)*, [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 
 </details>
 
@@ -3778,11 +3791,11 @@ Native browser modules shipped with the static application.
 - [`js/migration-crypto.ts`](js/migration-crypto.ts) → [`js/base64.ts`](js/base64.ts), [`js/migration-codec.ts`](js/migration-codec.ts)
 - [`js/migration-database.ts`](js/migration-database.ts) → no in-scope imports
 - [`js/migration-digest.ts`](js/migration-digest.ts) → [`js/migration-codec.ts`](js/migration-codec.ts)
-- [`js/migration-entry.ts`](js/migration-entry.ts) → [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/components/MigrationRecovery.svelte`](js/components/MigrationRecovery.svelte), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-database.ts`](js/migration-database.ts), [`js/migration-restore.ts`](js/migration-restore.ts), [`js/migration-snapshots.ts`](js/migration-snapshots.ts), [`js/migration-view.ts`](js/migration-view.ts)
+- [`js/migration-entry.ts`](js/migration-entry.ts) → [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/components/MigrationRecovery.svelte`](js/components/MigrationRecovery.svelte), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-restore.ts`](js/migration-restore.ts), [`js/migration-snapshots.ts`](js/migration-snapshots.ts), [`js/migration-view.ts`](js/migration-view.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 - [`js/migration-files.ts`](js/migration-files.ts) → [`js/base64.ts`](js/base64.ts)
 - [`js/migration-navigation.ts`](js/migration-navigation.ts) → no in-scope imports
 - [`js/migration-portable.ts`](js/migration-portable.ts) → [`js/base64.ts`](js/base64.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/storage-object-codec.ts`](js/storage-object-codec.ts)
-- [`js/migration-restore.ts`](js/migration-restore.ts) → [`js/lens-local-lock.ts`](js/lens-local-lock.ts), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-clients.ts`](js/migration-clients.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/migration-database.ts`](js/migration-database.ts), [`js/migration-digest.ts`](js/migration-digest.ts), [`js/migration-files.ts`](js/migration-files.ts), [`js/migration-portable.ts`](js/migration-portable.ts), [`js/profile-defaults.ts`](js/profile-defaults.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts)
+- [`js/migration-restore.ts`](js/migration-restore.ts) → [`js/lens-local-lock.ts`](js/lens-local-lock.ts), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-clients.ts`](js/migration-clients.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/migration-database.ts`](js/migration-database.ts), [`js/migration-digest.ts`](js/migration-digest.ts), [`js/migration-files.ts`](js/migration-files.ts), [`js/migration-portable.ts`](js/migration-portable.ts), [`js/profile-defaults.ts`](js/profile-defaults.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 - [`js/migration-snapshots.ts`](js/migration-snapshots.ts) → [`js/migration-database.ts`](js/migration-database.ts)
 - [`js/migration-view.ts`](js/migration-view.ts) → no in-scope imports
 
@@ -4699,7 +4712,7 @@ Native browser modules shipped with the static application.
 - [`js/startup-oauth-callbacks.ts`](js/startup-oauth-callbacks.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/utils.ts`](js/utils.ts), [`js/wearables-connect-loader.ts`](js/wearables-connect-loader.ts)
 - [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts) → [`js/app-event-listeners.ts`](js/app-event-listeners.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/startup-foundation.ts`](js/startup-foundation.ts), [`js/startup-maintenance.ts`](js/startup-maintenance.ts), [`js/startup-oauth-callbacks.ts`](js/startup-oauth-callbacks.ts), [`js/startup-profile.ts`](js/startup-profile.ts), [`js/startup-ui.ts`](js/startup-ui.ts), [`js/sync-startup.ts`](js/sync-startup.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/startup-profile.ts`](js/startup-profile.ts) → [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/startup-ui.ts`](js/startup-ui.ts) → [`js/changelog.ts`](js/changelog.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-file-input.ts`](js/import-file-input.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/nav.ts`](js/nav.ts), [`js/startup-profile.ts`](js/startup-profile.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/sync-ui.ts`](js/sync-ui.ts), [`js/sync.ts`](js/sync.ts) *(dynamic)*, [`js/theme.ts`](js/theme.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/startup-ui.ts`](js/startup-ui.ts) → [`js/changelog.ts`](js/changelog.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/hosted-transition-notice.ts`](js/hosted-transition-notice.ts), [`js/import-file-input.ts`](js/import-file-input.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/nav.ts`](js/nav.ts), [`js/startup-profile.ts`](js/startup-profile.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/sync-ui.ts`](js/sync-ui.ts), [`js/sync.ts`](js/sync.ts) *(dynamic)*, [`js/theme.ts`](js/theme.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -5679,6 +5692,12 @@ Runtime-neutral contracts shared by browser and server modules.
 
 </details>
 
+<details><summary><code>hosted</code> family — 1 module</summary>
+
+- [`shared/hosted-transition.ts`](shared/hosted-transition.ts) → no in-scope imports
+
+</details>
+
 <details><summary><code>lab</code> family — 2 modules</summary>
 
 - [`shared/lab-ordering-control-contract.ts`](shared/lab-ordering-control-contract.ts) → no in-scope imports
@@ -5722,7 +5741,7 @@ Hosted request handlers shared by Vercel and Node deployment entry points.
 
 <details><summary><code>proxy</code> family — 1 module</summary>
 
-- [`api/proxy.ts`](api/proxy.ts) → [`api/cams-relay.ts`](api/cams-relay.ts), [`api/postal-geocode.ts`](api/postal-geocode.ts), [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/oauth-token-form.ts`](lib/oauth-token-form.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts), [`lib/proxy-rate-limit.ts`](lib/proxy-rate-limit.ts) *(dynamic)*, [`lib/proxy-response.ts`](lib/proxy-response.ts), [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts)
+- [`api/proxy.ts`](api/proxy.ts) → [`api/cams-relay.ts`](api/cams-relay.ts), [`api/postal-geocode.ts`](api/postal-geocode.ts), [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/hosted-transition.ts`](lib/hosted-transition.ts), [`lib/oauth-token-form.ts`](lib/oauth-token-form.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts), [`lib/proxy-rate-limit.ts`](lib/proxy-rate-limit.ts) *(dynamic)*, [`lib/proxy-response.ts`](lib/proxy-response.ts), [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts)
 
 </details>
 
@@ -5819,6 +5838,12 @@ Node-only policy and transport code shared by hosted runtimes.
 
 - [`lib/hermes-agent-isolation.ts`](lib/hermes-agent-isolation.ts) → no in-scope imports
 - [`lib/hermes-gateway-client.ts`](lib/hermes-gateway-client.ts) → [`lib/read-bounded-file.ts`](lib/read-bounded-file.ts), [`lib/rpc-client-state.ts`](lib/rpc-client-state.ts)
+
+</details>
+
+<details><summary><code>hosted</code> family — 1 module</summary>
+
+- [`lib/hosted-transition.ts`](lib/hosted-transition.ts) → [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 
 </details>
 

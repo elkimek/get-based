@@ -153,6 +153,7 @@ const previouslyQuoteRetained = [
 it('keeps precisely the genuine raw graph and public files while pruning bundled source entries', async () => {
   const raw = await productionRawModuleAssets();
   const recovery = [
+    '/shared/hosted-transition.js',
     '/js/backup-serialization.js', '/js/base64.js', '/js/blob-storage.js', '/js/components/MigrationRecovery.svelte.native.js',
     '/js/migration-archive.js', '/js/migration-clients.js', '/js/migration-codec.js', '/js/migration-crypto.js',
     '/js/migration-database.js', '/js/migration-digest.js', '/js/migration-entry.js', '/js/migration-files.js',
@@ -187,8 +188,8 @@ it('keeps precisely the genuine raw graph and public files while pruning bundled
   const pruned = parseAppShellEntries(pruneSourceModuleAppShell(source, raw));
   expect(pruned.filter(url => url.startsWith('/js/') && url.endsWith('.js')).sort()).toEqual([...raw].filter(url => url.startsWith('/js/')).sort());
   const bundledShared = ['/shared/agent-host-protocol.js', '/shared/agent-tool-contract.js', '/shared/persona-control-contract.js', '/shared/ai-tool-protocol.js', '/shared/chat-tool-instructions.js', '/shared/chat-review-contract.js', '/shared/chat-turn-outcome.js', '/shared/chat-tool-activity.js', '/shared/agent-control-contract.js', '/shared/app-navigation-contract.js', '/shared/chat-control-policy.js', '/shared/comparison-view-contract.js', '/shared/context-preference-contract.js', '/shared/conversation-search-contract.js', '/shared/correlation-view-contract.js', '/shared/dashboard-control-contract.js', '/shared/history-view-contract.js', '/shared/lab-ordering-control-contract.js', '/shared/lab-overlay-contract.js', '/shared/meal-route-control-contract.js'];
-  expect(original.filter(url => url.startsWith('/shared/'))).toEqual([bundledShared[0], bundledShared[1], '/shared/agent-data-contract.js', ...bundledShared.slice(2)]);
-  expect(pruned.filter(url => url.startsWith('/shared/'))).toEqual(['/shared/agent-data-contract.js']);
+  expect(original.filter(url => url.startsWith('/shared/'))).toEqual([bundledShared[0], bundledShared[1], '/shared/hosted-transition.js', '/shared/agent-data-contract.js', ...bundledShared.slice(2)]);
+  expect(pruned.filter(url => url.startsWith('/shared/'))).toEqual(['/shared/hosted-transition.js', '/shared/agent-data-contract.js']);
   expect(pruned).toContain('/vendor/sha256.js');
   expect(pruned.filter(url => !/^\/(?:js|shared)\/.*\.js$/.test(url)))
     .toEqual(original.filter(url => !/^\/(?:js|shared)\/.*\.js$/.test(url)));
