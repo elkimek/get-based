@@ -234,3 +234,41 @@ test('an unsupported store blocks migration while saved snapshot recovery remain
     try {return await new Promise(resolve => {const tx = db.transaction('future', 'readonly'), r = tx.objectStore('future').get('synthetic'); tx.oncomplete = () => resolve(r.result);});} finally {db.close();}
   })).toBe('retain this synthetic future record');
 });
+
+
+test('an open-tab cutoff retains its modal and exact unsent copies until explicit recovery', async ({page}) => {
+  await page.addInitScript(() => {localStorage.setItem('labcharts-ai-paused', 'true'); localStorage.setItem('labcharts-analytics-disabled', 'true');});
+  await page.goto('/app/migration.html');
+  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false', {timeout: 30000});
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/f9sAAAAASUVORK5CYII=';
+  await page.evaluate(async base64 => {
+    localStorage.setItem('labcharts-profiles', JSON.stringify([{id: 'default', name: 'Default'}]));
+    const drafts = await import('/js/chat-draft-storage.js');
+    drafts.rememberChatDraft('default', 'cutoff-test', 'Synthetic unsent cutoff text');
+    const images = await import('/js/chat-images.js');
+    const message = {}; images.rememberMessageAttachments(message, [{base64, mediaType: 'image/png', name: 'cutoff-image.png'}]);
+    if (!images.restoreMessageAttachments(message)) throw new Error('Synthetic image draft did not initialize');
+    await (await import('/js/hosted-transition-notice.js')).showHostedRecoveryCutoff();
+  }, png);
+  const dialog = page.locator('#hosted-cutoff-dialog');
+  await expect(dialog).toBeVisible(); expect(await dialog.evaluate(element => element.matches(':modal'))).toBe(true);
+  await page.keyboard.press('Escape'); await expect(dialog).toBeVisible();
+  await dialog.locator('[data-cutoff-retry]').click();
+  await expect(dialog.locator('[data-cutoff-error]')).toContainText('unsent image attachments');
+  await expect(dialog.locator('[data-cutoff-continue]')).toBeDisabled();
+  for (const name of ['getbased-unsent-text-drafts.txt', 'cutoff-image.png']) {
+    const downloaded = page.waitForEvent('download'); await dialog.getByRole('link', {name, exact: true}).click();
+    const file = await downloaded; expect(file.suggestedFilename()).toBe(name);
+    const bytes = await fs.readFile((await file.path())!);
+    if (name.endsWith('.txt')) expect(bytes.toString()).toContain('Synthetic unsent cutoff text');
+    else expect(bytes).toEqual(Buffer.from(png, 'base64'));
+  }
+  await page.screenshot({path: test.info().outputPath('hosted-cutoff-work.png')});
+  await dialog.locator('[data-cutoff-confirm]').check();
+  const navigated = page.waitForEvent('framenavigated', frame => frame === page.mainFrame());
+  await dialog.locator('[data-cutoff-continue]').click(); await navigated;
+  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false', {timeout: 30000});
+  await expect(page.locator('#hosted-cutoff-dialog')).toHaveCount(0);
+  expect(await page.evaluate(async () => (await import('/js/crypto.js')).encryptedGetItem('labcharts-default-chatDraft_cutoff-test'))).toBe('Synthetic unsent cutoff text');
+  expect(await page.evaluate(() => localStorage.getItem('labcharts-profiles'))).toContain('default');
+});

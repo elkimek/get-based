@@ -4,7 +4,7 @@ import { bytesToBase64 } from '../js/base64.js';
 import { encodeMigrationValue, decodeMigrationValue } from '../js/migration-codec.js';
 import { sealMigration, openMigration, deriveMigrationKey, encryptMigrationDeviceValue, decryptMigrationDeviceValue } from '../js/migration-crypto.js';
 import { buildMigrationArchive, inspectMigrationArchive, validateMigrationArchive } from '../js/migration-archive.js';
-import { restoreMigrationArchive, getPendingMigration } from '../js/migration-restore.js';
+import { restoreMigrationArchive, getPendingMigration, requireEmptyMigrationDestination } from '../js/migration-restore.js';
 import { readMigrationDatabase, writeMigrationDatabase, MIGRATION_PENDING_KEY } from '../js/migration-database.js';
 import type { MigrationDatabase } from '../js/migration-database.js';
 import { MigrationMemoryDirectory, memoryStorage } from './helpers/migration-memory.js';
@@ -259,4 +259,18 @@ it('refuses to silently omit a configured legacy Sync identity before its vault 
   localStorage.removeItem('labcharts-sync-evolu8-identity-token'); localStorage.setItem('labcharts-sync-paused', 'true');
   await expect(buildMigrationArchive(password, '')).rejects.toThrow('finish Sync identity recovery');
   expect(localStorage.getItem('labcharts-sync-enabled')).toBe('true');
+});
+
+it('refuses legacy and corrupt local records before writing a profile index or recovery fence', async () => {
+  await source(); const archive = await buildMigrationArchive(password, '');
+  for (const key of ['labcharts-imported', 'labcharts-imported-corrupt', 'labcharts-default-imported-corrupt']) {
+    origin(); const original = JSON.stringify({entries: [{date: '2020-01-01', markers: {'biochemistry.glucose': 5}}]});
+    localStorage.setItem(key, original); faults.writes = 0;
+    await expect(requireEmptyMigrationDestination()).rejects.toThrow('already contains records');
+    await expect(restoreMigrationArchive(archive, password, '')).rejects.toThrow('already contains records');
+    expect(localStorage.getItem(key)).toBe(original);
+    expect(localStorage.getItem('labcharts-profiles')).toBeNull();
+    expect(localStorage.getItem(MIGRATION_PENDING_KEY)).toBeNull();
+    expect(faults.writes).toBe(0);
+  }
 });

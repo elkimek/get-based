@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2122 |
-| Internal import edges | 7111 |
+| Modules | 2123 |
+| Internal import edges | 7114 |
 | Dynamic internal edges | 218 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -2423,8 +2423,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>hosted</code> family — 1 module</summary>
+<details><summary><code>hosted</code> family — 2 modules</summary>
 
+- [`js/hosted-transition-monitor.ts`](js/hosted-transition-monitor.ts) → [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 - [`js/hosted-transition-notice.ts`](js/hosted-transition-notice.ts) → [`js/components/HostedTransitionBanner.svelte`](js/components/HostedTransitionBanner.svelte), [`js/migration-navigation.ts`](js/migration-navigation.ts), [`js/utils.ts`](js/utils.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 
 </details>
@@ -3642,7 +3643,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>main</code> family — 2 modules</summary>
 
-- [`js/main-runtime.ts`](js/main-runtime.ts) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-navigation-loader.ts`](js/app-navigation-loader.ts), [`js/app-shell-component.ts`](js/app-shell-component.ts), [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/navigation-views.ts`](js/navigation-views.ts), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/main-runtime.ts`](js/main-runtime.ts) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-navigation-loader.ts`](js/app-navigation-loader.ts), [`js/app-shell-component.ts`](js/app-shell-component.ts), [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/hosted-transition-monitor.ts`](js/hosted-transition-monitor.ts), [`js/hosted-transition-notice.ts`](js/hosted-transition-notice.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/navigation-views.ts`](js/navigation-views.ts), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.ts`](js/shell-actions.ts), [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/main.ts`](js/main.ts) → [`js/main-runtime.ts`](js/main-runtime.ts) *(dynamic)*, [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 
 </details>

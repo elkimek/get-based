@@ -155,7 +155,7 @@ it('keeps actual first-party imports cold and publishes native event handlers on
   const boot = read('js/app-shell-hooks.ts'), runtimeSource = read('js/navigation-views.ts');
   expect(boot).not.toContain("from './dashboard-view-composition.js'");
   expect(boot).toContain('configureProductionDashboard();');
-  for (const file of ['main.ts', 'app-shell-hooks.ts', 'app-ui-shell-modules.ts', 'light-env-shell-hooks.ts',
+  for (const file of ['main-runtime.ts', 'app-shell-hooks.ts', 'app-ui-shell-modules.ts', 'light-env-shell-hooks.ts',
     'light-channel-view-ui-hooks.ts', 'sun-session-ui-hooks.ts', 'light-tools-ui-hooks.ts', 'light-page-view-ui-hooks.ts']) {
     expect(read('js/' + file), file).not.toContain("'./views.js'");
     expect(read('js/' + file), file).toContain("'./navigation-views.js'");

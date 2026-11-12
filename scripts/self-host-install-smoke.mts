@@ -20,12 +20,15 @@ export async function smokeInstalledSelfHost(directory: string) {
     execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--global', '--prefix', prefix,
       '--cache', path.join(prefix, 'npm-cache'), '--offline', '--ignore-scripts', '--no-audit', '--no-fund', archive], {stdio: 'pipe', shell: process.platform === 'win32'});
     const modules = process.platform === 'win32' ? path.join(prefix, 'node_modules') : path.join(prefix, 'lib/node_modules');
-    const root = path.join(modules, 'getbased-self-host'), bin = path.join(root, 'bin/getbased.mjs');
+    const root = path.join(modules, 'getbased-self-host');
     const manifest = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8')) as {version: string; dependencies?: unknown; scripts?: unknown};
     assert.equal(manifest.dependencies, undefined, 'No production install dependencies'); assert.equal(manifest.scripts, undefined, 'No install scripts');
-    assert((await fs.stat(path.join(prefix, process.platform === 'win32' ? 'getbased.cmd' : 'bin/getbased'))).isFile(), 'Actual npm command shim');
-    assert.equal(execFileSync(process.execPath, [bin, '--version'], {encoding: 'utf8'}).trim(), manifest.version);
-    assert.match(execFileSync(process.execPath, [bin, '--help'], {encoding: 'utf8'}), /tailscale serve --bg/);
+    const shim = path.join(prefix, process.platform === 'win32' ? 'getbased.cmd' : 'bin/getbased');
+    assert((await fs.stat(shim)).isFile(), 'Actual npm command shim');
+    const command = process.platform === 'win32' ? '"' + shim + '"' : shim;
+    const shell = process.platform === 'win32';
+    assert.equal(execFileSync(command, ['--version'], {encoding: 'utf8', shell}).trim(), manifest.version);
+    assert.match(execFileSync(command, ['--help'], {encoding: 'utf8', shell}), /tailscale serv/);
     const inventory = JSON.parse(await fs.readFile(path.join(root, 'artifact-manifest.json'), 'utf8')) as {files: Array<{file: string; sha256: string; bytes: number}>};
     for (const file of inventory.files) {
       assert(file.file.startsWith('dist/') && file.file.split('/').every(part => part && part !== '..' && part !== '.'), 'Public artifact path');
@@ -34,7 +37,7 @@ export async function smokeInstalledSelfHost(directory: string) {
     }
     const probe = net.createServer(); await new Promise<void>(resolve => probe.listen(0, '127.0.0.1', resolve));
     const port = (probe.address() as net.AddressInfo).port; await new Promise<void>(resolve => probe.close(() => resolve()));
-    child = spawn(process.execPath, [bin], {env: {...process.env, GETBASED_SELF_HOST_PORT: String(port)}, stdio: ['ignore', 'pipe', 'pipe']});
+    child = spawn(command, [], {shell, env: {...process.env, GETBASED_SELF_HOST_PORT: String(port)}, stdio: ['ignore', 'pipe', 'pipe']});
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Installed server startup timed out.')), 10000);
       child!.stdout!.on('data', (data: Buffer) => {if (data.toString().includes('getbased is running')) {clearTimeout(timer); resolve();}});
@@ -46,7 +49,7 @@ export async function smokeInstalledSelfHost(directory: string) {
     assert.equal((await fetch(origin + '/package.json')).status, 404); assert.equal((await fetch(origin + '/api/proxy', {method: 'POST', body: '{}'})).status, 405);
     return {platform: process.platform, node: process.versions.node, version: manifest.version, files: inventory.files.length, status: 'passed'};
   } finally {
-    if (child && child.exitCode === null && child.signalCode === null) {const exited = new Promise(resolve => child!.once('exit', resolve)); child.kill(); await exited;}
+    if (child?.pid && child.exitCode === null && child.signalCode === null) {const exited = new Promise(resolve => child!.once('exit', resolve)); if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {stdio: 'pipe'}); else child.kill(); await exited;}
     await fs.rm(prefix, {recursive: true, force: true});
   }
 }

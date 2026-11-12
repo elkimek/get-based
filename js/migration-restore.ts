@@ -72,14 +72,15 @@ export async function requireEmptyMigrationDestination(): Promise<void> {
         || Object.entries(profile).some(([field, entry]) => ['createdAt', 'lastUpdated'].includes(field)
           ? typeof entry !== 'number' || !Number.isFinite(entry)
           : !Object.hasOwn(defaults, field) || JSON.stringify(entry) !== JSON.stringify(defaults[field])))) conflict();
-    } else if (/^labcharts-.+-imported$/.test(key) && !emptyProfile(value)) conflict();
+    } else if (/^labcharts-imported(?:$|-)/.test(key) && value) conflict();
+    else if (/^labcharts-.+-imported(?:$|-)/.test(key) && (!key.endsWith('-imported') || !emptyProfile(value))) conflict();
     else if (/^labcharts-.+-(?:chat(?:Draft|PersonalityCustom|-t_|-threads)?|persona-transaction)/.test(key) && !['', '[]', '{}', 'null'].includes(value)) conflict();
     else if (/(?:-key|-token|-mnemonic)$/.test(key) && value) conflict();
   }
   for (const name of await existingMigrationDatabases()) {
     const database = await readMigrationDatabase(name);
     for (const store of database.stores) for (const row of store.records) {
-      if (name === 'labcharts-blobs' && store.name === 'kv' && typeof row.key === 'string' && row.key.endsWith('-imported') && emptyProfile(row.value)) continue;
+      if (name === 'labcharts-blobs' && store.name === 'kv' && typeof row.key === 'string' && /^labcharts-.+-imported$/.test(row.key) && emptyProfile(row.value)) continue;
       if (name === 'labcharts-backups' && store.name === 'snapshots' && emptySnapshot(row.value)) continue;
       if ((name.startsWith('labcharts-wearables-') || name.startsWith('getbased-nutrition-')) && store.name === 'meta') {
         if (['credential-vault-key:v1', 'meal-device-key:v1', 'nutrition-profile-sync-initialized:v1'].includes(String(row.key))) continue;

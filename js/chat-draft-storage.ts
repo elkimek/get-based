@@ -1,4 +1,4 @@
-import { configureMigrationDraftFlush } from './migration-navigation.js';
+import { configureMigrationDraftFlush, configureMigrationUnsavedWork } from './migration-navigation.js';
 // chat-draft-storage.js — encrypted, device-local composer draft persistence.
 
 import { encryptedGetItem, encryptedRemoveItem, encryptedSetItem } from './crypto.js';
@@ -99,3 +99,11 @@ export async function flushAllStoredChatDraftsForMigration(): Promise<void> {
   }
 }
 configureMigrationDraftFlush(flushAllStoredChatDraftsForMigration);
+
+configureMigrationUnsavedWork('text drafts', () => {
+  const drafts = [...draftCache].filter(([, value]) => value);
+  return {pending: false, files: drafts.length ? [{name: 'getbased-unsent-text-drafts.txt',
+    blob: new Blob([drafts.map(([key, text]) => key + '\n' + text).join('\n\n---\n\n')], {type: 'text/plain;charset=utf-8'})}] : [],
+    isCurrent: () => {const current = [...draftCache].filter(([, value]) => value); return current.length === drafts.length
+      && current.every(([key, value], index) => key === drafts[index]![0] && value === drafts[index]![1]);}};
+});

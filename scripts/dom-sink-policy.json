@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "sourceInventoryDigest": "836b1f6a4fe1fdcaba7944db82f0df8e02ddcea66d09afe27bdb8a0153e502f2",
-  "scannedFiles": 2039,
-  "sinkCount": 304,
+  "sourceInventoryDigest": "d384440c119ddd21be06136f016b9136ed7785020a084f98dc44c41b7c5118c4",
+  "scannedFiles": 2040,
+  "sinkCount": 305,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -304,10 +304,10 @@
       }
     },
     "js/hosted-transition-notice.js": {
-      "count": 1,
-      "digest": "5c5a7a696eb54415e7a7731142c9cff3b9a58fedfbf5ec77422fc9e1b917f250",
+      "count": 2,
+      "digest": "a41958b4666344a1eaa7ce9560a27034e229ba8caa0158df4efb3a94d85e4d61",
       "kinds": {
-        "innerHTML": 1
+        "innerHTML": 2
       }
     },
     "js/import-marker-map-modal.js": {

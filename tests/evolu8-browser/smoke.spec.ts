@@ -31,6 +31,7 @@ async function configureCandidate(context: BrowserContext, { forceFallback = fal
 }
 
 async function seedCandidateIdentity(page: Page) {
+  await expect(page.locator('html[data-app-ready]')).toBeAttached({timeout: 30000});
   await page.evaluate(async identity => {
     const { createEvolu8IdentityVault } = await import('/js/sync-evolu8-identity-vault.js');
     await createEvolu8IdentityVault().write(identity);
@@ -110,6 +111,7 @@ test('starts v8 from its durable identity without the v7 worker', async ({
     expect(first.clientVersion).toBe(8);
     expect(first.ownerId).toBe(TEST_IDENTITY.ownerId);
     expect(legacyRequests).toBe(0);
+    await expect(page.locator('html[data-app-ready]')).toBeAttached({timeout: 30000});
 
     legacyRequests = 0;
     await page.reload({ waitUntil: 'domcontentloaded' });

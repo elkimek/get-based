@@ -17,7 +17,11 @@ import './light-env-shell-hooks.js';
 import { installShellActionDelegates } from './shell-actions.js';
 import { startApp } from './startup-orchestrator.js';
 import { ensureAppShell } from './app-shell-component.js';
+import { watchHostedTransitionCutoff } from './hosted-transition-monitor.js';
+import { showHostedRecoveryCutoff } from './hosted-transition-notice.js';
 
 ensureAppShell();
 installShellActionDelegates();
-startApp();
+let cutoffStarted = false;
+watchHostedTransitionCutoff(() => {cutoffStarted = true; void showHostedRecoveryCutoff();});
+if (!cutoffStarted) startApp();
