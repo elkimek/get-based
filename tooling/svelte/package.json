@@ -10,7 +10,7 @@
     "typescript": "6.0.3",
     "@typescript/native": "npm:typescript@7.0.2",
     "@sveltejs/kit": "3.0.0",
-    "@sveltejs/adapter-static": "4.0.0",
+    "@sveltejs/adapter-static": "4.0.1",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "vite": "8.3.3"
   },
