@@ -58,20 +58,22 @@ describe('DeepSeek current-family recommendations', () => {
     }
   });
 
-  it.each(providers)('recommends both Gemini tiers without reviving older Flash fallbacks for %s', provider => {
-    const old = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview'].map(id => ({ id }));
+  it.each(providers)('recommends all three Gemini 4 tiers and retires Flash for %s', provider => {
     const prefix = provider === 'venice' ? '' : 'google/';
-    const flash = { id: prefix + (provider === 'venice' ? 'gemini-3-8-flash' : 'gemini-3.8-flash') };
+    const old = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview']
+      .map(id => ({ id: prefix + id }));
+    const hydrogen = { id: prefix + 'gemini-4-hydrogen' };
     const argon = { id: prefix + 'gemini-4-argon' };
-    expect(selectLatestRecommendedModels(provider, [...old, { id: flash.id + ':batch' }, flash, argon])).toEqual([flash, argon]);
-    expect(selectLatestRecommendedModels(provider, [flash])).toEqual([flash]);
+    const carbon = { id: prefix + 'gemini-4-carbon' };
+    expect(selectLatestRecommendedModels(provider, [...old, { id: hydrogen.id + ':batch' }, hydrogen, argon, carbon])).toEqual([hydrogen, argon, carbon]);
+    expect(selectLatestRecommendedModels(provider, [hydrogen])).toEqual([hydrogen]);
     expect(selectLatestRecommendedModels(provider, old)).toEqual([]);
-    expect(isRecommendedModel(provider, flash.id + '-cyber')).toBe(false);
+    expect(isRecommendedModel(provider, hydrogen.id + '-cyber')).toBe(false);
   });
 
   it('preserves existing private and local recommendation policies', () => {
     expect(isRecommendedModel('routstr', 'tinfoil-deepseek-v4-pro')).toBe(true);
-    expect(isRecommendedModel('ppq', 'private/deepseek-v4-1-flash')).toBe(false);
+    expect(isRecommendedModel('ppq', 'private/deepseek-v4-1-flash')).toBe(true);
     expect(isRecommendedModel('venice', 'e2ee-deepseek-v4-flash')).toBe(false);
     expect(isRecommendedModel('ollama', 'deepseek-v4.1-flash-1017')).toBe(false);
   });

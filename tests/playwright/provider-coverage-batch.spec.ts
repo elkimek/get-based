@@ -180,7 +180,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       (await import('/js/openrouter-settings-component.js')).mountOpenRouterSettings(document.getElementById('openrouter-owned-fixture')!, (await import('/js/openrouter-settings-view.js')).buildOpenRouterSettingsSnapshot());
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       controls.renderOpenRouterModelDropdown([
-        { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
+        { id: 'anthropic/claude-fable-5.2', name: 'Claude Fable 5.2' },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
         { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
         { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
@@ -197,7 +197,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'qwen/qwen3.8-27b', name: 'Qwen3.8 27B' },
       ]);
       const openRouterRecommendedGroup = document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Recommended"]');
-      const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-fable-5.1"]')
+      const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-fable-5.2"]')
         && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-sonnet-5"]')
         && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-4-argon"]')
         && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
@@ -266,12 +266,12 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       (await import('/js/venice-settings-component.js')).mountVeniceSettings(document.getElementById('venice-owned-fixture')!, (await import('/js/venice-settings-view.js')).buildVeniceSettingsSnapshot());
       controls.renderVeniceModelDropdown([
         { id: 'regular-a', name: 'Regular A' },
-        { id: 'claude-fable-5-1', name: 'Claude Fable 5.1' },
+        { id: 'claude-fable-5-2', name: 'Claude Fable 5.2' },
         { id: 'gemini-3-7-flash', name: 'Gemini 3.7 Flash' },
         { id: 'gemini-4-argon', name: 'Gemini 4 Argon' },
       ]);
       const veniceLatestGeminiRecommended = !!document.querySelector<HTMLElement>(
-        '#venice-model-select optgroup[label="Recommended"] option[value="claude-fable-5-1"]'
+        '#venice-model-select optgroup[label="Recommended"] option[value="claude-fable-5-2"]'
       )
         && !!document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Recommended"] option[value="gemini-4-argon"]')
         && !document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-7-flash"]')
@@ -303,7 +303,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       const routstrFallback = localStorage.getItem('labcharts-routstr-model') === 'claude-synthetic-a'
         && (document.getElementById('routstr-model-select') as HTMLSelectElement|null)?.value === 'claude-synthetic-a';
       controls.renderRoutstrModelDropdown([
-        { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
+        { id: 'anthropic/claude-fable-5.2', name: 'Claude Fable 5.2' },
         { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
         { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
         { id: 'grok-41-fast', name: 'Grok 4.1 Fast' },
@@ -315,7 +315,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
       ]);
       const routstrRecommendedGroup = document.querySelector<HTMLElement>('#routstr-model-select optgroup[label="Recommended"]');
-      const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-fable-5.1"]')
+      const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-fable-5.2"]')
         && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-4-argon"]')
         && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="x-ai/grok-4.3"]')
         && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
@@ -337,7 +337,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       controls.renderPpqModelDropdown([
         { id: 'ppq-a', name: 'PPQ A' },
         { id: 'ppq-b', name: 'PPQ B' },
-        { id: 'claude-fable-5.1', name: 'Claude Fable 5.1' },
+        { id: 'claude-fable-5.2', name: 'Claude Fable 5.2' },
         { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
         { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
@@ -352,7 +352,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'x-ai/grok-4.3', name: 'Grok 4.3' },
       ]);
       const ppqRecommendedGroup = document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Recommended"]');
-      const ppqLatestGrokRecommended = !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="claude-fable-5.1"]')
+      const ppqLatestGrokRecommended = !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="claude-fable-5.2"]')
         && !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="x-ai/grok-4.3"]')
         && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="grok-4.20"]')
         && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="grok-4.20"]');
@@ -381,7 +381,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       localStorage.setItem('labcharts-custom-model', 'outside-model');
       controls.renderCustomApiModelDropdown([
         { id: 'model-a', name: 'Model A' },
-        { id: 'claude-fable-5-1', name: 'Claude Fable 5.1' },
+        { id: 'claude-fable-5-2', name: 'Claude Fable 5.2' },
         { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
         { id: 'gemini-4-argon', name: 'Gemini 4 Argon' },
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
@@ -392,7 +392,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6' },
       ]);
       const customRecommendedGroup = document.querySelector<HTMLElement>('#custom-model-select optgroup[label="Recommended"]');
-      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="claude-fable-5-1"]')
+      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="claude-fable-5-2"]')
         && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="gemini-4-argon"]')
         && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
         && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k3"]')
