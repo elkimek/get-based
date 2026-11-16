@@ -6,7 +6,7 @@ import {expect, it} from 'vitest';
 import type {TestProject} from 'vitest/node';
 import coverageGlobalSetup from './helpers/coverage-global-setup.js';
 import {createCoverageInventory, qualifyCoverageUnion} from '../scripts/ci-results.mjs';
-import {matchSourceFunction, productionFunctionIndex, sourceFunctions} from '../scripts/coverage-source.mjs';
+import {coverageFilePattern, matchSourceFunction, productionFunctionIndex, sourceFunctions} from '../scripts/coverage-source.mjs';
 
 type Position = {line: number; column: number | null};
 type Span = {start: Position; end: Position};
@@ -53,6 +53,7 @@ it.each([
   {enabled: false, provider: 'istanbul', include: ['**/*.js'], exclude: [], expected: []},
   {enabled: true, provider: 'v8', include: ['**/*.js'], exclude: [], expected: []},
   {enabled: true, provider: 'istanbul', include: ['service-worker-runtime.js'], exclude: [], expected: ['service-worker-runtime.js']},
+  {enabled: true, provider: 'istanbul', include: [coverageFilePattern('service-worker-runtime.js')], exclude: [], expected: ['service-worker-runtime.js']},
   {enabled: true, provider: 'istanbul', include: ['**/*.js'], exclude: ['service-worker-assets.js'], expected: ['service-worker.js', 'service-worker-runtime.js']},
   {enabled: true, provider: 'istanbul', include: ['**/*.js'], exclude: ['service-worker*.js'], expected: []},
 ])('qualifies only configured classic scripts: $enabled/$provider/$include/$exclude', options => {
@@ -107,7 +108,7 @@ it('executes both async paths, a distinct same-named method and genuine compiled
 export default {...base, root: ${JSON.stringify(root)}, test: {...base.test,
   include: [${JSON.stringify(relative(fixture))}, 'tests/service-worker-client-cache.test.ts'], setupFiles: [],
   coverage: {...base.test.coverage, provider: 'istanbul', enabled: true,
-    include: ${JSON.stringify([relative(mixed), relative(awaited), `${component}.native.js`, `${component}.html.js`, 'service-worker-runtime.js'])},
+    include: ${JSON.stringify([relative(mixed), relative(awaited), `${component}.native.js`, `${component}.html.js`, 'service-worker-runtime.js'].map(coverageFilePattern))},
     reportsDirectory: ${JSON.stringify(reports)}}}};
 `);
     await promisify(execFile)(process.execPath, [path.join(root, 'node_modules/vitest/vitest.mjs'), 'run', '--config', config, '--maxWorkers=1'], {

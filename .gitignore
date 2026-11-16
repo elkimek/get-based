@@ -79,6 +79,7 @@ deploy/profile-share/data/
 /tests/.critical-coverage/
 
 # TypeScript compiler output beside canonical source
+/scripts/vendor-packages/svelte-config-merge/index.js
 /js/caught-error.js
 /lib/error-utils.js
 /shared/agent-host-protocol.js

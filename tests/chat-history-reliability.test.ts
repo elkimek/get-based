@@ -28,6 +28,18 @@ beforeEach(() => {
 it('returns false without writing when no conversation is selected', async () => {
   state.currentThreadId = null; expect(await saveChatHistory()).toBe(false); expect(m.set).not.toHaveBeenCalled();
 });
+it('refuses a save whose caller has already lost the conversation', async () => {
+  expect(await saveChatHistory({ current: () => false })).toBe(false);
+  expect(m.set).not.toHaveBeenCalled(); expect(m.index).not.toHaveBeenCalled();
+});
+it('does not replace live history that cannot be serialized for the ownership check', async () => {
+  const history = state.chatHistory;
+  Object.defineProperty(history, 'toJSON', { value: () => { throw new Error('unreadable history'); } });
+  localStorage.setItem(`${state.currentProfile}:thread`, 'stored');
+  m.get.mockResolvedValue('[{"role":"user","content":"Older saved message"}]');
+  expect(await loadChatHistory()).toBe(false);
+  expect(state.chatHistory).toBe(history); expect(m.render).not.toHaveBeenCalled();
+});
 it('reports index write failure after persisting messages', async () => {
   m.index.mockResolvedValue(false); expect(await saveChatHistory()).toBe(false); expect(m.set).toHaveBeenCalledOnce();
 });

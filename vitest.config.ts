@@ -10,7 +10,7 @@
 
 import { defineConfig } from 'vitest/config';
 import fs from 'node:fs';
-import { COVERAGE_INCLUDE } from './scripts/coverage-source.mjs';
+import { COVERAGE_INCLUDE, coverageFilePattern } from './scripts/coverage-source.mjs';
 import { nativeCoveragePlugins } from './scripts/native-coverage-plugins.mjs';
 import NativeCoverageReporter from './scripts/native-coverage-reporter.mjs';
 
@@ -51,7 +51,7 @@ export default defineConfig({
       reporter: ['json-summary', 'json'],
       reportsDirectory: 'tests/.vitest-coverage',
       ...{ all: true },
-      include: COVERAGE_INCLUDE,
+      include: COVERAGE_INCLUDE.map(coverageFilePattern),
       exclude: [
         '**/node_modules/**',
         'docs/**',

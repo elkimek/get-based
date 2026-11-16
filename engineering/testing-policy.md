@@ -29,6 +29,15 @@ and unchanged synthetic localStorage/IndexedDB data.
 
 ## Choose checks for the change
 
+Classic service-worker fixtures use the same versioned Istanbul instrumenter as
+Vitest's coverage provider. Preserve the producer regression that verifies real
+VM statement, function and branch counters reach the parent collector when
+upgrading the runner or instrumenter.
+Literal coverage file paths use singleton-character glob classes because Vitest
+5 interprets paths without glob syntax as directories. Source inventories stay
+literal, and each critical threshold uses the same exact file pattern as its
+include entry; nested or similarly named files cannot satisfy it.
+
 Run relevant tests and lightweight compiler, architecture, quality, and build
 checks locally. Use the commands in [CONTRIBUTING.md](../CONTRIBUTING.md).
 Do not run the exhaustive browser or coverage matrix locally by default.

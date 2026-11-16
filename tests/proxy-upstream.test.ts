@@ -83,6 +83,17 @@ describe('proxy upstream body boundaries', () => {
 });
 
 describe('validated upstream response identity', () => {
+  it.each([301, 302, 303, 307, 308])('blocks private and metadata redirect targets before a second request for status %s', async status => {
+    const { fetchWithValidatedRedirects } = await import('../lib/proxy-upstream.js');
+    for (const location of ['http://127.0.0.1/private', 'http://169.254.169.254/latest/meta-data/', 'https://169.254.169.254/latest/meta-data/']) {
+      const fetch = vi.fn<typeof globalThis.fetch>()
+        .mockResolvedValueOnce(new Response(null, { status, headers: { location } }));
+      globalThis.fetch = fetch;
+      await expect(fetchWithValidatedRedirects('https://example.com/start')).rejects.toMatchObject({ code: 'PROXY_REDIRECT_BLOCKED' });
+      expect(fetch).toHaveBeenCalledExactlyOnceWith('https://example.com/start', expect.objectContaining({ redirect: 'manual' }));
+    }
+  });
+
   it.each([false, true])('retains the final validated URL for body presence %s', async (hasBody) => {
     const { fetchWithValidatedRedirects } = await import('../lib/proxy-upstream.js');
     const fetch = vi.fn<typeof globalThis.fetch>()

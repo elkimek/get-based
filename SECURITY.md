@@ -53,6 +53,16 @@ or Custom API proxy and does not intentionally persist or log forwarded payloads
 
 ## Dependency Monitoring
 
+The Svelte build plugin's `deepmerge` import is overridden with the private
+`@getbased/svelte-config-merge` compatibility package under
+`scripts/vendor-packages/`. It derives from deepmerge 4.3.1 and retains its MIT
+license and config-merge behavior while rejecting prototype-related keys from
+both inputs before writing own properties. This addresses CVE-2026-93753 without
+claiming an upstream patched release. Its regression tests cover poisoned target
+and source objects, null placeholders, nested arrays and the plugin's actual
+dependency resolution. Keep this override until the plugin removes the affected
+dependency or adopts an upstream fix.
+
 `vendor/components.json` is the machine-readable inventory for browser
 libraries and assets committed under `vendor/`. `npm run supply-chain:check`
 fails when a vendored file is unowned, multiply owned, or missing the package

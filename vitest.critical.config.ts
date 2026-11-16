@@ -3,6 +3,7 @@
 import { defineConfig } from 'vitest/config';
 import base from './vitest.config.js';
 import { sourcePath } from './scripts/source-files.js';
+import { coverageFilePattern } from './scripts/coverage-source.mjs';
 
 export default defineConfig({
   ...base,
@@ -15,6 +16,8 @@ export default defineConfig({
       'tests/cycle-import-phase1.test.js',
       'tests/nutrition-editor-navigation.test.js',
       'tests/sun-session-recovery.test.js',
+      'tests/sun-session-ownership.test.js',
+      'tests/agent-sun-session-proposals.test.js',
       'tests/sun-live-recovery.test.js',
       'tests/sun-session-format.test.js',
       'tests/sync-identity-vault-failures.test.js',
@@ -55,6 +58,8 @@ export default defineConfig({
       'tests/agent-draft-routing.test.js',
       'tests/agent-draft-persistence.test.js',
       'tests/agent-drafts.test.js',
+      'tests/agent-context-proposals.test.js',
+      'tests/agent-environment-context.test.js',
       'tests/notes-safety.test.js',
       'tests/voice-local-tts-worker.test.ts',
       'tests/voice-local-stt-worker.test.ts',
@@ -106,10 +111,10 @@ export default defineConfig({
         'lib/companion-listener.js',
         'lib/companion-runtime-control.js',
         'service-worker-runtime.js',
-      ],
+      ].map(coverageFilePattern),
       reportsDirectory: 'tests/.critical-coverage',
       reporter: ['json-summary', 'json', 'text'],
-      thresholds: {
+      thresholds: Object.fromEntries(Object.entries({
         'js/cycle-import-mutations.js': { lines: 97, functions: 95, branches: 83, statements: 92 },
         'js/nutrition-editor-navigation.js': { lines: 100, functions: 100, branches: 84, statements: 97 },
         'js/sun-sessions-store.js': { lines: 95, functions: 77, branches: 88, statements: 94 },
@@ -142,7 +147,7 @@ export default defineConfig({
         'js/agent-draft-claims.js': { lines: 100, functions: 100, branches: 100, statements: 100 },
         'js/agent-drafts.js': { lines: 100, functions: 100, branches: 89, statements: 100 },
         'js/notes.js': { lines: 97, functions: 86, branches: 82, statements: 92 },
-      },
+      }).map(([file, limits]) => [coverageFilePattern(file), limits])),
     },
   },
 });

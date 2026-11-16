@@ -6,7 +6,7 @@ vi.mock('../js/marker-note-records.js', async load => ({ ...await load<typeof im
 vi.mock('../js/agent-profile-record-store.js', () => ({ readAgentProfileRecords: mocks.read }));
 vi.mock('../js/agent-tool-bindings.js', () => ({ resolveAgentMarker: () => ({ row: { key: 'biochemistry.glucose', name: 'Glucose' } }) }));
 import { state } from '../js/state.js';
-import { applyAgentDraft } from '../js/agent-drafts.js';
+import { applyAgentDraft, confirmAgentDraftSaved } from '../js/agent-drafts.js';
 function dataDraft(resource: string, patch: object, baseline: unknown, operation = 'update', recordId = '') { return { profileId: 'a', kind: 'data', status: 'pending', payload: { resource, operation, recordId, baseline: JSON.stringify(baseline), patch: JSON.stringify(patch), evidence: 'Explicit report.', reason: 'A user correction.', effectiveDate: '2026-10-23', recordedAt: 1 } }; }
 beforeEach(() => {
   vi.resetAllMocks();
@@ -35,6 +35,28 @@ it('supplies a profile, fresh baseline and expected text to a successful context
 it('rejects a proposal for another profile before any persistence', async () => {
   await expect(applyAgentDraft({ profileId: 'b', kind: 'note', status: 'pending', payload: {} })).rejects.toThrow('Switch back');
   expect(mocks.save).not.toHaveBeenCalled();
+});
+
+it.each([null, { kind: 'context' }, { kind: 'data', status: 'pending' }, { kind: 'data', status: 'failed', profileId: 'b' }])('cannot confirm an ineligible or foreign proposal: %j', async draft => {
+  await expect(confirmAgentDraftSaved(draft)).rejects.toThrow('Switch back');
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+it.each(['failed', 'applying'])('never invents a save receipt for a %s proposal', async status => {
+  const draft = { ...dataDraft('profileNotes', { text: 'New' }, 'Original'), status };
+  await expect(confirmAgentDraftSaved(draft)).rejects.toThrow('no Knowledge Base receipt');
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+it('keeps retired record actions in the native UI even when checking an old save', async () => {
+  const draft = { ...dataDraft('sunSessions', {}, null, 'pause'), status: 'failed' };
+  await expect(confirmAgentDraftSaved(draft)).rejects.toThrow('Use the native settings or editor');
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+it('does not confirm a save from a retired current profile or malformed payload', async () => {
+  const draft = { ...dataDraft('profileNotes', { text: 'New' }, 'Original'), status: 'failed' };
+  state.currentProfile = 'b';
+  await expect(confirmAgentDraftSaved(draft)).rejects.toThrow('Switch back');
+  state.currentProfile = 'a';
+  await expect(confirmAgentDraftSaved({ ...draft, payload: null })).rejects.toThrow('no Knowledge Base receipt');
 });
 
 for (const kind of ['data', 'context'] as const) it.each(['thread', 'history', 'caller'])(`a delayed ${kind} read cannot save after its %s owner retires`, async retirement => {

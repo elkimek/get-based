@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
+import { JSDOM } from 'jsdom';
 vi.mock('../js/data.js', () => {
   const saveImportedData = vi.fn(async () => {});
   return { saveImportedData, notifyProfileDataContextChanged: vi.fn(), saveImportedDataForProfile: async (_profile: unknown, _next: unknown, options: { canCommit?: () => boolean }) => {
@@ -282,6 +283,90 @@ it('retries a failed stop from the unchanged active record at the newly accepted
   await expect(store.stopSession(session.id)).rejects.toThrow('could not be saved'); expect(session).toEqual(active);
   vi.setSystemTime(Date.now() + 60000); await store.stopSession(session.id);
   expect(saveImportedData).toHaveBeenCalledTimes(2); expect(session.endedAt).toBe(1060000); expect(deps.commitCurrentSlice).toHaveBeenCalledTimes(2);
+});
+
+const pendingSegment = (patch: Record<string, unknown> = {}) => ({
+  startedAt: 100000, endedAt: 220000, durationMin: 2, location: { lat: 50, lon: 14 },
+  bodyExposure: { fraction: 0.1 }, eyeExposure: { mode: 'indoor', durationSec: 0 },
+  calculationStatus: 'pending', ...patch,
+});
+it('recovers pending intervals alongside computed slices without recounting the latter', async () => {
+  session.exposureSegments = [{ durationMin: 1, doses: { vitamin_d: 4 }, calculationStatus: 'computed' }, pendingSegment()];
+  expect(await store.hydrateSession(session.id)).toBe(session);
+  expect(session.doses).toEqual({ vitamin_d: 6 }); expect(session.durationMin).toBe(3);
+  expect(deps.fetchAtmosphere).toHaveBeenCalledOnce();
+});
+it.each([
+  ['missing-location', { location: null }, 'needs-location'],
+  ['inconsistent-time', { endedAt: 220001.1 }, 'calculation-error'],
+  ['reported-missing-inputs', { reportedInputsVersion: 1 }, 'needs-inputs'],
+] as const)('keeps %s intervals uncomputed', async (_label, patch, status) => {
+  session.exposureSegments = [pendingSegment(patch)];
+  expect(await store.hydrateSession(session.id)).toBeNull();
+  expect(session.calculationStatus).toBe(status); expect(session.doses).toBeNull();
+  expect(deps.fetchAtmosphere).not.toHaveBeenCalled(); expect(deps.maybeAnalyzeSessionAfterFinish).not.toHaveBeenCalled();
+});
+it.each(['unavailable', 'error', 'retired'] as const)('does not publish a pending interval after weather becomes %s', async outcome => {
+  session.exposureSegments = [pendingSegment()];
+  if (outcome === 'unavailable') deps.fetchAtmosphere.mockResolvedValue(null);
+  if (outcome === 'error') deps.fetchAtmosphere.mockRejectedValue(new Error('offline'));
+  if (outcome === 'retired') deps.fetchAtmosphere.mockImplementation(async () => { state.currentProfile = 'b'; return { uvIndex: 3 }; });
+  expect(await store.hydrateSession(session.id)).toBeNull();
+  expect(session.doses).toBeNull(); expect(deps.maybeAnalyzeSessionAfterFinish).not.toHaveBeenCalled();
+  if (outcome !== 'retired') expect(session.calculationStatus).toBe(outcome === 'error' ? 'calculation-error' : 'atmosphere-unavailable');
+});
+it('does not request interval weather after losing its owner during the pending-state save', async () => {
+  session.exposureSegments = [pendingSegment()];
+  (saveImportedData as unknown as SaveMockFixture).mockReturnValueOnce(Promise.resolve().then(() => { state.currentProfile = 'b'; }));
+  expect(await store.hydrateSession(session.id)).toBeNull(); expect(deps.fetchAtmosphere).not.toHaveBeenCalled();
+});
+it('starts only one reported timer with a fresh identity and explicit physical inputs', async () => {
+  state.importedData.sunDefaults = { fitzpatrick: 'II' };
+  const input = { location: { lat: 50, lon: 14 }, bodyExposure: { fraction: 0.1 } };
+  expect(await store.startReportedSunSession('reported', input, true, { authorized: () => true, expected: structuredClone(state.importedData) })).toBe('reported');
+  expect(store.getActiveSession()).toMatchObject({ id: 'reported', reportedInputsVersion: 1 });
+  await expect(store.startSession()).rejects.toThrow('already active');
+  await store.stopSession('reported');
+  await expect(store.startReportedSunSession('reported', input, true, { authorized: () => true, expected: structuredClone(state.importedData) })).rejects.toThrow('already recorded');
+});
+it('refuses retired start authorization and never publishes a phantom record', async () => {
+  const before = structuredClone(state.importedData);
+  await expect(store.startSession({}, { authorized: () => false, expected: before })).rejects.toMatchObject({ noChangeApplied: true });
+  expect(state.importedData).toEqual(before); expect(saveImportedData).not.toHaveBeenCalled();
+});
+it('persists an active slice, resets its live rate, and skips stopped or paused timers', async () => {
+  expect(store.hasSunLiveSliceProducer()).toBe(true);
+  expect(await store.persistActiveSunSlice(session.id)).toBeNull();
+  session.endedAt = null; session.paused = true;
+  expect(await store.persistActiveSunSlice(session.id)).toBeNull();
+  session.paused = false;
+  await store.persistActiveSunSlice(session.id);
+  expect(deps.commitCurrentSlice).toHaveBeenCalledOnce(); expect(deps.setLiveState).toHaveBeenCalledWith(session.id, { ratePerMin: null });
+});
+it('stops the matching native elapsed ticker without disturbing another timer', async () => {
+  const dom = new JSDOM('<span data-live-elapsed-for="sun-a">live</span><span data-live-elapsed-for="other">other</span>');
+  vi.stubGlobal('document', dom.window.document);
+  try {
+    session.endedAt = null; session.startedAt = Date.now() - 120000;
+    await store.stopSession(session.id);
+    expect(dom.window.document.querySelector('span')!.textContent).toBe('2m');
+    expect(dom.window.document.querySelector('span')!.hasAttribute('data-live-elapsed-for')).toBe(false);
+    expect(dom.window.document.querySelector('[data-live-elapsed-for="other"]')!.textContent).toBe('other');
+  } finally { vi.unstubAllGlobals(); dom.window.close(); }
+});
+it.each([false, true])('can recalculate %s segmented data without authorizing optional analysis', async segmented => {
+  if (segmented) session.exposureSegments = [pendingSegment()];
+  expect(await store.hydrateSession(session.id, {}, { canAnalyze: () => false })).toBe(session);
+  expect(session.calculationStatus).toBe('computed'); expect(deps.maybeAnalyzeSessionAfterFinish).not.toHaveBeenCalled();
+});
+it.each(['II fair', 'unrecognized', ''])('uses the recorded skin type %s or explicitly marks its fallback as assumed', async skinType => {
+  state.importedData.lightCircadian = { skinType };
+  expect(await store.hydrateSession(session.id)).toBe(session);
+  expect(session.safety).toMatchObject({ fitzpatrick: skinType.startsWith('II') ? 'II' : 'I', fitzpatrickAssumed: !skinType.startsWith('II') });
+});
+it('retains unavailable weather and accepts an empty store configuration', () => {
+  expect(store._applyAtmOverrides(null)).toBeNull();
+  expect(store.configureSunSessionsStore()).toMatchObject({ commitCurrentSlice: deps.commitCurrentSlice });
 });
 it.each(['location', 'durationMin', 'bodyExposure', 'updatedAt', 'sunDefaults'])('discards in-place synchronized %s changes during weather fetch', async field => {
   const wait = deferred(); deps.fetchAtmosphere.mockReturnValue(wait.promise);
