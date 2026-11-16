@@ -23,13 +23,17 @@ export function nativeCoveragePlugins(): Plugin[] {
     const config = context(); assert(config); const file = nativeSelected(config, id);
     return file ? {config, file} : null;
   }
-  const geometry: Plugin = {name: 'getbased-native-coverage-geometry', enforce: 'pre', configureVitest({project}) {
+  const geometry: Plugin = {name: 'getbased-native-coverage-geometry', enforce: 'pre', configureVitest({project, defineCacheKeyGenerator}) {
     // This public hook runs after CLI options are merged into the resolved project.
     root = fs.realpathSync(project.config.root);
     const coverage = project.config.coverage;
     enabled = coverage.enabled && coverage.provider === 'custom'
       && path.resolve(root, coverage.customProviderModule ?? '') === path.join(root, 'scripts/native-coverage-runtime.mjs');
     directory = path.resolve(root, coverage.reportsDirectory);
+    // Geometry and final-transform witnesses belong to this run. A persistent
+    // module-cache hit skips both hooks and cannot provide those fresh proofs.
+    defineCacheKeyGenerator(({id}) => enabled && path.isAbsolute(id)
+      && isProductionSource(path.relative(root, id).split(path.sep).join('/'), root) ? false : undefined);
   }, transform(code, id) {
     const selected = selectedContext(id); if (!selected) return null; const {config, file} = selected;
     const original = readNativeRegular(path.join(config.root, file)).toString('utf8'); let expected = original;

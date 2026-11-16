@@ -62,7 +62,7 @@ function syntax(source: string, file: string, post = false): ModuleFacts {
   });
 }
 function resolvedLiteral(root: string, file: string, specifier: string, environment: NativeEnvironment): string {
-  if (specifier.startsWith('node:')) {assert.equal(environment.consumer, 'client', 'SSR builtin import must remain unchanged'); return '/@id/__vite-browser-external:' + specifier;}
+  if (specifier.startsWith('node:')) {assert.equal(environment.consumer, 'client', 'SSR builtin import must remain unchanged'); return '/@id/' + specifier;}
   if (!specifier.startsWith('.')) {
     assert.equal(environment.consumer, 'server', 'Package import rewrite requires SSR');
     assert(/^(?:@[a-z0-9._~-]+\/)?[a-z0-9._~-]+$/.test(specifier), 'Unsupported import resolution');

@@ -64,6 +64,9 @@ function merge(target: unknown, source: unknown, input: MergeOptions = {}): unkn
   const sourceArray = Array.isArray(source), targetArray = Array.isArray(target);
   if (sourceArray !== targetArray) return cloneValue(source, options);
   if (sourceArray) return options.arrayMerge(target as unknown[], source, options);
+  // Missing/scalar defaults are empty merge targets. Inspection exceptions on
+  // actual objects still fail closed in unsafe(), including hostile proxies.
+  if (target === null || (typeof target !== 'object' && typeof target !== 'function')) target = {};
   const result: MergeRecord = {};
   if (options.isMergeableObject(target)) {
     for (const key of keys(target)) {

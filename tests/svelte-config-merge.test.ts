@@ -34,6 +34,11 @@ describe('Svelte build config merge security', () => {
   it('blocks a nested payload merged into a null placeholder', () => {
     const result = merge({ session: null }, { session: payload() }) as Record<string, unknown>;
     assertSafe(result['session']);
+    expect(result['session']).toEqual({ safe: 1 });
+  });
+
+  it.each([null, undefined, false, 0, 'default'])('retains valid settings when replacing scalar default %s', target => {
+    expect(merge(target, { compilerOptions: { dev: true } })).toEqual({ compilerOptions: { dev: true } });
   });
 
   it('fails closed when a target proxy throws during property inspection', () => {
