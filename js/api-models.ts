@@ -100,6 +100,7 @@ const OPENROUTER_CURATED = [
   'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4',
   'anthropic/claude-opus-5', 'anthropic/claude-opus-4',
   'openai/gpt-5', 'openai/gpt-6-astra', 'openai/gpt-6-sol',
+  'openai/gpt-6.1-sol', 'openai/gpt-6.1-terra',
   'google/gemini-4', 'google/gemini-3', 'google/gemini-2',
   'meta/muse-',
   'deepseek/deepseek', '~deepseek/deepseek',
@@ -109,30 +110,30 @@ const OPENROUTER_CURATED = [
   'x-ai/grok',
 ];
 
-// Recommended models for medical analysis.
-// Update when a new generation launches. Each provider uses different ID formats:
+// Recommendations are shared by Settings, Chat and task-specific model pickers.
+// Current releases use exact identities so specialized variants do not inherit
+// a recommendation. Each provider uses different ID formats:
 // OpenRouter: "provider/model-version" (dots: 4.6)
 // Anthropic: "claude-model-version" (hyphens: 4-6, with date suffix)
 // Venice: "model-version" (hyphens: 4-6, no provider prefix)
 const OPENROUTER_RECOMMENDED = [
-  'anthropic/claude-fable-5.1',
   'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6',
   'anthropic/claude-opus-5.5', 'anthropic/claude-opus-4.7',
-  'openai/gpt-6-astra', 'openai/gpt-6-sol', 'openai/gpt-5.4',
-  'google/gemini-4-argon', 'meta/muse-wonder', 'meta/muse-spark-1.3',
+  'openai/gpt-6-astra', 'openai/gpt-5.4',
+  'meta/muse-wonder', 'meta/muse-spark-1.3',
   'z-ai/glm-5.3-flash',
   'moonshotai/kimi-k3',
   'x-ai/grok-4',
 ];
-const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-6-astra', 'openai/gpt-6-sol', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
+const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-6-astra', 'openai/gpt-6.1-sol', 'anthropic/claude-sonnet-5.5', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
 // Bare prefixes also match namespaced IDs through modelStartsWithRecommended.
-const ROUTSTR_RECOMMENDED = ['gemini-4-argon', 'muse-wonder', 'muse-spark-1.3', 'claude-fable-5.1', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5.5', 'claude-opus-4.7', 'gpt-6-astra', 'gpt-6-sol', 'gpt-5.5', 'gpt-5.4', 'glm-5.3-flash', 'kimi-k3', 'grok-4'];
+const ROUTSTR_RECOMMENDED = ['muse-wonder', 'muse-spark-1.3', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5.5', 'claude-opus-4.7', 'gpt-6-astra', 'gpt-5.5', 'gpt-5.4', 'glm-5.3-flash', 'kimi-k3', 'grok-4'];
 const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-3-flash'];
 
 // PPQ shares regular recommendations with Routstr and uses private/ IDs for Tinfoil TEE models.
 const PPQ_RECOMMENDED = ROUTSTR_RECOMMENDED;
-const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k3', 'private/kimi-k2-6', 'private/glm-5-3-flash'];
+const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k3-1-pro', 'private/deepseek-v4-1-flash', 'private/glm-5-3'];
 
 function normalizedModelId(modelId: unknown) {
   return String(modelId || '').toLowerCase().replace(/[_.]/g, '-');
@@ -142,8 +143,15 @@ function isClaudeSonnet5Model(modelId: unknown) {
   return /(^|[/-])claude-sonnet-5($|[-:])/.test(normalizedModelId(modelId));
 }
 
-function isClaudeFable51Model(modelId: unknown) {
-  return /(^|[/-])claude-fable-5-1($|[-:])/.test(normalizedModelId(modelId));
+function isCurrentAnalysisModel(modelId: unknown) {
+  const id = recommendedOptionId(modelId)
+    .replace(/^(?:anthropic|openai|google|qwen)\//, '')
+    .replace(/^openai-gpt-61-/, 'gpt-6-1-')
+    .replace(/^openai-/, '');
+  return id === 'claude-fable-5-2'
+    || /^gpt-6-1-sol(?:-pro)?$/.test(id)
+    || /^gemini-4-(?:argon|carbon|hydrogen)$/.test(id)
+    || /^qwen-?4-max$/.test(id);
 }
 
 // DeepSeek publishes rolling aliases (~deepseek/...-latest on aggregators,
@@ -174,11 +182,10 @@ function compareVersionParts(a: number[], b: number[]) {
 }
 
 function isCustomRecommendedModel(modelId: unknown) {
-  if (isClaudeFable51Model(modelId)) return true;
   if (isClaudeSonnet5Model(modelId)) return true;
   return /(^|[/-])claude-(sonnet-4-6|opus-5-5|opus-4-7)($|[-:])/.test(normalizedModelId(modelId))
-    || /(^|[/-])gpt-(?:5-[45]|6-(?:astra|sol))($|[-:])/.test(normalizedModelId(modelId))
-    || /(^|[/-])(?:gemini-4-argon|muse-wonder|muse-spark-1-3)($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])gpt-(?:5-[45]|6-astra)($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])(?:muse-wonder|muse-spark-1-3)($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])glm-5-3-flash($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])kimi-k3($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])grok-4($|[-:])/.test(normalizedModelId(modelId));
@@ -193,7 +200,7 @@ function modelStartsWithRecommended(modelId: unknown, prefix: unknown) {
 
 function isVeniceRecommendedGptModel(modelId: unknown) {
   // Venice uses an openai- prefix and compact IDs for older GPT versions.
-  return /^openai-gpt-(?:6-(?:astra|sol)|5(?:-?[2-57-9]))(?:-|$)/.test(normalizedModelId(modelId));
+  return /^openai-gpt-(?:6-astra|5(?:-?[2-57-9]))(?:-|$)/.test(normalizedModelId(modelId));
 }
 
 export function modelMatchesPreferredId(modelId: unknown, preferredId: unknown) {
@@ -218,6 +225,9 @@ export function findPreferredModel<Model extends StoredProviderModel>(models: Mo
 }
 
 export function isRecommendedModel(provider: string, modelId: string) {
+  if (isPpqPrivateModel(modelId)) return provider === 'ppq' && PPQ_PRIVATE_RECOMMENDED.includes(modelId);
+  if (modelId.startsWith('tinfoil-')) return provider === 'routstr' && ROUTSTR_PRIVATE_RECOMMENDED.includes(modelId);
+  if (modelId.startsWith('e2ee-')) return provider === 'venice' && /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5-3-flash/.test(modelId);
   // Small and specialized GPT variants must not inherit a flagship prefix.
   const normalizedId = normalizedModelId(modelId);
   if (/(^|[/-])gpt-[56]/.test(normalizedId)
@@ -225,26 +235,20 @@ export function isRecommendedModel(provider: string, modelId: string) {
   // Contributor routes and coding-focused Spark Open remain available outside
   // the general-analysis recommendations. Private routes keep their allowlists.
   if (/(^|[/-])muse-/.test(normalizedId) && /(?:^|[-:])(contributor|open)(?:$|[-:])/.test(normalizedId)) return false;
-  // Flash remains a separate Gemini tier alongside Argon. Do not promote
-  // specialized variants such as Flash Cyber through a shared prefix.
-  const gemini38Flash = /^(?:google\/)?gemini-3-8-flash(?::(?:batch|free))?$/.test(normalizedId);
-  if ((deepSeekRecommendation(modelId) || gemini38Flash) && ['openrouter', 'venice', 'routstr', 'ppq', 'custom'].includes(provider)) return true;
+  if ((deepSeekRecommendation(modelId) || isCurrentAnalysisModel(modelId))
+    && ['openrouter', 'venice', 'routstr', 'ppq', 'custom'].includes(provider)) return true;
   if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelStartsWithRecommended(modelId, prefix); });
   if (provider === 'venice') {
-    if (modelId.startsWith('e2ee-')) return /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5-3-flash/.test(modelId);
     // claude-(sonnet-5|sonnet-4-6|opus-5-5|opus-4-7) is intentionally narrow. When newer
     // versions land, broaden the alternation rather than matching all 4.x.
-    return isClaudeFable51Model(modelId)
-      || isVeniceRecommendedGptModel(modelId)
-      || /^(gemini-4-argon|muse-wonder|muse-spark-1-3)($|[-:])/.test(normalizedId)
+    return isVeniceRecommendedGptModel(modelId)
+      || /^(muse-wonder|muse-spark-1-3)($|[-:])/.test(normalizedId)
       || /^(claude-(sonnet-5|sonnet-4-6|opus-5-5|opus-4-7)|zai-org-glm-5-3-flash|z-ai-glm-5-3-flash|glm-5-3-flash|kimi-k3|grok-4[1-9]?)(-|$)/.test(normalizedModelId(modelId));
   }
   if (provider === 'routstr') {
-    if (modelId.startsWith('tinfoil-')) return ROUTSTR_PRIVATE_RECOMMENDED.includes(modelId);
     return ROUTSTR_RECOMMENDED.some(function(r) { return modelId === r || modelStartsWithRecommended(modelId, r); });
   }
   if (provider === 'ppq') {
-    if (isPpqPrivateModel(modelId)) return PPQ_PRIVATE_RECOMMENDED.includes(modelId);
     return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelStartsWithRecommended(modelId, r); });
   }
   if (provider === 'custom') return isCustomRecommendedModel(modelId);
@@ -270,17 +274,22 @@ function recommendedFamilyKey(modelId: unknown) {
   if (deepseek) return deepseek.family;
   if (slug.startsWith('claude-sonnet-')) return 'claude-sonnet';
   if (slug.startsWith('claude-opus-')) return 'claude-opus';
+  if (slug.startsWith('claude-fable-')) return 'claude-fable';
   // Sol is a distinct GPT-6 tier and remains visible alongside Astra.
-  if (/^(?:openai-)?gpt-6-sol(?:-|$)/.test(slug)) return 'gpt-6-sol';
+  const gpt6Tier = slug.match(/^(?:openai-)?gpt-(?:6(?:-\d+)?|6\d)-(sol|terra)(?:-|$)/);
+  if (gpt6Tier) return `gpt-6-${gpt6Tier[1]}`;
   if (/^(?:openai-)?gpt-6-astra(?:-|$)/.test(slug)) return 'gpt-5-flagship';
   const gpt56Tier = slug.match(/^(?:openai-)?gpt-5(?:-?6)?-(sol|terra|luna)(?:-|$)/);
   if (gpt56Tier) return gpt56Tier[1] === 'sol' ? 'gpt-5-flagship' : `gpt-5.6-${gpt56Tier[1]}`;
   if (/^(openai-)?gpt-5/.test(slug)) return 'gpt-5-flagship';
   if (/^muse-spark-\d/.test(slug)) return 'muse-spark';
   if (/^gemini-\d.*argon/.test(slug)) return 'gemini-argon';
+  if (/^gemini-\d.*carbon/.test(slug)) return 'gemini-carbon';
+  if (/^gemini-\d.*hydrogen/.test(slug)) return 'gemini-flash';
   if (/^gemini-\d.*pro/.test(slug)) return 'gemini-pro';
   if (/^gemini-\d.*flash/.test(slug)) return 'gemini-flash';
   if (/^grok/.test(slug)) return 'grok';
+  if (/^qwen-?4-max$/.test(slug)) return 'qwen-max';
   // Keep the useful open-weight sizes independently comparable while still
   // collapsing superseded generations of the same size (for example,
   // Qwen3.6 27B behind Qwen3.8 27B). A 35B-A3B route is a different compute
@@ -298,8 +307,8 @@ function recommendedFamilyKey(modelId: unknown) {
 
 function recommendedModelVersionParts(modelId: unknown) {
   const slug = recommendedOptionSlug(modelId);
-  const compactVeniceGpt = slug.match(/^openai-gpt-5([2-9])(?:-|$)/);
-  if (compactVeniceGpt) return [5, Number(compactVeniceGpt[1])];
+  const compactVeniceGpt = slug.match(/^openai-gpt-(5|6)([1-9])(?:-|$)/);
+  if (compactVeniceGpt) return [Number(compactVeniceGpt[1]), Number(compactVeniceGpt[2])];
   if (/^grok-41-fast($|-)/.test(slug)) return [4, 1];
   if (/^grok-4-20($|-)/.test(slug)) return [4, 2, 0];
   return (slug.match(/\d+/g) || []).map(Number);

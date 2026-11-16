@@ -56,9 +56,9 @@ assert('hasAIProvider custom requires URL', apiProviderStorageSrc.includes("hasC
 assert('getActiveModelId handles custom', /provider === 'custom'\)\s+return getCustomApiModel\(\)/.test(apiModelsSrc));
 assert('getActiveModelDisplay handles custom', /provider === 'custom'\)\s+return getCustomApiModelDisplay\(\)/.test(apiModelsSrc));
 assert('isRecommendedModel handles custom Sonnet 5', apiModelsSrc.includes("provider === 'custom'") && apiModelsSrc.includes('isCustomRecommendedModel'));
-assert('isRecommendedModel handles custom Fable 5.1', apiModelsSrc.includes('isClaudeFable51Model'));
-assert('isRecommendedModel handles custom Gemini 4 Argon', apiModelsSrc.includes('gemini-4-argon'));
-assert('Custom Gemini 3.8 Flash remains recommended alongside Argon', apiModelsSrc.includes('gemini-3-8-flash'));
+assert('isRecommendedModel handles custom Fable 5.2', api.isRecommendedModel('custom', 'claude-fable-5-2'));
+assert('isRecommendedModel handles custom Gemini 4 Argon', api.isRecommendedModel('custom', 'gemini-4-argon'));
+assert('Custom Gemini 4 Hydrogen is recommended alongside Argon', api.isRecommendedModel('custom', 'gemini-4-hydrogen'));
 assert('isRecommendedModel handles custom GLM 5.3 Flash and Kimi K3', apiModelsSrc.includes('glm-5-3-flash') && apiModelsSrc.includes('kimi-k3'));
 assert('callClaudeAPI handles custom', /provider === 'custom'\)\s+return callCustomAPI\(/.test(apiSrc));
 assert('supportsWebSearch false for custom', /provider === 'custom'\)\s+return false/.test(apiModelsSrc));

@@ -268,7 +268,7 @@ test('direct provider and Local AI catalogs expose their reported reasoning cont
 });
 
 
-test('DeepSeek latest aliases and both Gemini tiers remain recommended', async ({ page }) => {
+test('current recommendations replace older releases while preserving the selected model', async ({ page }) => {
   await page.route('https://openrouter.ai/**', route => route.abort());
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
@@ -280,6 +280,13 @@ test('DeepSeek latest aliases and both Gemini tiers remain recommended', async (
       { id: '~deepseek/deepseek-pro-latest', name: 'DeepSeek Pro Latest' },
       { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
       { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
+      { id: 'google/gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
+      { id: 'google/gemini-4-carbon', name: 'Gemini 4 Carbon' },
+      { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
+      { id: 'anthropic/claude-fable-5.2', name: 'Claude Fable 5.2' },
+      { id: 'qwen/qwen4-max', name: 'Qwen4 Max' },
+      { id: 'openai/gpt-6-sol', name: 'GPT-6 Sol' },
+      { id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol' },
     ]));
   });
   await page.goto('/app');
@@ -287,8 +294,10 @@ test('DeepSeek latest aliases and both Gemini tiers remain recommended', async (
   await expect(page.locator('#chat-model-menu-label')).toHaveText('Gemini 3.8 Flash');
   await page.locator('#chat-model-menu-toggle').click();
   await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
-  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 4).map(option => option.getAttribute('data-chat-model-value')));
-  expect(recommended).toEqual(['~deepseek/deepseek-flash-latest', '~deepseek/deepseek-pro-latest', 'google/gemini-3.8-flash', 'google/gemini-4-argon']);
+  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 8).map(option => option.getAttribute('data-chat-model-value')));
+  expect(recommended).toEqual(['~deepseek/deepseek-flash-latest', '~deepseek/deepseek-pro-latest',
+    'google/gemini-4-argon', 'google/gemini-4-hydrogen', 'google/gemini-4-carbon',
+    'anthropic/claude-fable-5.2', 'qwen/qwen4-max', 'openai/gpt-6.1-sol']);
   await expect(page.locator('[data-chat-model-value="google/gemini-3.8-flash"]')).toBeVisible();
   await page.locator('[data-chat-model-value="~deepseek/deepseek-flash-latest"]').click();
   await expect(page.locator('#chat-model-menu-label')).toHaveText('DeepSeek Flash Latest');

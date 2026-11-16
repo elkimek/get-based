@@ -81,6 +81,84 @@ afterEach(() => {
 });
 
 describe('API provider runtime behavior', () => {
+  it('promotes current November releases and retires superseded recommendations across providers', () => {
+    for (const provider of ['openrouter', 'ppq', 'routstr', 'venice', 'custom']) {
+      const current = (provider === 'venice'
+        ? ['qwen-4-max', 'gemini-4-argon', 'gemini-4-carbon', 'gemini-4-hydrogen', 'claude-fable-5-2', 'openai-gpt-61-sol']
+        : ['qwen/qwen4-max', 'google/gemini-4-argon', 'google/gemini-4-carbon', 'google/gemini-4-hydrogen', 'anthropic/claude-fable-5.2', 'openai/gpt-6.1-sol'])
+        .map(id => ({ id }));
+      const old = ['qwen/qwen3-max', 'google/gemini-3.8-flash', 'gemini-3-8-flash',
+        'anthropic/claude-fable-5.1', 'claude-fable-5-1', 'openai/gpt-6-sol', 'openai-gpt-6-sol'].map(id => ({ id }));
+      expect(selectLatestRecommendedModels(provider, [...old, ...current])).toEqual(current);
+      expect(selectLatestRecommendedModels(provider, old)).toEqual([]);
+      for (const suffix of ['-preview', '-cyber', '-coder', '-distill']) {
+        for (const model of current) expect(isRecommendedModel(provider, model.id + suffix), model.id + suffix).toBe(false);
+      }
+      expect(isRecommendedModel(provider, 'other/qwen4-max')).toBe(false);
+      expect(isRecommendedModel(provider, 'openai/gpt-6.1-terra')).toBe(false);
+    }
+  });
+
+  it('keeps Gemini tiers and GPT Sol separate from Astra while preferring stable base routes', () => {
+    const sol = { id: 'openai/gpt-6.1-sol' };
+    const astra = { id: 'openai/gpt-6-astra' };
+    const fable = { id: 'anthropic/claude-fable-5.2' };
+    const hydrogen = { id: 'google/gemini-4-hydrogen' };
+    const argon = { id: 'google/gemini-4-argon' };
+    const carbon = { id: 'google/gemini-4-carbon' };
+    const qwen = { id: 'qwen/qwen4-max' };
+    const models = [sol, astra, fable, hydrogen, argon, carbon, qwen];
+    const variants = models.map(model => ({ id: model.id + ':batch' }));
+    expect(selectLatestRecommendedModels('openrouter', [...variants, ...models])).toEqual(models);
+    expect(selectLatestModelFamilies([
+      { id: 'openai-gpt-6-sol' }, { id: 'openai-gpt-61-sol' },
+      { id: 'openai-gpt-6-2-sol' }, { id: 'openai-gpt-6-astra' },
+      { id: 'google/gemini-3.8-flash' }, hydrogen,
+      { id: 'anthropic/claude-fable-5.1' }, fable,
+    ])).toEqual([{ id: 'openai-gpt-6-2-sol' }, { id: 'openai-gpt-6-astra' }, hydrogen, fable]);
+  });
+
+  it('discovers new releases with original pricing and vision metadata while preserving saved older selections', async () => {
+    localStorage.setItem('labcharts-routstr-node', 'https://node.example.com/');
+    for (const [provider, fetchModels] of [
+      ['openrouter', fetchOpenRouterModels], ['ppq', fetchPpqModels], ['routstr', fetchRoutstrModels],
+    ] as const) {
+      const sol = { id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol', enabled: true,
+        pricing: provider === 'ppq' ? { input_per_1M_tokens: '2', output_per_1M_tokens: '10' }
+          : { prompt: '0.000002', completion: '0.000010' }, architecture: { input_modalities: ['text', 'image'] } };
+      const terra = { id: 'openai/gpt-6.1-terra', name: 'GPT-6.1 Terra', enabled: true };
+      const old = { id: 'openai/gpt-6-sol', name: 'GPT-6 Sol', enabled: true };
+      const qwen = { id: 'qwen/qwen4-max', name: 'Qwen4 Max', enabled: true };
+      localStorage.setItem(`labcharts-${provider}-model`, old.id);
+      (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: [old, sol, terra, qwen] }));
+      const catalog = await fetchModels();
+      expect(catalog.map(model => model.id).sort()).toEqual([old.id, sol.id, terra.id, qwen.id].sort());
+      expect(selectLatestRecommendedModels(provider, catalog).map(model => model.id).sort()).toEqual([sol.id, qwen.id].sort());
+      expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(old.id);
+      expect(JSON.parse(localStorage.getItem(`labcharts-${provider}-pricing`) || '{}')[sol.id]).toEqual({ input: 2, output: 10 });
+      expect(JSON.parse(localStorage.getItem(`labcharts-${provider}-vision-models`) || '[]')).toContain(sol.id);
+      expect(JSON.parse(localStorage.getItem(`labcharts-${provider}-vision-models`) || '[]')).not.toContain(qwen.id);
+      localStorage.removeItem(`labcharts-${provider}-model`);
+      localStorage.removeItem(`labcharts-${provider}-model-regular`);
+      (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: [old, sol, terra] }));
+      await fetchModels();
+      expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(sol.id);
+    }
+  });
+
+  it('recommends only the current PPQ private routes and keeps private recommendations provider-specific', () => {
+    const current = ['private/kimi-k3-1-pro', 'private/deepseek-v4-1-flash', 'private/glm-5-3'].map(id => ({ id }));
+    const other = ['private/kimi-k3', 'private/kimi-k2-6', 'private/glm-5-3-flash', 'private/gpt-oss-120b',
+      'private/gemma4-31b', 'private/kimi-k3-1-pro-preview', 'private/qwen4-max'].map(id => ({ id }));
+    expect(selectLatestRecommendedModels('ppq', [...other, ...current])).toEqual(current);
+    for (const provider of ['openrouter', 'venice', 'routstr', 'custom', 'ollama']) {
+      expect(selectLatestRecommendedModels(provider, current)).toEqual([]);
+    }
+    for (const provider of ['ollama', 'browser-local', 'unknown']) {
+      expect(isRecommendedModel(provider, 'qwen/qwen4-max')).toBe(false);
+    }
+  });
+
   it('recommends Argon, Wonder and general Spark across supported provider ID formats', () => {
     for (const provider of ['openrouter', 'ppq', 'routstr', 'venice', 'custom']) {
       const prefix = provider === 'venice' ? '' : 'meta/';
@@ -143,7 +221,7 @@ describe('API provider runtime behavior', () => {
   });
 
   it('shows Sol alongside Astra after a PPQ catalog refresh and excludes Nano', async () => {
-    const sol = { id: 'gpt-6-sol', name: 'GPT-6 Sol' };
+    const sol = { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol' };
     const astra = { id: 'gpt-6-astra', name: 'GPT-6 Astra' };
     const nano = { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano' };
     (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: [nano, sol, { ...astra, enabled: false }] }));
@@ -172,7 +250,7 @@ describe('API provider runtime behavior', () => {
   it('uses Sol as the catalog fallback across providers and never recommends GPT Nano or Mini', () => {
     for (const provider of ['openrouter', 'routstr', 'ppq', 'custom', 'venice']) {
       const prefix = provider === 'venice' ? 'openai-' : 'openai/';
-      const sol = { id: prefix + 'gpt-6-sol' };
+      const sol = { id: prefix + 'gpt-6.1-sol' };
       const astra = { id: prefix + 'gpt-6-astra' };
       const catalog = [sol, { id: prefix + 'gpt-5.4-nano' }, { id: prefix + 'gpt-5.4-mini' }];
       expect(selectLatestRecommendedModels(provider, catalog)).toEqual([sol]);
@@ -198,8 +276,8 @@ describe('API provider runtime behavior', () => {
       const gptPrefix = provider === 'venice' ? 'openai-' : 'openai/';
       expect(isRecommendedModel(provider, gptPrefix + 'gpt-5.6-sol')).toBe(false);
       expect(isRecommendedModel(provider, gptPrefix + 'gpt-6-luna')).toBe(false);
-      expect(isRecommendedModel(provider, gptPrefix + 'gpt-6-sol-mini')).toBe(false);
-      if (provider !== 'venice') expect(needsMaxCompletionTokens(gptPrefix + 'gpt-6-sol')).toBe(true);
+      expect(isRecommendedModel(provider, gptPrefix + 'gpt-6.1-sol-mini')).toBe(false);
+      if (provider !== 'venice') expect(needsMaxCompletionTokens(gptPrefix + 'gpt-6.1-sol')).toBe(true);
     }
   });
 
@@ -212,7 +290,7 @@ describe('API provider runtime behavior', () => {
     ] as const) {
       for (const format of prefixes!) {
         localStorage.removeItem(`labcharts-${provider}-model`);
-        const sol = { id: (format === 'namespaced' ? 'openai/' : '') + 'gpt-6-sol', enabled: true };
+        const sol = { id: (format === 'namespaced' ? 'openai/' : '') + 'gpt-6.1-sol', enabled: true };
         const opus = { id: (format === 'namespaced' ? 'anthropic/' : '') + 'claude-opus-5.5', enabled: true };
         const oldSol = { id: (format === 'namespaced' ? 'openai/' : '') + 'gpt-5.6-sol', enabled: true };
         const unavailable = { ...opus, id: opus.id + '-20260922', enabled: false };
@@ -251,10 +329,10 @@ describe('API provider runtime behavior', () => {
   it('restores valid regular choices and ignores stale per-mode keys when initializing defaults', async () => {
     localStorage.setItem('labcharts-routstr-node', 'https://node.example.com/');
     for (const [provider, fetchModels] of [['ppq', fetchPpqModels], ['routstr', fetchRoutstrModels]] as const) {
-      const models = ['claude-sonnet-4.6', 'gpt-6-sol', 'gpt-6-astra'].map(id => ({ id, enabled: true }));
+      const models = ['claude-sonnet-4.6', 'gpt-6.1-sol', 'gpt-6-astra'].map(id => ({ id, enabled: true }));
       for (const [saved, expected] of [
         ['removed-model', 'gpt-6-astra'],
-        ['gpt-6-sol', 'gpt-6-sol'],
+        ['gpt-6.1-sol', 'gpt-6.1-sol'],
       ] as const) {
         localStorage.removeItem(`labcharts-${provider}-model`);
         localStorage.setItem(`labcharts-${provider}-model-regular`, saved);
@@ -278,8 +356,8 @@ describe('API provider runtime behavior', () => {
         },
         { id: 'openai/gpt-5.5', name: 'GPT 5.5' },
         {
-          id: 'anthropic/claude-fable-5.1',
-          name: 'Claude Fable 5.1',
+          id: 'anthropic/claude-fable-5.2',
+          name: 'Claude Fable 5.2',
           pricing: { prompt: '0.000010', completion: '0.000050' },
           architecture: { modality: 'text+image+file->text' },
         },
@@ -347,7 +425,7 @@ describe('API provider runtime behavior', () => {
       headers: { Authorization: 'Bearer sk-or' },
     });
     expect(models.map(m => m.id)).toEqual([
-      'anthropic/claude-fable-5.1',
+      'anthropic/claude-fable-5.2',
       'anthropic/claude-sonnet-4.6',
       'anthropic/claude-sonnet-5',
       'z-ai/glm-5.3-flash',
@@ -359,7 +437,7 @@ describe('API provider runtime behavior', () => {
       'qwen/qwen3.8-27b',
     ]);
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-openrouter-pricing'))).toMatchObject({
-      'anthropic/claude-fable-5.1': { input: 10, output: 50 },
+      'anthropic/claude-fable-5.2': { input: 10, output: 50 },
       'anthropic/claude-sonnet-4.6': { input: 3, output: 15 },
       'anthropic/claude-sonnet-5': { input: 2, output: 10 },
       'google/gemini-3.5-flash': { input: 0.7, output: 3.75 },
@@ -370,7 +448,7 @@ describe('API provider runtime behavior', () => {
     });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-openrouter-pricing'))['qwen/qwen3.8-27b']!.input).toBeCloseTo(0.4);
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-openrouter-pricing'))['qwen/qwen3.8-27b']!.output).toBe(3);
-    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-fable-5.1');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-fable-5.2');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-4.6');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-5');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('google/gemini-3.5-flash');
@@ -406,7 +484,7 @@ describe('API provider runtime behavior', () => {
         { id: 'llama-3.1-8b', name: 'Llama', enabled: true, pricing: { prompt: '0.000001', completion: '0.000002' } },
         { id: 'claude-sonnet-4.6', name: 'Claude', enabled: true, pricing: { prompt: '0.000003', completion: '0.000015' }, architecture: { input_modalities: ['text', 'image'] } },
         { id: 'claude-sonnet-5', name: 'Claude 5', enabled: true, pricing: { prompt: '0.000002', completion: '0.000010' }, architecture: { input_modalities: ['text', 'image'] } },
-        { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1', enabled: true, pricing: { prompt: '0.000010', completion: '0.000050' }, architecture: { input_modalities: ['text', 'image'] } },
+        { id: 'anthropic/claude-fable-5.2', name: 'Claude Fable 5.2', enabled: true, pricing: { prompt: '0.000010', completion: '0.000050' }, architecture: { input_modalities: ['text', 'image'] } },
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash', enabled: true, pricing: { prompt: '0.000000075', completion: '0.00000025' }, architecture: { input_modalities: ['text', 'image', 'video'] } },
         { id: 'claude-sonnet-4.6-20260101', name: 'Claude duplicate', enabled: true },
         { id: 'grok-41-fast', name: 'Grok 4.1 Fast', enabled: true, pricing: { prompt: '0.00000025', completion: '0.00000063' } },
@@ -421,11 +499,11 @@ describe('API provider runtime behavior', () => {
     const routstrModels = await fetchRoutstrModels();
 
     expect(fetch).toHaveBeenCalledWith('https://node.example.com/v1/models');
-    expect(routstrModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-sonnet-5', 'anthropic/claude-fable-5.1', 'z-ai/glm-5.3-flash', 'grok-41-fast', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'llama-3.1-8b', 'qwen/qwen3.8-27b']);
+    expect(routstrModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-sonnet-5', 'anthropic/claude-fable-5.2', 'z-ai/glm-5.3-flash', 'grok-41-fast', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'llama-3.1-8b', 'qwen/qwen3.8-27b']);
     expect(localStorage.getItem('labcharts-routstr-model')).toBe('claude-sonnet-5');
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
-    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['anthropic/claude-fable-5.1']).toEqual({ input: 10, output: 50 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['anthropic/claude-fable-5.2']).toEqual({ input: 10, output: 50 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['z-ai/glm-5.3-flash']).toEqual({ input: 0.075, output: 0.25 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['x-ai/grok-4.3']).toEqual({ input: 3, output: 15 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['moonshotai/kimi-k3']).toEqual({ input: 3, output: 15 });
@@ -433,7 +511,7 @@ describe('API provider runtime behavior', () => {
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['qwen/qwen3.8-27b']!.output).toBe(3);
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('claude-sonnet-4.6');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('claude-sonnet-5');
-    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('anthropic/claude-fable-5.1');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('anthropic/claude-fable-5.2');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('z-ai/glm-5.3-flash');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('moonshotai/kimi-k3');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('qwen/qwen3.8-27b');
@@ -442,7 +520,7 @@ describe('API provider runtime behavior', () => {
       data: [
         { id: 'perplexity/sonar', name: 'Sonar', pricing: { input_per_1M_tokens: '2', output_per_1M_tokens: '8' }, architecture: { modality: 'text->text' } },
         { id: 'claude-sonnet-4.6', name: 'Claude', pricing: { input_per_1M_tokens: '3', output_per_1M_tokens: '15' }, architecture: { modality: 'image->text' } },
-        { id: 'claude-fable-5.1', name: 'Claude Fable 5.1', pricing: { input_per_1M_tokens: '10', output_per_1M_tokens: '50' }, architecture: { modality: 'image->text' } },
+        { id: 'claude-fable-5.2', name: 'Claude Fable 5.2', pricing: { input_per_1M_tokens: '10', output_per_1M_tokens: '50' }, architecture: { modality: 'image->text' } },
         { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', pricing: { input_per_1M_tokens: '2', output_per_1M_tokens: '10' }, architecture: { modality: 'image->text' } },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash', pricing: { input_per_1M_tokens: '0.7', output_per_1M_tokens: '3.75' }, architecture: { modality: 'image->text' } },
         { id: 'glm-5.3-flash', name: 'GLM 5.3 Flash', pricing: { input_per_1M_tokens: '0.08', output_per_1M_tokens: '0.26' }, architecture: { input_modalities: ['text', 'image', 'video'] } },
@@ -457,11 +535,11 @@ describe('API provider runtime behavior', () => {
 
     const ppqModels = await fetchPpqModels('sk-ppq');
 
-    expect(ppqModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-fable-5.1', 'claude-sonnet-5', 'glm-5.3-flash', 'grok-4.20', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'google/gemini-3.5-flash', 'moonshotai/kimi-k2.7-code', 'qwen/qwen3.8-27b', 'perplexity/sonar']);
+    expect(ppqModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-fable-5.2', 'claude-sonnet-5', 'glm-5.3-flash', 'grok-4.20', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'google/gemini-3.5-flash', 'moonshotai/kimi-k2.7-code', 'qwen/qwen3.8-27b', 'perplexity/sonar']);
     expect(localStorage.getItem('labcharts-ppq-model')).toBe('claude-sonnet-5');
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
-    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-fable-5.1']).toEqual({ input: 10, output: 50 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-fable-5.2']).toEqual({ input: 10, output: 50 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['google/gemini-3.5-flash']).toEqual({ input: 0.7, output: 3.75 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['glm-5.3-flash']).toEqual({ input: 0.08, output: 0.26 });
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['moonshotai/kimi-k2.7-code']).toEqual({ input: 0.56, output: 3.5 });
@@ -469,7 +547,7 @@ describe('API provider runtime behavior', () => {
     expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['qwen/qwen3.8-27b']).toEqual({ input: 0.422, output: 3.165 });
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-sonnet-4.6');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-sonnet-5');
-    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-fable-5.1');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-fable-5.2');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('google/gemini-3.5-flash');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('glm-5.3-flash');
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('moonshotai/kimi-k3');
@@ -581,7 +659,7 @@ describe('API provider runtime behavior', () => {
     expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-private-vision-models')))
       .toContain('private/kimi-k3');
     expect(getPpqModel()).toBe('private/kimi-k3');
-    expect(isRecommendedModel('ppq', 'private/kimi-k3')).toBe(true);
+    expect(isRecommendedModel('ppq', 'private/kimi-k3')).toBe(false);
     expect(isRecommendedModel('ppq', 'private/gpt-oss-120b')).toBe(false);
     expect(supportsVision()).toBe(true);
   });
@@ -912,19 +990,19 @@ describe('API provider runtime behavior', () => {
     }
     for (const provider of ['routstr', 'ppq', 'custom']) {
       expect(isRecommendedModel(provider, 'openai/gpt-6-astra')).toBe(true);
-      expect(isRecommendedModel(provider, 'openai/gpt-6-sol')).toBe(true);
+      expect(isRecommendedModel(provider, 'openai/gpt-6.1-sol')).toBe(true);
     }
     expect(needsMaxCompletionTokens('openai/gpt-5.4')).toBe(true);
     expect(needsMaxCompletionTokens('o3-mini')).toBe(true);
     expect(needsMaxCompletionTokens('anthropic/claude-sonnet-4.6')).toBe(false);
 
-    expect(isRecommendedModel('openrouter', 'anthropic/claude-fable-5.1')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'anthropic/claude-fable-5.2')).toBe(true);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-fable-5')).toBe(false);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-sonnet-4.6')).toBe(true);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-opus-5.5')).toBe(true);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-opus-4.8')).toBe(false);
-    expect(isRecommendedModel('openrouter', 'openai/gpt-6-sol')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'openai/gpt-6.1-sol')).toBe(true);
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.6-terra')).toBe(false);
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.6-luna')).toBe(false);
     expect(isRecommendedModel('openrouter', 'openai/gpt-5.5')).toBe(false);
@@ -933,15 +1011,15 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.6-flash')).toBe(false);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.7-flash')).toBe(false);
-    expect(isRecommendedModel('openrouter', 'google/gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'google/gemini-3.8-flash:batch')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'google/gemini-3.8-flash-cyber')).toBe(false);
+    expect(isRecommendedModel('openrouter', 'google/gemini-4-hydrogen')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'google/gemini-4-hydrogen:batch')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'google/gemini-4-hydrogen-cyber')).toBe(false);
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.2')).toBe(false);
     expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.6')).toBe(false);
     expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k3')).toBe(true);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.1-pro')).toBe(false);
-    expect(isRecommendedModel('venice', 'claude-fable-5-1')).toBe(true);
+    expect(isRecommendedModel('venice', 'claude-fable-5-2')).toBe(true);
     expect(isRecommendedModel('venice', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('venice', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('venice', 'claude-opus-5.5')).toBe(true);
@@ -950,14 +1028,14 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('venice', 'openai-gpt-56-sol')).toBe(false);
     expect(isRecommendedModel('venice', 'openai-gpt-56-terra')).toBe(false);
     expect(isRecommendedModel('venice', 'openai-gpt-56-luna')).toBe(false);
-    expect(isRecommendedModel('venice', 'openai-gpt-6-sol')).toBe(true);
+    expect(isRecommendedModel('venice', 'openai-gpt-6.1-sol')).toBe(true);
     expect(isRecommendedModel('venice', 'openai-gpt-51')).toBe(false);
     expect(isRecommendedModel('venice', 'gemini-3-5-flash')).toBe(false);
     expect(isRecommendedModel('venice', 'z-ai-glm-5-3-flash')).toBe(true);
     expect(isRecommendedModel('venice', 'z-ai-glm-5-3')).toBe(false);
     expect(isRecommendedModel('venice', 'gemini-3-7-flash')).toBe(false);
-    expect(isRecommendedModel('venice', 'gemini-3-8-flash')).toBe(true);
-    expect(isRecommendedModel('venice', 'gemini-3-8-flash-cyber')).toBe(false);
+    expect(isRecommendedModel('venice', 'gemini-4-hydrogen')).toBe(true);
+    expect(isRecommendedModel('venice', 'gemini-4-hydrogen-cyber')).toBe(false);
     expect(isRecommendedModel('venice', 'zai-org-glm-5-2')).toBe(false);
     expect(isRecommendedModel('venice', 'kimi-k2-7-code')).toBe(false);
     expect(isRecommendedModel('venice', 'kimi-k2-6')).toBe(false);
@@ -965,8 +1043,8 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('venice', 'e2ee-qwen3-5-122b')).toBe(true);
     expect(isRecommendedModel('venice', 'e2ee-glm-5-3-flash-p')).toBe(true);
     expect(isRecommendedModel('venice', 'e2ee-glm-5-2-p')).toBe(false);
-    expect(isRecommendedModel('routstr', 'claude-fable-5.1')).toBe(true);
-    expect(isRecommendedModel('routstr', 'anthropic/claude-fable-5.1')).toBe(true);
+    expect(isRecommendedModel('routstr', 'claude-fable-5.2')).toBe(true);
+    expect(isRecommendedModel('routstr', 'anthropic/claude-fable-5.2')).toBe(true);
     expect(isRecommendedModel('routstr', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('routstr', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('routstr', 'claude-sonnet-4.6')).toBe(true);
@@ -981,14 +1059,14 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('routstr', 'tinfoil-glm-5-2')).toBe(false);
     expect(isRecommendedModel('routstr', 'moonshotai/kimi-k3')).toBe(true);
     expect(isRecommendedModel('routstr', 'google/gemini-3.7-flash')).toBe(false);
-    expect(isRecommendedModel('routstr', 'gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('routstr', 'google/gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('routstr', 'google/gemini-3.8-flash-cyber')).toBe(false);
+    expect(isRecommendedModel('routstr', 'gemini-4-hydrogen')).toBe(true);
+    expect(isRecommendedModel('routstr', 'google/gemini-4-hydrogen')).toBe(true);
+    expect(isRecommendedModel('routstr', 'google/gemini-4-hydrogen-cyber')).toBe(false);
     expect(isRecommendedModel('routstr', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('routstr', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('routstr', 'moonshotai/kimi-k2.6')).toBe(false);
-    expect(isRecommendedModel('ppq', 'claude-fable-5.1')).toBe(true);
-    expect(isRecommendedModel('ppq', 'anthropic/claude-fable-5.1')).toBe(true);
+    expect(isRecommendedModel('ppq', 'claude-fable-5.2')).toBe(true);
+    expect(isRecommendedModel('ppq', 'anthropic/claude-fable-5.2')).toBe(true);
     expect(isRecommendedModel('ppq', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('ppq', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('ppq', 'claude-opus-5.5')).toBe(true);
@@ -999,19 +1077,19 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('ppq', 'glm-5.3-flash')).toBe(true);
     expect(isRecommendedModel('ppq', 'glm-5.3')).toBe(false);
     expect(isRecommendedModel('ppq', 'z-ai/glm-5.2')).toBe(false);
-    expect(isRecommendedModel('ppq', 'private/glm-5-3-flash')).toBe(true);
+    expect(isRecommendedModel('ppq', 'private/glm-5-3')).toBe(true);
     expect(isRecommendedModel('ppq', 'private/glm-5-2')).toBe(false);
     expect(isRecommendedModel('ppq', 'google/gemini-3.7-flash')).toBe(false);
-    expect(isRecommendedModel('ppq', 'gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('ppq', 'google/gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('ppq', 'gemini-3.8-flash-cyber')).toBe(false);
+    expect(isRecommendedModel('ppq', 'gemini-4-hydrogen')).toBe(true);
+    expect(isRecommendedModel('ppq', 'google/gemini-4-hydrogen')).toBe(true);
+    expect(isRecommendedModel('ppq', 'gemini-4-hydrogen-cyber')).toBe(false);
     expect(isRecommendedModel('ppq', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.6')).toBe(false);
     expect(isRecommendedModel('ppq', 'moonshotai/kimi-k3')).toBe(true);
     expect(isRecommendedModel('ppq', 'gemini-3-flash-preview')).toBe(false);
-    expect(isRecommendedModel('custom', 'claude-fable-5-1')).toBe(true);
-    expect(isRecommendedModel('custom', 'anthropic/claude-fable-5.1')).toBe(true);
+    expect(isRecommendedModel('custom', 'claude-fable-5-2')).toBe(true);
+    expect(isRecommendedModel('custom', 'anthropic/claude-fable-5.2')).toBe(true);
     expect(isRecommendedModel('custom', 'claude-fable-5')).toBe(false);
     expect(isRecommendedModel('custom', 'claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('custom', 'anthropic/claude-opus-5.5')).toBe(true);
@@ -1022,9 +1100,9 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('custom', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('custom', 'z-ai/glm-5.2')).toBe(false);
     expect(isRecommendedModel('custom', 'gemini-3.7-flash')).toBe(false);
-    expect(isRecommendedModel('custom', 'gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('custom', 'google/gemini-3.8-flash')).toBe(true);
-    expect(isRecommendedModel('custom', 'gemini-3.8-flash-cyber')).toBe(false);
+    expect(isRecommendedModel('custom', 'gemini-4-hydrogen')).toBe(true);
+    expect(isRecommendedModel('custom', 'google/gemini-4-hydrogen')).toBe(true);
+    expect(isRecommendedModel('custom', 'gemini-4-hydrogen-cyber')).toBe(false);
     expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.6')).toBe(false);
     expect(isRecommendedModel('custom', 'moonshotai/kimi-k3')).toBe(true);
@@ -1043,19 +1121,19 @@ describe('API provider runtime behavior', () => {
     ]);
     expect(selectLatestRecommendedModels('openrouter', [
       { id: 'anthropic/claude-fable-5', name: 'Claude Fable 5' },
-      { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
+      { id: 'anthropic/claude-fable-5.2', name: 'Claude Fable 5.2' },
       { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
       { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
       { id: 'google/gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
       { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
-      { id: 'google/gemini-3.8-flash:batch', name: 'Gemini 3.8 Flash batch' },
-      { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+      { id: 'google/gemini-4-hydrogen:batch', name: 'Gemini 4 Hydrogen batch' },
+      { id: 'google/gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
       { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
       { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
     ])).toEqual([
-      { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
+      { id: 'anthropic/claude-fable-5.2', name: 'Claude Fable 5.2' },
       { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
-      { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+      { id: 'google/gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
       { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
     ]);
     expect(selectLatestRecommendedModels('openrouter', [
@@ -1069,13 +1147,13 @@ describe('API provider runtime behavior', () => {
       { id: 'anthropic/claude-sonnet-5', name: 'Sonnet 5' },
       { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
       { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
-      { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+      { id: 'google/gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
       { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7' },
       { id: 'moonshotai/kimi-k3', name: 'Kimi K3' },
       { id: 'community/llava-food', name: 'LLaVA Food' },
     ])).toEqual([
       { id: 'anthropic/claude-sonnet-5', name: 'Sonnet 5' },
-      { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+      { id: 'google/gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
       { id: 'moonshotai/kimi-k3', name: 'Kimi K3' },
       { id: 'community/llava-food', name: 'LLaVA Food' },
     ]);
