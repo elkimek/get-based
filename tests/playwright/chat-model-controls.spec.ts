@@ -23,7 +23,7 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
   await page.addInitScript(() => {
     const models = [
       {
-        id: 'openai/gpt-6-sol', name: 'GPT-6 Sol',
+        id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol',
         reasoning: { supported_efforts: ['low', 'medium', 'high'] },
       },
       {
@@ -56,7 +56,7 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
   await page.locator('#chat-model-menu-toggle').click();
   await expect(page.locator('#chat-model-search')).toBeVisible();
   await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
-  await expect(page.locator('.chat-model-option').nth(0)).toContainText('GPT-6 Sol');
+  await expect(page.locator('.chat-model-option').nth(0)).toContainText('GPT-6.1 Sol');
   await expect(page.locator('.chat-model-option').nth(1)).toContainText('Claude Sonnet 5');
   await expect(page.locator('.chat-model-option').nth(2)).toContainText('Claude Opus 5.5');
   await expect(page.locator('.chat-model-option').nth(3)).toContainText('GPT-6 Astra');
@@ -93,7 +93,7 @@ test('CLI picker groups a large OpenCode catalog and shares its effort with Sett
   await page.addInitScript(() => {
     const models = [
       {
-        id: 'openrouter/openai/gpt-6-sol', model: 'openrouter/openai/gpt-6-sol', displayName: 'GPT-6 Sol', isDefault: true,
+        id: 'openrouter/openai/gpt-6.1-sol', model: 'openrouter/openai/gpt-6.1-sol', displayName: 'GPT-6.1 Sol', isDefault: true,
         defaultReasoningEffort: 'medium', supportedReasoningEfforts: [{ reasoningEffort: 'low' }, { reasoningEffort: 'medium' }, { reasoningEffort: 'high' }], inputModalities: ['text'],
       },
       ...Array.from({ length: 10 }, (_, index) => ({
