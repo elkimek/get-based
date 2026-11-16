@@ -77,8 +77,10 @@ deploy/profile-share/data/
 .DS_Store
 
 /tests/.critical-coverage/
+/tests/.native-coverage-producer-*/
 
 # TypeScript compiler output beside canonical source
+/scripts/vendor-packages/svelte-config-merge/index.js
 /js/caught-error.js
 /lib/error-utils.js
 /shared/agent-host-protocol.js

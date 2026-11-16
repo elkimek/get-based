@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ save: vi.fn(), notify: vi.fn(), enabled: vi.fn() }));
+const mocks = vi.hoisted(() => ({ save: vi.fn(), notify: vi.fn(), enabled: vi.fn(), editorDraft: vi.fn(), editorRefresh: vi.fn(), refresh: vi.fn() }));
 vi.mock('../js/data.js', () => ({ saveImportedDataForProfile: mocks.save, notifyProfileDataContextChanged: mocks.notify,
-  getActiveData: vi.fn(), navigateDataViewRuntime: vi.fn(), showDataMarkerDetailRuntime: vi.fn() }));
+  getActiveData: vi.fn(), navigateDataViewRuntime: vi.fn(), showDataMarkerDetailRuntime: vi.fn(), refreshDataViewRuntime: mocks.refresh }));
+vi.mock('../js/context-lifestyle-form-view.js', () => ({ hasLifestyleFormDraft: mocks.editorDraft, refreshLifestyleFormAfterContextChange: mocks.editorRefresh }));
 vi.mock('../js/profile.js', () => ({ getActiveProfileId: () => 'a' }));
 vi.mock('../js/context-source-registry.js', async original => ({ ...await original<typeof import('../js/context-source-registry.js')>(), isContextSourceEnabled: mocks.enabled }));
 vi.mock('../js/lab-context-wearables.js', async original => ({ ...await original<typeof import('../js/lab-context-wearables.js')>(), getSleepContextMismatch: () => null, buildWearableSeriesSection: vi.fn() }));
@@ -35,11 +36,37 @@ async function propose(runtime = tools(), changes: AgentContextChange[] = [{ fie
 }
 beforeEach(() => {
   vi.resetAllMocks(); localStorage.removeItem('getbased-chat-controls');
+  document.body.innerHTML = '';
   mocks.enabled.mockReturnValue(true);
   mocks.save.mockResolvedValue(true);
   state.currentProfile = 'a';
   (state as { importedData: unknown }).importedData = { entries: [], changeHistory: [], contextNotes: 'Keep general notes',
     diet: { type: 'omnivore', bloating: 'none', breakfastTime: '08:15', note: 'Existing history', legacyExtra: 'Keep this too' } };
+});
+
+it('refuses malformed context and unsupported proposal kinds without writing', async () => {
+  await expect(applyAgentDraft({ profileId: 'a', kind: 'context', status: 'pending', payload: null })).rejects.toThrow('invalid');
+  await expect(applyAgentDraft({ profileId: 'a', kind: 'future-kind', status: 'pending', payload: {} })).rejects.toThrow('not supported');
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+it('preserves an open native context draft instead of overwriting it', async () => {
+  const { runtime } = await propose();
+  document.body.innerHTML = '<section data-context-form-view="diet"></section>';
+  mocks.editorDraft.mockReturnValue(true);
+  await expect(applyAgentDraft({ ...runtime.getDrafts()[0]!, profileId: 'a' })).rejects.toMatchObject({ noChangeApplied: true });
+  expect(mocks.save).not.toHaveBeenCalled(); expect(mocks.editorRefresh).not.toHaveBeenCalled();
+});
+it.each(['clear', 'chat-dialog', 'other-dialog', 'form', 'modal'] as const)('refreshes saved context while protecting the %s view', async view => {
+  const { runtime } = await propose();
+  document.body.innerHTML = '<section data-context-form-view="diet"></section><main id="main-content"></main>'
+    + (view === 'chat-dialog' ? '<aside id="chat-panel"><div role="dialog" aria-modal="true"></div></aside>'
+      : view === 'other-dialog' ? '<div role="dialog" aria-modal="true"></div>'
+      : view === 'modal' ? '<dialog open></dialog>' : '');
+  if (view === 'form') document.getElementById('main-content')!.innerHTML = '<form></form>';
+  if (view === 'other-dialog') vi.spyOn(document.querySelector('[role="dialog"]')!, 'getClientRects').mockReturnValue({ length: 1 } as DOMRectList);
+  await expect(applyAgentDraft({ ...runtime.getDrafts()[0]!, profileId: 'a' })).resolves.toContain('updated');
+  expect(mocks.editorRefresh).toHaveBeenCalledWith('diet');
+  expect(mocks.refresh).toHaveBeenCalledTimes(view === 'clear' || view === 'chat-dialog' ? 1 : 0);
 });
 
 describe('context read, proposal, and review', () => {

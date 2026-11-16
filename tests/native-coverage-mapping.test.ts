@@ -78,6 +78,14 @@ describe('native own-entry identities and whole public source witnesses', () => 
     await expect(replayNativeTransform(value.root, value.relative, source, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, value.observation, value.environment)).resolves.toMatchObject({canonical: source});
     await expect(replayNativeTransform(value.root, value.relative, source, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, value.observation, {name: 'node', viteEnvironment: 'ssr', consumer: 'server'})).rejects.toThrow();
   });
+  it.each(["import hooks from 'node:async_hooks'; ", "const hooks = () => import('node:async_hooks'); "])('qualifies the exact Vitest 5 client builtin rewrite for %s', async prefix => {
+    const canonical = prefix + source, post = canonical.replace("'node:async_hooks'", '"/@id/node:async_hooks"');
+    const value = await fixture(canonical, post, true);
+    const replay = (code: string) => replayNativeTransform(value.root, value.relative, canonical, value.runtime, value.snapshot, NATIVE_WRAPPER_PREFIX.length, value.geometry, { ...value.observation, code }, value.environment);
+    await expect(replay(post)).resolves.toMatchObject({ canonical });
+    await expect(replay(post.replace('/@id/node:async_hooks', '/@id/node:fs'))).rejects.toThrow();
+    await expect(replay(post.replace('/@id/node:async_hooks', '/@id/__vite-browser-external:node:async_hooks'))).rejects.toThrow();
+  });
   it('uses the exact own entry count and never promotes a nested positive block', async () => {
     const {transform} = await fixture(source), map = nativeFunctionMapper(transform), entry = own(transform, 2);
     expect(map(entry)).toEqual({start: 0, end: source.length, count: 2});

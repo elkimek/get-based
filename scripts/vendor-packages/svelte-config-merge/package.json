@@ -1,0 +1,12 @@
+{
+  "name": "@getbased/svelte-config-merge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hardened deepmerge-compatible config merger for the Svelte build plugin",
+  "type": "module",
+  "exports": {
+    "types": "./index.ts",
+    "default": "./index.js"
+  },
+  "license": "MIT"
+}

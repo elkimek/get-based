@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createContext, runInContext } from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import { createInstrumenter } from 'istanbul-lib-instrument';
+import { createInstrumenter } from '@vitest/istanbul-lib-instrument';
 import { inject } from 'vitest';
 
 /** Execute the emitted classic scripts together, including real importScripts loads. */

@@ -21,6 +21,10 @@ export function coverageIncludes(root: string) {
     ...new Set(ownedVendorSources(root).map(runtimePath))];
 }
 export const COVERAGE_INCLUDE = coverageIncludes(ROOT);
+/** Vitest 5 treats non-glob paths as directories. A singleton class keeps an exact file match. */
+export function coverageFilePattern(file: string): string {
+  return /\.[cm]?js$/.test(file) && !/[*?\[\]{}]/.test(file) ? file.replace(/s$/, '[s]') : file;
+}
 const OWNED_VENDOR_RUNTIME = new Set(COVERAGE_INCLUDE.filter(file => file.startsWith('vendor/')));
 
 export function isProductionSource(file: string, root = ROOT) {

@@ -3,7 +3,7 @@ import { captureCurrent, originalCaseCount, originalRevision, readFrozen } from 
 import { equalIngestSnapshot, type IngestReceipt, type IngestSnapshot } from './helpers/knowledge-base-frozen-contract.js';
 
 interface NativeIngestReceipt extends IngestReceipt {
-  cleanupTimers: unknown[];
+  cleanupTimers?: unknown[];
   setup: { requests: IngestReceipt['requests']; snapshot: IngestSnapshot };
 }
 
@@ -52,11 +52,53 @@ function reviewedNativeReceipt(baseline: NativeIngestReceipt): NativeIngestRecei
   return reviewed;
 }
 
+// jsdom 30.0.1 StorageImpl.setItem queued a zero-delay storage broadcast even
+// with no recipient window. jsdom 30.1.3 selects recipients before scheduling,
+// so this single-window harness has no such task. Only these exact historical
+// emulator events are projected out of the immutable expected receipt. Current
+// output is never normalized: any extra application timer still fails equality.
+function reviewedStorageScheduling(baseline: NativeIngestReceipt): NativeIngestReceipt {
+  const reviewed = structuredClone(baseline);
+  const second = ['busy-selection', 'one-read-fails-one-succeeds', 'replace-one', 'replace-two'].includes(baseline.name);
+  const storageIds = second ? [1, baseline.name === 'busy-selection' ? 3 : 2] : [1];
+  const storageTasks = baseline.trace.filter(entry => entry.type === 'timer-created' && entry.delay === 0);
+  expect(storageTasks).toEqual(storageIds.map((id, index) => ({ type: 'timer-created', id, delay: 0, due: index ? 3000 : 1000 })));
+  for (const task of storageTasks) {
+    const next = baseline.trace[baseline.trace.indexOf(task) + 1];
+    expect(next?.type).toBe(task.id === 1 ? 'recordLocalLensStats' : 'clearLensCache');
+  }
+  const removed = new Set<number>();
+  const renumber = (id: number) => id - storageIds.filter(storageId => storageId < id).length;
+  reviewed.trace = baseline.trace.flatMap((entry, index) => {
+    if (entry.type !== 'timer-created' && entry.type !== 'timer-fired') return [structuredClone(entry)];
+    expect(Number.isSafeInteger(entry.id)).toBe(true);
+    const id = entry.id as number;
+    if (storageIds.includes(id)) {
+      if (entry.type === 'timer-fired') expect(entry.now).toBe(id === 1 ? 1000 : 3000);
+      removed.add(index); return [];
+    }
+    return [{ ...entry, id: renumber(id) }];
+  });
+  if (baseline.cleanupTimers !== undefined) reviewed.cleanupTimers = baseline.cleanupTimers.map(timer => {
+    expect(timer).toEqual(expect.objectContaining({ id: expect.any(Number) }));
+    const value = timer as { id: number };
+    expect(storageIds).not.toContain(value.id);
+    return { ...value, id: renumber(value.id) };
+  });
+  const snapshot = (value: IngestSnapshot): IngestSnapshot => {
+    expect(Number.isSafeInteger(value.traceCount)).toBe(true);
+    return { ...value, traceCount: Number(value.traceCount) - [...removed].filter(index => index < Number(value.traceCount)).length };
+  };
+  reviewed.setup.snapshot = snapshot(baseline.setup.snapshot);
+  reviewed.snapshots = baseline.snapshots.map(snapshot);
+  return reviewed;
+}
+
 it.each(original.results)(
   'retains public ingest/parser/FIFO branch with reviewed native safety: $name',
   expected => {
     const current = captureCurrent<NativeIngestReceipt>('candidate-ingest-branches', expected.name);
-    const reviewed = reviewedNativeReceipt(expected.receipt);
+    const reviewed = reviewedStorageScheduling(reviewedNativeReceipt(expected.receipt));
     expect(current.status).toBe('captured');
     expect(expected.exitCode).toBe(0);
     expect(current.requests).toEqual(reviewed.requests);
