@@ -11,13 +11,14 @@ const providers = ['openrouter', 'ppq', 'routstr', 'venice', 'custom'];
 const ids = (models: Array<{ id: string }>) => models.map(model => model.id).sort();
 
 describe('DeepSeek current-family recommendations', () => {
-  it.each(providers)('prefers rolling aliases and keeps Flash and Pro distinct for %s', provider => {
+  it.each(providers)('prefers the rolling Flash alias and keeps newer Pro releases eligible for %s', provider => {
     const catalog = [
       'deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4.1-flash-1017',
       '~deepseek/deepseek-v4-flash-latest', '~deepseek/deepseek-flash-latest',
       'deepseek/deepseek-v4-pro-0813', '~deepseek/deepseek-pro-latest',
+      'deepseek/deepseek-v5-pro-20270101',
     ].map(id => ({ id }));
-    const expected = ['~deepseek/deepseek-flash-latest', '~deepseek/deepseek-pro-latest'];
+    const expected = ['deepseek/deepseek-v5-pro-20270101', '~deepseek/deepseek-flash-latest'];
     expect(ids(selectLatestRecommendedModels(provider, catalog))).toEqual(expected);
     expect(ids(selectLatestRecommendedModels(provider, [...catalog].reverse()))).toEqual(expected);
   });
@@ -28,8 +29,15 @@ describe('DeepSeek current-family recommendations', () => {
         'deepseek-v4-1-flash-1017', 'deepseek-v4-pro', 'deepseek-v4-pro-0813', 'deepseek-v3.2']
         .map(id => ({ id: prefix + id }));
       expect(ids(selectLatestRecommendedModels(provider, catalog)))
-        .toEqual([prefix + 'deepseek-v4-1-flash-1017', prefix + 'deepseek-v4-pro-0813'].sort());
+        .toEqual([prefix + 'deepseek-v4-1-flash-1017']);
     }
+  });
+
+  it.each(providers)('keeps V4 Pro and its aliases out of Recommended even without a Flash route for %s', provider => {
+    const catalog = ['deepseek-v4-pro', 'deepseek/deepseek-v4-pro-0813', 'deepseek-ai/deepseek-v4.0-pro-2026-08-13',
+      'deepseek/deepseek-v4-pro-20260813:batch', 'deepseek-v4-pro-latest', 'deepseek-pro', '~deepseek/deepseek-pro-latest']
+      .map(id => ({ id }));
+    expect(selectLatestRecommendedModels(provider, catalog)).toEqual([]);
   });
 
   it('automatically advances future versions, compares version components numerically, and scopes version aliases', () => {
@@ -72,7 +80,9 @@ describe('DeepSeek current-family recommendations', () => {
   });
 
   it('preserves existing private and local recommendation policies', () => {
-    expect(isRecommendedModel('routstr', 'tinfoil-deepseek-v4-pro')).toBe(true);
+    expect(isRecommendedModel('routstr', 'tinfoil-deepseek-v4-pro')).toBe(false);
+    expect(isRecommendedModel('routstr', 'tinfoil-deepseek-v4-1-flash')).toBe(true);
+    expect(isRecommendedModel('ppq', 'tinfoil-deepseek-v4-1-flash')).toBe(false);
     expect(isRecommendedModel('ppq', 'private/deepseek-v4-1-flash')).toBe(true);
     expect(isRecommendedModel('venice', 'e2ee-deepseek-v4-flash')).toBe(false);
     expect(isRecommendedModel('ollama', 'deepseek-v4.1-flash-1017')).toBe(false);
@@ -85,8 +95,8 @@ describe('DeepSeek current-family recommendations', () => {
       ['routstr', fetchRoutstrModels], ['venice', fetchVeniceModels],
     ] as const) {
       const prefix = provider === 'venice' ? '' : 'deepseek/';
-      const older = { id: prefix + 'deepseek-v4-pro-20261017', name: 'A older release', enabled: true, type: 'text' };
-      const newer = { id: prefix + 'deepseek-v4-pro-20261018', name: 'Z newer release', enabled: true, type: 'text' };
+      const older = { id: prefix + 'deepseek-v4.1-pro-20261017', name: 'A older release', enabled: true, type: 'text' };
+      const newer = { id: prefix + 'deepseek-v4.1-pro-20261018', name: 'Z newer release', enabled: true, type: 'text' };
       for (const rows of [[older, newer], [newer, older]]) {
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ data: rows })));
         const catalog = await fetchModels();
@@ -105,7 +115,7 @@ describe('DeepSeek current-family recommendations', () => {
       const prefix = provider === 'venice' ? '' : 'deepseek/';
       const revision = { id: prefix + 'deepseek-v4.1-flash-1017', name: 'DeepSeek Flash 1017', enabled: true, type: 'text',
         architecture: { input_modalities: ['text', 'image'] } };
-      const old = { id: prefix + 'deepseek-v4-flash-0731', enabled: true, type: 'text' };
+      const old = { id: prefix + 'deepseek-v4-pro-0813', enabled: true, type: 'text' };
       const rolling = { id: '~deepseek/deepseek-flash-latest', enabled: true, type: 'text' };
       const disabled = { id: '~deepseek/deepseek-pro-latest', enabled: false, type: 'text' };
       const rows = [old, revision, rolling, disabled];

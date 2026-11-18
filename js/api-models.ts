@@ -64,7 +64,7 @@ export function deduplicateModels<Model extends StoredProviderModel>(models: Mod
   return models.filter(function(m) {
     // DeepSeek date suffixes identify separately selectable releases. Preserve
     // them until the recommendation selector compares their actual versions.
-    const fam = deepSeekRecommendation(m.id) ? m.id : familyFn(m.id);
+    const fam = parseDeepSeekModelId(m.id) ? m.id : familyFn(m.id);
     if (seen[fam]) return false;
     seen[fam] = true;
     return true;
@@ -133,7 +133,7 @@ const OPENROUTER_DEFAULT_CANDIDATES = [...GPT_62_DEFAULT_CANDIDATES, 'openai/gpt
 
 // Bare prefixes also match namespaced IDs through modelStartsWithRecommended.
 const ROUTSTR_RECOMMENDED = ['muse-wonder', 'muse-spark-1.3', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5.5', 'claude-opus-4.7', 'glm-5.3-flash', 'kimi-k3', 'grok-4'];
-const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-3-flash'];
+const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-1-flash', 'tinfoil-glm-5-3-flash'];
 
 // PPQ shares regular recommendations with Routstr and uses private/ IDs for Tinfoil TEE models.
 const PPQ_RECOMMENDED = ROUTSTR_RECOMMENDED;
@@ -167,7 +167,7 @@ function isCurrentAnalysisModel(modelId: unknown) {
 // deepseek-flash on its own API) and version/date IDs with dots or hyphens.
 // Parse only stable general-purpose Flash/Pro routes; private recommendations
 // continue through their provider-specific allowlists below.
-function deepSeekRecommendation(modelId: unknown) {
+function parseDeepSeekModelId(modelId: unknown) {
   const id = normalizedModelId(modelId).replace(/:(?:batch|free)$/, '');
   const slug = id.replace(/^(?:~?deepseek|deepseek-ai)\//, '');
   const rolling = slug.match(/^deepseek-(flash|pro)(?:-latest)?$/);
@@ -241,7 +241,11 @@ export function isRecommendedModel(provider: string, modelId: string) {
   // Contributor routes and coding-focused Spark Open remain available outside
   // the general-analysis recommendations. Private routes keep their allowlists.
   if (/(^|[/-])muse-/.test(normalizedId) && /(?:^|[-:])(contributor|open)(?:$|[-:])/.test(normalizedId)) return false;
-  if ((deepSeekRecommendation(modelId) || isCurrentAnalysisModel(modelId))
+  const deepSeek = parseDeepSeekModelId(modelId);
+  // Unversioned Pro aliases can still serve V4 Pro 0813. Pro recommendations
+  // require an explicit V4.1 or newer model ID.
+  const recommendDeepSeek = deepSeek && (deepSeek.family === 'deepseek-flash' || compareVersionParts(deepSeek.version, [4, 1]) >= 0);
+  if ((recommendDeepSeek || isCurrentAnalysisModel(modelId))
     && ['openrouter', 'venice', 'routstr', 'ppq', 'custom'].includes(provider)) return true;
   if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelStartsWithRecommended(modelId, prefix); });
   if (provider === 'venice') {
@@ -275,7 +279,7 @@ function recommendedOptionSlug(modelId: unknown) {
 
 function recommendedFamilyKey(modelId: unknown) {
   const slug = recommendedOptionSlug(modelId);
-  const deepseek = deepSeekRecommendation(modelId);
+  const deepseek = parseDeepSeekModelId(modelId);
   if (deepseek) return deepseek.family;
   if (slug.startsWith('claude-sonnet-')) return 'claude-sonnet';
   if (slug.startsWith('claude-opus-')) return 'claude-opus';
@@ -326,7 +330,7 @@ function recommendedVariantPenalty(model: StoredProviderModel | string | null | 
 }
 
 function compareRecommendedModelVersion(a: StoredProviderModel, b: StoredProviderModel) {
-  const deepseekA = deepSeekRecommendation(a.id), deepseekB = deepSeekRecommendation(b.id);
+  const deepseekA = parseDeepSeekModelId(a.id), deepseekB = parseDeepSeekModelId(b.id);
   if (deepseekA && deepseekB) {
     return Number(deepseekA.rolling) - Number(deepseekB.rolling)
       || compareVersionParts(deepseekA.version, deepseekB.version)
