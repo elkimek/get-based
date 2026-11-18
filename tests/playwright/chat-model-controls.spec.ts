@@ -23,7 +23,7 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
   await page.addInitScript(() => {
     const models = [
       {
-        id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol',
+        id: 'openai/gpt-6.2-sol', name: 'GPT-6.2 Sol',
         reasoning: { supported_efforts: ['low', 'medium', 'high'] },
       },
       {
@@ -31,7 +31,7 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
         reasoning: { supported_efforts: ['low', 'medium', 'high'] },
       },
       { id: 'anthropic/claude-opus-5.5', name: 'Claude Opus 5.5' },
-      { id: 'openai/gpt-6-astra', name: 'GPT-6 Astra' },
+      { id: 'openai/gpt-6.2-astra', name: 'GPT-6.2 Astra' },
       { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
       { id: 'openai/gpt-5.6-sol', name: 'GPT-5.6 Sol' },
       ...Array.from({ length: 11 }, (_, index) => ({
@@ -56,10 +56,10 @@ test('direct-provider picker searches models and persists a dragged reasoning ef
   await page.locator('#chat-model-menu-toggle').click();
   await expect(page.locator('#chat-model-search')).toBeVisible();
   await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
-  await expect(page.locator('.chat-model-option').nth(0)).toContainText('GPT-6.1 Sol');
+  await expect(page.locator('.chat-model-option').nth(0)).toContainText('GPT-6.2 Sol');
   await expect(page.locator('.chat-model-option').nth(1)).toContainText('Claude Sonnet 5');
   await expect(page.locator('.chat-model-option').nth(2)).toContainText('Claude Opus 5.5');
-  await expect(page.locator('.chat-model-option').nth(3)).toContainText('GPT-6 Astra');
+  await expect(page.locator('.chat-model-option').nth(3)).toContainText('GPT-6.2 Astra');
   await expect(page.locator('.chat-model-option').nth(4)).toContainText('Claude Opus 5');
   await expect(page.locator('.chat-model-option').nth(5)).toContainText('GPT-5.6 Sol');
   await expect(page.locator('[data-chat-model-value="venice-only"]')).toHaveCount(0);
@@ -93,7 +93,7 @@ test('CLI picker groups a large OpenCode catalog and shares its effort with Sett
   await page.addInitScript(() => {
     const models = [
       {
-        id: 'openrouter/openai/gpt-6.1-sol', model: 'openrouter/openai/gpt-6.1-sol', displayName: 'GPT-6.1 Sol', isDefault: true,
+        id: 'openrouter/openai/gpt-6.2-sol', model: 'openrouter/openai/gpt-6.2-sol', displayName: 'GPT-6.2 Sol', isDefault: true,
         defaultReasoningEffort: 'medium', supportedReasoningEfforts: [{ reasoningEffort: 'low' }, { reasoningEffort: 'medium' }, { reasoningEffort: 'high' }], inputModalities: ['text'],
       },
       ...Array.from({ length: 10 }, (_, index) => ({
@@ -272,7 +272,7 @@ test('current recommendations replace older releases while preserving the select
   await page.route('https://openrouter.ai/**', route => route.abort());
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
-    localStorage.setItem('labcharts-openrouter-model', 'google/gemini-3.8-flash');
+    localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-6.1-sol');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
       { id: 'deepseek/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash 0731' },
       { id: 'deepseek/deepseek-v4.1-flash-1017', name: 'DeepSeek V4.1 Flash 1017' },
@@ -287,18 +287,22 @@ test('current recommendations replace older releases while preserving the select
       { id: 'qwen/qwen4-max', name: 'Qwen4 Max' },
       { id: 'openai/gpt-6-sol', name: 'GPT-6 Sol' },
       { id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol' },
+      { id: 'openai/gpt-6-astra', name: 'GPT-6 Astra' },
+      { id: 'openai/gpt-6.2-sol-pro', name: 'GPT-6.2 Sol Pro' },
+      { id: 'openai/gpt-6.2-sol', name: 'GPT-6.2 Sol' },
+      { id: 'openai/gpt-6.2-astra', name: 'GPT-6.2 Astra' },
     ]));
   });
   await page.goto('/app');
   await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel());
-  await expect(page.locator('#chat-model-menu-label')).toHaveText('Gemini 3.8 Flash');
+  await expect(page.locator('#chat-model-menu-label')).toHaveText('GPT-6.1 Sol');
   await page.locator('#chat-model-menu-toggle').click();
   await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
-  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 8).map(option => option.getAttribute('data-chat-model-value')));
+  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 9).map(option => option.getAttribute('data-chat-model-value')));
   expect(recommended).toEqual(['~deepseek/deepseek-flash-latest', '~deepseek/deepseek-pro-latest',
     'google/gemini-4-argon', 'google/gemini-4-hydrogen', 'google/gemini-4-carbon',
-    'anthropic/claude-fable-5.2', 'qwen/qwen4-max', 'openai/gpt-6.1-sol']);
-  await expect(page.locator('[data-chat-model-value="google/gemini-3.8-flash"]')).toBeVisible();
+    'anthropic/claude-fable-5.2', 'qwen/qwen4-max', 'openai/gpt-6.2-sol', 'openai/gpt-6.2-astra']);
+  await expect(page.locator('[data-chat-model-value="openai/gpt-6.1-sol"]')).toBeVisible();
   await page.locator('[data-chat-model-value="~deepseek/deepseek-flash-latest"]').click();
   await expect(page.locator('#chat-model-menu-label')).toHaveText('DeepSeek Flash Latest');
   expect(await page.evaluate(() => localStorage.getItem('labcharts-openrouter-model'))).toBe('~deepseek/deepseek-flash-latest');
