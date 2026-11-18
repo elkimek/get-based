@@ -133,13 +133,15 @@ Normal tracking works without AI. Select a provider in Settings:
 | CLI agents | Supported capabilities through the local Companion; setup below. |
 | Custom API | Your OpenAI-compatible endpoint or proxy. |
 
-Model pickers share the recommendation policy in `js/api-models.ts`. The
-current additions are Qwen4-Max, Gemini 4 Carbon and Hydrogen, Claude Fable 5.2,
-and GPT-6.1 Sol. Argon remains a separate Gemini tier; Hydrogen replaces Gemini
-3.8 Flash, Fable 5.2 replaces 5.1, and Sol 6.1 replaces Sol 6 in Recommended.
-Older models remain selectable when the provider still lists them, and a catalog
-refresh preserves an existing selection. GPT-6.1 Terra is available for evaluation
-under Other models. PPQ's private recommendations use its exact published IDs
+Model pickers share the recommendation policy in `js/api-models.ts`. GPT-6.2
+Sol and Astra replace older GPT recommendations where the provider offers them.
+On OpenRouter, PPQ, Routstr and Custom API, the initial selection prefers Sol,
+then Astra, with provider-specific fallbacks. Older models remain selectable
+when the provider still lists them, and a catalog refresh preserves a valid saved
+selection. Custom API connections to OpenAI use getbased's structured chat tool
+protocol with these models because native tool calling requires the Responses API.
+Recommended models also include Qwen4-Max, Gemini 4 Argon, Carbon and Hydrogen,
+and Claude Fable 5.2. PPQ's private recommendations use its exact published IDs
 for Kimi K3.1 Pro, DeepSeek V4.1 Flash and GLM 5.3. Provider catalogs remain
 authoritative for availability, pricing and capabilities; a recommendation does
 not establish health-analysis accuracy or change the provider's privacy tier.

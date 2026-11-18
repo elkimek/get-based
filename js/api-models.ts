@@ -94,6 +94,10 @@ export function modelMetadataSupportsVision(model: CatalogModel | null | undefin
     || model.model_spec?.capabilities?.supportsVision === true;
 }
 
+export const GPT_62_DEFAULT_CANDIDATES = [
+  'gpt-6.2-sol', 'openai/gpt-6.2-sol', 'gpt-6.2-astra', 'openai/gpt-6.2-astra',
+] as const;
+
 // Curated: latest-gen medically capable models only (prefixes matched against IDs)
 const OPENROUTER_CURATED = [
   'anthropic/claude-fable-5',
@@ -101,6 +105,7 @@ const OPENROUTER_CURATED = [
   'anthropic/claude-opus-5', 'anthropic/claude-opus-4',
   'openai/gpt-5', 'openai/gpt-6-astra', 'openai/gpt-6-sol',
   'openai/gpt-6.1-sol', 'openai/gpt-6.1-terra',
+  'openai/gpt-6.2-astra', 'openai/gpt-6.2-sol',
   'google/gemini-4', 'google/gemini-3', 'google/gemini-2',
   'meta/muse-',
   'deepseek/deepseek', '~deepseek/deepseek',
@@ -119,16 +124,15 @@ const OPENROUTER_CURATED = [
 const OPENROUTER_RECOMMENDED = [
   'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6',
   'anthropic/claude-opus-5.5', 'anthropic/claude-opus-4.7',
-  'openai/gpt-6-astra', 'openai/gpt-5.4',
   'meta/muse-wonder', 'meta/muse-spark-1.3',
   'z-ai/glm-5.3-flash',
   'moonshotai/kimi-k3',
   'x-ai/grok-4',
 ];
-const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-6-astra', 'openai/gpt-6.1-sol', 'anthropic/claude-sonnet-5.5', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
+const OPENROUTER_DEFAULT_CANDIDATES = [...GPT_62_DEFAULT_CANDIDATES, 'openai/gpt-6-astra', 'openai/gpt-6.1-sol', 'anthropic/claude-sonnet-5.5', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
 // Bare prefixes also match namespaced IDs through modelStartsWithRecommended.
-const ROUTSTR_RECOMMENDED = ['muse-wonder', 'muse-spark-1.3', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5.5', 'claude-opus-4.7', 'gpt-6-astra', 'gpt-5.5', 'gpt-5.4', 'glm-5.3-flash', 'kimi-k3', 'grok-4'];
+const ROUTSTR_RECOMMENDED = ['muse-wonder', 'muse-spark-1.3', 'claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-5.5', 'claude-opus-4.7', 'glm-5.3-flash', 'kimi-k3', 'grok-4'];
 const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-3-flash'];
 
 // PPQ shares regular recommendations with Routstr and uses private/ IDs for Tinfoil TEE models.
@@ -143,13 +147,18 @@ function isClaudeSonnet5Model(modelId: unknown) {
   return /(^|[/-])claude-sonnet-5($|[-:])/.test(normalizedModelId(modelId));
 }
 
+export function gpt62BaseModelId(modelId: unknown) {
+  if (/:(?:batch|free)$/.test(normalizedModelId(modelId))) return '';
+  const id = recommendedOptionId(modelId).replace(/^openai-gpt-62-/, 'openai-gpt-6-2-');
+  return /^(?:openai[/-])?gpt-6-2-(?:sol|astra)$/.test(id) ? id : '';
+}
+
 function isCurrentAnalysisModel(modelId: unknown) {
   const id = recommendedOptionId(modelId)
     .replace(/^(?:anthropic|openai|google|qwen)\//, '')
-    .replace(/^openai-gpt-61-/, 'gpt-6-1-')
     .replace(/^openai-/, '');
-  return id === 'claude-fable-5-2'
-    || /^gpt-6-1-sol(?:-pro)?$/.test(id)
+  return !!gpt62BaseModelId(modelId)
+    || id === 'claude-fable-5-2'
     || /^gemini-4-(?:argon|carbon|hydrogen)$/.test(id)
     || /^qwen-?4-max$/.test(id);
 }
@@ -184,7 +193,6 @@ function compareVersionParts(a: number[], b: number[]) {
 function isCustomRecommendedModel(modelId: unknown) {
   if (isClaudeSonnet5Model(modelId)) return true;
   return /(^|[/-])claude-(sonnet-4-6|opus-5-5|opus-4-7)($|[-:])/.test(normalizedModelId(modelId))
-    || /(^|[/-])gpt-(?:5-[45]|6-astra)($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])(?:muse-wonder|muse-spark-1-3)($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])glm-5-3-flash($|[-:])/.test(normalizedModelId(modelId))
     || /(^|[/-])kimi-k3($|[-:])/.test(normalizedModelId(modelId))
@@ -196,11 +204,6 @@ function modelStartsWithRecommended(modelId: unknown, prefix: unknown) {
   const p = normalizedModelId(prefix);
   const slug = id.split('/').pop() || '';
   return id.startsWith(p) || slug.startsWith(p);
-}
-
-function isVeniceRecommendedGptModel(modelId: unknown) {
-  // Venice uses an openai- prefix and compact IDs for older GPT versions.
-  return /^openai-gpt-(?:6-astra|5(?:-?[2-57-9]))(?:-|$)/.test(normalizedModelId(modelId));
 }
 
 export function modelMatchesPreferredId(modelId: unknown, preferredId: unknown) {
@@ -218,7 +221,10 @@ export function modelMatchesPreferredId(modelId: unknown, preferredId: unknown) 
 
 export function findPreferredModel<Model extends StoredProviderModel>(models: Model[], preferredIds: readonly unknown[]) {
   for (const id of preferredIds) {
-    const found = models.find(function(m) { return modelMatchesPreferredId(m?.id, id); });
+    const gpt62Id = gpt62BaseModelId(id);
+    const found = gpt62Id
+      ? models.find(model => model?.id === id) || models.find(model => gpt62BaseModelId(model?.id) === gpt62Id)
+      : models.find(model => modelMatchesPreferredId(model?.id, id));
     if (found) return found;
   }
   return null;
@@ -241,8 +247,7 @@ export function isRecommendedModel(provider: string, modelId: string) {
   if (provider === 'venice') {
     // claude-(sonnet-5|sonnet-4-6|opus-5-5|opus-4-7) is intentionally narrow. When newer
     // versions land, broaden the alternation rather than matching all 4.x.
-    return isVeniceRecommendedGptModel(modelId)
-      || /^(muse-wonder|muse-spark-1-3)($|[-:])/.test(normalizedId)
+    return /^(muse-wonder|muse-spark-1-3)($|[-:])/.test(normalizedId)
       || /^(claude-(sonnet-5|sonnet-4-6|opus-5-5|opus-4-7)|zai-org-glm-5-3-flash|z-ai-glm-5-3-flash|glm-5-3-flash|kimi-k3|grok-4[1-9]?)(-|$)/.test(normalizedModelId(modelId));
   }
   if (provider === 'routstr') {
@@ -275,10 +280,9 @@ function recommendedFamilyKey(modelId: unknown) {
   if (slug.startsWith('claude-sonnet-')) return 'claude-sonnet';
   if (slug.startsWith('claude-opus-')) return 'claude-opus';
   if (slug.startsWith('claude-fable-')) return 'claude-fable';
-  // Sol is a distinct GPT-6 tier and remains visible alongside Astra.
-  const gpt6Tier = slug.match(/^(?:openai-)?gpt-(?:6(?:-\d+)?|6\d)-(sol|terra)(?:-|$)/);
-  if (gpt6Tier) return `gpt-6-${gpt6Tier[1]}`;
-  if (/^(?:openai-)?gpt-6-astra(?:-|$)/.test(slug)) return 'gpt-5-flagship';
+  // Astra succeeds the earlier flagships. Sol and Terra are separate tiers.
+  const gpt6Tier = slug.match(/^(?:openai-)?gpt-(?:6(?:-\d+)?|6\d)-(astra|sol|terra)(?:-|$)/);
+  if (gpt6Tier) return gpt6Tier[1] === 'astra' ? 'gpt-5-flagship' : `gpt-6-${gpt6Tier[1]}`;
   const gpt56Tier = slug.match(/^(?:openai-)?gpt-5(?:-?6)?-(sol|terra|luna)(?:-|$)/);
   if (gpt56Tier) return gpt56Tier[1] === 'sol' ? 'gpt-5-flagship' : `gpt-5.6-${gpt56Tier[1]}`;
   if (/^(openai-)?gpt-5/.test(slug)) return 'gpt-5-flagship';
@@ -337,7 +341,8 @@ function compareRecommendedModelVersion(a: StoredProviderModel, b: StoredProvide
     const diff = (aParts[i] || 0) - (bParts[i] || 0);
     if (diff !== 0) return diff;
   }
-  return recommendedVariantPenalty(a) - recommendedVariantPenalty(b);
+  return Number(!!gpt62BaseModelId(a.id)) - Number(!!gpt62BaseModelId(b.id))
+    || recommendedVariantPenalty(a) - recommendedVariantPenalty(b);
 }
 
 /**

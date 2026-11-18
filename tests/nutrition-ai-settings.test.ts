@@ -372,26 +372,29 @@ describe('meal-photo model routing', () => {
     expect(renderNutritionAISettings()).toContain('$0.5 in · $2 out / 1M');
   });
 
-  it('recommends Venice Astra and preserves the selected legacy Sol route', () => {
+  it('offers both GPT-6.2 Venice vision tiers and preserves the selected legacy Sol route', () => {
     updateKeyCache('labcharts-venice-key', 'test-venice-key');
     setAIProvider('venice');
     setVeniceModel('openai-gpt-56-sol');
     localStorage.setItem('labcharts-venice-models', JSON.stringify([
-      { id: 'openai-gpt-6-astra', name: 'OpenAI GPT 6 Astra' },
+      { id: 'openai-gpt-62-astra', name: 'GPT-6.2 Astra' },
+      { id: 'openai-gpt-62-sol', name: 'GPT-6.2 Sol' },
       { id: 'openai-gpt-56-sol', name: 'OpenAI GPT 5.6 Sol' },
     ]));
     localStorage.setItem('labcharts-venice-vision-models', JSON.stringify([
-      'openai-gpt-6-astra', 'openai-gpt-56-sol',
+      'openai-gpt-62-astra', 'openai-gpt-62-sol', 'openai-gpt-56-sol',
     ]));
 
     expect(getMealAISelection()).toMatchObject({
       provider: 'venice', model: 'openai-gpt-56-sol', usesChatModel: true, available: true,
     });
     expect(listNutritionVisionModels().filter(model => model.provider === 'venice')).toEqual([
-      expect.objectContaining({ provider: 'venice', model: 'openai-gpt-6-astra' }),
+      expect.objectContaining({ provider: 'venice', model: 'openai-gpt-62-astra' }),
+      expect.objectContaining({ provider: 'venice', model: 'openai-gpt-62-sol' }),
     ]);
     expect(renderNutritionAISettings()).toContain('Follow chat assistant — OpenAI GPT 5.6 Sol');
-    expect(renderNutritionAISettings()).toContain('OpenAI GPT 6 Astra');
+    expect(renderNutritionAISettings()).toContain('GPT-6.2 Astra');
+    expect(renderNutritionAISettings()).toContain('GPT-6.2 Sol');
     expect(renderNutritionAISettings()).toContain('OpenAI GPT 5.6 Sol');
   });
 
