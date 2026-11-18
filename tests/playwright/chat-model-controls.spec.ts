@@ -277,6 +277,7 @@ test('current recommendations replace older releases while preserving the select
       { id: 'deepseek/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash 0731' },
       { id: 'deepseek/deepseek-v4.1-flash-1017', name: 'DeepSeek V4.1 Flash 1017' },
       { id: '~deepseek/deepseek-flash-latest', name: 'DeepSeek Flash Latest' },
+      { id: 'deepseek/deepseek-v4-pro-0813', name: 'DeepSeek V4 Pro 0813' },
       { id: '~deepseek/deepseek-pro-latest', name: 'DeepSeek Pro Latest' },
       { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
       { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
@@ -298,11 +299,12 @@ test('current recommendations replace older releases while preserving the select
   await expect(page.locator('#chat-model-menu-label')).toHaveText('GPT-6.1 Sol');
   await page.locator('#chat-model-menu-toggle').click();
   await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
-  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 9).map(option => option.getAttribute('data-chat-model-value')));
-  expect(recommended).toEqual(['~deepseek/deepseek-flash-latest', '~deepseek/deepseek-pro-latest',
+  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 8).map(option => option.getAttribute('data-chat-model-value')));
+  expect(recommended).toEqual(['~deepseek/deepseek-flash-latest',
     'google/gemini-4-argon', 'google/gemini-4-hydrogen', 'google/gemini-4-carbon',
     'anthropic/claude-fable-5.2', 'qwen/qwen4-max', 'openai/gpt-6.2-sol', 'openai/gpt-6.2-astra']);
   await expect(page.locator('[data-chat-model-value="openai/gpt-6.1-sol"]')).toBeVisible();
+  await expect(page.locator('[data-chat-model-value="deepseek/deepseek-v4-pro-0813"]')).toBeVisible();
   await page.locator('[data-chat-model-value="~deepseek/deepseek-flash-latest"]').click();
   await expect(page.locator('#chat-model-menu-label')).toHaveText('DeepSeek Flash Latest');
   expect(await page.evaluate(() => localStorage.getItem('labcharts-openrouter-model'))).toBe('~deepseek/deepseek-flash-latest');
