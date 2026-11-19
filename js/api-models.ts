@@ -159,7 +159,7 @@ function isCurrentAnalysisModel(modelId: unknown) {
     .replace(/^openai-/, '');
   return !!gpt62BaseModelId(modelId)
     || id === 'claude-fable-5-2'
-    || /^gemini-4-(?:argon|carbon|hydrogen)$/.test(id)
+    || id === 'gemini-4-neon'
     || /^qwen-?4-max$/.test(id);
 }
 
@@ -293,6 +293,7 @@ function recommendedFamilyKey(modelId: unknown) {
   if (/^muse-spark-\d/.test(slug)) return 'muse-spark';
   if (/^gemini-\d.*argon/.test(slug)) return 'gemini-argon';
   if (/^gemini-\d.*carbon/.test(slug)) return 'gemini-carbon';
+  if (/^gemini-\d.*neon/.test(slug)) return 'gemini-neon';
   if (/^gemini-\d.*hydrogen/.test(slug)) return 'gemini-flash';
   if (/^gemini-\d.*pro/.test(slug)) return 'gemini-pro';
   if (/^gemini-\d.*flash/.test(slug)) return 'gemini-flash';

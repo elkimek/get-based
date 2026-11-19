@@ -85,8 +85,8 @@ describe('API provider runtime behavior', () => {
   it('promotes current November releases and retires superseded recommendations across providers', () => {
     for (const provider of ['openrouter', 'ppq', 'routstr', 'venice', 'custom']) {
       const current = (provider === 'venice'
-        ? ['qwen-4-max', 'gemini-4-argon', 'gemini-4-carbon', 'gemini-4-hydrogen', 'claude-fable-5-2', 'openai-gpt-62-sol', 'openai-gpt-62-astra']
-        : ['qwen/qwen4-max', 'google/gemini-4-argon', 'google/gemini-4-carbon', 'google/gemini-4-hydrogen', 'anthropic/claude-fable-5.2', 'openai/gpt-6.2-sol', 'openai/gpt-6.2-astra'])
+        ? ['qwen-4-max', 'gemini-4-neon', 'claude-fable-5-2', 'openai-gpt-62-sol', 'openai-gpt-62-astra']
+        : ['qwen/qwen4-max', 'google/gemini-4-neon', 'anthropic/claude-fable-5.2', 'openai/gpt-6.2-sol', 'openai/gpt-6.2-astra'])
         .map(id => ({ id }));
       const old = ['qwen/qwen3-max', 'google/gemini-3.8-flash', 'gemini-3-8-flash',
         'anthropic/claude-fable-5.1', 'claude-fable-5-1', 'openai/gpt-6-sol', 'openai-gpt-6-sol',
@@ -107,23 +107,23 @@ describe('API provider runtime behavior', () => {
     }
   });
 
-  it('keeps Gemini tiers and GPT Sol separate from Astra while preferring stable base routes', () => {
+  it('keeps GPT Sol separate from Astra and prefers the base Neon route', () => {
     const sol = { id: 'openai/gpt-6.2-sol' };
     const astra = { id: 'openai/gpt-6.2-astra' };
     const fable = { id: 'anthropic/claude-fable-5.2' };
     const hydrogen = { id: 'google/gemini-4-hydrogen' };
-    const argon = { id: 'google/gemini-4-argon' };
-    const carbon = { id: 'google/gemini-4-carbon' };
+    const neon = { id: 'google/gemini-4-neon' };
     const qwen = { id: 'qwen/qwen4-max' };
-    const models = [sol, astra, fable, hydrogen, argon, carbon, qwen];
+    const models = [sol, astra, fable, neon, qwen];
     expect(selectLatestRecommendedModels('openrouter', models.flatMap(model => [{ id: model.id + ':batch' }, model]))).toEqual(models);
     expect(selectLatestModelFamilies([
       { id: 'openai-gpt-6-sol' }, { id: 'openai-gpt-61-sol' },
       { id: 'openai-gpt-62-sol-pro' }, { id: 'openai-gpt-62-sol' },
       { id: 'openai-gpt-6-astra' }, { id: 'openai-gpt-62-astra' },
       { id: 'google/gemini-3.8-flash' }, hydrogen,
+      { id: neon.id + ':batch' }, neon,
       { id: 'anthropic/claude-fable-5.1' }, fable,
-    ])).toEqual([{ id: 'openai-gpt-62-sol' }, { id: 'openai-gpt-62-astra' }, hydrogen, fable]);
+    ])).toEqual([{ id: 'openai-gpt-62-sol' }, { id: 'openai-gpt-62-astra' }, hydrogen, neon, fable]);
   });
 
   it('discovers new releases with original pricing and vision metadata while preserving saved older selections', async () => {
@@ -167,17 +167,17 @@ describe('API provider runtime behavior', () => {
     }
   });
 
-  it('recommends Argon, Wonder and general Spark across supported provider ID formats', () => {
+  it('recommends Neon, Wonder and general Spark across supported provider ID formats', () => {
     for (const provider of ['openrouter', 'ppq', 'routstr', 'venice', 'custom']) {
       const prefix = provider === 'venice' ? '' : 'meta/';
       const wonder = { id: prefix + 'muse-wonder' };
       const spark = { id: prefix + 'muse-spark-1.3' };
-      const argon = { id: (provider === 'venice' ? '' : 'google/') + 'gemini-4-argon' };
-      const batch = { id: argon.id + ':batch' };
+      const neon = { id: (provider === 'venice' ? '' : 'google/') + 'gemini-4-neon' };
+      const batch = { id: neon.id + ':batch' };
       const others = ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3-contributor', 'muse-spark-open']
         .map(id => ({ id: prefix + id }));
-      expect(selectLatestRecommendedModels(provider, [...others, batch, wonder, spark, argon]))
-        .toEqual([argon, wonder, spark]);
+      expect(selectLatestRecommendedModels(provider, [...others, batch, wonder, spark, neon]))
+        .toEqual([neon, wonder, spark]);
     }
     expect(selectLatestModelFamilies([{ id: 'meta/muse-spark-1.1' }, { id: 'meta/muse-spark-1.3' }]))
       .toEqual([{ id: 'meta/muse-spark-1.3' }]);
@@ -203,15 +203,16 @@ describe('API provider runtime behavior', () => {
           { id: meta + 'muse-spark-1.3', enabled: true, type: 'text' },
           { id: meta + 'muse-spark-open', enabled: true, type: 'text' },
           { id: google + 'gemini-4-argon', enabled: true, type: 'text' },
+          { id: google + 'gemini-4-neon', enabled: true, type: 'text' },
           { id: meta + 'muse-wonder-unavailable', enabled: false, type: 'text' },
         ];
         localStorage.setItem(`labcharts-${provider}-model`, rows[1]!.id);
         (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: rows }));
         const models = await fetchModels();
-        expect(models.map(model => model.id)).toEqual(expect.arrayContaining(rows.slice(0, 4).map(model => model.id)));
-        expect(models.map(model => model.id)).not.toContain(rows[4]!.id);
+        expect(models.map(model => model.id)).toEqual(expect.arrayContaining(rows.slice(0, -1).map(model => model.id)));
+        expect(models.map(model => model.id)).not.toContain(rows.at(-1)!.id);
         expect(selectLatestRecommendedModels(provider, models).map(model => model.id).sort())
-          .toEqual([rows[0]!.id, rows[1]!.id, rows[3]!.id].sort());
+          .toEqual([rows[0]!.id, rows[1]!.id, rows[4]!.id].sort());
         expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(rows[1]!.id);
         if (provider !== 'venice') {
           expect(JSON.parse(localStorage.getItem(`labcharts-${provider}-vision-models`) || '[]')).toContain(rows[0]!.id);
@@ -1041,9 +1042,9 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.6-flash')).toBe(false);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.7-flash')).toBe(false);
-    expect(isRecommendedModel('openrouter', 'google/gemini-4-hydrogen')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'google/gemini-4-hydrogen:batch')).toBe(true);
-    expect(isRecommendedModel('openrouter', 'google/gemini-4-hydrogen-cyber')).toBe(false);
+    expect(isRecommendedModel('openrouter', 'google/gemini-4-neon')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'google/gemini-4-neon:batch')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'google/gemini-4-neon-cyber')).toBe(false);
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.2')).toBe(false);
     expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.6')).toBe(false);
@@ -1064,8 +1065,8 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('venice', 'z-ai-glm-5-3-flash')).toBe(true);
     expect(isRecommendedModel('venice', 'z-ai-glm-5-3')).toBe(false);
     expect(isRecommendedModel('venice', 'gemini-3-7-flash')).toBe(false);
-    expect(isRecommendedModel('venice', 'gemini-4-hydrogen')).toBe(true);
-    expect(isRecommendedModel('venice', 'gemini-4-hydrogen-cyber')).toBe(false);
+    expect(isRecommendedModel('venice', 'gemini-4-neon')).toBe(true);
+    expect(isRecommendedModel('venice', 'gemini-4-neon-cyber')).toBe(false);
     expect(isRecommendedModel('venice', 'zai-org-glm-5-2')).toBe(false);
     expect(isRecommendedModel('venice', 'kimi-k2-7-code')).toBe(false);
     expect(isRecommendedModel('venice', 'kimi-k2-6')).toBe(false);
@@ -1089,9 +1090,9 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('routstr', 'tinfoil-glm-5-2')).toBe(false);
     expect(isRecommendedModel('routstr', 'moonshotai/kimi-k3')).toBe(true);
     expect(isRecommendedModel('routstr', 'google/gemini-3.7-flash')).toBe(false);
-    expect(isRecommendedModel('routstr', 'gemini-4-hydrogen')).toBe(true);
-    expect(isRecommendedModel('routstr', 'google/gemini-4-hydrogen')).toBe(true);
-    expect(isRecommendedModel('routstr', 'google/gemini-4-hydrogen-cyber')).toBe(false);
+    expect(isRecommendedModel('routstr', 'gemini-4-neon')).toBe(true);
+    expect(isRecommendedModel('routstr', 'google/gemini-4-neon')).toBe(true);
+    expect(isRecommendedModel('routstr', 'google/gemini-4-neon-cyber')).toBe(false);
     expect(isRecommendedModel('routstr', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('routstr', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('routstr', 'moonshotai/kimi-k2.6')).toBe(false);
@@ -1110,9 +1111,9 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('ppq', 'private/glm-5-3')).toBe(true);
     expect(isRecommendedModel('ppq', 'private/glm-5-2')).toBe(false);
     expect(isRecommendedModel('ppq', 'google/gemini-3.7-flash')).toBe(false);
-    expect(isRecommendedModel('ppq', 'gemini-4-hydrogen')).toBe(true);
-    expect(isRecommendedModel('ppq', 'google/gemini-4-hydrogen')).toBe(true);
-    expect(isRecommendedModel('ppq', 'gemini-4-hydrogen-cyber')).toBe(false);
+    expect(isRecommendedModel('ppq', 'gemini-4-neon')).toBe(true);
+    expect(isRecommendedModel('ppq', 'google/gemini-4-neon')).toBe(true);
+    expect(isRecommendedModel('ppq', 'gemini-4-neon-cyber')).toBe(false);
     expect(isRecommendedModel('ppq', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('ppq', 'moonshotai/kimi-k2.6')).toBe(false);
@@ -1130,9 +1131,9 @@ describe('API provider runtime behavior', () => {
     expect(isRecommendedModel('custom', 'z-ai/glm-5.3')).toBe(false);
     expect(isRecommendedModel('custom', 'z-ai/glm-5.2')).toBe(false);
     expect(isRecommendedModel('custom', 'gemini-3.7-flash')).toBe(false);
-    expect(isRecommendedModel('custom', 'gemini-4-hydrogen')).toBe(true);
-    expect(isRecommendedModel('custom', 'google/gemini-4-hydrogen')).toBe(true);
-    expect(isRecommendedModel('custom', 'gemini-4-hydrogen-cyber')).toBe(false);
+    expect(isRecommendedModel('custom', 'gemini-4-neon')).toBe(true);
+    expect(isRecommendedModel('custom', 'google/gemini-4-neon')).toBe(true);
+    expect(isRecommendedModel('custom', 'gemini-4-neon-cyber')).toBe(false);
     expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.7-code')).toBe(false);
     expect(isRecommendedModel('custom', 'moonshotai/kimi-k2.6')).toBe(false);
     expect(isRecommendedModel('custom', 'moonshotai/kimi-k3')).toBe(true);
@@ -1157,14 +1158,13 @@ describe('API provider runtime behavior', () => {
       { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
       { id: 'google/gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
       { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
-      { id: 'google/gemini-4-hydrogen:batch', name: 'Gemini 4 Hydrogen batch' },
-      { id: 'google/gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
+      { id: 'google/gemini-4-neon:batch', name: 'Gemini 4 Neon batch' },
+      { id: 'google/gemini-4-neon', name: 'Gemini 4 Neon' },
       { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
       { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
     ])).toEqual([
       { id: 'anthropic/claude-fable-5.2', name: 'Claude Fable 5.2' },
-      { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
-      { id: 'google/gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
+      { id: 'google/gemini-4-neon', name: 'Gemini 4 Neon' },
       { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
     ]);
     expect(selectLatestRecommendedModels('openrouter', [

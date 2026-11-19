@@ -427,11 +427,11 @@ test('Debug mode compares meal models against local reference data and can use t
     peakConcurrentRequests = Math.max(peakConcurrentRequests, activeRequests);
     await new Promise(resolve => setTimeout(resolve, 45));
     try {
-      if ((body as {model:unknown}).model === 'google/gemini-4-argon' && ++geminiAttempts === 1) {
+      if ((body as {model:unknown}).model === 'google/gemini-4-neon' && ++geminiAttempts === 1) {
         await route.fulfill({
           status: 429,
           contentType: 'application/json',
-          body: JSON.stringify({ error: { message: 'Rate limit reached for Gemini 4 Argon' } }),
+          body: JSON.stringify({ error: { message: 'Rate limit reached for Gemini 4 Neon' } }),
         });
         return;
       }
@@ -490,7 +490,7 @@ test('Debug mode compares meal models against local reference data and can use t
       { id: 'anthropic/claude-sonnet-5', name: 'Vision Sonnet' },
       { id: 'anthropic/claude-opus-4.8', name: 'Legacy Opus' },
       { id: 'google/gemini-3.5-flash', name: 'Vision Gemini' },
-      { id: 'google/gemini-4-argon', name: 'Vision Gemini Argon' },
+      { id: 'google/gemini-4-neon', name: 'Vision Gemini Neon' },
       { id: 'z-ai/glm-5.2', name: 'Text-only GLM 5.2' },
       { id: 'z-ai/glm-5.3', name: 'Text-only GLM 5.3' },
       { id: 'moonshotai/kimi-k3', name: 'Vision Kimi' },
@@ -498,18 +498,18 @@ test('Debug mode compares meal models against local reference data and can use t
     ]));
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify([
       'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5', 'anthropic/claude-opus-4.8',
-      'google/gemini-3.5-flash', 'google/gemini-4-argon', 'moonshotai/kimi-k3', 'x-ai/grok-4.6',
+      'google/gemini-3.5-flash', 'google/gemini-4-neon', 'moonshotai/kimi-k3', 'x-ai/grok-4.6',
     ]));
     localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify({
       'openai/gpt-5.6-sol': { input: 4, output: 20 },
       'anthropic/claude-opus-5.5': { input: 5, output: 25 },
-      'google/gemini-4-argon': { input: 0.5, output: 2 },
+      'google/gemini-4-neon': { input: 0.5, output: 2 },
     }));
     localStorage.setItem('labcharts-venice-models', JSON.stringify([
-      { id: 'gemini-4-argon', name: 'Venice Vision' },
+      { id: 'gemini-4-neon', name: 'Venice Vision' },
     ]));
     localStorage.setItem('labcharts-venice-e2ee-models', '[]');
-    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['gemini-4-argon']));
+    localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(['gemini-4-neon']));
     api.setAIProvider('openrouter');
     await (await import('/js/nutrition.js')).openNutritionEditor();
   });
@@ -542,7 +542,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('#nutrition-model-comparison')).not.toContainText('Auto-active');
   await expect(page.locator('[data-nutrition-comparison-model]')).toHaveCount(6);
   await expect(page.locator('.nutrition-comparison-models')).toContainText('Venice Vision');
-  await expect(page.locator('.nutrition-comparison-models')).toContainText('Vision Gemini Argon');
+  await expect(page.locator('.nutrition-comparison-models')).toContainText('Vision Gemini Neon');
   await expect(page.locator('.nutrition-comparison-models').getByText('Vision Gemini', { exact: true })).toHaveCount(0);
   await expect(page.locator('.nutrition-comparison-models')).not.toContainText('Text-only GLM');
   await expect(page.locator('.nutrition-comparison-models')).not.toContainText('Vision Sonnet');
@@ -565,7 +565,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await page.locator('[data-nutrition-comparison-search]').fill('');
   await expect(page.locator('.nutrition-comparison-model:visible')).toHaveCount(6);
   await expect(page.locator('[data-nutrition-comparison-search-status]')).toHaveText('6 available');
-  const geminiChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Vision Gemini Argon' });
+  const geminiChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Vision Gemini Neon' });
   const confidentChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Meal Confident' });
   const veniceChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Venice Vision' });
   const kimiChoice = page.locator('.nutrition-comparison-model').filter({ hasText: 'Vision Kimi' });
@@ -715,12 +715,12 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('#nutrition-comparison-model-limit')).toHaveText('3 selected · 3 of 4 results');
   await expect(geminiChoice).toContainText('Compared');
   await expect(page.locator('.nutrition-comparison-reference-banner')).toContainText('Comparing against Meal Close');
-  const failedGemini = page.locator('.nutrition-comparison-card.is-error').filter({ hasText: 'Vision Gemini Argon' });
+  const failedGemini = page.locator('.nutrition-comparison-card.is-error').filter({ hasText: 'Vision Gemini Neon' });
   await expect(failedGemini).toContainText('Rate limited. Please wait a moment and try again.');
   await expect(failedGemini.getByRole('button', { name: 'Retry this model' })).toBeVisible();
   await expect.poll(() => [...requestedModels].sort()).toEqual([
     'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5',
-    'google/gemini-4-argon', 'moonshotai/kimi-k3',
+    'google/gemini-4-neon', 'moonshotai/kimi-k3',
   ].sort());
   expect(peakConcurrentRequests).toBeGreaterThanOrEqual(2);
   await expect(failedGemini.getByRole('button', { name: 'Replace model' })).toBeVisible();
@@ -734,7 +734,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('.nutrition-comparison-card')).toHaveCount(3);
   await expect.poll(() => [...requestedModels].sort()).toEqual([
     'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5',
-    'google/gemini-4-argon', 'moonshotai/kimi-k3', 'anthropic/claude-opus-5.5',
+    'google/gemini-4-neon', 'moonshotai/kimi-k3', 'anthropic/claude-opus-5.5',
   ].sort());
   await geminiChoice.locator('input').check();
   await expect(page.locator('#nutrition-run-comparison')).toHaveText('Add 1 model result');
@@ -744,8 +744,8 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('#nutrition-comparison-results')).toHaveAttribute('data-result-count', '4');
   await expect.poll(() => [...requestedModels].sort()).toEqual([
     'openai/gpt-5.6-sol', 'anthropic/claude-opus-5.5',
-    'google/gemini-4-argon', 'moonshotai/kimi-k3',
-    'anthropic/claude-opus-5.5', 'google/gemini-4-argon',
+    'google/gemini-4-neon', 'moonshotai/kimi-k3',
+    'anthropic/claude-opus-5.5', 'google/gemini-4-neon',
   ].sort());
   await page.setViewportSize({ width: 1100, height: 768 });
   const presentationButton = page.getByRole('button', { name: 'Open full-screen comparison' });
@@ -792,7 +792,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('#nutrition-comparison-history')).toContainText('Last comparison restored');
   await expect(page.locator('.nutrition-comparison-card')).toHaveCount(4);
   await expect(page.locator('.nutrition-comparison-reference-banner')).toContainText('Comparing against Meal Close');
-  await expect(page.locator('.nutrition-comparison-card').filter({ hasText: 'Vision Gemini Argon' })).toContainText('$0.0001');
+  await expect(page.locator('.nutrition-comparison-card').filter({ hasText: 'Vision Gemini Neon' })).toContainText('$0.0001');
   expect(requestedModels).toHaveLength(6);
 });
 
