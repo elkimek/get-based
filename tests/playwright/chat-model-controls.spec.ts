@@ -272,7 +272,7 @@ test('current recommendations replace older releases while preserving the select
   await page.route('https://openrouter.ai/**', route => route.abort());
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-ai-provider', 'openrouter');
-    localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-6.1-sol');
+    localStorage.setItem('labcharts-openrouter-model', 'google/gemini-4-argon');
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify([
       { id: 'deepseek/deepseek-v4-flash-0731', name: 'DeepSeek V4 Flash 0731' },
       { id: 'deepseek/deepseek-v4.1-flash-1017', name: 'DeepSeek V4.1 Flash 1017' },
@@ -283,6 +283,7 @@ test('current recommendations replace older releases while preserving the select
       { id: 'google/gemini-4-argon', name: 'Gemini 4 Argon' },
       { id: 'google/gemini-4-hydrogen', name: 'Gemini 4 Hydrogen' },
       { id: 'google/gemini-4-carbon', name: 'Gemini 4 Carbon' },
+      { id: 'google/gemini-4-neon', name: 'Gemini 4 Neon' },
       { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
       { id: 'anthropic/claude-fable-5.2', name: 'Claude Fable 5.2' },
       { id: 'qwen/qwen4-max', name: 'Qwen4 Max' },
@@ -296,13 +297,14 @@ test('current recommendations replace older releases while preserving the select
   });
   await page.goto('/app');
   await page.evaluate(async () => (await import('/js/chat-panel.js')).openChatPanel());
-  await expect(page.locator('#chat-model-menu-label')).toHaveText('GPT-6.1 Sol');
+  await expect(page.locator('#chat-model-menu-label')).toHaveText('Gemini 4 Argon');
   await page.locator('#chat-model-menu-toggle').click();
   await expect(page.locator('.chat-model-option-group-label')).toHaveText(['Recommended', 'Other models']);
-  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 8).map(option => option.getAttribute('data-chat-model-value')));
+  const recommended = await page.locator('.chat-model-option').evaluateAll(options => options.slice(0, 6).map(option => option.getAttribute('data-chat-model-value')));
   expect(recommended).toEqual(['~deepseek/deepseek-flash-latest',
-    'google/gemini-4-argon', 'google/gemini-4-hydrogen', 'google/gemini-4-carbon',
+    'google/gemini-4-neon',
     'anthropic/claude-fable-5.2', 'qwen/qwen4-max', 'openai/gpt-6.2-sol', 'openai/gpt-6.2-astra']);
+  await expect(page.locator('[data-chat-model-value="google/gemini-4-argon"]')).toBeVisible();
   await expect(page.locator('[data-chat-model-value="openai/gpt-6.1-sol"]')).toBeVisible();
   await expect(page.locator('[data-chat-model-value="deepseek/deepseek-v4-pro-0813"]')).toBeVisible();
   await page.locator('[data-chat-model-value="~deepseek/deepseek-flash-latest"]').click();

@@ -141,10 +141,10 @@ when the provider still lists them, and a catalog refresh preserves a valid save
 selection. Custom API connections to OpenAI use getbased's structured chat tool
 protocol with these models because native tool calling requires the Responses API.
 Recommended models also include DeepSeek V4.1 Flash 1017 or the provider's
-current Flash alias, Qwen4-Max, Gemini 4 Argon, Carbon and Hydrogen, and Claude
-Fable 5.2. DeepSeek V4 Pro and its aliases are available under Other models when
-listed by the provider. PPQ's private recommendations use its exact published IDs
-for Kimi K3.1 Pro, DeepSeek V4.1 Flash and GLM 5.3. Provider catalogs remain
+current Flash alias, Qwen4-Max, Claude Fable 5.2, and Gemini 4 Neon. DeepSeek V4 Pro,
+its aliases, and other Gemini tiers appear under Other models when listed by the
+provider. PPQ's private recommendations use its exact published IDs for Kimi K3.1
+Pro, DeepSeek V4.1 Flash and GLM 5.3. Provider catalogs remain
 authoritative for availability, pricing and capabilities; a recommendation does
 not establish health-analysis accuracy or change the provider's privacy tier.
 

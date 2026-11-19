@@ -86,8 +86,8 @@ assert('Curated: anthropic/claude-opus prefix', apiModelsSrc.includes("'anthropi
 assert('Curated: openai/gpt prefix', apiModelsSrc.includes("'openai/gpt-5'"));
 assert('Curated: google/gemini-3 prefix', apiModelsSrc.includes("'google/gemini-3'"));
 assert('Curated: google/gemini-2 prefix', apiModelsSrc.includes("'google/gemini-2'"));
-assert('Recommended: Gemini 4 Argon', api.isRecommendedModel('openrouter', 'google/gemini-4-argon'));
-assert('Gemini 4 Hydrogen is recommended alongside Argon', api.isRecommendedModel('custom', 'gemini-4-hydrogen'));
+assert('Recommended: Gemini 4 Neon', api.isRecommendedModel('openrouter', 'google/gemini-4-neon'));
+assert('Gemini 4 Argon is outside Recommended', !api.isRecommendedModel('openrouter', 'google/gemini-4-argon'));
 assert('Curated: deepseek prefix', apiModelsSrc.includes("'deepseek/deepseek'"));
 assert('Curated: qwen prefix', apiModelsSrc.includes("'qwen/qwen'"));
 assert('Curated: z-ai/glm-5 prefix', apiModelsSrc.includes("'z-ai/glm-5'"));
