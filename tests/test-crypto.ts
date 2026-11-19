@@ -579,10 +579,10 @@ try {
 // ═══════════════════════════════════════════════
 console.log('18. startup async init');
 try {
-  const src = await fetchWithRetry('js/main.js');
+  const src = await fetchWithRetry('js/main-runtime.js');
   const orchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const foundationSrc = await fetchWithRetry('js/startup-foundation.js');
-  assert('main.js imports every startup module in order', hasDirectStartupImports(src));
+  assert('main-runtime.js imports every startup module in order', hasDirectStartupImports(src));
   assert('main.js starts the startup orchestrator', src.includes("from './startup-orchestrator.js'") && src.includes('startApp()'));
   assert('startup-orchestrator.js registers DOMContentLoaded', orchestratorSrc.includes("document.addEventListener('DOMContentLoaded'"));
   assert('startup-orchestrator.js catches startup failures', orchestratorSrc.includes('runStartupSequence().catch(handleStartupSequenceError)'));
@@ -711,7 +711,11 @@ try {
   assert('backup.js includes chatPersonality in prefs', bkSrc.includes("'chatPersonality'"));
   assert('backup.js includes chatPersonalityCustom in prefs', bkSrc.includes("'chatPersonalityCustom'"));
   assert('backup.js includes chatPersonalityDeleted in prefs', bkSrc.includes("'chatPersonalityDeleted'"));
-  assert('backup.js has openBackupDB function', bkSrc.includes('function openBackupDB'));
+  const storageSrc = await fetchWithRetry('js/backup-storage.js');
+  assert('backup.js reexports the shared openBackupDB function',
+    bkSrc.includes("export { openBackupDB } from './backup-storage.js';")
+      && storageSrc.includes('function openBackupDB')
+      && backupModule.openBackupDB === (await import('../js/backup-storage.js')).openBackupDB);
   assert('backup.js has performAutoBackup function', bkSrc.includes('async function performAutoBackup'));
   assert('backup.js has scheduleAutoBackup function', bkSrc.includes('function scheduleAutoBackup'));
   assert('backup.js has getAutoBackupSnapshots function', bkSrc.includes('async function getAutoBackupSnapshots'));

@@ -102,9 +102,9 @@ async function metadata(artifact: string): Promise<Pick<ArtifactManifest, 'revis
 async function currentSources(root: string, artifact: string, manifest: Pick<ArtifactManifest, 'revision' | 'verificationDigest' | 'sourceInputCount'>): Promise<void> {
   // These emitted dependencies are deliberately loaded only AFTER installation.
   // restore needs only Node builtins and works in a pristine checkout.
-  const [{createStaticBuildFingerprint}, {inlineServiceWorkerAssets}, {parseAppShellEntries}, {sourceModuleURL, compactStaticJsonBody}, {verifyLegacyEvoluAsset}] = await Promise.all([
+  const [{createStaticBuildFingerprint}, {inlineServiceWorkerAssets}, {parseAppShellEntries}, {sourceModuleURL, compactStaticJsonBody, productionRawModuleAssets}, {verifyLegacyEvoluAsset}, {verifyStaticRawModule}] = await Promise.all([
     import('./static-build-inputs.mjs'), import('./service-worker-source.js'), import('./app-shell-budget.mjs'),
-    import('./static-build-assets.mjs'), import('./legacy-evolu-compaction.mjs'),
+    import('./static-build-assets.mjs'), import('./legacy-evolu-compaction.mjs'), import('./static-raw-encoding.mjs'),
   ]);
   const inventory = execFileSync('git', ['--no-optional-locks', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], {cwd: root, encoding: 'utf8'}).split('\0');
   const current = await createStaticBuildFingerprint(root, manifest.revision, '', inventory);
@@ -114,6 +114,7 @@ async function currentSources(root: string, artifact: string, manifest: Pick<Art
   for (const file of metadataFiles) assert.deepEqual(await regular(path.join(artifact, file)), await regular(path.join(root, file)), 'Exact copied discovery metadata: ' + file);
   const nativeWorker = inlineServiceWorkerAssets((await regular(path.join(root, 'service-worker.js'))).toString(), (await regular(path.join(root, 'service-worker-assets.js'))).toString());
   const shipping = new Set(parseAppShellEntries((await regular(path.join(artifact, 'service-worker.js'))).toString()));
+  const rawModules = await productionRawModuleAssets();
   const assembled = new Set(['/app', '/index.html', '/version.js', '/service-worker-assets.js', '/getbased-companion.mjs']);
   for (const url of parseAppShellEntries(nativeWorker)) {
     if (assembled.has(url) || (sourceModuleURL(url) && !shipping.has(url))) continue;
@@ -121,6 +122,7 @@ async function currentSources(root: string, artifact: string, manifest: Pick<Art
     const supplied = await regular(path.join(artifact, url.slice(1))), canonical = await regular(path.join(root, url.slice(1)));
     if (url.startsWith('/vendor/evolu/') && url.endsWith('.js')
       && await verifyLegacyEvoluAsset(url.slice(1), canonical.toString(), supplied.toString())) continue;
+    if (rawModules.has(url)) {await verifyStaticRawModule(url, canonical.toString(), supplied.toString()); continue;}
     const expected = url.startsWith('/data/') && url.endsWith('.json') ? Buffer.from(compactStaticJsonBody(canonical.toString())) : canonical;
     assert.deepEqual(supplied, expected, 'Exact copied public body: ' + url);
   }

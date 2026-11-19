@@ -1,3 +1,4 @@
+import {installControlledOpenRouter} from '../helpers/controlled-openrouter.js';
 import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
@@ -44,20 +45,20 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
   }, { seeded, registry });
   const statements = { value: 'My office meter reading was actually 250 lux.', checkpoint: 'Save a checkpoint of my current light environment called After correction.', remove: 'Remove my current office lux reading, keeping my saved audit checkpoints.', removeRoom: 'Remove my office room, keeping my saved audit checkpoints.' };
   let stage: keyof typeof statements = 'value', round = 0, checkpointId = ''; const wire: unknown[] = [], errors: string[] = [];
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(JSON.stringify(body)).not.toMatch(/measurement-private-sentinel|\/private\//);
-    if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled light interpretation","detail":"Reported facts and frozen source evidence."}' }, finish_reason: 'stop' }] }) }); return; }
+  await installControlledOpenRouter(context, async body => {
+ expect(JSON.stringify(body)).not.toMatch(/measurement-private-sentinel|\/private\//);
+    if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled light interpretation","detail":"Reported facts and frozen source evidence."}' }, finish_reason: 'stop' }] }) }; }
     wire.push({ stage, round }); const resource = stage === 'checkpoint' ? 'lightAudits' : stage === 'removeRoom' ? 'lightRooms' : 'lightMeasurements'; let call: AIToolCall | undefined;
     if (round === 0) call = { id: `read-${stage}`, type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource, ...(stage === 'checkpoint' ? { create: true } : { recordId: stage === 'removeRoom' ? 'room-office' : 'measure-office' }) }) } };
     if (round === 1) {
-      const response = JSON.parse(body.messages.at(-1).content);
+      const response = JSON.parse(body.messages.at(-1)!.content);
       if (stage === 'checkpoint') { expect(response.success).toBe(false); expect(response.contentItems[0].text).toBe(`Error: ${CHAT_NATIVE_UI_NOTICE}`); }
       else { expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text);
       call = { id: `draft-${stage}`, type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource, operation: stage === 'remove' || stage === 'removeRoom' ? 'remove' : 'update', snapshotId: current.snapshotId, patch: stage === 'value' ? '{"value":250,"unit":"lux"}' : '{}', evidence: statements[stage], reason: 'The user explicitly reported this correction or checkpoint operation.' }) } };
       }
     }
-    if (round === 2) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const review = JSON.parse(response.contentItems[0].text).review; expect(review.applied).toBe(false); if (stage === 'checkpoint') expect(review.effects.capturedCounts).toEqual({ rooms: 1, screens: 0, measurements: 1 }); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'checkpoint' ? 'Save light checkpoints with the native audit form.' : 'Review the reading or frozen checkpoint before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    if (round === 2) { const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); const review = JSON.parse(response.contentItems[0].text).review; expect(review.applied).toBe(false); if (stage === 'checkpoint') expect(review.effects.capturedCounts).toEqual({ rooms: 1, screens: 0, measurements: 1 }); }
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'checkpoint' ? 'Save light checkpoints with the native audit form.' : 'Review the reading or frozen checkpoint before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false; const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};

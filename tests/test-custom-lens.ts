@@ -397,11 +397,11 @@ assert('API_KEY_LS_KEYS includes lens-key', /API_KEY_LS_KEYS[\s\S]{0,500}labchar
 
 // ─── 14. Wiring: Chat loads on demand while Lens remains available ───
 console.log('\n14. Lazy Chat composition wiring');
-const mainSrc = read('js/main.js');
+const mainSrc = read('js/main-runtime.js');
 const appFeatureModulesSrc = read('js/app-feature-modules.js');
 const appAiInteractionModulesSrc = read('js/app-ai-interaction-modules.js');
 const chatLoaderSrc = read('js/chat-loader.js');
-assert("main.js imports every startup module in order", hasDirectStartupImports(mainSrc));
+assert("main-runtime.js imports every startup module in order", hasDirectStartupImports(mainSrc));
 assert("app-feature-modules.js leaves Chat out of the startup graph", !appFeatureModulesSrc.includes("import './app-ai-interaction-modules.js'"));
 assert("chat-loader.js lazily imports './app-ai-interaction-modules.js'",
   chatLoaderSrc.includes("import('./app-ai-interaction-modules.js')")

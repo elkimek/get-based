@@ -1,3 +1,4 @@
+import {installControlledOpenRouter} from './controlled-openrouter.js';
 import fs from 'node:fs/promises';
 import { expect, type Page, type BrowserContext, type TestInfo } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
@@ -51,22 +52,22 @@ export async function runRetiredKnowledgeStaticCase(target: RetiredKnowledgeTarg
     for (const key of ['tour', 'emptyTour']) localStorage.setItem('labcharts-default-' + key, 'completed');
   }, { seeded, registry });
   let round = 0, stopped = false; const errors: string[] = [], external: string[] = [], wire: string[] = [];
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON();
-    if (!body.tools) { await route.fulfill({ json: { choices: [{ message: { content: '{}' } }] } }); return; }
+  await installControlledOpenRouter(context, async body => {
+    if (!body.tools) return {contentType: 'application/json', body: JSON.stringify({choices: [{message: {content: '{}'}}]})};
     expect(JSON.stringify(body.tools)).not.toContain('getbased_read_knowledge');
     for (const tool of body.tools) if (['getbased_read_data', 'getbased_draft_data'].includes(tool.function.name)) for (const resource of ['knowledgeSettings','knowledgeLibraries','knowledgeDocuments','knowledgeImports']) expect(tool.function.parameters.properties.resource.enum).not.toContain(resource);
     const step = target === 'inventory' ? (round++, 0) : round++ % 2;
-    if (step) { const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toMatch(/synthetic-notes|synthetic-report|private-corpus/); }
+    if (step) { const result = JSON.parse(body.messages.at(-1)!.content); expect(result.success).toBe(false); expect(JSON.stringify(result)).not.toMatch(/synthetic-notes|synthetic-report|private-corpus/); }
     const resource = target === 'settings' ? 'knowledgeSettings' : target === 'libraries' ? 'knowledgeLibraries' : target === 'documents' ? 'knowledgeDocuments' : 'knowledgeImports';
     const call = step === 0 ? { id: `retired-knowledge-${round}`, type: 'function', function: target === 'inventory' ? { name: 'getbased_read_knowledge', arguments: '{}' } : { name: target === 'pasted text' || target === 'chosen files' ? 'getbased_draft_data' : 'getbased_read_data', arguments: JSON.stringify(target === 'pasted text' || target === 'chosen files' ? { resource, operation: 'start', snapshotId: 'stale', patch: JSON.stringify(target === 'chosen files' ? { input: 'chooseFiles' } : { source: 'new.md', text: 'Synthetic pasted text.' }), reason: 'Requested', evidence: 'Manage my Knowledge Base.' } : { resource }) } } : null;
     if (call) wire.push(call.function.name);
-    await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Use the native Knowledge Base UI to manage sources.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Use the native Knowledge Base UI to manage sources.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
-  context.on('request', request => { if (/^https?:/.test(request.url()) && !/https?:\/\/127\.0\.0\.1:/.test(request.url()) && !request.url().startsWith('https://openrouter.ai/api/v1/chat/completions')) external.push(request.url()); });
+  context.on('request', request => { if (/^https?:/.test(request.url()) && !/https?:\/\/127\.0\.0\.1:/.test(request.url())) external.push(request.url()); });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory), receipts: Record<string, unknown> = {};
   try {
+    expect(page.context(), 'The application page uses the qualified storage context').toBe(context);
     await ready(page, server.origin); const libraryId = await seedLocalKnowledgeCorpus(page, {configure: false});
     const baseline = await profile(page, artifact.state), beforeConfig = await page.evaluate(key => localStorage.getItem(key), configKey), corpus = await knowledgeCorpusReceipt(page, libraryId);
     receipts.before = { profile: baseline, config: beforeConfig, corpus };
@@ -79,5 +80,5 @@ export async function runRetiredKnowledgeStaticCase(target: RetiredKnowledgeTarg
     const menu = page.getByRole('button', { name: 'Menu', exact: true }); if (await menu.isVisible()) await activate(page, menu); await activate(page, page.locator('[data-nav-action="open-knowledge-base"]'));
     await expect(page.locator('#kb-modal-overlay.show')).toBeVisible(); await expect(page.locator('#lens-local-filepick')).toBeAttached(); await expect(page.locator('#lens-local-doc-list')).toContainText('synthetic-notes.md'); await expect(page.locator('#lens-local-doc-list')).toContainText('synthetic-report.txt');
     expect(await knowledgeCorpusReceipt(page, libraryId)).toEqual(corpus); expect(await profile(page, artifact.state)).toEqual(baseline); expect(errors).toEqual([]); expect(external).toEqual([]); expect(await artifactInputs(owners, [])).toEqual(artifact); receipts.cold = { unchanged: true };
-  } finally { await info.attach('knowledge-native-only-static-receipt', { body: JSON.stringify({ artifact, target, receipts, wire, errors, external, stopped, boundary: 'Retired management calls reject in the real shared sender before and after a physically stopped-origin cold launch. Existing OPFS bytes, native file input and health data remain. Controlled model; no live inference or model download claim.' }, null, 2), contentType: 'application/json' }); if (!stopped) await server.close(); }
+  } finally { await info.attach('knowledge-native-only-static-receipt', { body: JSON.stringify({ artifact, target, receipts, wire, errors, external, stopped, boundary: 'Retired management calls reject in the real shared sender before and after a physically stopped-origin cold launch. Existing OPFS bytes, native file input and health data remain. Narrow in-page provider fixture; no live inference, provider HTTP transport or model download claim.' }, null, 2), contentType: 'application/json' }); if (!stopped) await server.close(); }
 }

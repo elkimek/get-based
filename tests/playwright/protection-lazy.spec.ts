@@ -110,5 +110,6 @@ for (const failed of ['EncryptionSettings', 'BackupSettings']) test(`saved backu
   await expect(backup.locator('#backup-snapshots-toggle')).toBeVisible();
   await page.evaluate(async () => (await import('/js/crypto-ui.js')).toggleBackupSnapshots());
   await expect(backup.locator('.backup-snapshot-item')).toHaveCount(1); await expect(backup).toContainText('2 profile(s) • encrypted');
-  await expect(backup.locator('[data-crypto-snapshot-id="19"]')).toBeVisible(); await expect(backup).not.toContainText('Never render this');
+  await expect(backup.locator('[data-crypto-action="export-auto-backup"][data-crypto-snapshot-id="19"]')).toBeVisible();
+  await expect(backup.locator('[data-crypto-action="restore-auto-backup"][data-crypto-snapshot-id="19"]')).toBeVisible(); await expect(backup).not.toContainText('Never render this');
 });

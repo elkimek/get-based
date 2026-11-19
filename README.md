@@ -65,7 +65,48 @@ provider credentials and integration requirements; see the
 [profile-share service](deploy/profile-share/README.md) and
 [environment example](.env.local.example). Do not put credentials in browser source.
 
-## Run locally
+## Self-host
+
+Install **Node.js 24.20 or later within version 24**. Download the prebuilt
+self-host package from [Releases](https://github.com/elkimek/get-based/releases)
+and save it as `getbased-self-host.tgz`. In that folder, run:
+
+```bash
+npm install --global ./getbased-self-host.tgz
+getbased
+```
+
+Keep the terminal open. For private HTTPS on your computers, phones and tablets,
+install [Tailscale](https://tailscale.com/docs/install) on each device and run this
+on the host in another terminal:
+
+```bash
+tailscale serve --bg http://127.0.0.1:8000
+```
+
+Use the HTTPS address printed by Tailscale on every device, including the host.
+Follow the [installation guide](https://docs.getbased.health/guides/self-hosting)
+for setup, updates and optional services. To move existing hosted records, use
+**Settings → Data → Backup & Restore → Start migration** at the original address
+and follow the [migration guide](https://docs.getbased.health/guides/move-to-self-hosting).
+Keep the source browser data until you have checked the restored records.
+
+To build from source instead:
+
+```bash
+git clone https://github.com/elkimek/get-based
+cd get-based
+npm ci
+npm run production:build
+npm run self-host
+```
+
+Use **Node.js 24.20 or later within version 24**. The server listens only on
+`127.0.0.1:8000`. For a private HTTPS address on your computer, phone and tablet,
+follow the [self-hosting guide](engineering/self-hosting.md). It covers Tailscale,
+backups, browser storage, updates and optional services.
+
+## Develop locally
 
 Use **Node.js 24** and a modern browser:
 

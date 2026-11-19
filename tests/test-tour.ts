@@ -170,12 +170,12 @@ assert('CSS has mobile/coarse tour button touch target', tourVariants.includes('
 // ═══════════════════════════════════════
 console.log('19. main.js Wiring');
 
-const mainSrc = read('js/main.js');
+const mainSrc = read('js/main-runtime.js');
 const appFeatureModulesSrc = read('js/app-feature-modules.js');
 const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const appEventsSrc = readAuthoredRepositorySource('js/app-event-listeners.js');
 
-assert('main.js imports every startup module in order', hasDirectStartupImports(mainSrc));
+assert('main-runtime.js imports every startup module in order', hasDirectStartupImports(mainSrc));
 assert('app-feature-modules.js delegates UI shell modules', appFeatureModulesSrc.includes("import './app-ui-shell-modules.js'"));
 assert('app-ui-shell-modules.js imports tour.js', appUiShellModulesSrc.includes("import './tour.js'"));
 assert('app-event-listeners.js Escape checks #tour-overlay', appEventsSrc.includes('tour-overlay'));

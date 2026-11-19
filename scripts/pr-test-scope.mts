@@ -53,7 +53,7 @@ const TOOL_SCOPES: readonly ToolScope[] = [
     check: 'vendor:evolu8:check',
   },
   // Kit discovers these entrypoints by filename rather than an import edge.
-  { sources: ['js/kit/hooks.js', 'js/kit/routes/app/+layout.js', 'js/kit/routes/app/+page.svelte.native.js'], tests: ['tests/production-build.test.js', 'tests/pwa/sveltekit.spec.js'] },
+  { sources: ['js/kit/hooks.js', 'js/kit/routes/app/+layout.js', 'js/kit/routes/app/+layout.svelte.native.js', 'js/kit/routes/app/+page.svelte.native.js'], tests: ['tests/production-build.test.js', 'tests/pwa/sveltekit.spec.js', 'tests/pwa/sveltekit-migration-recovery.spec.js'] },
   // Retired serializers have no remaining importers. Their replacement owners
   // retain these concrete mint/seed/withdraw/node and refund recovery contracts.
   { sources: ['js/provider-wallet-panel-renderers.js'], tests: ['tests/wallet-mint-export-owned.test.js', 'tests/wallet-seed-owned.test.js', 'tests/wallet-withdraw-owned.test.js', 'tests/wallet-node-owned.test.js', 'tests/playwright/routstr-wallet-dom.spec.js', 'tests/pwa/sveltekit-wallet-mints.spec.js', 'tests/pwa/sveltekit-wallet-seed.spec.js', 'tests/pwa/sveltekit-wallet-withdraw.spec.js', 'tests/pwa/sveltekit-wallet-node.spec.js'] },

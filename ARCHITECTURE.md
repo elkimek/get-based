@@ -418,6 +418,12 @@ migrations resolve recovery before reading or transforming the pair. Sync, JSON
 export and full-backup collection hold the same native lock across their persona snapshot.
 `backup-chat-storage.ts` collects raw conversation envelopes and the committed
 persona pair; `backup.ts` retains recovery and collection sequencing.
+The shared backup-storage owner retains the automatic-snapshot and folder-handle
+database lifecycle. Saved automatic snapshots can be downloaded through Backup
+settings without restoring them. The backup-snapshot-download owner reads one
+committed snapshot transaction, preserves its
+ciphertext and serialization, and never acknowledges a backup of current data.
+An interrupted read or missing snapshot cannot fall back to exporting current data.
 Journal transitions and cleanup use a conditional IndexedDB transaction so a
 replaced recovery owner cannot be overwritten between a read and its write.
 Profile cleanup removes the journal backend and its local fence. An unproved recovery
@@ -1942,3 +1948,64 @@ Optional wearable metric families retain their established independent fallbacks
 `conversation-search.ts` implements the read-only `getbased_search_conversations` tool for an accepted interactive question. It uses the native thread-index owner and a fresh encrypted/plain storage read, normalized through the same pure message boundary as native history loading. Results include only bounded historical user/assistant excerpts: current-thread, hidden, automatic, joined, system/tool and attachment content are excluded. Recent-first thread pages have explicit thread/message/character/result limits and report truncation or skipped sources. Asynchronous reads revalidate the originating profile/root/thread/history/index and accepted-turn lifetime before returning any excerpts. They do not migrate, cache plaintext, save history or administer conversations.
 
 Conversation source links are finite same-profile fragments containing native IDs, message index/role and a SHA-256 digest of the exact quote. The Markdown renderer emits a native anchor only for this exact grammar; labels retain ordinary escaping and malformed links retain the existing safe-link behavior. A human click uses the native chat action delegate, waits until streaming has ended, respects open editors, rereads the source and validates its role/content digest. Native switching saves the departing conversation normally, then verifies the exact quote again before highlighting it. Links survive reloads without a persistent capability registry; changed, hidden, locked, missing or foreign-profile sources cannot open through a stale quote. The click sends no additional model request. Historical excerpts never authorize health changes, and their disclosure receipt remains visible even when a reply also reads broad health context.
+
+## Standalone browser recovery
+
+`/app/migration.html` loads only the recovery component and its storage owners,
+inside the installed PWA scope. It does not initialize profiles, network
+integrations, analytics, wallet operations or Sync. `migration-archive.ts` owns
+source capture and schema validation; `migration-portable.ts` converts only
+browser-bound encryption and keeps ordinary passphrase ciphertext. The
+unambiguous structured-value codec preserves nested binary values without
+changing the legacy JSON wire format of ordinary encrypted objects.
+
+`migration-restore.ts` refuses existing destination data, retains the encrypted
+input behind a durable startup fence, restarts interrupted restores with the
+same file, and compares a full read-back digest before committing a small
+completion receipt and removing the fence. Original data is never erased.
+`migration-files.ts` owns local Knowledge Base files, while the snapshot list
+retains labels and reads a selected body on demand. Recovery reuses the native
+persona journal and Sync restore guards; the storage-only delta reset remains
+independent of merge/planning code.
+
+The self-host package contains the assembled public artifact, canonical security
+headers and a built Node-only loopback server. It carries no rendering/build
+runtime or credential configuration. The browser remains the data owner;
+private Tailscale HTTPS does not make the host a shared health-data server.
+
+## Hosted transition boundary
+
+`main.ts` and the Kit route gate choose recovery before loading `main-runtime.ts`.
+The shared public hosting policy applies only to exact official origins and stays
+inactive until an actual announcement timestamp is configured. A dated first-use
+notice and persistent migration entry precede a 30-day cutoff. Updated hosted
+launches then keep exports at the original origin and refuse imports; self-hosts
+retain normal behavior. A retained pending-import file remains downloadable.
+`hosted-transition-monitor.ts` checks wall time, page visibility, focus and
+page-show events so an open or suspended tab cannot continue normal editing past
+the cutoff. Its modal retains the current page, saves text drafts and offers
+explicit downloads of in-memory text and image copies when a normal handoff
+cannot finish. Those work copies are unencrypted and require explicit user
+confirmation before navigation; a changed snapshot or pending image read blocks
+that confirmation. Application owners register these snapshots through the
+leaf `migration-navigation.ts` boundary without moving ephemeral images into
+persistent chat storage.
+
+`lib/hosted-transition.ts` binds HTTP request and caller origins to that policy.
+The operated proxy rejects personal requests from the retired hosted origin
+before reading a request body or contacting an upstream. The encrypted Sync relay
+is separate and remains available during migration. Cached older software cannot
+be remotely erased or revoked; recovery and original browser records are retained.
+The demo must use a separate origin and contain only fictional, read-only data.
+
+
+## Isolated public demo
+
+`readonly-demo-entry.ts` mounts `ReadonlyDemo.svelte` using the dedicated
+`build-readonly-demo.mts` artifact. Its build-only fixture projection accepts
+only committed fictional demo records. The artifact includes one Svelte bundle,
+local styles and fonts; it excludes the application, APIs and service worker.
+Lens and sample-profile controls change component state only. It has no personal
+input, persistence, provider connections or network requests. Its CSP forbids
+connections and form submission. Deploy this artifact to its own origin; the
+existing application origin retains migration and recovery access.

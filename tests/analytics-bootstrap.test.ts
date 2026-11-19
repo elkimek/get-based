@@ -82,6 +82,11 @@ describe('analytics bootstrap', () => {
     ['file export', { protocol: 'file:' }],
     ['Tor', { hostname: 'example.onion' }],
     ['local development', { hostname: 'localhost' }],
+    ['private Tailscale', { hostname: 'getbased.example-tailnet.ts.net' }],
+    ['custom self-host', { hostname: 'health.example.com' }],
+    ['IPv6 loopback', { hostname: '[::1]' }],
+    ['HTTP official host', { protocol: 'http:' }],
+    ['lookalike', { hostname: 'getbased.health.example.com' }],
     ['explicit opt-out', { disabled: true }],
   ] as const)('skips analytics for %s', (_label, options) => {
     expect(runBootstrap(options).appended).toEqual([]);

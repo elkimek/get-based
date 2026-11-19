@@ -127,10 +127,12 @@ export function isDevServiceWorkerHost(hostname: string | null | undefined) {
 }
 
 export function shouldRegisterServiceWorker(
-  locationLike: Pick<Location, 'hostname' | 'search'> | null = getDefaultServiceWorkerWindow()?.location || null
+  locationLike: Pick<Location, 'hostname' | 'search'> | null = getDefaultServiceWorkerWindow()?.location || null,
+  buildId?: unknown
 ) {
   if (!locationLike) return false;
-  return !isDevServiceWorkerHost(locationLike.hostname)
+  return (typeof buildId === 'string' && /^[a-f0-9]{64}$/.test(buildId))
+    || !isDevServiceWorkerHost(locationLike.hostname)
     || DEV_SW_QUERY_RE.test(locationLike.search || '');
 }
 
@@ -475,7 +477,7 @@ export async function registerServiceWorkerUpdates({
 } : UpdateRuntimeOptions = {}) {
   if (!win || !serviceWorkerContainer) return null;
 
-  if (!shouldRegisterServiceWorker(win.location)) {
+  if (!shouldRegisterServiceWorker(win.location, win.APP_BUILD_ID)) {
     if (isDevServiceWorkerHost(win.location!.hostname)) {
       unregisterDevServiceWorkers(serviceWorkerContainer, cacheStorage).catch(() => {});
     }
@@ -588,7 +590,7 @@ export function scheduleServiceWorkerRegistration({
   return true;
 }
 
-// Skip SW registration on dev hosts by default. WebKit's HTTP cache layer can
+// Skip SW registration on source-development hosts without a pinned production build. WebKit's HTTP cache layer can
 // otherwise keep serving stale module bytes in Tauri/webkit2gtk dev windows.
 // Use ?dev-sw=1 for explicit local offline smoke testing.
 if (getDefaultServiceWorkerWindow() && getDefaultServiceWorkerContainer()) {

@@ -1,3 +1,4 @@
+import {installControlledOpenRouter} from '../helpers/controlled-openrouter.js';
 import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
@@ -32,15 +33,15 @@ test('self-reported Environment chat approval preserves other data and reaches t
   }, { seeded, registry });
   const statement = 'I now turn my WiFi off at night.'; let round = 0;
   const wire: number[] = [], background: string[] = [], errors: string[] = [], receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(body.model).toBe('openai/synthetic-environment'); expect(JSON.stringify(body)).not.toMatch(/\/private\//);
-    if (!body.tools) { expect(String(body.messages[0]?.content || '')).toMatch(/^Based on this person's lab data and profile context/); background.push('native context-card summary'); await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }); return; }
+  await installControlledOpenRouter(context, async body => {
+ expect(body.model).toBe('openai/synthetic-environment'); expect(JSON.stringify(body)).not.toMatch(/\/private\//);
+    if (!body.tools) { expect(String(body.messages[0]?.content || '')).toMatch(/^Based on this person's lab data and profile context/); background.push('native context-card summary'); return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }; }
     wire.push(round); let call: AIToolCall | undefined;
     if (round === 0) call = { id: 'read-environment', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"environment"}' } };
-    if (round === 1) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text); expect(current.emf.mode).toBe('selfReport');
+    if (round === 1) { const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text); expect(current.emf.mode).toBe('selfReport');
       call = { id: 'draft-environment', type: 'function', function: { name: 'getbased_draft_context', arguments: JSON.stringify({ card: 'environment', snapshotId: current.snapshotId, changes: [{ field: 'emfMitigation', values: ['WiFi off at night', 'minimal Bluetooth'] }], evidence: statement, reason: 'The user reported a new general habit.' }) } }; }
-    if (round === 2) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); expect(JSON.parse(response.contentItems[0].text).status).toBe('pending_user_approval'); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review your proposed Environment context change.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    if (round === 2) { const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); expect(JSON.parse(response.contentItems[0].text).status).toBe('pending_user_approval'); }
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review your proposed Environment context change.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message))); const server = await startKitServer(artifact.directory); let stopped = false;
   try {
@@ -57,5 +58,5 @@ test('self-reported Environment chat approval preserves other data and reaches t
     page = await context.newPage(); await ready(page, server.origin); receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.applied); await openEnvironment(page);
     const form = page.locator('[data-context-form-view="environment"]'); await expect(form.locator('#env-emf').getByRole('button', { name: 'Legacy custom source', exact: true })).toHaveAttribute('aria-pressed', 'true'); await expect(form.locator('#env-emf-mit').getByRole('button', { name: 'WiFi off at night', exact: true })).toHaveAttribute('aria-pressed', 'true'); await expect(form.locator('#env-emf-mit').getByRole('button', { name: 'minimal Bluetooth', exact: true })).toHaveAttribute('aria-pressed', 'true');
     expect(await profile(page, artifact.state)).toEqual(receipts.applied); expect(errors).toEqual([]); expect(await artifactInputs(owners, ['css/context-editor.css'])).toEqual(artifact);
-  } finally { await info.attach('static-environment-context-receipt', { body: JSON.stringify({ artifact, receipts, wire, background, errors, stopped, boundary: 'Real shared chat sender and canonical save with controlled provider. Exact full-state/native custom-choice preservation, mobile/axe/keyboard Apply, source/cache ownership and stopped-origin cold launch. No live provider inference or remote sync.' }, null, 2), contentType: 'application/json' }); if (!stopped) await server.close(); }
+  } finally { await info.attach('static-environment-context-receipt', { body: JSON.stringify({ artifact, receipts, wire, background, errors, stopped, boundary: 'Real shared chat sender and canonical save with controlled provider. Exact full-state/native custom-choice preservation, mobile/axe/keyboard Apply, source/cache ownership and stopped-origin cold launch. Narrow in-page model fixture, without provider HTTP transport. No live provider inference or remote sync.' }, null, 2), contentType: 'application/json' }); if (!stopped) await server.close(); }
 });

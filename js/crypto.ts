@@ -1,3 +1,4 @@
+import { parseProtectedStorageObject, serializeProtectedStorageObject } from './storage-object-codec.js';
 import { bytesToBase64 as toBase64, _base64ToBytes as fromBase64 } from './base64.js';
 import { createPreparedLocalStorageValue } from './crypto-prepared-write.js';
 import { configurePersonaJournalProtection, recoverAllPersonaStorage } from './persona-storage-transaction.js';
@@ -300,7 +301,7 @@ function formatEncryptedValue(iv: Uint8Array, ciphertext: Uint8Array) {
 // transparently; legacy plaintext rows pass through.
 
 async function encryptObjectWithKey(plainObj: unknown, key: CryptoKey): Promise<ObjectEncryptionEnvelope> {
-  const json = JSON.stringify(plainObj);
+  const json = serializeProtectedStorageObject(plainObj);
   const enc = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt(
@@ -324,7 +325,7 @@ export async function decryptObject<Value = Record<string, unknown>>(envelope: u
     _sessionKey,
     (envelope as ObjectEncryptionEnvelope).ct,
   );
-  return JSON.parse(dec.decode(plaintext)) as Value;
+  return parseProtectedStorageObject(dec.decode(plaintext)) as Value;
 }
 
 export function isEncryptedObject(o: unknown): EncryptedEnvelopeCheck {

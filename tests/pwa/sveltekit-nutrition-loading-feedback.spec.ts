@@ -2,6 +2,10 @@ import path from 'node:path';
 import { test } from '@playwright/test';
 import { startKitServer } from './kit-release-server.js';
 import { checkNutritionFeedback, installNutritionFeedbackFixture, nutritionEditorArtifactPaths } from '../helpers/nutrition-loading-feedback-fixture.js';
+// Hold the actual cold editor request. A precaching worker can otherwise serve
+// it outside Playwright routing and turn this into a warm-load race. Offline
+// Nutrition behavior is covered by the separate cold-launch journeys.
+test.use({serviceWorkers: 'block'});
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 
 test('actual optimized Kit Nutrition feedback retains theme styling and cold ownership on first activation', async ({page, context}, info) => {
