@@ -6,7 +6,7 @@ import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
 import {expect, test, type Locator, type Page} from '@playwright/test';
 import {createSvelteFacadePlugin} from '../../scripts/svelte-facade-plugin.mjs';
-import {navigateWithOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
+import {captureOfflineLaunchDiagnostics, navigateWithOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 
 // Shared read-only static artifact, bundled state and native cache/profile receipts.
 // Extracted from the maintained Changelog test; no synthetic application getters.
@@ -187,15 +187,24 @@ export async function resumePausedArtifactChat(page: Page) {
   await expect(page.locator('#chat-input')).toBeEnabled();
 }
 
+export async function expectControlledKitArtifact(page: Page): Promise<void> {
+  try {
+    await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({timeout: 30_000});
+    await expect.poll(() => page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration(location.href);
+      const controller = navigator.serviceWorker.controller;
+      return registration?.active?.state === 'activated' && controller?.state === 'activated'
+        && controller.scriptURL === registration.active.scriptURL && controller.scriptURL === location.origin + '/service-worker.js';
+    }), {timeout: 30_000, message: 'The activated release worker must control the application'}).toBe(true);
+  } catch (error) {
+    await captureOfflineLaunchDiagnostics(page, test.info()).catch(() => {});
+    throw error;
+  }
+}
+
 export async function readyControlledKitArtifact(page: Page, origin: string): Promise<number> {
   const start = performance.now();
   await navigateWithOfflineLaunchDiagnostics(page, origin + '/app?dev-sw=1', test.info());
-  await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({timeout: 30_000});
-  await expect.poll(() => page.evaluate(async () => {
-    const registration = await navigator.serviceWorker.getRegistration(location.href);
-    const controller = navigator.serviceWorker.controller;
-    return registration?.active?.state === 'activated' && controller?.state === 'activated'
-      && controller.scriptURL === registration.active.scriptURL && controller.scriptURL === location.origin + '/service-worker.js';
-  }), {timeout: 30_000, message: 'The activated release worker must control the application'}).toBe(true);
+  await expectControlledKitArtifact(page);
   return Math.round(performance.now() - start);
 }

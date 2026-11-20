@@ -4,6 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page, BrowserContext } from '@playwright/test';
 import { startIsolatedChatKitServer, startKitServer } from './kit-release-server.js';
+import {expectControlledKitArtifact, readyControlledKitArtifact} from './kit-native-receipts.js';
 import {openStaticSettings} from './settings-entry.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
@@ -286,7 +287,7 @@ test('Privacy provider discovery filters cloud models, persists configuration an
     };
   });
   try {
-    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(page); await display(page);
+    await readyControlledKitArtifact(page, server.origin); await display(page);
     await page.locator('#settings-nav-privacy').click();
     const panel = page.locator('#settings-tab-privacy');
     await panel.locator('[data-settings-action="toggle-privacy-configure"]').click();
@@ -299,7 +300,7 @@ test('Privacy provider discovery filters cloud models, persists configuration an
     await panel.locator('#pii-local-toggle').locator('..').click();
     await expect(panel.locator('#privacy-status-title')).toHaveText('Enhanced protection');
     await expect(panel.locator('#privacy-status-detail')).toContainText('qwen2.5:14b');
-    await page.reload({ waitUntil: 'load' }); await ready(page); await display(page); await page.locator('#settings-nav-privacy').click();
+    await page.reload({ waitUntil: 'load' }); await expectControlledKitArtifact(page); await display(page); await page.locator('#settings-nav-privacy').click();
     await expect(panel.locator('#pii-local-toggle')).toBeChecked();
     await expect(panel.locator('#privacy-status-title')).toHaveText('Enhanced protection');
     await panel.locator('[data-settings-action="toggle-privacy-configure"]').click();

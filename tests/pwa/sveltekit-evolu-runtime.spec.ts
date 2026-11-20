@@ -1,8 +1,7 @@
 import path from 'node:path';
 import {devices, expect, test, type BrowserContext, type Page} from '@playwright/test';
 import {startKitServer} from './kit-release-server.js';
-import {artifactInputs} from './kit-native-receipts.js';
-import {captureOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
+import {artifactInputs, readyControlledKitArtifact} from './kit-native-receipts.js';
 import type {SyncRuntimeClient} from '../../js/sync-runtime.js';
 
 const runtime = '/vendor/evolu8/v8.24.1-web3.6.5/';
@@ -17,14 +16,6 @@ async function fixtureRows(page: Page) {
     return debug.getRows().filter(row => row.profileId === profileId)
       .map(({id, profileId, dataJson, syncedAt}) => ({id, profileId, dataJson, syncedAt}));
   }, fixtureProfile);
-}
-async function ready(page: Page) {
-  await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({timeout: 30_000});
-  const diagnostic = setTimeout(() => { void captureOfflineLaunchDiagnostics(page, test.info()).catch(() => {}); }, 30_000);
-  try {
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
-    await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
-  } finally { clearTimeout(diagnostic); }
 }
 async function openIdentity(page: Page) {
   await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/, {timeout: 30_000});
@@ -48,7 +39,21 @@ test('the shipping Evolu database row, worker graph and encrypted identity survi
   test.setTimeout(150_000);
   const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
   const proof = await artifactInputs(owners, []); expect(proof.directory).toBe(artifact);
-  const server = await startKitServer(artifact);
+  const installPaths = new Set(['/service-worker.js', '/service-worker-runtime.js', '/version.js', '/version.js?update-check=1']);
+  type InstallRequest = {path: string; bootScript: boolean; workerReferrer: boolean; status: number | null};
+  const installRequests: InstallRequest[] = [];
+  const server = await startKitServer(artifact, [async (request, response) => {
+    if (request.url && installPaths.has(request.url)) {
+      const entry: InstallRequest = {
+        path: request.url, bootScript: request.headers['service-worker'] === 'script',
+        workerReferrer: request.headers.referer?.endsWith('/service-worker.js') === true, status: null,
+      };
+      if (installRequests.length === 32) installRequests.shift();
+      installRequests.push(entry);
+      response.once('finish', () => { entry.status = response.statusCode; });
+    }
+    return false;
+  }]);
   // Keep the unavailable relay on its own origin, as in deployment. Routing
   // its probes through the app's SW makes WebKit report expected network
   // failures as page errors even when the application's fetch is caught.
@@ -65,6 +70,13 @@ test('the shipping Evolu database row, worker graph and encrypted identity survi
   });
   let context: BrowserContext | null = null; const errors: string[] = [];
   const observe = (active: BrowserContext) => active.on('page', page => page.on('pageerror', error => errors.push(error.message)));
+  const openRelease = async (page: Page, phase: 'online-install' | 'offline-restart') => {
+    try { await readyControlledKitArtifact(page, server.origin); }
+    catch (error) {
+      await info.attach('evolu-worker-install-requests', {body: JSON.stringify({phase, installRequests}), contentType: 'application/json'});
+      throw error;
+    }
+  };
   try {
     context = await launch(); observe(context);
     await context.addInitScript(({relay, self}) => {
@@ -82,7 +94,7 @@ test('the shipping Evolu database row, worker graph and encrypted identity survi
         policyScope: 'self-hosted-notice', acceptedAt: '2026-10-30T00:00:00.000Z', appVersion: 'evolu-test', location: 'local-test'}));
     }, {relay: relay.origin.replace(/^http/, 'ws'), self: relay.origin});
     const page = context.pages()[0] || await context.newPage(); page.on('pageerror', error => errors.push(error.message));
-    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page);
+    await openRelease(page, 'online-install');
     const identity = await openIdentity(page); const before = await identityState(page);
     expect(identity).not.toMatch(/Resolving|Unavailable/); expect(before.tokenPresent).toBe(true);
     await page.evaluate(async ({profileId, dataJson}) => {
@@ -118,7 +130,7 @@ test('the shipping Evolu database row, worker graph and encrypted identity survi
     // cache. No init script re-seeds identity or configuration on this launch.
     context = await launch(); observe(context);
     const cold = context.pages()[0] || await context.newPage(); cold.on('pageerror', error => errors.push(error.message));
-    await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold);
+    await openRelease(cold, 'offline-restart');
     expect(await openIdentity(cold)).toBe(identity); const after = await identityState(cold);
     await expect.poll(() => fixtureRows(cold)).toEqual(databaseBefore);
     const databaseAfter = await fixtureRows(cold);
