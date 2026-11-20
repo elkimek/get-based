@@ -163,6 +163,16 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
       document.querySelector<HTMLElement>('.emf-editor-actions .import-btn-primary')?.click();
       await waitUntil(() => assessments().length === 1, 'manual assessment created');
       const manualId = (assessments()[0])!.id;
+      const assessmentOwner = `[data-emf-assessment-id="${CSS.escape(String(manualId))}"]`;
+      const manualCard = `#detail-modal .emf-assessment-card.expanded:has([data-emf-action="toggle-assessment"]${assessmentOwner})`;
+      const labelSelector = `${manualCard} [data-emf-field="label"]${assessmentOwner}`;
+      const sourceSelector = `${manualCard} #${CSS.escape(`emf-sources-${manualId}-0`)} [data-emf-action="toggle-tag"]`;
+      const saveSelector = `${manualCard} [data-emf-action="save"]`;
+      const measurementSelector = `${manualCard} [data-emf-measurement-type="acElectric"]${assessmentOwner}[data-emf-room-idx="0"]`;
+      await waitUntil(
+        () => [labelSelector, sourceSelector, saveSelector, measurementSelector].every(selector => document.querySelector(selector)),
+        'created assessment room controls',
+      );
       const editorHtml = document.getElementById('detail-modal')?.innerHTML || '';
       outcomes.emfEditorRendersDelegatedControls =
         !/\bon(?:click|keydown|submit|change|input)=/.test(editorHtml)
@@ -170,18 +180,14 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
         && !!document.querySelector<HTMLElement>('[data-emf-action="add-room"]')
         && !!document.querySelector<HTMLElement>('[data-emf-change-action="measurement"]');
 
-      const labelInput = document.querySelector<HTMLElement>('[data-emf-field="label"]');
-      if (labelInput) {
-        (labelInput as HTMLInputElement).value = 'Delegated Label';
-        labelInput.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      document.querySelector<HTMLElement>(`#emf-sources-${manualId}-0 [data-emf-action="toggle-tag"]`)?.click();
-      document.querySelector<HTMLElement>('[data-emf-action="save"]')?.click();
-      const acInput = document.querySelector<HTMLElement>('[data-emf-measurement-type="acElectric"]');
-      if (acInput) {
-        (acInput as HTMLInputElement).value = '9';
-        acInput.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+      const labelInput = document.querySelector<HTMLInputElement>(labelSelector)!;
+      labelInput.value = 'Delegated Label';
+      labelInput.dispatchEvent(new Event('change', { bubbles: true }));
+      document.querySelector<HTMLButtonElement>(sourceSelector)!.click();
+      document.querySelector<HTMLButtonElement>(saveSelector)!.click();
+      const acInput = document.querySelector<HTMLInputElement>(measurementSelector)!;
+      acInput.value = '9';
+      acInput.dispatchEvent(new Event('change', { bubbles: true }));
       await waitUntil(() => ((assessments()[0])!.rooms[0])!.measurements?.acElectric?.value === 9, 'delegated measurement saved');
       outcomes.delegatedEMFEditorControlsUpdateState =
         (assessments()[0])!.label === 'Delegated Label'

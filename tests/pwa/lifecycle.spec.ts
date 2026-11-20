@@ -1,4 +1,4 @@
-import type { Page, Request } from '@playwright/test';
+import type { Page, Request, Response } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { expect, test } from '../playwright/coverage-fixture.js';
 import { startPwaServer } from './app-server.js';
@@ -69,21 +69,49 @@ test('installed shell opens lazy features and reloads with the origin disconnect
 test('failed update preserves the installed app; retry updates two tabs without losing local data', async ({ page, context, baseURL }) => {
   test.setTimeout(120_000);
   const server = await startPwaServer(baseURL);
-  const failedScripts: { path: string; error: string }[] = [];
-  let droppedFailures = 0;
-  const observeFailedScript = (request: Request) => {
+  type FailedScript = { path: string } & (
+    { kind: 'requestfailed'; error: string } | { kind: 'http'; status: number; fromServiceWorker: boolean }
+  );
+  function ownedScriptPath(request: Request): string | undefined {
     try {
       const url = new URL(request.url());
       if (request.method() !== 'GET' || request.resourceType() !== 'script'
         || url.origin !== server.origin
-        || !/^\/(?:js\/|_app\/immutable\/)[A-Za-z0-9_./-]+\.js$/.test(url.pathname)) return;
-      if (failedScripts.length === 16) { droppedFailures += 1; return; }
-      const error = request.failure()?.errorText || 'unknown';
-      failedScripts.push({ path: url.pathname.slice(0, 256),
-        error: /^[A-Za-z0-9_: -]{1,96}$/.test(error) ? error : 'unknown' });
+        || !/^\/(?:js\/|_app\/immutable\/)[A-Za-z0-9_./-]+\.js$/.test(url.pathname)) return undefined;
+      if (url.pathname.length <= 256) return url.pathname;
     } catch { /* Passive evidence must not interrupt the original case. */ }
-  };
-  page.on('requestfailed', observeFailedScript);
+    return undefined;
+  }
+  const observedTabs: { tab: Page; failedScripts: FailedScript[]; droppedFailures: number; dispose(): void }[] = [];
+  function observeTab(tab: Page) {
+    const evidence = {
+      tab, failedScripts: [] as FailedScript[], droppedFailures: 0,
+      dispose() {
+        tab.off('requestfailed', observeFailedScript);
+        tab.off('response', observeScriptResponse);
+      },
+    };
+    function record(entry: FailedScript) {
+      if (evidence.failedScripts.length < 16) evidence.failedScripts.push(entry);
+      else evidence.droppedFailures += 1;
+    }
+    function observeFailedScript(request: Request) {
+      const path = ownedScriptPath(request);
+      if (!path) return;
+      const error = request.failure()?.errorText || 'unknown';
+      record({ path, kind: 'requestfailed', error: /^[A-Za-z0-9_: -]{1,96}$/.test(error) ? error : 'unknown' });
+    }
+    function observeScriptResponse(response: Response) {
+      const status = response.status();
+      if (status < 400) return;
+      const path = ownedScriptPath(response.request());
+      if (path) record({ path, kind: 'http', status, fromServiceWorker: response.fromServiceWorker() });
+    }
+    tab.on('requestfailed', observeFailedScript);
+    tab.on('response', observeScriptResponse);
+    observedTabs.push(evidence);
+  }
+  observeTab(page);
   try {
     await openInstalledApp(page, server.origin);
     await page.evaluate(() => localStorage.setItem('pwa-retained-data', 'retained'));
@@ -93,6 +121,7 @@ test('failed update preserves the installed app; retry updates two tabs without 
       await (await import('/js/data.js')).saveImportedData();
     });
     const other = await context.newPage();
+    observeTab(other);
     await openInstalledApp(other, server.origin);
     server.state.buildId = 'build-b';
     server.state.failPath = '/css/settings.css';
@@ -158,8 +187,11 @@ test('failed update preserves the installed app; retry updates two tabs without 
     // A timeout can leave the read-only evaluation pending until page teardown.
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const snapshot = await Promise.race([
-        page.evaluate(async failedPath => {
+      const timeout = new Promise<{ state: 'timeout'; timeoutMs: number }>(resolve => {
+        timer = setTimeout(() => resolve({ state: 'timeout', timeoutMs: 2_000 }), 2_000);
+      });
+      const readTabSnapshot = (tab: Page, failedPath: string | null) =>
+        tab.evaluate(async failedPath => {
           const failure = (error: unknown) => ({ state: 'error',
             name: error instanceof Error ? error.name.slice(0, 64) : typeof error });
           const workerState = (worker: ServiceWorker | null) => worker ? { state: worker.state } : null;
@@ -213,14 +245,17 @@ test('failed update preserves the installed app; retry updates two tabs without 
           ) : [];
           const [workers, entries] = await Promise.all([readWorkers(), Promise.all(scriptCaches)]);
           return {document: documentState, workers, cachedScript: {path: failedPath, entries}};
-        }, failedScripts[0]?.path ?? null).then(value => ({ state: 'complete', value }), error => ({ state: 'error',
-          name: error instanceof Error ? error.name.slice(0, 64) : typeof error })),
-        new Promise<{ state: 'timeout'; timeoutMs: number }>(resolve => {
-          timer = setTimeout(() => resolve({ state: 'timeout', timeoutMs: 2_000 }), 2_000);
-        }),
-      ]);
+        }, failedPath).then(value => ({ state: 'complete', value }), error => ({ state: 'error',
+          name: error instanceof Error ? error.name.slice(0, 64) : typeof error }));
+      const tabs = await Promise.all(observedTabs.map(async ({tab, failedScripts, droppedFailures}, index) => {
+        // Snapshot the bounded evidence before the asynchronous observations.
+        const scripts = failedScripts.slice();
+        const failedPath = scripts.find(script => script.kind === 'http')?.path ?? scripts[0]?.path ?? null;
+        const snapshot = await Promise.race([readTabSnapshot(tab, failedPath), timeout]);
+        return { tab: index + 1, failedScripts: scripts, droppedFailures, snapshot };
+      }));
       const file = test.info().outputPath('pwa-lifecycle-failure-state.json');
-      await writeFile(file, JSON.stringify({ schemaVersion: 2, failedScripts, droppedFailures, snapshot }, null, 2),
+      await writeFile(file, JSON.stringify({ schemaVersion: 3, tabs }, null, 2),
         { encoding: 'utf8', flag: 'wx' });
       await test.info().attach('pwa-lifecycle-failure-state', { path: file, contentType: 'application/json' });
     } catch {
@@ -231,8 +266,10 @@ test('failed update preserves the installed app; retry updates two tabs without 
     } finally { if (timer !== undefined) clearTimeout(timer); }
     throw originalError;
   } finally {
-    try { page.off('requestfailed', observeFailedScript); }
-    catch { /* Listener cleanup cannot replace the original case outcome. */ }
+    for (const tab of observedTabs) {
+      try { tab.dispose(); }
+      catch { /* Listener cleanup cannot replace the original case outcome. */ }
+    }
     await server.close();
   }
 });

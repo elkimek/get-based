@@ -6,6 +6,19 @@ function affected(changes: Partial<TestPlan> = {}): TestPlan {
   return {changedFiles: [], reasons: [], checks: [], unit: [], legacy: [], browser: [], firefox: [], pwa: [], kit: [], performance: false, sync: false, uncovered: [], ...changes};
 }
 describe('isolated CI matrix selection', () => {
+  it('sizes a broad scoped Chromium selection like the full native matrix', () => {
+    const browser = Array.from({length: 480}, (_, index) => `tests/playwright/fixture-${index}.spec.ts`);
+    const plan = createCiPlan(false, affected({browser}));
+    expect(plan.nativeMatrix.include.map(lane => lane.shard))
+      .toEqual(['1/8', '2/8', '3/8', '4/8', '5/8', '6/8', '7/8', '8/8']);
+    for (const lane of plan.nativeMatrix.include) {
+      const {command} = nativeLaneCommand(plan, lane.id);
+      expect(command.filter(argument => argument.endsWith('.spec.ts'))).toEqual(browser);
+      expect(command).toContain(`--shard=${lane.shard}`);
+      expect(lane.coverage).toBe(false);
+    }
+  });
+
   it('covers the complete native and four-project Kit families on full runs', () => {
     const plan = createCiPlan(true, null);
     expect(plan.nativeMatrix.include.filter(lane => lane.suite === 'browser').map(lane => lane.shard))
