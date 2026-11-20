@@ -308,7 +308,7 @@ export function buildBackupSnapshot(): BackupSnapshot | null {
     const profileIds = new Set<string>();
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      const match = key && key.match(/^labcharts-(.+)-imported$/);
+      const match = key && key.match(/^labcharts-(.+)-(?:imported|persona-transaction-pending)$/);
       if (match) profileIds.add(match[1]!);
     }
     for (const pid of profileIds) {

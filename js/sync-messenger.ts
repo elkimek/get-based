@@ -483,13 +483,14 @@ export async function queueMessengerRevocation(token: string | null | undefined,
   return key;
 }
 
-async function sendQueuedRevocations() {
+async function sendQueuedRevocations(origin?: AgentAccessOperationOrigin) {
   await contextPushDone;
-  const keys = Object.keys(localStorage).filter(key => key.startsWith(REVOCATION_PREFIX));
+  const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+    .filter((key): key is string => key !== null && key.startsWith(REVOCATION_PREFIX));
   if (!keys.length) return true;
   const { encryptedGetItem, encryptedRemoveItem } = await import('./crypto.js');
-  const owner = currentAppOwner();
-  const relay = currentSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+  const owner = origin ? origin.owner : currentAppOwner();
+  const relay = origin?.relay ?? currentSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
   const results = await Promise.all(keys.map(async key => {
     try {
       const raw = await encryptedGetItem(key, { throwOnDecryptError: true });
@@ -518,16 +519,24 @@ async function sendQueuedRevocations() {
   return results.every(Boolean);
 }
 
-export function flushQueuedMessengerRevocations() {
-  if (!revocationsInFlight) {
-    revocationsInFlight = sendQueuedRevocations().catch(() => false).finally(() => { revocationsInFlight = null; });
-  }
-  return revocationsInFlight;
+export function flushQueuedMessengerRevocations(scope?: AgentAccessOperationScope) {
+  const origin = scope && operationOrigins.get(scope);
+  if (revocationsInFlight && !origin) return revocationsInFlight;
+  // A committed change can finish after the user switches Sync identity.
+  // Use its captured signing authority for this attempt. Future retries
+  // still require a matching active owner and relay.
+  const operation = (revocationsInFlight ?? Promise.resolve(true))
+    .then(() => sendQueuedRevocations(origin))
+    .catch(() => false)
+    .finally(() => { if (revocationsInFlight === operation) revocationsInFlight = null; });
+  revocationsInFlight = operation;
+  return operation;
 }
 
 export async function revokeMessengerTokenRemote(token: string | null | undefined, scope?: AgentAccessOperationScope) {
-  await queueMessengerRevocation(token, scope);
-  return flushQueuedMessengerRevocations();
+  const origin = scope ?? captureAgentAccessOperationScope();
+  await queueMessengerRevocation(token, origin);
+  return flushQueuedMessengerRevocations(origin);
 }
 
 export function generateMessengerToken() {

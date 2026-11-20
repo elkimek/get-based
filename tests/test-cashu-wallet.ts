@@ -154,7 +154,7 @@ assert('MAX_WALLET_BALANCE safety cap', walletSrc.includes('MAX_WALLET_BALANCE')
 // ═══════════════════════════════════════
 console.log('4. Proof Management');
 
-assert('Proofs stored in IndexedDB', walletStoreSrc.includes('indexedDB.open('));
+assert('Proofs stored in IndexedDB', walletStoreSrc.includes('const factory = indexedDB') && walletStoreSrc.includes('factory.open(DB_NAME, DB_VERSION)'));
 assert('Proofs tagged with _mint for namespacing', payloadsSrc.includes('_mint: _normalizeMintUrl(mintUrl)'));
 assert('Legacy untagged proofs migrated', walletStoreSrc.includes('_migrateUntaggedProofs'));
 assert('Fee proofs stored separately', walletStoreSrc.includes('STORE_FEES'));

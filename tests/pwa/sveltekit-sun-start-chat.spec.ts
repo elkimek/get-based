@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
 import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
 import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
-import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
+import { activate, artifactInputs, cacheReceipt, profile, resumePausedArtifactChat } from './kit-native-receipts.js';
 import { installOfflineSunWeatherFixture } from '../helpers/sun-weather-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
@@ -15,10 +15,6 @@ const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-health-dat
   'js/light-active-session-presentation.js', 'js/sun-session-model.js', 'js/sun-sessions-store.js', 'js/sun-active-session.js', 'js/sun.js', 'js/sun-session-ui.js', 'js/sun-setup-store.js',
   'js/sun-spectrum.js', 'js/sun-uvdata.js', 'js/sun-uvdata-atmosphere.js', 'js/light-session-presentation.js', 'js/light-session-detail-presentation.js',
   'js/components/LightActiveSession.svelte', 'js/components/LightLiveReadouts.svelte', 'js/components/ChatAgentDraftCards.svelte', 'js/components/LightSessionRow.svelte', 'js/components/LightSessionDetail.svelte'] as const;
-async function openChat(page: Page) {
-  if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
-  await expect(page.locator('#chat-input')).toBeVisible();
-}
 test('Chat refuses live Sun starts and stops while preserving reported and unknown inputs through a stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000); const artifact = await artifactInputs(owners, []);
   const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as ProfileData;
@@ -66,7 +62,7 @@ test('Chat refuses live Sun starts and stops while preserving reported and unkno
   page.on('pageerror', error => errors.push(error.message)); const server = await startKitServer(process.env.GETBASED_KIT_ARTIFACT || '.local-notes/sveltekit-build'); let stopped = false;
   try {
     await ready(page, server.origin); receipts.before = await profile(page, artifact.state); const baseline = receipts.before.stored as ProfileData; server.state.offline = true;
-    await openChat(page); await activate(page, page.locator('[data-chat-empty-action="resume-ai"]'));
+    await resumePausedArtifactChat(page);
     const weatherBefore = weatherCalls();
     // Timer success remains covered by light-active and sun-entry. These chat
     // attempts must never start, stop or materialize a session, even after review.

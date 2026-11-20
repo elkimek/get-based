@@ -402,8 +402,8 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
         if (json.manualBodyReadings && typeof json.manualBodyReadings === 'object' && !Array.isArray(json.manualBodyReadings)) {
           const target = state.importedData.manualBodyReadings || (state.importedData.manualBodyReadings = {});
           for (const [key, value] of Object.entries(json.manualBodyReadings)) {
-            if (['__proto__', 'constructor', 'prototype'].includes(key)) continue;
-            if (!Object.hasOwn(target, key)) target[key] = value as import('../types/app-state.js').ManualBodyReading;
+            const entry = manual?.parseManualMirrorEntry(key, value);
+            if (entry && !Object.hasOwn(target, key)) target[key] = {value: entry.value, updatedAt: entry.updatedAt};
           }
         }
         if (json.manualMetricTombstones && typeof json.manualMetricTombstones === 'object'

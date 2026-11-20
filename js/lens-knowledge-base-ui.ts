@@ -476,8 +476,11 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
           const extracted = await extractFromFile(f, extraction);
           for (const e of extracted) files.push(e);
         } catch (err) {
-          if (isLensExtractionStop(err) && !lensWindow._lensIngestStopRequested) throw err;
-          console.warn('[lens-local] extract failed:', f.name, err);
+          if (isLensExtractionStop(err)) {
+            if (!lensWindow._lensIngestStopRequested) throw err;
+          } else {
+            console.warn('[lens-local] extract failed:', f.name, err);
+          }
         }
         if (lensWindow._lensIngestStopRequested) {
           const stopped = 'Stopped before indexing — no library changes were saved.';

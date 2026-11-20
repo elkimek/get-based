@@ -1,3 +1,6 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { createNewMintKeys } from '@cashu/cashu-ts';
 import type { BrowserContext, Page } from '@playwright/test';
 import { makeTestInvoice } from '../fixtures/lightning-invoices.js';
@@ -66,4 +69,37 @@ export async function seedStaticWalletMints(page: Page): Promise<string> {
       }); } finally { db.close(); }
     }, { mint, other, C, id: synthetic.keysetId });
   return synthetic.keysetId;
+}
+
+
+const walletStorePaths = new Map<string, string>();
+function walletStorePath() {
+  const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
+  const cached = walletStorePaths.get(artifact);
+  if (cached) return cached;
+  const directory = path.join(artifact, '_app/immutable/chunks');
+  const maps = fs.readdirSync(directory).filter(name => {
+    if (!name.endsWith('.js.map')) return false;
+    const manifest = JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8')) as { sources: string[] };
+    return manifest.sources.some(source => source.endsWith('/js/cashu-wallet-store.js'));
+  });
+  assert.equal(maps.length, 1, 'Expected one canonical Cashu wallet store in the shipping artifact');
+  const url = '/_app/immutable/chunks/' + maps[0]!.slice(0, -4);
+  walletStorePaths.set(artifact, url);
+  return url;
+}
+
+export async function readWalletMetaRecords(page: Page, prefix: string) {
+  return page.evaluate(async ({ url, prefix }) => {
+    type WalletStore = Pick<typeof import('../../js/cashu-wallet-store.js'), '_getMetaEntries'>;
+    const chunk: Record<string, unknown> = await import(url);
+    const store = Object.values(chunk).find((value): value is WalletStore =>
+      !!value && typeof value === 'object' && '_getMetaEntries' in value && typeof value._getMetaEntries === 'function');
+    if (!store) throw new Error('Shipping Cashu wallet store namespace missing');
+    return store._getMetaEntries(prefix);
+  }, { url: walletStorePath(), prefix });
+}
+
+export async function readWalletMetaValue(page: Page, key: string) {
+  return (await readWalletMetaRecords(page, key)).find(record => record.key === key)?.value ?? null;
 }

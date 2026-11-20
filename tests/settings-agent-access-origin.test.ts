@@ -31,7 +31,8 @@ function mountPanel() {
 function deferSave() {
   let resolve!: (saved: boolean) => void;
   vi.mocked(saveImportedData).mockImplementationOnce(() => new Promise<boolean>(done => { resolve = done; }));
-  return (saved: boolean) => resolve(saved);
+  const started = () => vi.waitFor(() => expect(resolve).toBeTypeOf('function'));
+  return Object.assign((saved: boolean) => resolve(saved), { started });
 }
 beforeEach(() => {
   vi.clearAllMocks(); vi.mocked(saveImportedData).mockResolvedValue(true);
@@ -53,6 +54,7 @@ afterEach(() => {
 describe('origin ownership of Agent Access saves', () => {
   it.each([regenerateMessengerToken, regenerateMessengerContextKey, () => toggleMessenger(false)])('rolls a failed change back into its origin while preserving the new profile', async change => {
     mountPanel(); const origin = state.importedData; const finish = deferSave(); const pending = change();
+    await finish.started();
     origin.entries.push({ date: '2026-01-01', markers: { 'biochemistry.glucose': 5 } });
     const other = { ...original, entries: [], contextNotes: 'Other profile draft', agentAccess: { version: 1, enabled: true, token: 'c'.repeat(64), contextKey: 'd'.repeat(48) } };
     state.currentProfile = 'other-profile'; state.importedData = other;
@@ -67,6 +69,7 @@ describe('origin ownership of Agent Access saves', () => {
 
   it('retains concurrent unrelated edits and a newer synced credential after failed regeneration', async () => {
     mountPanel(); const finish = deferSave(); const pending = regenerateMessengerToken();
+    await finish.started();
     state.importedData.contextNotes = 'Unsaved note';
     const live = state.importedData.agentAccess as Record<string, unknown>;
     live.token = 'c'.repeat(64); live.updatedAt = 999; live.remoteMetadata = 'Later sync';
@@ -79,6 +82,7 @@ describe('origin ownership of Agent Access saves', () => {
 
   it('blocks overlapping changes and copying provisional credentials, then releases the UI for retry', async () => {
     mountPanel(); const finish = deferSave(); const pending = regenerateMessengerToken();
+    await finish.started();
     for (const selector of ['[data-sync-action="toggle-messenger"]', '[data-sync-action="regenerate-messenger-context-key"]', '[data-sync-action="set-agent-wearable-series-days"]', '[data-sync-action="copy-messenger-token"]', '[data-sync-action="copy-agent-access-setup-command"]']) {
       expect(document.querySelector<HTMLInputElement>(selector)!.disabled).toBe(true);
     }
@@ -94,6 +98,7 @@ describe('origin ownership of Agent Access saves', () => {
 
   it('allows another profile to save while an earlier profile mutation is pending', async () => {
     mountPanel(); const origin = state.importedData; const finish = deferSave(); const pending = regenerateMessengerContextKey();
+    await finish.started();
     state.currentProfile = 'other-profile';
     state.importedData = { ...original, entries: [], agentAccess: { version: 1, enabled: true, token: 'c'.repeat(64), contextKey: 'd'.repeat(48) } };
     await regenerateMessengerContextKey();
@@ -106,6 +111,7 @@ describe('origin ownership of Agent Access saves', () => {
 
   it('revokes with the initiating profile, relay and copied signing key after identity/profile replacement', async () => {
     mountPanel(); const finish = deferSave(); const pending = regenerateMessengerToken();
+    await finish.started();
     ownerId = 'new-owner'; ownerKey.fill(8); relay = 'wss://new.example.test';
     state.currentProfile = 'other-profile'; state.importedData = { ...original, entries: [], agentAccess: null };
     finish(true); await pending;

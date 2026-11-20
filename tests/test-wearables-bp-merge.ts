@@ -35,10 +35,10 @@ const wearablesActionsSrc = read('js/wearables-strip-actions.js').replace(/\s+/g
 // ═══════════════════════════════════════
 console.log('1. Strip filter');
 
-assert('renderWearableStrip flags hasSys before the displayOrder loop',
-  /const hasSys = !!summary\.metrics\?\.bp_systolic/.test(wearablesSrc));
-assert('displayOrder loop skips bp_diastolic when hasSys is true',
-  /if \(id === 'bp_diastolic' && hasSys\) continue/.test(wearablesSrc));
+assert('renderWearableStrip checks cuff observation identity before the displayOrder loop',
+  /const pairedBP = sameBloodPressureObservation\(summary\.metrics\?\.bp_systolic, summary\.metrics\?\.bp_diastolic\)/.test(wearablesSrc));
+assert('displayOrder loop skips bp_diastolic only for the same BP observation',
+  /if \(id === 'bp_diastolic' && pairedBP\) continue/.test(wearablesSrc));
 
 // ═══════════════════════════════════════
 // 2. renderCard receives pairedMetric for BP
@@ -46,7 +46,7 @@ assert('displayOrder loop skips bp_diastolic when hasSys is true',
 console.log('2. renderCard pairing');
 
 assert('Caller passes pairedMetric when rendering bp_systolic',
-  /const pairedMetric = \(metricId === 'bp_systolic'\) \? summary\.metrics\?\.bp_diastolic : null/.test(wearablesSrc));
+  /const pairedMetric = \(metricId === 'bp_systolic' && pairedBP\) \? summary\.metrics\?\.bp_diastolic : null/.test(wearablesSrc));
 assert('renderCard accepts an opts arg with pairedMetric',
   /function projectCard\(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = \{\}\)/.test(wearablesSrc));
 assert('renderCard derives isBPCard from metricId + pairedMetric',
@@ -67,8 +67,8 @@ assert("Aria-label uses 'Blood pressure' for the paired card",
 // ═══════════════════════════════════════
 console.log('3. Reorder filter');
 
-assert('moveWearableCard mirrors the same dia-skip when sys present',
-  /const hasSysLocal = !!summary\.metrics\?\.bp_systolic[\s\S]{0,400}if \(id === 'bp_diastolic' && hasSysLocal\) continue/.test(wearablesActionsSrc));
+assert('moveWearableCard mirrors the same confirmed-pair filter',
+  /const pairedBP = sameBloodPressureObservation\(summary\.metrics\?\.bp_systolic, summary\.metrics\?\.bp_diastolic\)[\s\S]{0,400}if \(id === 'bp_diastolic' && pairedBP\) continue/.test(wearablesActionsSrc));
 
 // ═══════════════════════════════════════
 // 4. BP form idempotency (the dia-click bug fix) — source asserts

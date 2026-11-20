@@ -20,7 +20,7 @@ it('retains the model owner and field identity across discovery and disclosure r
 it('dispatches the shared master toggle once while preventing a legacy change delegate', () => {
   const toggle=vi.fn(); const actions={ scan:vi.fn(),platform:vi.fn(),copy:vi.fn(),login:vi.fn(),test:vi.fn(),toggle,disclose:vi.fn(),control:vi.fn() };
   cliSettingsFixture([agent],'direct',actions); const delegated=vi.fn(); document.body.addEventListener('change',delegated,{ once:true });
-  flushSync(() => document.querySelector<HTMLInputElement>('input')!.click()); expect(toggle).toHaveBeenCalledExactlyOnceWith(true,'codex'); expect(delegated).not.toHaveBeenCalled();
+  flushSync(() => document.querySelector<HTMLInputElement>('[data-settings-action="toggle-cli-codex"]')!.click()); expect(toggle).toHaveBeenCalledExactlyOnceWith(true,'codex'); expect(delegated).not.toHaveBeenCalled();
   document.body.removeEventListener('change',delegated);
 });
 it('rejects retained callbacks and stale refreshes without disposing a replacement model owner', () => {

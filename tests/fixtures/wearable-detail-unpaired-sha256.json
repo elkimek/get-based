@@ -1,0 +1,24 @@
+{
+  "BP paired different sources": {
+    "assignments": "35c7d092aa1a6e2ca9f8de89f69e7da116ada04c4b85afba45f88e7fc6c41150",
+    "dom": "cf2d2ce7962607fd9e1146f26022b3e78520edb5b51f5ddb8efad01b54779676",
+    "actions": "22d123d0a6f432a6bcb72064b067386ddca160c8afa2eeb176aca7445d3a57ac",
+    "trace": "a8abfab11575bda126226be4df4e4a55c3049d39cc2fb0c4f68790fe56c05da4",
+    "chartCalls": "04ba380df02f0874c6cdd47192f664e7eb4c7f779e11cc5c61afb1b8701055d6"
+  },
+  "BP split summary dates": {
+    "assignments": "d53ea6a1a1fa8ce2a508ef472d3eaf709f69ae141eb2da6d647b7b48f4c07643",
+    "dom": "4f52f6670f8ef2bd904fd0f4e9776c59fbf21d145ebff0fc429673526080c8f9"
+  },
+  "BP incomplete summary dates": {
+    "assignments": "e00a2a3d7e235005cc8a4967139f69d459892a2cf1b5c9ab90fe506250f0aaa9",
+    "dom": "3b1083d6c82e765140fd65cad6502388715f45aec1cd455827f5860a2bfa0a36"
+  },
+  "BP manual pair and source swap": {
+    "assignments": "d43fdc213d3b9bd4b0052f0bac1a3eb4d2bb8432b0a32e6732e2672914499248",
+    "dom": "2ac2e02f6df0eeee51f76b3c84ddb5e63e00970172d31b625f390de15a8a245d",
+    "actions": "cc84d0e644961be133bba75d28a08040ec675e71dcc39b2321874a3b775ad397",
+    "trace": "a8abfab11575bda126226be4df4e4a55c3049d39cc2fb0c4f68790fe56c05da4",
+    "chartCalls": "9447e66ef552c349ff74f038a3085aa973db645b34fbe82ccff9407d206b5c01"
+  }
+}

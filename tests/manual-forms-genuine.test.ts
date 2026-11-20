@@ -22,7 +22,15 @@ function input(spec:typeof native[number]['spec']):ManualEntryInput {
   closeAction:()=>({action:'show-detail-modal',id:spec.id}),saveAction:()=>({action:'save-manual-entry',id:spec.id}),addAction:()=>({action:'save-and-add-manual-entry',id:spec.id}),cancelAction:()=>({action:'show-detail-modal',id:spec.id})};
 }
 it.each(native)('retains complete native form tree, ordered fields/defaults/attributes and literal values: $name',record=>{
- expect(tree(box(renderManualMarkerEntry(input(record.spec))))).toEqual(tree(box(record.html)));
+ const valueField = '      <div class="me-field">\n        <label for="me-value">';
+ const collectionField = `      <div class="me-field" id="me-sample-field" hidden>
+        <label for="me-sample">Collection</label>
+        <select id="me-sample"></select>
+      </div>
+`;
+ expect(record.html.split(valueField)).toHaveLength(2);
+ const expected = record.html.replace(valueField, collectionField + valueField);
+ expect(tree(box(renderManualMarkerEntry(input(record.spec))))).toEqual(tree(box(expected)));
 });
 it.each(['category','close','name','unit','save','add','cancel'])('retains the current first failure at %s without producing a partial form',fault=>{
  const expected=['category','close','name','unit','save','add','cancel'],trace:string[]=[];

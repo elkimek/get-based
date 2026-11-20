@@ -176,7 +176,10 @@ export async function fetchWithingsDailyRange(accessToken: string, startDate: st
     withingsPages('getmeas', accessToken, { ...measureParams, category: '1' }),
     withingsPages('getsummary', accessToken, { ...sleepParams, data_fields: SLEEP_DATA_FIELDS }),
   ]);
-  if (measureResult.status === 'rejected' && sleepResult.status === 'rejected') throw measureResult.reason;
+  if (measureResult.status === 'rejected' && sleepResult.status === 'rejected') {
+    // A verified expired token must reach the caller's refresh path even when the other stream is unavailable.
+    throw getErrorStatus(sleepResult.reason) === 401 ? sleepResult.reason : measureResult.reason;
+  }
   if (measureResult.status === 'rejected') logDebug('getmeas', measureResult.reason);
   if (sleepResult.status === 'rejected') logDebug('getsummary', sleepResult.reason);
   const meas = measureResult.status === 'fulfilled' ? measureResult.value : null;

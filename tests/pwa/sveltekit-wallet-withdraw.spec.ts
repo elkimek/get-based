@@ -3,7 +3,7 @@ import { getDecodedToken } from '@cashu/cashu-ts';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-release-server.js';
 import { prepareStaticWithdraw } from './withdraw-static-fixture.js';
-import { seedStaticWalletMints } from './wallet-static-fixture.js';
+import { readWalletMetaValue, seedStaticWalletMints } from './wallet-static-fixture.js';
 import { makeTestInvoice } from '../fixtures/lightning-invoices.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true); }
@@ -14,7 +14,7 @@ async function wallet(page: Page) {
   await page.locator('#settings-nav-ai').click();
 }
 async function withdraw(page: Page) { await page.locator('[data-routstr-wallet-action="toggle-wallet-menu"]').click(); await page.locator('[data-wallet-action="withdraw"]').click(); await expect(page.locator('[data-wallet-withdraw-view]')).toBeVisible(); }
-async function journal(page: Page) { return page.evaluate(async () => { const db = await new Promise<IDBDatabase>((resolve, reject) => { const req = indexedDB.open('getbased-cashu', 2); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); try { return await new Promise<unknown>((resolve, reject) => { const req = db.transaction('meta', 'readonly').objectStore('meta').get('pendingWithdraw'); req.onsuccess = () => resolve(req.result?.value); req.onerror = () => reject(req.error); }); } finally { db.close(); } }); }
+function journal(page: Page) { return readWalletMetaValue(page, 'pendingWithdraw'); }
 test('wallet withdrawal uses actual static SDK tokens and journals through close cold recovery and uncertain payment', async ({ page, context }) => {
   test.setTimeout(120_000); const synthetic = await prepareStaticWithdraw(context); const server = await startKitServer(artifact, [synthetic.handleRequest]); const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   try {

@@ -1,3 +1,5 @@
+import { hasManualBodyReadings, parseManualMirrorEntry } from './manual-reading-fields.js';
+
 // Portable client records can leave the device independently of a full backup.
 // Adding a field here deliberately makes it available to recipients.
 const fields = [
@@ -19,7 +21,15 @@ const fields = [
 export function projectPortableProfileData(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid profile data.');
   const record = value as Record<string, unknown>;
-  return Object.fromEntries(fields.filter(key => Object.hasOwn(record, key)).map(key => [key, record[key]]));
+  const portable = Object.fromEntries(fields.filter(key => Object.hasOwn(record, key)).map(key => [key, record[key]]));
+  if (Object.hasOwn(portable, 'manualBodyReadings')) {
+    const mirror = portable.manualBodyReadings;
+    portable.manualBodyReadings = Object.fromEntries(Object.entries(mirror && typeof mirror === 'object' && !Array.isArray(mirror) ? mirror : {}).flatMap(([key, raw]) => {
+      const entry = parseManualMirrorEntry(key, raw);
+      return entry ? [[key, {value: entry.value, updatedAt: entry.updatedAt}]] : [];
+    }));
+  }
+  return portable;
 }
 
 export function readStoredPortableProfile(raw: string | null): Record<string, unknown> {
@@ -33,6 +43,7 @@ export function readStoredPortableProfile(raw: string | null): Record<string, un
 export function hasPortableProfileContent(data: Record<string, unknown>) {
   return fields.some(key => {
     if (key === 'nutritionContextDays') return false;
+    if (key === 'manualBodyReadings') return hasManualBodyReadings(data[key]);
     const value = data[key];
     return typeof value === 'object' && value !== null ? Object.keys(value).length > 0 : Boolean(value);
   });

@@ -58,7 +58,12 @@ it('prepares faithful collection changes without disclosing source evidence or w
   expect(JSON.stringify({ snapshot, draft })).not.toMatch(/\/private|report\.pdf|private-source/); expect(await storage.encryptedGetItem(key)).toBe(raw);
   const review = JSON.stringify(projectAgentDraftCards({ agentDrafts: [draft] })); expect(review).toContain('every result'); expect(review).toContain('09:30'); expect(review).toContain('plasma');
   await applyAgentDraft(draft); const saved = await stored(); expect(saved.entries[0]!.context).toEqual({ sampleTime: '09:30', fasting: false, cyclePhase: 'follicular' }); expect(saved.entries[0]!.specimen).toBe('plasma');
-  expect(saved.entries[0]!.markers).toEqual(JSON.parse(raw!).entries[0].markers); expect(saved.entries[0]!.markerSources).toEqual(JSON.parse(raw!).entries[0].markerSources); expect(saved.entries[0]!.extension).toEqual({ keep: 'Opaque' }); expect(saved.entries[1]).toEqual(JSON.parse(raw!).entries[1]);
+  const originalEntry = JSON.parse(raw!).entries[0];
+  expect(originalEntry.markers['diabetes.homaIR']).toBe(2.22);
+  delete originalEntry.markers['diabetes.homaIR'];
+  delete originalEntry.markerSources['diabetes.homaIR'];
+  expect(saved.entries[0]!.markers).toEqual(originalEntry.markers);
+  expect(saved.entries[0]!.markerSources).toEqual(originalEntry.markerSources); expect(saved.entries[0]!.extension).toEqual({ keep: 'Opaque' }); expect(saved.entries[1]).toEqual(JSON.parse(raw!).entries[1]);
   expect(saved.entries[0]!.collectionOriginals).toMatchObject({ sampleTime: { value: '08:00', sourceSnapshotId: 'private-source' }, fasting: { value: true } }); expect(saved.entries[0]!.collectionContextSources).toBeUndefined();
 });
 it('creates a deliberately separate sample with frozen converted amounts and unknown collection facts', async () => {

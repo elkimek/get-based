@@ -60,7 +60,7 @@ assert('isRecommendedModel handles custom Fable 5.2', api.isRecommendedModel('cu
 assert('isRecommendedModel handles custom Gemini 4 Neon', api.isRecommendedModel('custom', 'gemini-4-neon'));
 assert('Custom Gemini 4 Hydrogen is outside Recommended', !api.isRecommendedModel('custom', 'gemini-4-hydrogen'));
 assert('isRecommendedModel handles custom GLM 5.3 Flash and Kimi K3', apiModelsSrc.includes('glm-5-3-flash') && apiModelsSrc.includes('kimi-k3'));
-assert('callClaudeAPI handles custom', /provider === 'custom'\)\s+return callCustomAPI\(/.test(apiSrc));
+assert('callClaudeAPI handles custom', apiSrc.includes('custom: async () => (await loadCustomApi()).callCustomAPI') && apiSrc.includes('dispatch({ ...opts, requestCurrent })'));
 assert('supportsWebSearch false for custom', /provider === 'custom'\)\s+return false/.test(apiModelsSrc));
 assert('supportsVision true for custom', /provider === 'custom'\)\s+return true/.test(apiModelsSrc));
 assert('callCustomAPI routes through shared provider transport',

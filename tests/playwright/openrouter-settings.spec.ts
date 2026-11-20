@@ -1,3 +1,4 @@
+import {authorizeMockCompanion} from '../helpers/companion-pairing-browser.js';
 import { expect, test } from './coverage-fixture.js';
 
 test('OpenRouter provider controls render from Settings AI', async ({ page }) => {
@@ -177,6 +178,7 @@ test('CLI provider discovers branded agents and keeps model controls stable acro
   });
   await page.goto('/app', { waitUntil: 'load' });
   await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await authorizeMockCompanion(page, endpoint, token);
   await expect(page.locator('body')).not.toHaveClass(/\bchat-autostart-reserved\b/);
   await page.evaluate(async () => {
     (window as unknown as {endTour?:()=>unknown}).endTour?.();

@@ -70,6 +70,8 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
     await expect(dialog).toBeVisible(); await dialog.getByRole('textbox').fill('Original'); await activate(page, dialog.getByRole('button', { name: 'Save audit', exact: true })); await expect(dialog).not.toBeVisible();
     await expect(page.locator('.light-audit-card')).toContainText('Original');
     await activate(page, page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true }).getByRole('button', { name: 'Close', exact: true }));
+    const menu = page.getByRole('button', { name: 'Menu', exact: true });
+    if (await menu.isVisible()) await activate(page, menu);
     await activate(page, page.locator('[data-nav-action="navigate"][data-nav-route="body"]')); await expect(page.locator('.lens-page-header h2')).toHaveText('Biometrics');
     receipts.before = await profile(page, artifact.state); const initial = receipts.before.stored as ProfileData;
     await openChat(page, { paused: true }); await activate(page, page.locator('[data-chat-empty-action="resume-ai"]'));
@@ -86,7 +88,9 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
         await openAssessment(page); await activate(page, page.locator('[data-light-env-action="save-audit"]'));
         const native = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Save audit', exact: true }) }); await expect(native).toBeVisible();
         await native.getByRole('textbox').fill('After correction'); await activate(page, native.getByRole('button', { name: 'Save audit', exact: true })); await expect(native).not.toBeVisible();
-        checkpointId = ((await profile(page, artifact.state)).stored as ProfileData).lightAudits!.find(row => row.label === 'After correction')!.id;
+        const savedCheckpoint = async () => ((await profile(page, artifact.state)).stored as ProfileData).lightAudits?.find(row => row.label === 'After correction');
+        await expect.poll(async () => (await savedCheckpoint())?.id).toBeTruthy();
+        checkpointId = (await savedCheckpoint())!.id;
         await expect.poll(async () => ((await profile(page, artifact.state)).stored as ProfileData).lightAudits?.find(row => row.id === checkpointId)?.aiAnalysis?.status).toBe('ok');
         receipts.checkpoint = await profile(page, artifact.state);
         await openChat(page); continue;

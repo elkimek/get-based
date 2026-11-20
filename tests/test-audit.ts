@@ -1029,7 +1029,7 @@ assert('Light page sun data source avoids inline card styling',
   !/<details[^>]*class="light-data-source-details[^>]*style=/.test(lightMethodsComponent));
 assert('Light channel pills use redesigned channel tile treatment',
   channelPillClasses.includes('[grid-template-columns:repeat(auto-fit,_minmax(min(174px,_100%),_1fr))]') &&
-  channelPillClasses.includes("[grid-template-areas:'icon_label_count'_'icon_spark_spark']") &&
+  channelPillClasses.includes("[grid-template-areas:'icon_label'_'spark_count']") &&
   channelPillClasses.includes('[box-shadow:inset_3px_0_0') &&
   channelPillClasses.includes('violet_eye:') && channelPillClasses.includes('[--channel-accent:var(--purple)]'));
 assert('Light channel detail charts inherit activated channel accent',

@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 2104 |
-| Internal import edges | 7099 |
+| Internal import edges | 7100 |
 | Dynamic internal edges | 224 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -4237,7 +4237,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>portable</code> family — 2 modules</summary>
 
-- [`js/portable-profile-data.ts`](js/portable-profile-data.ts) → no in-scope imports
+- [`js/portable-profile-data.ts`](js/portable-profile-data.ts) → [`js/manual-reading-fields.ts`](js/manual-reading-fields.ts)
 - [`js/portable-profile-import.ts`](js/portable-profile-import.ts) → [`js/custom-marker-lifecycle.ts`](js/custom-marker-lifecycle.ts), [`js/data.ts`](js/data.ts), [`js/portable-profile-data.ts`](js/portable-profile-data.ts), [`js/profile.ts`](js/profile.ts)
 
 </details>

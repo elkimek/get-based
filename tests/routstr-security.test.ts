@@ -3,7 +3,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import type {Mock} from 'vitest';
 type JournalFixtureRead = Record<string, unknown> & {localInputs: {secret?: unknown}[]; outputs: {blindedMessage: {B_: string}}[]};
 type MetaRowFixtureRead = {key: string; value: JournalFixtureRead};
-import { IDBFactory, IDBObjectStore } from 'fake-indexeddb';
+import { IDBFactory } from 'fake-indexeddb';
 import { installCashuStub, loadWallet, proof, readIdbMeta, readIdbStore, jsonResponse } from './helpers/cashu-wallet.js';
 import { makeTestInvoice, LNURL_METADATA } from './fixtures/lightning-invoices.js';
 import { configureApiProviderStorageRuntimeDeps } from '../js/api-provider-storage-runtime.js';
@@ -232,12 +232,14 @@ describe('Routstr security boundaries', () => {
   it('a rejected incoming token leaves existing funds usable and reuses its prepared outputs on retry', async () => {
     const wallet = await funded(); stub.failReceive = true;
     await expect(wallet.receiveToken('cashuAbad')).rejects.toThrow('receive failed');
-    const before = (await readIdbStore('meta') as MetaRowFixtureRead[]).find(r => r.key.startsWith('pendingReceive:'));
+    const store = await import('../js/cashu-wallet-store.js');
+    const [before] = await store._getMetaEntries<JournalFixtureRead>('pendingReceive:');
+    if (!before?.value) throw new Error('Expected the recoverable incoming token journal.');
     await expect(wallet.sendAsToken(1)).resolves.toMatchObject({ remaining: 99 });
     stub.failReceive = false;
     await wallet.receiveToken('cashuAbad');
-    expect(stub.signatures.has(before!.value.outputs[0]!.blindedMessage.B_)).toBe(true);
-    expect((await readIdbStore('meta') as MetaRowFixtureRead[]).find(r => r.key === before!.key)).toBeUndefined();
+    expect(stub.signatures.has(before.value.outputs[0]!.blindedMessage.B_)).toBe(true);
+    expect((await readIdbStore('meta') as MetaRowFixtureRead[]).find(r => r.key === before.key)).toBeUndefined();
   });
   it('preserves a spent-token import and node refund across mint selection and reload without retrying them', async () => {
     const wallet = await funded(5);
@@ -502,14 +504,14 @@ describe('Routstr security boundaries', () => {
   it('retries receipt of a returned refund after its final save failed without another refund request', async () => {
     const wallet = await funded();
     await saveRoutstrSessionKey('sk-old', NODE);
-    const put = IDBObjectStore.prototype.put;
-    const fail = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function(this: IDBObjectStore, value: { key?: unknown; value?: { token?: unknown } }, ...args: Parameters<IDBObjectStore['put']> extends [unknown, ...infer Rest] ? Rest : never) {
-      if (value.key === 'pendingNodeRefund' && value.value?.token) throw new Error('quota full');
-      return put.call(this, value, ...args);
+    let refundReturned = false;
+    stub.failMetaWrite = key => refundReturned && key === 'pendingNodeRefund';
+    globalThis.fetch = vi.fn(async () => {
+      refundReturned = true;
+      return jsonResponse({ token: 'cashuAreturned' });
     });
-    globalThis.fetch = vi.fn(async () => jsonResponse({ token: 'cashuAreturned' }));
     await expect(wallet.refundNodeToToken(NODE)).rejects.toMatchObject({ recoveryToken: 'cashuAreturned', recoveryId: 'pendingNodeRefund', nodeUrl: NODE });
-    fail.mockRestore();
+    stub.failMetaWrite = null;
     const pending = (await wallet.getPendingNodeRefunds(NODE))[0]!;
     await wallet.startNewNodeSession(NODE);
     await saveRoutstrSessionKey('sk-new', NODE);
@@ -750,17 +752,13 @@ describe('Routstr security boundaries', () => {
     await store._deleteMeta(entry!.key);
     await saveRoutstrSessionKey('sk-current', NODE);
     const proofs = await readIdbStore('proofs');
-    const put = IDBObjectStore.prototype.put;
-    const fail = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function(this: IDBObjectStore, value: { key?: unknown }, ...args: Parameters<IDBObjectStore['put']> extends [unknown, ...infer Rest] ? Rest : never) {
-      if (String(value.key).startsWith('pendingReceive:')) throw new Error('quota full');
-      return put.call(this, value, ...args);
-    });
+    stub.failMetaWrite = key => key.startsWith('pendingReceive:');
     await expect(wallet.refundNodeToToken(NODE)).rejects.toThrow('quota full');
     expect(await readIdbMeta('pendingSwap')).toEqual(entry!.value);
     expect(await store._getMetaEntries('pendingReceive:')).toEqual([]);
     expect(await readIdbStore('proofs')).toEqual(proofs);
     expect(fetch).not.toHaveBeenCalled();
-    fail.mockRestore();
+    stub.failMetaWrite = null;
     globalThis.fetch = vi.fn(async () => jsonResponse({ token: 'cashuAcurrent-refund' }));
     await wallet.refundNodeToToken(NODE);
     expect(await readIdbMeta('pendingSwap')).toBeNull();
@@ -810,23 +808,19 @@ describe('Routstr security boundaries', () => {
 
   it('blocks a node refund before HTTP if durable storage is unavailable', async () => {
     const wallet = await funded(); await saveRoutstrSessionKey('sk-node', NODE);
-    const put = IDBObjectStore.prototype.put;
-    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function(this: IDBObjectStore, value: {key?: unknown; value?: {token?: unknown}}, ...args: Parameters<IDBObjectStore['put']> extends [unknown, ...infer Rest] ? Rest : never) {
-      if (value.key === 'pendingNodeRefund') throw new Error('quota full');
-      return put.call(this, value, ...args);
-    });
+    stub.failMetaWrite = key => key === 'pendingNodeRefund';
     await expect(wallet.refundNodeToToken(NODE)).rejects.toThrow('quota full');
     expect(fetch).not.toHaveBeenCalled();
   });
   it('keeps refunds independent of outgoing tokens and exposes tokens when post-refund storage fails', async () => {
     const wallet = await funded(); await saveRoutstrSessionKey('sk-node', NODE);
     const sent = await wallet.sendAsToken(5);
-    const put = IDBObjectStore.prototype.put;
-    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function(this: IDBObjectStore, value: {key?: unknown; value?: {token?: unknown}}, ...args: Parameters<IDBObjectStore['put']> extends [unknown, ...infer Rest] ? Rest : never) {
-      if (value.key === 'pendingNodeRefund' && value.value?.token) throw new Error('quota full');
-      return put.call(this, value, ...args);
+    let refundReturned = false;
+    stub.failMetaWrite = key => refundReturned && key === 'pendingNodeRefund';
+    globalThis.fetch = vi.fn(async () => {
+      refundReturned = true;
+      return jsonResponse({ token: 'cashuArefund' });
     });
-    globalThis.fetch = vi.fn(async () => jsonResponse({ token: 'cashuArefund' }));
     await expect(wallet.refundNodeToToken(NODE)).rejects.toMatchObject({ recoveryToken: 'cashuArefund' });
     expect(await wallet.recoverPendingWithdraw()).toBe(sent.token);
     expect(await wallet.getPendingNodeRefund()).toMatchObject({ key: 'sk-node', nodeUrl: NODE });

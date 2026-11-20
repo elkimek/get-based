@@ -305,7 +305,7 @@ test('chat send controls cover button state typewriter runtime bridges and abort
 
       await chatSend.sendChatMessage();
       outcomes.sendWhileStreamingAborts = firstController.signal.aborted === true
-        && chatSend.isChatStreaming() === false;
+        && chatSend.getChatAbortController() === firstController;
 
       const secondController = new AbortController();
       let prevented = false;
@@ -317,7 +317,10 @@ test('chat send controls cover button state typewriter runtime bridges and abort
       });
       outcomes.enterKeyPreventsAndAborts = prevented
         && secondController.signal.aborted === true
-        && chatSend.isChatStreaming() === false;
+        && chatSend.getChatAbortController() === secondController;
+      // A real stream clears its controller in its completion handler.
+      chatSend.setChatAbortController(null);
+      outcomes.finishedStreamLeavesIdle = chatSend.isChatStreaming() === false;
 
       prevented = false;
       (chatSend.handleChatKeydown as FixtureFirstArgument<typeof chatSend.handleChatKeydown>)({

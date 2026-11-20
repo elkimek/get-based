@@ -8,7 +8,8 @@ function affected(changes: Partial<TestPlan> = {}): TestPlan {
 describe('isolated CI matrix selection', () => {
   it('covers the complete native and four-project Kit families on full runs', () => {
     const plan = createCiPlan(true, null);
-    expect(plan.nativeMatrix.include.filter(lane => lane.suite === 'browser').map(lane => lane.shard)).toEqual(['1/4', '2/4', '3/4', '4/4']);
+    expect(plan.nativeMatrix.include.filter(lane => lane.suite === 'browser').map(lane => lane.shard))
+      .toEqual(['1/8', '2/8', '3/8', '4/8', '5/8', '6/8', '7/8', '8/8']);
     expect(plan.nativeMatrix.include.filter(lane => lane.suite !== 'browser').map(lane => lane.suite)).toEqual(['firefox', 'pwa', 'display']);
     expect(plan.kitMatrix.include.map(lane => [lane.project, lane.shard])).toEqual([
       ['kit-chromium', '1/2'], ['kit-chromium', '2/2'], ['kit-firefox', '1/2'], ['kit-firefox', '2/2'],
@@ -18,7 +19,7 @@ describe('isolated CI matrix selection', () => {
     expect(plan.kitMatrix.include.map(lane => lane.engine)).toEqual(['chromium', 'chromium', 'firefox', 'firefox', 'webkit', 'webkit', 'webkit', 'webkit', 'webkit', 'webkit']);
     expect(plan.unit && plan.performance && plan.native && plan.kit).toBe(true);
     expect(plan.jobs).toEqual({prepare: true, unit: true, native: true, kit: true, performance: true, coverage: true});
-    expect(new Set([...plan.nativeMatrix.include, ...plan.kitMatrix.include].map(lane => lane.id)).size).toBe(17);
+    expect(new Set([...plan.nativeMatrix.include, ...plan.kitMatrix.include].map(lane => lane.id)).size).toBe(21);
   });
   it('keeps the required unit job but acquires no browsers for documentation-only changes', () => {
     const plan = createCiPlan(false, affected({changedFiles: ['README.md']}));
@@ -66,7 +67,8 @@ describe('isolated CI matrix selection', () => {
       expect(command).toContain(`--shard=${lane.shard}`);
       directories.push(environment['PLAYWRIGHT_COVERAGE_DIR']!);
     }
-    expect(new Set(directories).size).toBe(7);
+    expect(new Set(directories).size).toBe(11);
+    expect(ciPlanOutputs(plan)['native_coverage_shards']).toBe('8');
   });
   it('writes isolated exact Kit acceptance receipts and output directories', () => {
     const plan = createCiPlan(true, null);
@@ -83,6 +85,7 @@ describe('isolated CI matrix selection', () => {
   it('serializes exact GitHub matrix outputs and booleans', () => {
     const plan = createCiPlan(false, affected({performance: true})), outputs = ciPlanOutputs(plan);
     expect(outputs['performance']).toBe('true'); expect(outputs['full']).toBe('false'); expect(outputs['native']).toBe('false');
+    expect(outputs['native_coverage_shards']).toBe('0');
     expect(JSON.parse(outputs['native_matrix']!)).toEqual(plan.nativeMatrix); expect(JSON.parse(outputs['kit_matrix']!)).toEqual(plan.kitMatrix);
   });
   it('fails closed for uncovered runtime, malformed decisions, injected lanes and edited matrix plans', () => {
@@ -210,10 +213,10 @@ describe('small merge gate and complete scheduled verification', () => {
     expect(plan.nativeMatrix.include.map(lane => lane.suite)).toEqual(['firefox', 'pwa']);
     expect(plan.deferred.native).toEqual(browser);
   });
-  it('defers nothing in full regression and retains the original complete matrix and coverage', () => {
+  it('defers nothing in full regression and retains the complete browser and coverage suites', () => {
     const plan = createCiPlan(true, null);
     expect(plan.deferred).toEqual({native: [], kitProjects: []});
-    expect(plan.nativeMatrix.include).toHaveLength(7);
+    expect(plan.nativeMatrix.include).toHaveLength(11);
     expect(plan.kitMatrix.include).toHaveLength(10);
     expect(plan.jobs.coverage).toBe(true);
   });

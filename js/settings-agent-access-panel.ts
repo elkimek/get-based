@@ -156,7 +156,7 @@ export async function toggleMessenger(enabled: unknown) {
       if (saved === false) throw new Error('saveImportedData returned false while enabling Agent Access');
       mutation.confirmPersisted();
       if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
-      void flushQueuedMessengerRevocations();
+      void flushQueuedMessengerRevocations(mutation.scope);
       if (mutation.isCurrent()) pushContextToGateway();
       showNotification('Agent Access enabled', 'success');
     } else {
@@ -169,7 +169,7 @@ export async function toggleMessenger(enabled: unknown) {
       if (saved === false) throw new Error('saveImportedData returned false while disabling Agent Access');
       mutation.confirmPersisted();
       if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
-      const revoked = await flushQueuedMessengerRevocations();
+      const revoked = await flushQueuedMessengerRevocations(mutation.scope);
       showNotification(revoked ? 'Agent Access disabled' : 'Agent Access disabled here. Relay removal is pending.', revoked ? 'success' : 'info');
     }
   } catch (err) {
@@ -253,7 +253,7 @@ export async function regenerateMessengerToken() {
     if (saved === false) throw new Error('saveImportedData returned false while regenerating Agent Access token');
     mutation.confirmPersisted();
     if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
-    void flushQueuedMessengerRevocations();
+    void flushQueuedMessengerRevocations(mutation.scope);
     if (mutation.isCurrent()) pushContextToGateway();
     showNotification('Token regenerated — update GETBASED_TOKEN in your agent config', 'success');
   } catch (err) {

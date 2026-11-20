@@ -4,6 +4,7 @@ import { setRelaySelfServiceUrl } from './sync-relay-self-service.js';
 import { getErrorMessage } from './caught-error.js';
 import { showNotification, bindSyncAppliedRefresh } from './utils.js';
 import {
+  isMessengerEnabled,
   isSyncEnabled,
   isSyncPaused,
   enableSync,
@@ -196,7 +197,10 @@ async function handleSettingsSyncChange(event: Event) {
   } else if (action === 'setup-ack' && actionEl instanceof HTMLInputElement) {
     updateSyncSetupAck();
   } else if (action === 'toggle-messenger' && actionEl instanceof HTMLInputElement) {
-    void toggleMessenger(actionEl.checked);
+    const requested = actionEl.checked;
+    // A failed revocation must keep the control on until the profile write succeeds.
+    actionEl.checked = isMessengerEnabled();
+    void toggleMessenger(requested);
   } else if (action === 'set-agent-wearable-series-days' && actionEl instanceof HTMLSelectElement) {
     const days = actionEl.value === 'off' ? 0 : Number(actionEl.value);
     const mutation = beginAgentAccessMutation();

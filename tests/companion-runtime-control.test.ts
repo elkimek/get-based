@@ -224,6 +224,13 @@ describe('companion update failure boundaries', () => {
     await expect(fixture.update()).rejects.toThrow('version');
     expect(fixture.installImpl).not.toHaveBeenCalled();
   });
+  it('rejects a correctly signed file without the Companion bundle metadata', async () => {
+    const body = '#!/usr/bin/env node\nconsole.log("synthetic file");\n';
+    const fixture = setup(new Response(body), {}, signatureFor(body));
+    await expect(fixture.update()).rejects.toThrow('not a getbased Companion bundle');
+    expect(fixture.installImpl).not.toHaveBeenCalled();
+    expect(fixture.controller.getInfo().restartRequired).toBe(false);
+  });
   it('rejects a valid download when no trusted key is configured', async () => {
     const fetchImpl = vi.fn<RuntimeFetch>(signedFixture());
     const fixture = setup(null, { fetchImpl, env: { GETBASED_COMPANION_SERVICE: '1', GETBASED_COMPANION_UPDATE_PUBLIC_KEY: '' } });

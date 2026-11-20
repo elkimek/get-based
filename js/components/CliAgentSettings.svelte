@@ -26,10 +26,10 @@
     <button type="button" class={CLI_BUTTON} disabled={busy} data-settings-action="rescan-cli-agents" onclick={event => run(event,actions.scan)}>Check connection</button>
   </div>
   <p class={CLI_COPY + ' gb:cli:mx-[15px] gb:cli:mt-3 gb:cli:rounded-lg gb:cli:border gb:cli:border-line gb:cli:bg-secondary-surface gb:cli:px-[11px] gb:cli:py-[9px]'}><strong>One assistant across getbased.</strong> The selected CLI agent powers chat, supported image and document imports, summaries, explanations, and other AI features. It can read enabled active-profile context through constrained tools; any proposed data change stays a draft until you apply it.</p>
-  <details class={CLI_COPY}><summary>Pair this browser with Companion</summary>
+  <details class={CLI_COPY + ' gb:cli:mx-[15px] gb:cli:mt-3'}><summary class={CLI_LINK}>Pair this browser with Companion</summary>
     <p>After starting Companion, run this command in a second terminal and paste the private chat code here.</p>
-    <code>{snapshot.platform === 'windows' ? 'node "$env:TEMP/getbased-companion.mjs" pair' : 'node "${TMPDIR:-/tmp}/getbased-companion.mjs" pair'}</code>
-    <label for="companion-pair-code">Chat pairing code</label> <input id="companion-pair-code" type="password" autocomplete="off" spellcheck="false" bind:value={pairingCode}>
+    <code class="gb:cli:block gb:cli:wrap-anywhere">{snapshot.platform === 'windows' ? 'node "$env:TEMP/getbased-companion.mjs" pair' : 'node "${TMPDIR:-/tmp}/getbased-companion.mjs" pair'}</code>
+    <label for="companion-pair-code">Chat pairing code</label> <input class="gb:cli:block gb:cli:max-w-full gb:cli:[@media(pointer:coarse)]:min-h-11" id="companion-pair-code" type="password" autocomplete="off" spellcheck="false" disabled={busy} bind:value={pairingCode}>
     <button class={CLI_BUTTON} type="button" disabled={busy || !pairingCode.trim()} onclick={event => run(event, () => { const code=pairingCode;pairingCode='';return actions.pair?.(code); })}>Pair browser</button>
   </details>
   <div class={CLI_KICKER}>Installed CLIs</div>

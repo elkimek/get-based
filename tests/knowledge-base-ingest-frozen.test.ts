@@ -25,6 +25,10 @@ function reviewedNativeReceipt(baseline: NativeIngestReceipt): NativeIngestRecei
   for (const request of reviewed.requests) {
     if (request.message.type === 'ingest') request.message.expectedLibraryId = 'research';
   }
+  if (baseline.name === 'unsupported-no-usable') {
+    expect(baseline.warnings).toEqual([['[lens-local] skipping: name="unsupported.bin" ext="bin" type="text/plain" size=24']]);
+    reviewed.warnings = [];
+  }
   if (baseline.name !== 'worker-ingest-error') return reviewed;
 
   expect(baseline.wireDelta).toEqual(['ingest']);

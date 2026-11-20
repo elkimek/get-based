@@ -118,6 +118,13 @@ export async function openIsolatedSyncSetupPage(page:import("@playwright/test").
       export function revokeMessengerTokenRemote(token) {
         stub.calls.push({ fn: 'revokeMessengerTokenRemote', token });
       }
+      export async function queueMessengerRevocation(token) {
+        stub.calls.push({ fn: 'queueMessengerRevocation', token });
+      }
+      export async function flushQueuedMessengerRevocations() {
+        stub.calls.push({ fn: 'flushQueuedMessengerRevocations' });
+        return true;
+      }
       export function revokeMessengerToken() {
         stub.calls.push({ fn: 'revokeMessengerToken' });
       }

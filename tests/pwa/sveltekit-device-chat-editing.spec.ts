@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
 import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
-import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
+import { activate, artifactInputs, cacheReceipt, profile, resumePausedArtifactChat } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
@@ -63,9 +63,11 @@ test('static device session correction and refused catalog writes retain source 
     const session = (initial.deviceSessions as Array<{ id: string; doses: { pbm_red: number } }>)[0]; if (!session) throw new Error('The native session receipt is missing.'); sessionId = session.id;
     // Leave Light with automatic insights paused before resuming Chat. A separate
     // weekly analysis must not race this proposal's complete-profile receipt.
+    const menu = page.getByRole('button', { name: 'Menu', exact: true });
+    if (await menu.isVisible()) await activate(page, menu);
     await activate(page, page.locator('[data-nav-action="navigate"][data-nav-route="body"]'));
     await expect(page.locator('.lens-page-header h2')).toHaveText('Biometrics');
-    await openChat(page); await activate(page, page.locator('[data-chat-empty-action="resume-ai"]'));
+    await resumePausedArtifactChat(page);
     for (const [index, next] of (['duration', 'specification', 'removeDevice'] as const).entries()) {
       stage = next; round = 0; await expect(page.locator('#chat-send-btn.streaming')).toHaveCount(0);
       await page.locator('#chat-input').fill(statements[stage]); await activate(page, page.locator('#chat-send-btn'));

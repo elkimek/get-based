@@ -60,6 +60,7 @@ function installCashuStub(options: {durableOps?: boolean; amountObjects?: boolea
     failReceive: false,
     failRestore: false,
     failProofPersistence: false,
+    failMetaWrite: null as ((key: string) => boolean) | null,
     failEncodeOnce: false,
     failMintPersistenceOnce: false,
     failMintOutputsAlreadySigned: false,
@@ -77,6 +78,9 @@ function installCashuStub(options: {durableOps?: boolean; amountObjects?: boolea
   if (vi.isMockFunction(previousPut)) previousPut.mockRestore();
   const put = IDBObjectStore.prototype.put;
   vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args) {
+    if (this.name === 'meta' && state.failMetaWrite?.(String((args[0] as { key?: unknown }).key))) {
+      throw new DOMException('quota full', 'QuotaExceededError');
+    }
     if (this.name === 'proofs' && (state.failProofPersistence || state.failMintPersistenceOnce)) {
       state.failMintPersistenceOnce = false;
       throw new DOMException('Synthetic proof write failure', 'QuotaExceededError');

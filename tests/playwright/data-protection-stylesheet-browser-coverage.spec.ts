@@ -85,24 +85,13 @@ test('data protection stylesheet failure is contained and retries with a fresh U
   expect(firstAttempt).toEqual({ loaded: false, links: 0 });
   expect(stylesheetRequests).toHaveLength(1);
 
-  const encryptedStartup = await page.evaluate(async () => {
+  await page.evaluate(async () => {
     localStorage.setItem('labcharts-encryption-enabled', 'true');
     const cryptoStore = (await import(`/js/crypto.js?stylesheetFailure=${Date.now()}`) as unknown) as Pick<typeof import('../../js/crypto.js'), 'initEncryption'>;
     void cryptoStore.initEncryption();
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      if (document.getElementById('passphrase-overlay')) break;
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-    return {
-      unlockStillRenders: !!document.getElementById('passphrase-unlock-btn'),
-      failedLinkRemoved:
-        document.querySelectorAll<HTMLElement>('link[data-data-protection-stylesheet]').length === 0,
-    };
   });
-  expect(encryptedStartup).toEqual({
-    unlockStillRenders: true,
-    failedLinkRemoved: true,
-  });
+  await expect(page.locator('#passphrase-unlock-btn')).toBeVisible();
+  await expect(page.locator('link[data-data-protection-stylesheet]')).toHaveCount(0);
 
   await page.unroute('**/css/data-protection.css*');
   const retry = await page.evaluate(async ({ runtimeUrl: url }) => {

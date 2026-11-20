@@ -176,3 +176,12 @@ export async function cacheReceipt(page: Page, artifact: Awaited<ReturnType<type
 export async function activate(page: Page, control: Locator) {
   if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) await control.tap(); else await control.click();
 }
+
+export async function resumePausedArtifactChat(page: Page) {
+  if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
+  const resume = page.locator('[data-chat-empty-action="resume-ai"]');
+  await expect(resume).toBeVisible();
+  await expect(page.locator('#chat-input')).toBeDisabled();
+  await activate(page, resume);
+  await expect(page.locator('#chat-input')).toBeEnabled();
+}
