@@ -9,10 +9,15 @@ import { findExistingCompanion } from '../lib/companion-existing.js';
 const origin = 'http://127.0.0.1:8324';
 const navigation = { Host: '127.0.0.1:8324', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document' };
 const local = { Host: '127.0.0.1:8324', Origin: origin, 'Sec-Fetch-Site': 'same-origin', 'Content-Type': 'application/json' };
+const authorizePairing = (code: string, endpoint: string) => code === 'local-test-management' && endpoint === origin;
+async function authenticate(handle: ReturnType<typeof createCompanionManagement>) {
+  const auth=await handle(new Request(origin+'/manage/pair',{method:'POST',headers:{...local, Authorization:'Bearer local-test-management'}}));
+  expect(auth?.status).toBe(200);return (await auth!.json() as {token:string}).token;
+}
 async function session(handle: ReturnType<typeof createCompanionManagement>) {
   const response = await handle(new Request(origin + '/manage', { headers: navigation }));
   const html = await response!.text();
-  return { response, html, token: html.match(/const credential="([^"]+)"/)![1]! };
+  return { response, html, token: await authenticate(handle) };
 }
 
 describe('local Companion management', () => {
@@ -29,7 +34,7 @@ describe('local Companion management', () => {
   });
   it('uses an isolated navigation-only page, not discovery or the persistent token', async () => {
     const control = vi.fn(async () => Response.json({ ok: true }));
-    const handle = createCompanionManagement({ status: () => ({ runtimeMode: 'installed' }), control });
+    const handle = createCompanionManagement({ authorizePairing, status: () => ({ runtimeMode: 'installed' }), control });
     const { response, html, token } = await session(handle);
     expect(response!.headers.get('Content-Security-Policy')).toContain("frame-ancestors 'none'");
     expect(response!.headers.has('Access-Control-Allow-Origin')).toBe(false);
@@ -51,7 +56,7 @@ describe('local Companion management', () => {
   it('embeds only for an approved exact parent origin and keeps control credentials local', async () => {
     const parent = 'https://app.getbased.health';
     const control = vi.fn(async () => Response.json({ ok: true }));
-    const handle = createCompanionManagement({ status: () => ({}), control, allowParentOrigin: value => value === parent });
+    const handle = createCompanionManagement({ authorizePairing, status: () => ({}), control, allowParentOrigin: value => value === parent });
     const embed = (value: string, headers: Record<string, string> = {}) => handle(new Request(`${origin}/manage/embed?parentOrigin=${encodeURIComponent(value)}`, {
       headers: { ...navigation, 'Sec-Fetch-Dest': 'iframe', ...headers },
     }));
@@ -65,7 +70,8 @@ describe('local Companion management', () => {
     expect(response!.headers.has('X-Frame-Options')).toBe(false);
     expect(response!.headers.has('Access-Control-Allow-Origin')).toBe(false);
     const html = await response!.text();
-    const token = html.match(/const credential="([^"]+)"/)![1]!;
+    expect(html).not.toContain('local-test-management');
+    const token = await authenticate(handle);
     const request = (headers: Record<string, string>) => handle(new Request(origin + '/manage/control', {
       method: 'POST', headers: { ...local, Authorization: `Bearer ${token}`, ...headers }, body: '{"action":"pause"}',
     }));
@@ -76,7 +82,7 @@ describe('local Companion management', () => {
   });
   it('refuses iframe, fetch, DNS aliases, expired and evicted sessions', async () => {
     let time = 0;
-    const handle = createCompanionManagement({ status: () => ({}), control: vi.fn(), now: () => time });
+    const handle = createCompanionManagement({ authorizePairing, status: () => ({}), control: vi.fn(), now: () => time });
     for (const headers of [{}, { ...navigation, 'Sec-Fetch-Dest': 'iframe' }, { ...navigation, 'Sec-Fetch-Mode': 'cors' }, { ...navigation, Host: 'localhost:8324' }]) {
       expect((await handle(new Request(origin + '/manage', { headers })))!.status).toBe(403);
     }

@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -56,5 +56,22 @@ describe('Agent Host storage', () => {
     });
     expect(result.codexAuthenticated).toBe(false);
     expect(result.token).toBe('non-codex-pairing-token');
+  });
+
+  it('retires a copied login when the source disappears and refreshes a replaced older file', () => {
+    const { sourceCodexHome, dataDirectory } = fixture();
+    mkdirSync(sourceCodexHome, { recursive: true });
+    const source = join(sourceCodexHome, 'auth.json');
+    writeFileSync(source, '{"auth":"first synthetic login"}');
+    const env = { CODEX_HOME: sourceCodexHome, GETBASED_AGENT_HOST_DATA_DIR: dataDirectory };
+    const { codexHome } = prepareAgentHostStorage({ env });
+    const copy = join(codexHome, 'auth.json');
+    writeFileSync(source, '{"auth":"second synthetic login"}');
+    utimesSync(source, 100, 100);
+    expect(prepareAgentHostStorage({ env }).codexAuthenticated).toBe(true);
+    expect(readFileSync(copy, 'utf8')).toBe('{"auth":"second synthetic login"}');
+    rmSync(source);
+    expect(prepareAgentHostStorage({ env, requireCodexAuth: false }).codexAuthenticated).toBe(false);
+    expect(existsSync(copy)).toBe(false);
   });
 });

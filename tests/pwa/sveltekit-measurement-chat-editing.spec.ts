@@ -3,7 +3,8 @@ import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
@@ -44,9 +45,9 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
   }, { seeded, registry });
   const statements = { value: 'My office meter reading was actually 250 lux.', checkpoint: 'Save a checkpoint of my current light environment called After correction.', remove: 'Remove my current office lux reading, keeping my saved audit checkpoints.', removeRoom: 'Remove my office room, keeping my saved audit checkpoints.' };
   let stage: keyof typeof statements = 'value', round = 0, checkpointId = ''; const wire: unknown[] = [], errors: string[] = [];
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(JSON.stringify(body)).not.toMatch(/measurement-private-sentinel|\/private\//);
-    if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled light interpretation","detail":"Reported facts and frozen source evidence."}' }, finish_reason: 'stop' }] }) }); return; }
+  await installSyntheticOpenRouter(context, async body => {
+    expect(JSON.stringify(body)).not.toMatch(/measurement-private-sentinel|\/private\//);
+    if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled light interpretation","detail":"Reported facts and frozen source evidence."}' }, finish_reason: 'stop' }] }) }; }
     wire.push({ stage, round }); const resource = stage === 'checkpoint' ? 'lightAudits' : stage === 'removeRoom' ? 'lightRooms' : 'lightMeasurements'; let call: AIToolCall | undefined;
     if (round === 0) call = { id: `read-${stage}`, type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource, ...(stage === 'checkpoint' ? { create: true } : { recordId: stage === 'removeRoom' ? 'room-office' : 'measure-office' }) }) } };
     if (round === 1) {
@@ -57,7 +58,7 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
       }
     }
     if (round === 2) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const review = JSON.parse(response.contentItems[0].text).review; expect(review.applied).toBe(false); if (stage === 'checkpoint') expect(review.effects.capturedCounts).toEqual({ rooms: 1, screens: 0, measurements: 1 }); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'checkpoint' ? 'Save light checkpoints with the native audit form.' : 'Review the reading or frozen checkpoint before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'checkpoint' ? 'Save light checkpoints with the native audit form.' : 'Review the reading or frozen checkpoint before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false; const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};

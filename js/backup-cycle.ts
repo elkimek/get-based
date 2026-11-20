@@ -3,6 +3,7 @@
 import type { StoredCycleImportMeta, StoredCycleObservation } from './cycle-store.js';
 
 import {
+  replaceCycleBackupRows,
   getAllCycleImportMetaRaw,
   getAllCycleObservationsRaw,
   upsertCycleImportMetaBatchRaw,
@@ -23,6 +24,10 @@ export async function collectCycleBackup(profileIds: Iterable<string>) {
     if (metaRows.length > 0) importMeta[profileId] = metaRows;
   }
   return { observations, importMeta };
+}
+
+export async function replaceCycleBackup(profileId: string, observations: Record<string, StoredCycleObservation[]> | null, metadata: StoredCycleImportMeta[] | null) {
+  await replaceCycleBackupRows(profileId, observations ? Object.values(observations).flat() : null, metadata);
 }
 
 export async function restoreCycleBackup(observations: unknown, importMeta: unknown) {

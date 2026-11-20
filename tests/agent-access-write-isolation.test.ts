@@ -16,7 +16,7 @@ beforeEach(async () => {
   state.importedData = { ...original, entries: [], notes: [], agentAccess: { version: 1, enabled: true, token, contextKey } };
   configureSyncMessenger({ getAppOwner: () => ({ id: 'intent-owner', writeKey: new Uint8Array(32).fill(7) }) });
   vi.spyOn(sync, 'pushContextToGateway').mockImplementation(() => {});
-  vi.spyOn(sync, 'revokeMessengerTokenRemote').mockImplementation(() => {});
+  vi.spyOn(sync, 'flushQueuedMessengerRevocations').mockResolvedValue(true);
   expect(await saveImportedData({ skipSync: true })).toBe(true);
 });
 afterEach(async () => {

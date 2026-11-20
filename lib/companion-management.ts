@@ -5,6 +5,7 @@ export interface CompanionManagementOptions {
   status(): unknown;
   control(request: Request): Promise<Response>;
   now?: () => number;
+  authorizePairing?: (code: string, endpoint: string) => boolean;
   allowParentOrigin?: (origin: string) => boolean;
 }
 
@@ -34,20 +35,25 @@ export function createCompanionManagement(options: CompanionManagementOptions) {
       }
       if (request.headers.get('Sec-Fetch-Mode') !== 'navigate'
         || request.headers.get('Sec-Fetch-Dest') !== (embedded ? 'iframe' : 'document')) return deny();
-      while (sessions.size >= 8) sessions.delete(sessions.keys().next().value!);
-      const key = randomUUID();
       const nonce = randomUUID();
-      sessions.set(key, { origin: url.origin, expires: now() + 15 * 60_000 });
       const pageHeaders: Record<string, string> = { ...headers };
       if (embedded) {
         delete pageHeaders['X-Frame-Options'];
         pageHeaders['Cross-Origin-Resource-Policy'] = 'cross-origin';
         pageHeaders['Cross-Origin-Embedder-Policy'] = 'credentialless';
       }
-      return new Response(managementHTML(key, nonce, embedded, url.searchParams.get('theme') === 'light', parentOrigin), { headers: {
+      return new Response(managementHTML(nonce, embedded, url.searchParams.get('theme') === 'light', parentOrigin), { headers: {
         ...pageHeaders, 'Content-Type': 'text/html; charset=utf-8',
         'Content-Security-Policy': `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; frame-ancestors ${embedded ? parentOrigin : "'none'"}; base-uri 'none'; form-action 'none'`,
       } });
+    }
+    if (url.pathname === '/manage/pair' && request.method === 'POST') {
+      const code = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
+      if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') !== 'same-origin' || !options.authorizePairing?.(code, url.origin)) return deny();
+      while (sessions.size >= 8) sessions.delete(sessions.keys().next().value!);
+      const key = randomUUID();
+      sessions.set(key, { origin: url.origin, expires: now() + 15 * 60_000 });
+      return Response.json({token: key}, {headers});
     }
     const session = sessions.get(request.headers.get('Authorization')?.replace(/^Bearer /, '') || '');
     if (!session || session.origin !== url.origin
@@ -66,7 +72,7 @@ export function createCompanionManagement(options: CompanionManagementOptions) {
   };
 }
 
-function managementHTML(key: string, nonce: string, embedded: boolean, light: boolean, parentOrigin: string) {
+function managementHTML(nonce: string, embedded: boolean, light: boolean, parentOrigin: string) {
   return `<!doctype html><html lang="en" data-theme="${light ? 'light' : 'dark'}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>getbased Companion</title><style nonce="${nonce}">
 *{box-sizing:border-box}
@@ -82,6 +88,7 @@ button:hover{border-color:var(--accent)}button:disabled{opacity:.5;cursor:wait}b
 .danger{color:#ed7d85}html[data-theme="light"] .danger{color:#b32738}
 @media(max-width:380px){.overview{align-items:flex-start;flex-wrap:wrap}}
 </style><main>${embedded ? '' : '<h1>getbased Companion</h1>'}
+<div id="pairing"><p>Run your Companion command with <code>pair --manage</code> on this computer.</p><label for="pair-code">Management code</label> <input id="pair-code" type="password" autocomplete="off" spellcheck="false"> <button id="pair-button" type="button">Unlock controls</button></div>
 <div class="overview"><div><strong id="status" role="status">Checking connection…</strong><small id="startup-description"></small></div>
 <div class="actions"><button data-action="install" hidden>Start automatically</button><button data-action="update" hidden>Check for update</button><button data-action="resume" id="resume" hidden>Resume</button><button data-action="restart-companion" id="finish-update" hidden>Restart to finish update</button></div></div>
 <details id="advanced"><summary>Advanced</summary><div class="advanced-actions">
@@ -90,7 +97,7 @@ button:hover{border-color:var(--accent)}button:disabled{opacity:.5;cursor:wait}b
 <section id="confirmation" hidden aria-label="Confirm uninstall"><p>Remove Companion and automatic startup? Your CLI agents and health data will stay in place.</p><div class="actions"><button id="confirm-uninstall" class="danger">Uninstall Companion</button><button id="cancel-action">Cancel</button></div></section>
 <p id="message" role="status" aria-live="polite"></p>${embedded ? '' : '<button id="reconnect" hidden>Try again</button>'}</main>
 <script nonce="${nonce}">
-const credential=${JSON.stringify(key)};
+let credential='';
 const embedded=${JSON.stringify(embedded)};
 const parentOrigin=${JSON.stringify(parentOrigin)};
 const status=document.getElementById('status'), message=document.getElementById('message');
@@ -189,6 +196,17 @@ if(embedded){
   });
   new ResizeObserver(()=>parent.postMessage({type:'getbased-companion-panel-size',height:Math.ceil(document.querySelector('main').getBoundingClientRect().height)+2},parentOrigin)).observe(document.querySelector('main'));
 }
-refresh();
+async function pair(){
+  const input=document.getElementById('pair-code'), code=input.value.trim();input.value='';
+  try{
+    const response=await fetch('/manage/pair',{method:'POST',cache:'no-store',redirect:'error',headers:{Authorization:'Bearer '+code}});
+    if(!response.ok)throw Error('Enter a current management code for this Companion.');
+    credential=(await response.json()).token;
+    document.getElementById('pairing').hidden=true;
+    message.textContent='';await refresh();
+  }catch(error){showError(error);}
+}
+document.getElementById('pair-button').addEventListener('click',pair);
+document.getElementById('pair-code').addEventListener('keydown',event=>{if(event.key==='Enter')void pair();});
 </script></html>`;
 }

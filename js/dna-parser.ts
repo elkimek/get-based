@@ -2,7 +2,7 @@
 
 import type { SnpCatalog, SnpCatalogEntry } from './dna-evidence.js';
 
-import { findGenotypeInfo, findGenotypeMatch, normalizeGenotype } from './dna-genotype.js';
+import { findGenotypeMatch, normalizeGenotype, parseClinicalSnpGenotypeTail } from './dna-genotype.js';
 import { detectDNAFile } from './dna-file-detection.js';
 
 export { detectDNAFile, isDNAFile, isDNAFileByContent } from './dna-file-detection.js';
@@ -241,15 +241,6 @@ function parseAnnotatedSnpReport(text: string, snpTable: SnpCatalog | null | und
   return { matches, source: 'annotated-snp-report', totalLines: totalData, format: 'annotated-snp-report' };
 }
 
-function parseClinicalSnpGenotypeTail(tail: unknown) {
-  const cleaned = String(tail || '').replace(/\s+/g, ' ');
-  const repeatMatches = [...cleaned.matchAll(/(?:^|[^\d])(\d+\s*[\/|]\s*\d+)(?=\s*(?:[–-]|—|\b|$))/g)];
-  if (repeatMatches.length) return normalizeGenotype(repeatMatches[repeatMatches.length - 1]![1]);
-  const matches = [...cleaned.matchAll(/(?:^|[^A-Z])([ACGT]{2})(?=\s*(?:[–-]|—|\b|$))/g)];
-  if (!matches.length) return null;
-  return matches[matches.length - 1]![1]!;
-}
-
 export function parseClinicalSnpReportTextWithTable(text: unknown, snpTable: SnpCatalog | null | undefined, options: ClinicalReportOptions = {}) {
   const source = options.source || options.fileName || 'Clinical SNP report';
   const body = String(text || '').replace(/\u00A0/g, ' ');
@@ -260,16 +251,23 @@ export function parseClinicalSnpReportTextWithTable(text: unknown, snpTable: Snp
     source: { type: string; label: string; fileName: string | null; rawText: string };
   }> = {};
   let totalLines = 0;
+  const observed = new Map<string, string | null>();
   const rsMatches = [...body.matchAll(/\b(rs\d+)\b/gi)];
   for (let i = 0; i < rsMatches.length; i++) {
     const rsid = rsMatches[i]![1]!.toLowerCase();
     const entry = snpTable?.[rsid];
-    if (!entry || matches[rsid]) continue;
+    if (!entry) continue;
     totalLines++;
-    const start = Math.max(0, rsMatches[i]!.index! - 90);
-    const end = i + 1 < rsMatches.length ? Math.min(body.length, rsMatches[i + 1]!.index!) : Math.min(body.length, rsMatches[i]!.index! + 220);
+    const start = rsMatches[i]!.index! + rsMatches[i]![0].length;
+    const end = Math.min(start + 220, rsMatches[i + 1]?.index ?? body.length);
     const chunk = body.slice(start, end);
     const genotype = parseClinicalSnpGenotypeTail(chunk);
+    if (observed.has(rsid) && observed.get(rsid) !== genotype) {
+      observed.set(rsid, null);
+      delete matches[rsid];
+      continue;
+    }
+    observed.set(rsid, genotype);
     if (!genotype) continue;
     const match = findGenotypeMatch(entry, genotype);
     if (!match) continue;
@@ -285,7 +283,7 @@ export function parseClinicalSnpReportTextWithTable(text: unknown, snpTable: Snp
       evidence: entry.evidence,
       relevance: entry.relevance,
       note: match.info.note,
-      source: { type: options.type || 'report-text', label: source, fileName: options.fileName || null, rawText: chunk.trim().slice(0, 500) },
+      source: { type: options.type || 'report-text', label: source, fileName: options.fileName || null, rawText: `${rsid} ${chunk.trim()}` },
     };
   }
   return {
@@ -321,14 +319,15 @@ export async function parseDNAFileWithTable(file: Pick<File, 'slice' | 'text'>, 
     });
   }
 
-  const enriched: Record<string, Omit<ReturnType<typeof parseClinicalSnpReportTextWithTable>['matches'][string], 'normalizedGenotype' | 'source'>> = {};
+  const enriched: Record<string, Omit<ReturnType<typeof parseClinicalSnpReportTextWithTable>['matches'][string], 'source'>> = {};
   for (const [rsid, genotype] of Object.entries(result.matches)) {
     const entry = snpTable?.[rsid];
     if (!entry) continue;
-    const genotypeInfo = findGenotypeInfo(entry, genotype);
-    if (!genotypeInfo) continue;
+    const match = findGenotypeMatch(entry, genotype);
+    if (!match) continue;
+    const genotypeInfo = match.info;
     enriched[rsid] = {
-      genotype,
+      genotype, normalizedGenotype: match.key,
       gene: entry.gene,
       variant: entry.variant,
       category: entry.category,

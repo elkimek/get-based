@@ -25,7 +25,6 @@ import {
   _normalizeMintUrl,
   _getAllProofs,
   _getWalletMintInventory,
-  _saveProofs,
   _replaceProofs,
   _pruneSpentProofs,
   _clearAllProofs,
@@ -49,7 +48,10 @@ import {
   _counterNamespaceForSeed,
   _destroyWalletDBStorage,
   _withMintRequest,
+  migrateCashuWalletStorage,
+  WALLET_LOCK_NAME,
 } from './cashu-wallet-store.js';
+import { restoreSeedProofs, SEED_RESTORE_KEY } from './cashu-wallet-seed-restore.js';
 import { _pendingReceiveAmount, _resolveFundingQuoteMint } from './cashu-wallet-funding-accounting.js';
 import {
   _autoMeltFees,
@@ -87,7 +89,7 @@ configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps());
 // ═══════════════════════════════════════════════
 const WALLET_FEE_PCT = 0; // disabled for beta testing (normally 0.03 = 3%)
 const MAX_WALLET_BALANCE = 25000; // safety cap until battle-tested
-const WALLET_LOCK_NAME = 'getbased-cashu-wallet';
+const SEED_BACKUP_PENDING = 'labcharts-cashu-wallet-backup-pending';
 const cashuWindow = window as Window & typeof globalThis & { cashuts?: CashuRuntime; bip39?: Bip39Runtime };
 
 let _cashuLibLoad: Promise<CashuRuntime> | null = null;
@@ -132,6 +134,7 @@ function _encodeRecoveryToken(cashuts: Pick<CashuRuntime, 'getEncodedToken'>, mi
 // GLOBAL WALLET LOCK — prevents concurrent proof-mutating operations (C1)
 // ═══════════════════════════════════════════════
 let _walletLock = Promise.resolve();
+let walletStorageProtection: { factory: IDBFactory; encrypted: boolean } | null = null;
 
 function _withWalletLock<Value>(fn: () => Promise<Value>): Promise<Value> {
   if (navigator.locks?.request) {
@@ -148,7 +151,14 @@ function _withModuleWalletLock<Value>(fn: () => Promise<Value>): Promise<Value> 
   const prev = _walletLock;
   _walletLock = prev.then(() => gate);
   return prev.then(async () => {
-    try { return await fn(); } finally { release(); }
+    try {
+      const encrypted = getCashuWalletStoreCryptoDeps().getEncryptionEnabled();
+      if (walletStorageProtection?.factory !== indexedDB || walletStorageProtection.encrypted !== encrypted) {
+        await migrateCashuWalletStorage(encrypted ? 'encrypted' : 'plain');
+        walletStorageProtection = { factory: indexedDB, encrypted };
+      }
+      return await fn();
+    } finally { release(); }
   });
 }
 
@@ -159,6 +169,7 @@ let _wallet: Cashu.Wallet | null = null;
 let _mintUrl: string | null = null;
 
 async function _getWallet(mintUrl?: string) {
+  if (await _getMeta(SEED_RESTORE_KEY)) throw new Error('Finish the interrupted wallet seed restoration before using the mint.');
   const url = mintUrl || await getMintUrl();
   if (_wallet && _mintUrl === url) return _wallet;
   const cashuts = await _cashuLib();
@@ -311,6 +322,7 @@ export async function generateWalletSeed() {
     if (existing) return { mnemonic: existing };
     const bip39 = await _ensureBip39();
     const mnemonic = await bip39.generateMnemonic(128);
+    localStorage.setItem(SEED_BACKUP_PENDING, 'true');
     await _saveMnemonic(mnemonic);
     _wallet = null; _mintUrl = null; // reset so next _getWallet uses the seed
     return { mnemonic };
@@ -324,72 +336,11 @@ export async function getWalletMnemonic() {
 
 /** Check if wallet has been initialized with a seed */
 export async function hasWalletSeed() {
-  return !!(await _loadMnemonic());
+  return !!(await _loadMnemonic()) && localStorage.getItem(SEED_BACKUP_PENDING) !== 'true';
 }
 
-async function _restoreProofsFromSeed(mnemonic: string, restoreMintUrl?: string) {
-  const bip39 = await _ensureBip39();
-  const cashuts = await _cashuLib();
-  const valid = await bip39.validateMnemonic(mnemonic);
-  if (!valid) throw new Error('Invalid mnemonic — check your words');
-  const mintUrl = _normalizeMintUrl(restoreMintUrl || await getMintUrl());
-  const currentMnemonic = await _loadMnemonic();
-  if (currentMnemonic && currentMnemonic !== mnemonic) {
-    const [proofs, feeProofs, pendingQuotes, pendingDeposit, pendingWithdraw, pendingSwap] = await Promise.all([
-      _getWalletMintInventory().then(mints => mints.filter(mint => mint.balance > 0)),
-      _getWalletMintInventory().then(mints => mints.filter(mint => mint.feeBalance > 0)),
-      _getMetaEntries('pending').then(entries => entries.filter(entry => entry.value)),
-      (_getMeta('pendingDeposit') as Promise<PendingDeposit | string | null>),
-      (_getMeta('pendingWithdraw') as Promise<string | null>),
-      (_getMeta(PENDING_SWAP_KEY) as Promise<DurableJournal | null>),
-    ]);
-    if (proofs.length || feeProofs.length || pendingQuotes.length || pendingDeposit || pendingWithdraw || pendingSwap) {
-      throw new Error('Cannot replace the wallet seed while funds or recovery records exist. Back up and empty this wallet first.');
-    }
-  }
-
-  const seed = await bip39.mnemonicToSeed(mnemonic);
-  const counterSource = _createCounterSource(
-    await _counterNamespaceForSeed(seed),
-    !currentMnemonic || currentMnemonic === mnemonic
-  );
-  const wallet = new cashuts.Wallet(mintUrl, { bip39seed: seed, counterSource });
-  await wallet.loadMint();
-
-  const restoredBySecret = new Map<string, WalletProof>();
-  const keysets = wallet.keyChain.getKeysets();
-  const failures: string[] = [];
-  let completedScans = 0;
-  for (const keyset of keysets) {
-    try {
-      const result = await wallet.batchRestore(300, 300, 0, keyset.id);
-      completedScans += 1;
-      if (result.lastCounterWithSignature != null) {
-        await wallet.counters.advanceToAtLeast(keyset.id, result.lastCounterWithSignature + 1);
-      }
-      for (const proof of result.proofs || []) restoredBySecret.set(proof.secret, proof);
-    } catch (e) {
-      failures.push(`${keyset.id}: ${getErrorMessage(e, String(e))}`);
-    }
-  }
-  if (!completedScans) {
-    throw new Error('Wallet restore failed without changing local funds' + (failures[0] ? ': ' + failures[0] : ''));
-  }
-  if (failures.length) {
-    throw new Error('Wallet restore was incomplete and made no proof changes: ' + failures[0]);
-  }
-
-  const restored = Array.from(restoredBySecret.values());
-  const { unspent } = restored.length
-    ? await wallet.groupProofsByState(restored)
-    : { unspent: [] };
-  if (unspent.length) await _saveProofs(unspent, mintUrl);
-  await _saveMnemonic(mnemonic);
-  _wallet = null;
-  _mintUrl = null;
-  const totalRestored = _sumProofsAsNumber(cashuts, unspent);
-  const balance = _sumProofsAsNumber(cashuts, await _getAllProofs(mintUrl));
-  return { balance, restoredCount: totalRestored };
+export function acknowledgeWalletSeedBackup() {
+  localStorage.removeItem(SEED_BACKUP_PENDING);
 }
 
 function _looksLikeAlreadyIssuedMintError(error: unknown) {
@@ -447,7 +398,15 @@ async function _prepareTokenMint(cashuts: CashuRuntime, tokenString: string) {
  *  Queries the mint to recover previously-minted proofs.
  *  Returns { balance, restoredCount } */
 export async function restoreWalletFromSeed(mnemonic: string) {
-  return _withWalletLock(async () => _restoreProofsFromSeed(mnemonic));
+  return _withWalletLock(async () => {
+    const result = await restoreSeedProofs(mnemonic, {
+      bip39: await _ensureBip39(), cashuts: await _cashuLib(), getMintUrl,
+    });
+    acknowledgeWalletSeedBackup();
+    _wallet = null;
+    _mintUrl = null;
+    return result;
+  });
 }
 
 /** Get wallet balance in sats (prunes spent proofs on first call / after cooldown) */
@@ -775,6 +734,7 @@ export async function clearWallet() {
 /** Destroy entire wallet database (for clearAllData) */
 export async function destroyWalletDB() {
   return _withWalletLock(async () => {
+    walletStorageProtection = null;
     _wallet = null;
     _mintUrl = null;
     return _destroyWalletDBStorage();

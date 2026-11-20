@@ -2,7 +2,8 @@
 
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused, supportsVision } from './api.js';
 import { getAssistantExecutionRoute } from './ai-execution-routing.js';
-import { getAgentHostEffort } from './agent-chat-settings.js';
+import { getAgentHostEffort, getAgentHostEndpoint } from './agent-chat-settings.js';
+import { state } from './state.js';
 
 import type { AIProviderRequestOptions } from './api.js';
 export interface AssistantFeatureRequestOptions extends AIProviderRequestOptions {
@@ -84,6 +85,13 @@ export async function callAssistantFeatureAI(options: AssistantFeatureRequestOpt
   const route = getAssistantExecutionRoute();
   if (route.adapter !== 'codex') return callClaudeAPI(options, provider);
   if (!route.available) throw new Error('The selected CLI agent is not connected.');
+  const profileId = state.currentProfile;
+  const endpoint = getAgentHostEndpoint();
+  const requestCurrent = () => {
+    const latest = getAssistantExecutionRoute();
+    return options.requestCurrent?.() !== false && state.currentProfile === profileId && getAgentHostEndpoint() === endpoint
+      && latest.adapter === 'codex' && latest.provider === route.provider && latest.target === route.target && latest.model === route.model;
+  };
   const prompt = featurePrompt(options.messages);
   const files = featureImages(options.messages);
   if (!prompt) throw new Error('The feature request is empty.');
@@ -91,6 +99,7 @@ export async function callAssistantFeatureAI(options: AssistantFeatureRequestOpt
     throw new Error('The selected CLI model does not report image support.');
   }
   const { callCodexFeature } = await import('./agent-feature-inference.js');
+  if (!requestCurrent()) throw new Error('The AI request recipient or owner changed.');
   return callCodexFeature({
     files,
     prompt,
@@ -101,5 +110,6 @@ export async function callAssistantFeatureAI(options: AssistantFeatureRequestOpt
     signal: options.signal,
     onStream: options.onStream,
     consentKind: options.consentKind || 'text',
+    requestCurrent,
   });
 }

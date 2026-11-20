@@ -9,7 +9,7 @@ import {
   normalizeToSI,
 } from './schema.js';
 import { SPECIALTY_MARKER_DEFS } from './specialty-marker-catalog.js';
-import { renameLabEntryMarker } from './lab-entry.js';
+import { deleteLabEntryMarker, renameLabEntryMarker } from './lab-entry.js';
 import {
   normalizeProfileMarkerLabel as _normalizeProfileMarkerLabel,
   remapGlobalProfileMarkerMetadata,
@@ -361,6 +361,69 @@ function profileRangeFields(): [string, string][] {
   ];
 }
 
+// Reconstruct an imported measurement only when the original report row still
+// owns that field. Manual edits and entries without surviving evidence stay intact.
+function repairReviewedMeasurementUnits(data: ProfileMarkerData) {
+  for (const snapshot of data.importSnapshots || []) {
+    if (!snapshot.id || !snapshot.markers) continue;
+    for (const [index, marker] of snapshot.markers.entries()) {
+      if (!marker || snapshot.excludedIndices?.includes(index)) continue;
+      const key = marker.mappedKey || marker.suggestedKey;
+      if (!key || typeof marker.value !== 'number' || !Number.isFinite(marker.value)) continue;
+      const entries = (data.entries || []).filter(entry => entry.markerSources?.[key]?.snapshotId === snapshot.id && !entry.markerSources?.[key]?.manuallyEdited);
+      if (key === 'diabetes.homaIR') {
+        for (const entry of entries) {
+          const source = entry.markerSources![key]!;
+          source.reported = true;
+          delete source.derivedFrom;
+          if (entry.markers) entry.markers[key] = marker.value;
+        }
+        continue;
+      }
+      if (marker.unitConversionVersion === 2) continue;
+      const unit = normalizeClinicalUnit(marker.unit);
+      const massAssay = key === 'lipids.lpA' && ['mg/dl', 'mg/l', 'g/l'].includes(unit);
+      const lowPercent = key === 'differential.basophilsPct' && _isProfilePercentUnit(marker.unit) && marker.refMax === 1;
+      const wholeUrea = key === 'biochemistry.urea' && unit === 'mg/dl' && /urea|urée|močovina|harnstoff/i.test(marker.rawName || '');
+      const dDimer = key === 'coagulation.dDimer' && ['ng/mlfeu','ug/lfeu','ug/mlfeu'].includes(unit);
+      if (!massAssay && !wholeUrea && !dDimer && !lowPercent) continue;
+      const correctedKey = massAssay ? 'lipids.lpAMass' : key;
+      marker.unitConversionVersion = 2;
+      const corrected = normalizeToSI(correctedKey, marker.value, marker.unit, marker);
+      for (const entry of entries) {
+        if (!entry.markers || !Object.hasOwn(entry.markers, key)) continue;
+        if (massAssay) {
+          if (Object.hasOwn(entry.markers, correctedKey)) {
+            deleteLabEntryMarker(entry, key, { recordTombstone: false, stamp: false });
+            continue;
+          }
+          renameLabEntryMarker(entry, key, correctedKey, { stamp: false });
+        }
+        entry.markers[correctedKey] = corrected;
+      }
+      if (massAssay) {
+        marker.mappedKey = correctedKey;
+        marker.suggestedKey = null;
+        marker.matched = true;
+      }
+      const override = data.refOverrides?.[key];
+      if (!override || override.labRefSnapshotId !== snapshot.id) continue;
+      const destination = massAssay ? (data.refOverrides![correctedKey] ||= {}) : override;
+      for (const [field, rawField] of profileRangeFields()) {
+        const isActive = field === 'refMin' || field === 'refMax';
+        if (isActive && override.refSource !== 'import') continue;
+        const raw = marker[rawField];
+        if (typeof raw === 'number' && (!isActive || destination.refSource !== 'manual')) destination[field] = normalizeToSI(correctedKey, raw, marker.unit, marker);
+        if (massAssay) delete override[field];
+      }
+      if (massAssay) {
+        for (const field of ['labRefDate', 'labRefSnapshotId']) { destination[field] = override[field]; delete override[field]; }
+        if (override.refSource === 'import') { if (destination.refSource !== 'manual') destination.refSource = 'import'; delete override.refSource; }
+      }
+    }
+  }
+}
+
 function _repairSnapshotBackedReferenceUnits(data: ProfileMarkerData) {
   if (!Array.isArray(data.importSnapshots) || !data.refOverrides) return;
   for (const snapshot of data.importSnapshots) {
@@ -386,7 +449,7 @@ function _repairSnapshotBackedReferenceUnits(data: ProfileMarkerData) {
 
 function _fractionStoredPercentSnapshotMarker(marker: ProfileImportMarker | null | undefined) {
   const key = marker?.mappedKey || marker?.suggestedKey || '';
-  if (!FRACTION_STORED_PERCENT_MARKERS.has(key)) return null;
+  if (marker?.unitConversionVersion === 2 || !FRACTION_STORED_PERCENT_MARKERS.has(key)) return null;
   if (!_isProfilePercentUnit(marker?.unit)) return null;
   const value = Number(marker?.value);
   if (!Number.isFinite(value) || value < 0 || value > 100) return null;
@@ -623,6 +686,7 @@ export function repairProfileMarkerData(data: ProfileMarkerData) {
   repairNamedStandardMarkerAliases(data);
   _repairCalculatedRatioAliases(data);
   _repairUnitSuffixedStandardMarkers(data);
+  repairReviewedMeasurementUnits(data);
   _repairSnapshotBackedReferenceUnits(data);
   preserveExactStandardCustomRanges(data);
   _repairNewlyStandardizedImports(data);

@@ -18,13 +18,15 @@ import {
   AGENT_HOST_CAPABILITIES, AGENT_HOST_PROTOCOL_VERSION,
 } from '../shared/agent-host-protocol.js';
 
+import { companionChatPairingCode, companionManagementCode } from '../lib/agent-host-boundary.js';
 const TOKEN = 'test-pairing-token';
+const discoveryAuthorization = `Bearer ${companionChatPairingCode(TOKEN, 'http://127.0.0.1:8324')}`;
 
 it('never grants lifecycle authority to browser discovery sessions', async () => {
   const controlHandler = vi.fn();
   const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)({ appServer: new FakeAppServer(), token: TOKEN, workspaceRoot: '/tmp/agent-test', controlHandler });
   for (const origin of ['http://localhost:9876', 'https://app.getbased.health']) {
-    const discovery = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery', { headers: { Origin: origin } }));
+    const discovery = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery', { headers: { Authorization: discoveryAuthorization, Origin: origin } }));
     const payload = await (discovery.json as () => Promise<{controlAuthorized?: unknown; token?: unknown}>)();
     expect(payload.controlAuthorized).toBe(false);
     for (const action of ['pause', 'resume', 'install', 'update', 'restart', 'restart-companion', 'uninstall']) {
@@ -129,7 +131,7 @@ describe('agent host service', () => {
         version: 'codex-cli 0.156.1', routeProvider: { listRoutes, resolve: vi.fn() } }] };
     const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)(options);
     const request = (query = '') => service.handleRequest(new Request(`http://127.0.0.1:8324/v1/discovery${query}`, {
-      headers: { Origin: 'https://app.getbased.health' },
+      headers: { Authorization: discoveryAuthorization, Origin: 'https://app.getbased.health' },
     }));
     expect(await (await request()).json()).toMatchObject({ agents: [{ version: 'codex-cli 0.156.1' }] });
     expect(refreshAgentVersions).not.toHaveBeenCalled();
@@ -154,7 +156,7 @@ describe('agent host service', () => {
         version: 'codex-cli 0.156.1', status: 'login_required', compatible: true }] };
     const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)(options);
     const response = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery?refresh=true', {
-      headers: { Origin: 'https://app.getbased.health' },
+      headers: { Authorization: discoveryAuthorization, Origin: 'https://app.getbased.health' },
     }));
     expect(response.status).toBe(200);
     const payload = await response.json();
@@ -170,7 +172,7 @@ describe('agent host service', () => {
         routeProvider: { listRoutes, resolve: vi.fn() } }],
     });
     const response = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery', {
-      headers: { Origin: 'http://127.0.0.1:8000' },
+      headers: { Authorization: discoveryAuthorization, Origin: 'http://127.0.0.1:8000' },
     }));
     expect(response.status).toBe(200);
     expect((await (response.json as () => Promise<{agents: {id?: unknown}[]}>)()).agents[0]!.id).toBe('hermes');
@@ -230,9 +232,12 @@ describe('agent host service', () => {
     const service = (createAgentHostService as unknown as (options: ServiceFixtureOptions) => ReturnType<typeof createAgentHostService>)({ appServer, token: TOKEN, workspaceRoot: '/tmp/agent-test' });
     const missingOrigin = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery'));
     expect(missingOrigin.status).toBe(403);
+    const unpaired = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery', {headers:{Origin:'https://getbased.health'}}));
+    expect(unpaired.status).toBe(401);
+    expect(await unpaired.json()).toEqual({error:'pairing_required'});
 
     const response = await service.handleRequest(new Request('http://127.0.0.1:8324/v1/discovery', {
-      headers: { Origin: 'https://getbased.health' },
+      headers: { Authorization: discoveryAuthorization, Origin: 'https://getbased.health' },
     }));
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://getbased.health');
@@ -454,10 +459,12 @@ describe('agent host service', () => {
     const turn = await service.handleRequest(turnRequest());
     const reader = turn.body!.getReader();
     await nextEvent(reader, new TextDecoder(), { value: '' });
-    const managementPage = await service.handleRequest(new Request('http://127.0.0.1:8324/manage', {
-      headers: { Host: '127.0.0.1:8324', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Dest': 'document' },
+    const managementEndpoint = 'http://127.0.0.1:8324';
+    const pair = await service.handleRequest(new Request(managementEndpoint + '/manage/pair', {
+      method:'POST', headers: { Host:'127.0.0.1:8324', Origin:managementEndpoint, 'Sec-Fetch-Site':'same-origin', Authorization:`Bearer ${companionManagementCode(TOKEN, managementEndpoint)}` },
     }));
-    const managementToken = (await managementPage.text()).match(/const credential="([^"]+)"/)![1];
+    expect(pair.status).toBe(200);
+    const {token:managementToken} = await pair.json() as {token:string};
     for (const action of ['install', 'uninstall', 'restart-companion', 'pause']) {
       const blocked = await request(action);
       expect(blocked.status).toBe(409);

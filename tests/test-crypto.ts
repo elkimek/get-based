@@ -124,7 +124,7 @@ assert('labcharts-ai-provider is NOT sensitive', !cryptoModule.isSensitiveKey('l
 assert('labcharts-default-units is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-default-units'));
 assert('labcharts-encryption-enabled is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-encryption-enabled'));
 assert('labcharts-time-format is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-time-format'));
-assert('labcharts-default-focusCard is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-default-focusCard'));
+assert('labcharts-default-focusCard is sensitive', cryptoModule.isSensitiveKey('labcharts-default-focusCard'));
 
 // ═══════════════════════════════════════════════
 // 3. Web Crypto API key derivation round-trip
@@ -432,11 +432,12 @@ try {
 console.log('14. crypto.js source inspection');
 try {
   const src = await fetchWithRetry('js/crypto.js');
+  const keySrc = await fetchWithRetry('js/crypto-passphrase-key.js');
   const uiSrc = await fetchWithRetry('js/crypto-ui.js');
   const surfaceSrc = `${src}\n${uiSrc}\n${passphraseControllerSrc}\n${passphraseViewSrc}`;
-  assert('crypto.js uses PBKDF2', src.includes('PBKDF2'));
+  assert('crypto.js uses PBKDF2', keySrc.includes('PBKDF2'));
   assert('crypto.js uses AES-GCM', src.includes('AES-GCM'));
-  assert('crypto.js has 600000 iterations', src.includes('600000'));
+  assert('crypto.js has 600000 iterations', keySrc.includes('600000'));
   assert('crypto.js uses 12-byte IV', src.includes('Uint8Array(12)'));
   assert('crypto.js uses 16-byte salt', src.includes('Uint8Array(16)'));
   assert('crypto.js has BroadcastChannel', src.includes('BroadcastChannel'));
@@ -702,7 +703,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('22. buildBackupSnapshot per-profile prefs');
 try {
-  const bkSrc = await fetchWithRetry('js/backup.js');
+  const bkSrc = await fetchWithRetry('js/backup.js') + await fetchWithRetry('js/backup-restore-plan.js');
   assert('backup.js has PER_PROFILE_PREF_SUFFIXES', bkSrc.includes('PER_PROFILE_PREF_SUFFIXES'));
   assert('backup.js includes units in prefs', bkSrc.includes("'units'"));
   assert('backup.js includes rangeMode in prefs', bkSrc.includes("'rangeMode'"));

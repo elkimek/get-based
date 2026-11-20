@@ -363,15 +363,17 @@ export function createDataCore(ports: DataCorePorts) {
 
   function getFocusCardFingerprint() {
     const parts = [
-      (ports.state.importedData.entries || []).map(e => e.date + ':' + Object.keys(e.markers || {}).length).join(','),
+      JSON.stringify(ports.state.importedData.entries || []),
       ports.state.profileSex || '',
       ports.state.profileDob || '',
       JSON.stringify(ports.state.importedData.diagnoses || null),
       (ports.state.importedData.healthGoals || []).map(g => g.severity + ':' + g.text).join(','),
       ports.state.importedData.interpretiveLens || '',
       ports.state.importedData.contextNotes || '',
-      (ports.state.importedData.supplements || []).map(s => s.name + s.startDate + (s.endDate || '')).join(','),
-      JSON.stringify(ports.state.importedData.markerNotes || {})
+      JSON.stringify(ports.state.importedData.supplements || []),
+      JSON.stringify(ports.state.importedData.markerNotes || {}),
+      JSON.stringify(ports.state.importedData.refOverrides || {}),
+      JSON.stringify(ports.state.importedData.contextSourceSettings || {})
     ];
     return (0, ports.hashString)(parts.join('|'));
   }
@@ -379,9 +381,9 @@ export function createDataCore(ports: DataCorePorts) {
   // ═══════════════════════════════════════════════
   // DATA PIPELINE
   // ═══════════════════════════════════════════════
-  function getActiveData(): ActiveData {
+  function getActiveData(reportEntries?: LabEntry[]): ActiveData {
     const cacheMeta = _makeActiveDataCacheMeta();
-    if (_activeDataCacheMatches(cacheMeta)) return _activeDataCache!;
+    if (!reportEntries && _activeDataCacheMatches(cacheMeta)) return _activeDataCache!;
     const data: ActiveData = {
       dates: ([] as string[]),
       dateLabels: ([] as string[]),
@@ -409,7 +411,7 @@ export function createDataCore(ports: DataCorePorts) {
       if (data.categories[catKey]?.markers[mKey]) data.categories[catKey].markers[mKey].name = label;
     }
 
-    const entries = (ports.state.importedData && ports.state.importedData.entries) ? ports.state.importedData.entries : [];
+    const entries = reportEntries ?? ports.state.importedData?.entries ?? [];
     const hasEntries = entries.length > 0;
 
     // Keep the date-wide display, with collection ownership for selected values
@@ -598,6 +600,12 @@ export function createDataCore(ports: DataCorePorts) {
       ));
     }
 
+    for (const range of ['reference', 'optimal']) {
+      setContextRanges('diabetes.homaIR', range, dateStr => {
+        const context = labCollections[dateStr]?.['diabetes.homaIR']?.context ?? entryContextByDate[dateStr];
+        return context?.fasting === false ? { min: null, max: null, label: 'Reported nonfasting result' } : null;
+      });
+    }
     setContextRanges('hormones.cortisol', 'reference', (dateStr, _i, marker) => {
       const context = labCollections[dateStr]?.['hormones.cortisol']?.context ?? entryContextByDate[dateStr];
       const specimen = marker.specimen || context?.specimen;
@@ -648,8 +656,7 @@ export function createDataCore(ports: DataCorePorts) {
     // storage dotkeys. Category placement is a final view projection only.
     (0, ports.applyMarkerPlacements)(data.categories, ports.state.importedData || {});
     applyLabOrderingToView(data.categories, ports.state.importedData?.labOrdering);
-    _activeDataCache = data;
-    _activeDataCacheMeta = cacheMeta;
+    if (!reportEntries) { _activeDataCache = data; _activeDataCacheMeta = cacheMeta; }
     return data;
   }
 
@@ -659,18 +666,11 @@ export function createDataCore(ports: DataCorePorts) {
     return (0, ports.convertDisplayToCanonical)(dotKey, value, ports.state.unitSystem);
   }
 
-  function roundProfileDisplayValue(value: number | null | undefined, conversion: ProfileConversion) {
-    if (value == null || !Number.isFinite(value)) return value;
-    if (conversion?.type === 'hba1c') return parseFloat(Number(value).toFixed(1));
-    return parseFloat(Number(value).toPrecision(4));
-  }
-
   function convertProfileValue(dotKey: string, value: number | null, unitProfile: string, canonicalUnit: string, conversion: ProfileConversion): number | null;
   function convertProfileValue(dotKey: string, value: number | null | undefined, unitProfile: string, canonicalUnit: string, conversion: ProfileConversion): number | null | undefined;
   function convertProfileValue(dotKey: string, value: number | null | undefined, unitProfile: string, canonicalUnit: string, conversion: ProfileConversion) {
     if (!conversion || (conversion.type === 'multiply' && conversion.factor === 1)) return value;
-    const converted = (0, ports.convertCanonicalToDisplay)(dotKey, value, unitProfile, canonicalUnit);
-    return roundProfileDisplayValue(converted, conversion);
+    return (0, ports.convertCanonicalToDisplay)(dotKey, value, unitProfile, canonicalUnit, true);
   }
 
   function convertProfileRange(dotKey: string, range: MarkerViewRange | null | undefined, unitProfile: string, canonicalUnit: string, conversion: ProfileConversion) {

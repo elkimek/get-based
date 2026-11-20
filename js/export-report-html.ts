@@ -49,8 +49,8 @@ export interface ReportHTMLData {
   dates: string[];
   categories: Record<string, ReportHTMLCategory>;
 }
-export interface ReportHTMLPortableMarker extends Pick<Partial<ReportMarker>, 'storageDotKey' | 'id' | 'note'> {
-  results?: Array<Pick<NativeOrDetachedFields<ReportResult>, 'dateIndex' | 'note' | 'source'> & { date?: unknown }>;
+export interface ReportHTMLPortableMarker extends Pick<Partial<ReportMarker>, 'storageDotKey' | 'id' | 'note' | 'name' | 'unit'> {
+  results?: Array<Pick<NativeOrDetachedFields<ReportResult>, 'dateIndex' | 'note' | 'source'> & Partial<Pick<NativeOrDetachedFields<ReportResult>, 'sampleLabel' | 'displayValue' | 'status' | 'ranges'>> & { date?: unknown }>;
 }
 export interface ReportHTMLGenomeFinding extends Pick<ReportGenomeFinding, 'rsid'> {
   tone: string;
@@ -147,7 +147,7 @@ export function buildReportHTML(profileName: string, sexLabel: string, data: Rep
   const renderOptions = { ...reportOptions, sections: options.detailed ? reportOptions.sections : reportOptions.appendixSections };
   const includesLabs = reportOptions.sections.some(section => REPORT_LAB_SECTION_IDS.includes(section));
   if (!includesLabs) { data = { ...data, dates: [], categories: {} }; flags = []; }
-  const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const now = new Date(portableReport?.generatedAt || Date.now()).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const rangeMode = portableReport?.scope?.rangeMode || reportOptions.rangeMode;
   if (includesLabs && options.rangeMode) flags = (getAllFlaggedMarkers as unknown as (data: ReportHTMLData, rangeMode?: string) => ReportHTMLFlag[])(data, rangeMode);
   const unitLabel = getUnitProfileLabel(portableReport?.scope?.unitSystem || state.unitSystem);
@@ -216,7 +216,13 @@ export function buildReportHTML(profileName: string, sexLabel: string, data: Rep
   if (includesLabs) body += `<p class="report-note">Lab reference ranges are labeled when imported; other reference ranges come from app guidance or custom settings. ${rangeMode === 'reference' ? 'Flags use reference ranges.' : 'Flags use optimal ranges when available, otherwise reference ranges. Phase-specific reference ranges take precedence.'}</p>`;
 
   }
-  if (options.detailed || renderOptions.sections.includes('categories')) body += renderCollectionContextSection();
+  if (options.detailed || renderOptions.sections.includes('categories')) {
+    body += renderCollectionContextSection();
+    const sampleRows = (portableReport?.labs?.categories || []).flatMap(category => category.markers.flatMap(marker =>
+      (marker.results || []).filter(result => result.sampleLabel).map(result =>
+        `<tr><td>${esc(result.date)}</td><td>${esc(result.sampleLabel)}</td><td>${esc(marker.name)}</td><td>${esc(result.displayValue)} ${esc(marker.unit)} · ${esc(result.status)}</td><td>${result.ranges?.displayed ? renderRangeSet({displayedRanges: result.ranges.displayed}, true) : '—'}</td><td>${esc(result.source?.file || '')}</td></tr>`)));
+    if (sampleRows.length) body += `<section><h2>Individual collections on the same date</h2><table><thead><tr><th>Date</th><th>Collection</th><th>Marker</th><th>Result</th><th>Range</th><th>Source</th></tr></thead><tbody>${sampleRows.join('')}</tbody></table></section>`;
+  }
 
   if (options.detailed) body += renderReportAISummarySection(reportOptions.aiSummary);
 

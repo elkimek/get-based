@@ -4,7 +4,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
-import { boundedInteger, requestUrl } from '../lib/node-request-routing.js';
+import { boundedInteger, nodeRelayHeaders, requestUrl } from '../lib/node-request-routing.js';
 
 import { createServer } from 'node:http';
 import { resolve as resolvePath } from 'node:path';
@@ -16,20 +16,20 @@ const DEFAULT_BIND_HOST = '0.0.0.0';
 const DEFAULT_PORT = 8787;
 const DEFAULT_REQUEST_TIMEOUT_MS = 190_000;
 
-function webRequest(incoming: IncomingMessage) {
+function webRequest(incoming: IncomingMessage, trustForwarded: boolean) {
   const method = String(incoming.method || 'GET').toUpperCase();
   const controller = new AbortController();
   incoming.once('aborted', () => controller.abort(new Error('Client disconnected')));
   const init: RequestInit & { duplex?: 'half' } = {
     method,
-    headers: (incoming.headers as HeadersInit),
+    headers: nodeRelayHeaders(incoming, trustForwarded),
     signal: controller.signal,
   };
   if (method !== 'GET' && method !== 'HEAD') {
     init.body = (Readable.toWeb(incoming) as unknown as BodyInit);
     init.duplex = 'half';
   }
-  return new Request(requestUrl(incoming), init);
+  return new Request(requestUrl(incoming, trustForwarded), init);
 }
 
 async function writeWebResponse(outgoing: ServerResponse, response: Response) {
@@ -56,7 +56,11 @@ function jsonResponse(status: number, body: unknown) {
   });
 }
 
-export function createCompatProxyServer(options: { proxyHandler?: (request: Request) => Promise<Response> | Response } = {}) {
+export function createCompatProxyServer(options: {
+  proxyHandler?: (request: Request) => Promise<Response> | Response;
+  trustForwarded?: boolean;
+} = {}) {
+  const trustForwarded = options.trustForwarded ?? process.env.COMPAT_PROXY_TRUST_PROXY === '1';
   let proxyHandler = options.proxyHandler;
   const resolveProxyHandler = async () => {
     if (proxyHandler) return proxyHandler;
@@ -77,7 +81,7 @@ export function createCompatProxyServer(options: { proxyHandler?: (request: Requ
         return;
       }
       const handler = await resolveProxyHandler();
-      await writeWebResponse(outgoing, await handler(webRequest(incoming)));
+      await writeWebResponse(outgoing, await handler(webRequest(incoming, trustForwarded)));
     } catch {
       if (!outgoing.headersSent) {
         await writeWebResponse(outgoing, jsonResponse(500, { error: 'Compatibility relay failed' }));

@@ -276,7 +276,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     ? (isPersonalAgentTarget(_msgAgentTarget) ? 'personal-agent-gateway' : 'codex-agent')
     : getAIProvider();
   const { requestAIProcessingApproval } = await import('./cloud-ai-consent.js');
-  if (!await requestAIProcessingApproval(_msgProvider, { kind: hasImages ? 'image' : 'text' })) return;
+  if (!await requestAIProcessingApproval(_msgProvider, { kind: hasImages ? 'image' : 'text', agentId: _msgAgentId, targetId: _msgAgentTarget })) return;
   if (!scopeIsCurrent() || isChatThreadInputBlocked() || useCodexAgent !== isCodexChatBackend()
     || (useCodexAgent ? _msgAgentId !== getAgentHostAgent() || _msgAgentTarget !== getAgentHostTarget() : _msgProvider !== getAIProvider())) return;
 

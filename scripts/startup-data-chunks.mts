@@ -3,6 +3,13 @@ import path from 'node:path';
 // Already-eager, dependency-closed data contracts and helpers. Keep query-module
 // identities, feature modules, framework code and native workers independent.
 export const STARTUP_DATA_MODULES = [
+  'js/runtime-callbacks.js', 'js/utils-runtime.js', 'js/proxy-runtime.js',
+  'js/transaction-completion.js', 'js/unique-id.js', 'js/route-lifecycle.js',
+  'js/settings-runtime-bridge.js', 'js/dna-runtime-bridge.js',
+  'js/changelog-state.js', 'js/light-sun-analysis-runtime.js', 'js/import-review-draft.js',
+  'js/sync-profile-fields.js', 'js/sync-settings-state.js', 'js/profile-sync-policy.js',
+  'js/wearables-whoop-storage-contract.js', 'js/withings-measurement-version.js',
+  'js/cycle-import-presentation.js',
   'js/base64.js', 'js/caught-error.js', 'js/native-command-locks.js', 'js/profile-storage-key.js',
   'js/passphrase-classes.js', 'js/passphrase-presentation.js', 'js/settings-protection-classes.js',
   'js/url-safety.js', 'js/agent-access-legacy-source.js', 'js/health-goals-utils.js', 'js/lab-date-range.js',

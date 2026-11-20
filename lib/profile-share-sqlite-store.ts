@@ -150,17 +150,13 @@ export function createSqliteProfileShareStore(settings: SqliteStoreSettings): Sq
   const deleteObject = database.prepare(
     'DELETE FROM profile_share_objects WHERE pathname = ?',
   );
-  const pageCountStatement = database.prepare('PRAGMA page_count');
-
   function ensureWriteCapacity(bodyBytes: number) {
-    const pageCount = Number(pageCountStatement.get()?.page_count) || 0;
-    if ((pageCount * pageSize) + bodyBytes > maxDatabaseBytes) {
-      throw new Error('Profile-share storage capacity reached.');
-    }
+    // SQLite enforces max_page_count itself, accounting for pages on its
+    // freelist and pages touched by this statement.
     const filesystem = statfsSync(databaseDirectory);
     const availableBytes = Number(filesystem.bavail) * Number(filesystem.bsize);
     if (Number.isFinite(availableBytes) && availableBytes < MIN_FREE_BYTES + bodyBytes) {
-      throw new Error('Profile-share host disk reserve reached.');
+      throw Object.assign(new Error('Profile-share host disk reserve reached.'), { code: 'PROFILE_SHARE_DISK_RESERVE' });
     }
   }
 
@@ -230,6 +226,11 @@ export function createSqliteProfileShareStore(settings: SqliteStoreSettings): Sq
         throw error;
       }
       throwIfAborted(options.abortSignal);
+    },
+    isCapacityFailure(error) {
+      const cause = error as { code?: unknown; errcode?: unknown } | null;
+      return cause?.code === 'PROFILE_SHARE_DISK_RESERVE' || cause?.code === 'SQLITE_FULL'
+        || (cause?.code === 'ERR_SQLITE_ERROR' && cause.errcode === 13);
     },
     isPreconditionFailure(error) {
       return sqliteConflict(error);

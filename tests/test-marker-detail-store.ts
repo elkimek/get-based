@@ -168,8 +168,8 @@ assert('marker-detail-editing no longer persists marker detail mutations directl
   !/saveImportedData\(/.test(editingSrc)
     && !/setLabEntryMarker\(/.test(editingSrc)
     && !/deleteLabEntryMarkerFromImportedData\(/.test(editingSrc));
-assert('deleteMarkerValue checks store value presence before confirm dialog',
-  /if \(!hasMarkerValueForDate\(dotKey, date\)\) return;[\s\S]*showConfirmDialog/.test(deleteMarkerValueBlock));
+assert('deleteMarkerValue checks the reviewed panel and marker before confirmation and rechecks before committing',
+  /Object\.hasOwn\(entry\.markers, dotKey\)\) return;[\s\S]*showConfirmDialog[\s\S]*!review\.current\(\)[\s\S]*await deleteManualMarkerValue/.test(deleteMarkerValueBlock));
 assert('saveRefRange skips UI success path when store rejects the range type',
   /const saved = await saveRefRangeOverride\(dotKey, type, \{ min: newMin, max: newMax \}\);[\s\S]*if \(!saved\) return;[\s\S]*showNotification\('Range updated'/.test(saveRefRangeBlock));
 assert('synced marker maps are written only by marker-detail-store.js',

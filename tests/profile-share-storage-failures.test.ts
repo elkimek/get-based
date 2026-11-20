@@ -83,29 +83,22 @@ it('retains the original row after an unexpected SQLite write failure and can re
   } finally { database.close(); }
 });
 
-it('rejects a capacity-exhausted write before mutating the previous row', async () => {
-  let full = false;
-  const originalPrepare = DatabaseSync.prototype.prepare;
-  const prepare = vi.spyOn(DatabaseSync.prototype, 'prepare').mockImplementation(function(this: DatabaseSync, sql) {
-    const statement = originalPrepare.call(this, sql);
-    if (sql === 'PRAGMA page_count') {
-      const pageSize = Number(originalPrepare.call(this, 'PRAGMA page_size').get()?.page_size);
-      const originalGet = statement.get.bind(statement);
-      vi.spyOn(statement, 'get').mockImplementation(() => full
-        ? { page_count: Math.ceil(67108864 / pageSize) } : originalGet());
-    }
-    return statement;
+it('keeps the previous row at the actual page ceiling and reuses deleted pages', async () => {
+  const originalExec = DatabaseSync.prototype.exec;
+  const exec = vi.spyOn(DatabaseSync.prototype, 'exec').mockImplementation(function (this: DatabaseSync, sql) {
+    return originalExec.call(this, sql.startsWith('PRAGMA max_page_count') ? 'PRAGMA max_page_count = 12' : sql);
   });
   try {
     const { store } = fixture();
+    const filler = 'x'.repeat(30_000);
     await store.put('shares/a', 'original');
-    full = true;
-    await expect(store.put('shares/a', 'replacement', { allowOverwrite: true })).rejects.toThrow('storage capacity reached');
+    await store.put('shares/expired', filler);
+    await expect(store.put('shares/a', filler, { allowOverwrite: true })).rejects.toThrow(/full/i);
     expect(await store.get('shares/a')).toBe('original');
-    full = false;
-    await store.put('shares/a', 'replacement', { allowOverwrite: true });
-    expect(await store.get('shares/a')).toBe('replacement');
-  } finally { prepare.mockRestore(); }
+    await store.delete(['shares/expired']);
+    await store.put('shares/a', filler, { allowOverwrite: true });
+    expect(await store.get('shares/a')).toBe(filler);
+  } finally { exec.mockRestore(); }
 });
 
 it('fails health checks on reported SQLite corruption and recovers after a clean check', () => {

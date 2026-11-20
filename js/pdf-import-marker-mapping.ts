@@ -688,6 +688,7 @@ export function reconcileImportMarkerMappings<T extends Array<ImportReviewMarker
       ? (exactSuggestedKey || exactMappedKey)
       : (aliasKey || existingCustomKey);
     if (testType === 'blood' && resolvedKey && !preferredSuggestedKey) {
+      if (resolvedKey === 'lipids.lpA' && ['mg/dl', 'mg/l', 'g/l'].includes(normalizeUnitStr(marker.unit))) resolvedKey = 'lipids.lpAMass';
       resolvedKey = _preferImportAbsoluteHintKey(resolvedKey, marker, refLookup, existingKeys);
       resolvedKey = _preferImportPercentSiblingKey(resolvedKey, marker, refLookup, existingKeys);
     }

@@ -1,3 +1,9 @@
+import {
+  encryptAgentContextForRelay, generateAgentContextKeyValue, ownerIdString,
+  ownerWriteKeyBytes, sha256Hex, signAgentContextRequest, type MessengerOwner,
+} from './agent-context-crypto.js';
+export { encryptAgentContextForRelay } from './agent-context-crypto.js';
+
 import type { LabContextOptions } from './lab-context-runtime.js';
 import type { StoredProfileRecord } from './profile-list-store.js';
 import type { buildWearableSeriesSection as buildWearableSeries } from './lab-context-wearables.js';
@@ -7,6 +13,7 @@ import { state } from './state.js';
 import { bindSyncAppliedRefresh } from './utils.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { isDemoProfileId } from './profile-sync-policy.js';
+import { profileStorageKey } from './profile-storage-key.js';
 import { MESSENGER_TOKEN_KEY, MESSENGER_ENABLED_KEY, MESSENGER_CONTEXT_KEY_KEY,
   AGENT_ACCESS_MIGRATION_PROFILE_KEY, retireAgentAccessLegacySource } from './agent-access-legacy-source.js';
 
@@ -26,7 +33,6 @@ interface AgentAccessProfile {
   agentAccess?: unknown;
   agentAccessWearableSeriesDays?: unknown;
 }
-interface MessengerOwner { id?: unknown; writeKey?: unknown }
 
 const AGENT_ACCESS_SYNC_VERSION = 1;
 
@@ -42,6 +48,9 @@ let _getAgentWearableSeriesDays: () => number = () => 0;
 let _getProfiles: () => StoredProfileRecord[] = () => [];
 let _contextPushTimer: ReturnType<typeof setTimeout> | null = null;
 let _contextPushInFlight = false;
+let contextPushDone: Promise<void> | null = null;
+let contextPushRevision = 0;
+let contextPushQueued = false;
 let _blockedContextPushIdentity = '';
 let agentAccessMigrationDirty = new WeakSet<object>();
 let unclaimedAgentAccessSource = new WeakSet<object>();
@@ -393,105 +402,6 @@ addUtilsRuntimeListener('labcharts-profile-switched', () => {
   refreshAgentAccessFromSyncedProfile({ migrateLegacy: false, clearWhenMissing: true });
 });
 
-const AGENT_CONTEXT_CRYPTO_VERSION = 2;
-const AGENT_CONTEXT_AAD_PREFIX = 'getbased-agent-context-v2';
-
-function bytesToBase64(bytes: Iterable<number>) {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function bytesToBase64Url(bytes: Iterable<number>) {
-  return bytesToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-
-function bytesToHex(bytes: Iterable<number>) {
-  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function ownerIdString(owner: MessengerOwner | null) {
-  if (!owner?.id) return null;
-  return String(owner.id);
-}
-
-function ownerWriteKeyBytes(owner: MessengerOwner | null) {
-  if (!owner?.writeKey) return null;
-  return owner.writeKey instanceof Uint8Array ? owner.writeKey : new Uint8Array(owner.writeKey as ArrayBuffer);
-}
-
-async function sha256Hex(value: unknown) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value || '')));
-  return bytesToHex(new Uint8Array(digest));
-}
-
-async function signAgentContextRequest({ owner, token, profileId, relayContext, timestamp }: {
-  owner: MessengerOwner | null; token: string; profileId: string; relayContext: string; timestamp: number;
-}) {
-  if (!crypto?.subtle) throw new Error('Agent Access owner signing requires WebCrypto');
-  const ownerId = ownerIdString(owner);
-  const writeKey = ownerWriteKeyBytes(owner);
-  if (!ownerId || !writeKey) throw new Error('Agent Access requires Sync identity — enable or restore Cross-device Sync first');
-  const tokenHash = await sha256Hex(token);
-  const contextHash = await sha256Hex(relayContext);
-  const key = await crypto.subtle.importKey('raw', writeKey as Uint8Array<ArrayBuffer>, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const message = `agent-context:${ownerId}:${timestamp}:${tokenHash}:${profileId || 'default'}:${contextHash}`;
-  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
-  return { ownerId, tokenHash, contextHash, signature: bytesToHex(new Uint8Array(signature)) };
-}
-
-function base64UrlToBytes(value: unknown) {
-  const raw = String(value || '').trim();
-  const b64 = raw.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(raw.length / 4) * 4, '=');
-  const binary = atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-  return out;
-}
-
-function generateAgentContextKeyValue() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return `gbctx_v1_${bytesToBase64Url(bytes)}`;
-}
-
-function decodeAgentContextKey(keyValue: unknown) {
-  const trimmed = String(keyValue || '').trim();
-  const encoded = trimmed.startsWith('gbctx_v1_') ? trimmed.slice('gbctx_v1_'.length) : trimmed;
-  const bytes = base64UrlToBytes(encoded);
-  if (bytes.length !== 32) throw new Error('Agent Context key must decode to 32 bytes');
-  return bytes;
-}
-
-async function agentContextKeyId(rawKeyBytes: Uint8Array<ArrayBuffer>) {
-  const digest = await crypto.subtle.digest('SHA-256', rawKeyBytes);
-  return bytesToBase64Url(new Uint8Array(digest).slice(0, 12));
-}
-
-async function importAgentContextCryptoKey(rawKeyBytes: Uint8Array<ArrayBuffer>) {
-  if (!crypto?.subtle) throw new Error('Agent Access encryption requires WebCrypto');
-  return crypto.subtle.importKey('raw', rawKeyBytes, { name: 'AES-GCM' }, false, ['encrypt']);
-}
-
-export async function encryptAgentContextForRelay(context: unknown, contextKey: unknown, profileId: string | null | undefined) {
-  const rawKey = decodeAgentContextKey(contextKey);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await importAgentContextCryptoKey(rawKey);
-  const aad = new TextEncoder().encode(`${AGENT_CONTEXT_AAD_PREFIX}:${profileId || 'default'}`);
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, additionalData: aad },
-    key,
-    new TextEncoder().encode(String(context || '')),
-  );
-  return {
-    version: AGENT_CONTEXT_CRYPTO_VERSION,
-    alg: 'AES-256-GCM',
-    keyDerivation: 'raw-256-bit-key',
-    keyId: await agentContextKeyId(rawKey),
-    iv: bytesToBase64(iv),
-    ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
-  };
-}
-
 export function isMessengerEnabled() {
   const aa = getAgentAccessState();
   return !!(aa.enabled && aa.token && aa.contextKey);
@@ -535,9 +445,9 @@ interface AgentAccessOperationOrigin {
   owner: MessengerOwner | null; profileId: string; relay: string;
 }
 const operationOrigins = new WeakMap<AgentAccessOperationScope, AgentAccessOperationOrigin>();
-export function captureAgentAccessOperationScope(): AgentAccessOperationScope {
+export function captureAgentAccessOperationScope(profileOverride?: string): AgentAccessOperationScope {
   const activeProfile = state.currentProfile;
-  const profileId = activeProfile || (typeof localStorage !== 'undefined' && localStorage.getItem('labcharts-active-profile')) || 'default';
+  const profileId = profileOverride || activeProfile || (typeof localStorage !== 'undefined' && localStorage.getItem('labcharts-active-profile')) || 'default';
   const data = state.importedData;
   const current = currentAppOwner();
   const ownerId = ownerIdString(current);
@@ -556,37 +466,68 @@ export function captureAgentAccessOperationScope(): AgentAccessOperationScope {
   return Object.freeze(scope);
 }
 
-export function revokeMessengerTokenRemote(token: string | null | undefined, scope?: AgentAccessOperationScope) {
+const REVOCATION_PREFIX = 'labcharts-agent-access-revocation-';
+interface PendingRevocation { token: string; ownerId: string; profileId: string; relay: string }
+let revocationsInFlight: Promise<boolean> | null = null;
+
+export async function queueMessengerRevocation(token: string | null | undefined, scope?: AgentAccessOperationScope) {
   if (!token) return;
   const origin = operationOrigins.get(scope || captureAgentAccessOperationScope());
   if (!origin) throw new Error('Agent Access operation scope is invalid');
-  const { owner, relay, profileId } = origin;
-  const relayContext = '';
-  const timestamp = Date.now();
-  signAgentContextRequest({ owner, token, profileId, relayContext, timestamp })
-    .then(ownerProof => fetch(`${relay}/api/context`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ownerId: ownerProof.ownerId,
-        profileId,
-        context: relayContext,
-        timestamp,
-        signature: ownerProof.signature,
-      }),
-    }))
-    .then(res => {
-      if (res && !res.ok) dbg(`Agent Access revoke returned ${res.status}`);
-    })
-    .catch(e => {
-      // Local revocation still wins; the relay mapping expires by token
-      // rotation/owner limits, and the user can delete relay data from the
-      // server if this browser has already lost the Sync identity.
-      console.warn('[sync] Agent Access remote revoke failed:', e);
-    });
+  const ownerId = ownerIdString(origin.owner);
+  if (!ownerId) throw new Error('Connect your Sync identity to withdraw the published Agent Access snapshot.');
+  const record: PendingRevocation = { token, ownerId, profileId: origin.profileId, relay: origin.relay };
+  const key = REVOCATION_PREFIX + await sha256Hex(token);
+  const { encryptedSetCredentialItem } = await import('./crypto.js');
+  await encryptedSetCredentialItem(key, JSON.stringify(record));
+  return key;
+}
+
+async function sendQueuedRevocations() {
+  await contextPushDone;
+  const keys = Object.keys(localStorage).filter(key => key.startsWith(REVOCATION_PREFIX));
+  if (!keys.length) return true;
+  const { encryptedGetItem, encryptedRemoveItem } = await import('./crypto.js');
+  const owner = currentAppOwner();
+  const relay = currentSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+  const results = await Promise.all(keys.map(async key => {
+    try {
+      const raw = await encryptedGetItem(key, { throwOnDecryptError: true });
+      if (!raw) return false;
+      const record = JSON.parse(raw) as PendingRevocation;
+      const { token, profileId } = record;
+      if (record.ownerId !== ownerIdString(owner) || record.relay !== relay
+        || typeof profileId !== 'string' || typeof token !== 'string'
+        || key !== REVOCATION_PREFIX + await sha256Hex(token)) return false;
+      // A failed local mutation can leave its prepared revocation. Recheck
+      // persisted profile state before withdrawing a credential still in use.
+      const persisted = await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true });
+      if (persisted && JSON.parse(persisted)?.agentAccess?.token === token) return false;
+      const timestamp = Date.now();
+      const proof = await signAgentContextRequest({ owner, token, profileId, relayContext: '', timestamp });
+      const response = await fetch(`${relay}/api/context`, {
+        method: 'DELETE', signal: AbortSignal.timeout(10_000), redirect: 'error',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerId: proof.ownerId, profileId, context: '', timestamp, signature: proof.signature }),
+      });
+      if (!response.ok && response.status !== 404 && response.status !== 410) return false;
+      await encryptedRemoveItem(key);
+      return localStorage.getItem(key) === null;
+    } catch { return false; }
+  }));
+  return results.every(Boolean);
+}
+
+export function flushQueuedMessengerRevocations() {
+  if (!revocationsInFlight) {
+    revocationsInFlight = sendQueuedRevocations().catch(() => false).finally(() => { revocationsInFlight = null; });
+  }
+  return revocationsInFlight;
+}
+
+export async function revokeMessengerTokenRemote(token: string | null | undefined, scope?: AgentAccessOperationScope) {
+  await queueMessengerRevocation(token, scope);
+  return flushQueuedMessengerRevocations();
 }
 
 export function generateMessengerToken() {
@@ -608,6 +549,7 @@ export function generateMessengerToken() {
 
 export function disableMessengerTokenLocal() {
   cancelPendingContextPush();
+  contextPushRevision++;
   const previousToken = getMessengerToken();
   const aa = writeAgentAccess({
     enabled: false,
@@ -621,11 +563,14 @@ export function disableMessengerTokenLocal() {
 
 export function revokeMessengerToken() {
   const token = disableMessengerTokenLocal();
-  revokeMessengerTokenRemote(token);
+  void revokeMessengerTokenRemote(token).catch(() => {});
 }
+
+addUtilsRuntimeListener('online', () => { void flushQueuedMessengerRevocations(); });
 
 export function pushContextToGateway() {
   cancelPendingContextPush();
+  void flushQueuedMessengerRevocations();
   migrateLocalAgentAccessToProfile();
   if (!isMessengerEnabled()) return;
   const token = getMessengerToken();
@@ -642,11 +587,15 @@ export function pushContextToGateway() {
   // Demo profiles are intentionally local-only. Agent Access uses a separate
   // relay endpoint, so the Evolu push guard alone is not sufficient.
   if (isDemoProfileId(profileId, _getProfiles())) return;
+  const revision = ++contextPushRevision;
 
   _contextPushTimer = setTimeout(async () => {
     _contextPushTimer = null;
-    if (_blockedContextPushIdentity === pushIdentity || _contextPushInFlight) return;
+    if (_blockedContextPushIdentity === pushIdentity) return;
+    if (_contextPushInFlight) { contextPushQueued = true; return; }
     _contextPushInFlight = true;
+    let finish!: () => void;
+    contextPushDone = new Promise<void>(resolve => { finish = resolve; });
     try {
       const latest = getAgentAccessState();
       if (!scope.isCurrent() || state.currentProfile !== profileId
@@ -662,11 +611,15 @@ export function pushContextToGateway() {
         buildWearableSeriesSection: _buildWearableSeriesSection,
         getAgentWearableSeriesDays: _getAgentWearableSeriesDays, getProfiles: _getProfiles,
       };
+      const sourceSettings = JSON.stringify(state.importedData.contextSourceSettings || {});
+      const originalSeriesDays = getAgentWearableSeriesDays();
       const preparationOwnerCurrent = () => {
         const access = getAgentAccessState();
         return scope.isCurrent() && state.currentProfile === profileId
           && access.enabled === true && access.token === token && access.contextKey === contextKey
-          && _blockedContextPushIdentity !== pushIdentity
+          && _blockedContextPushIdentity !== pushIdentity && contextPushRevision === revision
+          && JSON.stringify(state.importedData.contextSourceSettings || {}) === sourceSettings
+          && getAgentWearableSeriesDays() === originalSeriesDays
           && configured.getSyncRelay === _getSyncRelay && configured.getAppOwner === _getAppOwner
           && configured.debug === _debug && configured.buildLabContext === _buildLabContext
           && configured.prepareContext === _prepareContext
@@ -732,6 +685,7 @@ export function pushContextToGateway() {
       }
       const res = await fetch(`${relay}/api/context`, {
         method: 'POST',
+        signal: AbortSignal.timeout(15_000), redirect: 'error',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -762,6 +716,9 @@ export function pushContextToGateway() {
       console.warn('[sync] Context push failed:', e);
     } finally {
       _contextPushInFlight = false;
+      contextPushDone = null;
+      finish();
+      if (contextPushQueued) { contextPushQueued = false; pushContextToGateway(); }
     }
   }, 5000); // 5s debounce - less urgent than sync
 }

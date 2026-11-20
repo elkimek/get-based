@@ -15,6 +15,7 @@ for (const width of [760, 360]) {
     let updateAvailable = false, offlineUntil = 0, recoverSameSession = false;
     const status: {runtimeMode: string; processMode: string; companionVersion: string; paused: boolean; restartRequired: boolean; restartStatus?: string} = { runtimeMode: 'installed', processMode: 'service', companionVersion: '1.3.0', paused: false, restartRequired: false };
     const createManagement = () => createCompanionManagement({
+      authorizePairing:code=>code==='synthetic-management-pair',
       allowParentOrigin: value => value === parent,
       status: () => status,
       control: async request => {
@@ -80,6 +81,8 @@ for (const width of [760, 360]) {
     });
     await page.goto(parent + '/companion-settings-test');
     const frame = page.frameLocator('iframe');
+    const pair=async()=>{await frame.getByLabel('Management code').fill('synthetic-management-pair');await frame.getByRole('button',{name:'Unlock controls'}).click();};
+    await pair();
     await expect(frame.locator('#status')).toContainText('Connected');
     await expect(frame.getByRole('button', { name: 'Pause', exact: true })).toBeHidden();
     await expect(frame.getByRole('button', { name: 'Refresh status', exact: true })).toHaveCount(0);
@@ -107,6 +110,8 @@ for (const width of [760, 360]) {
     // The former 1.8-second reload navigated into a browser error page here.
     await page.waitForTimeout(1900);
     await expect(frame.locator('#status')).toHaveText('Reconnecting…');
+    await expect(frame.getByLabel('Management code')).toBeVisible({timeout:10000});
+    await pair();
     await expect(frame.locator('#status')).toHaveText('Connected', { timeout: 10000 });
     await expect(frame.getByRole('button', { name: 'Restart to finish update' })).toBeHidden();
     expect(actions).toEqual(['update', 'pause', 'update', 'restart-companion']);

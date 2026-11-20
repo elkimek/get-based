@@ -1,10 +1,11 @@
-import type { ShareLocation, RawExportOperations, ShareEnvelopeReader, ShareEnvelope, EncryptShareOptions, CreateProfileShareOptions, ShareRecord, RawShareRecord, ShareResultReader, ShareFormTarget, ShareControl, ShareClickTarget, CreatedShareOperations } from '../types/profile-share.js';
+import type { ShareLocation, RawExportOperations, ShareEnvelopeReader, ShareEnvelope, EncryptShareOptions, CreateProfileShareOptions, ShareResultReader, ShareFormTarget, ShareControl, ShareClickTarget, CreatedShareOperations } from '../types/profile-share.js';
 // profile-share.js — encrypted single-profile share links
 
+import { getProfileShareRecords, getShareRecord, saveShareRecord, removeShareRecord, hydrateShareHistory } from './profile-share-history.js';
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { getProfiles } from './profile.js';
-import { buildClientExportObject, importDataJSON } from './export.js';
+import { buildClientExportObject, loadExportImportModule } from './export.js';
 import { showNotification } from './utils.js';
 import { renderActiveShare, projectActiveShare, projectCreateShare, renderResultShare, renderShareShell, type ShareBodyView } from './profile-share-presentation.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
@@ -41,7 +42,6 @@ export const PROFILE_SHARE_API = getProfileShareApiUrl(
 
 const SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
 const SHARE_OVERLAY_ID = 'profile-share-overlay';
-const SHARE_RECORDS_KEY = 'getbased-profile-shares-v1';
 const TEXT_ENCODER = new TextEncoder();
 const TEXT_DECODER = new TextDecoder();
 
@@ -205,6 +205,7 @@ function validateClientExportObject(exportObj: unknown) {
   if ((exportObj as RawExportOperations).version !== 2) throw new Error('Unsupported shared profile version.');
   if (!(exportObj as RawExportOperations).profile?.name || typeof (exportObj as RawExportOperations).profile.name !== 'string') throw new Error('Shared profile is missing profile metadata.');
   if (!Array.isArray((exportObj as RawExportOperations).entries)) throw new Error('Shared profile is missing lab entries.');
+  if (['type', 'format', 'profiles', 'settings', 'wallet'].some(key => Object.hasOwn(exportObj, key))) throw new Error('Invalid shared profile format.');
   return exportObj;
 }
 
@@ -216,7 +217,7 @@ export async function encryptProfileShareEnvelope(exportObj: unknown, secret: un
   const iv = randomBytes(12);
   const requestedIterations = Number(options.iterations);
   const iterations = Number.isFinite(requestedIterations)
-    ? Math.max(PROFILE_SHARE_MIN_KDF_ITERATIONS, Math.round(requestedIterations))
+    ? Math.min(PROFILE_SHARE_KDF_ITERATIONS, Math.max(PROFILE_SHARE_MIN_KDF_ITERATIONS, Math.round(requestedIterations)))
     : PROFILE_SHARE_KDF_ITERATIONS;
   const expiresAt = options.expiresAt || isoDaysFromNow(options.expiresDays || 7);
   const { compression, bytes } = await compressJsonText(JSON.stringify(exportObj));
@@ -259,7 +260,7 @@ export async function decryptProfileShareEnvelope(envelope: unknown, secret: unk
   const iv = base64UrlToBytes(cipher.iv);
   const ciphertext = base64UrlToBytes((envelope as ShareEnvelopeReader).ciphertext);
   const iterations = Number(kdf.iterations);
-  if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS) throw new Error('Invalid shared profile encryption settings.');
+  if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS || iterations > PROFILE_SHARE_KDF_ITERATIONS) throw new Error('Invalid shared profile encryption settings.');
   const key = await deriveShareKey(shareSecret, salt, iterations);
   let plaintextBytes;
   try {
@@ -279,7 +280,10 @@ async function postProfileShare(id: unknown, envelope: ShareEnvelope, manageToke
   });
   let body: { error?: unknown; envelope?: unknown } | null = null;
   try { body = await response.json() as { error?: unknown; envelope?: unknown } | null; } catch {}
-  if (!response.ok) throw new Error((body?.error || `Share failed (${response.status})`) as string);
+  if (!response.ok) {
+    if (response.status >= 400 && response.status < 500) await removeShareRecord(String(id));
+    throw new Error((body?.error || `Share failed (${response.status})`) as string);
+  }
   return body || {};
 }
 
@@ -304,67 +308,9 @@ async function deleteProfileShareEnvelope(id: unknown, manageToken: unknown = ''
   });
   let body: { error?: unknown; envelope?: unknown } | null = null;
   try { body = await response.json() as { error?: unknown; envelope?: unknown } | null; } catch {}
-  if (!response.ok) throw new Error((body?.error || `Could not stop sharing (${response.status})`) as string);
+  if (!response.ok && response.status !== 404 && response.status !== 410) throw new Error((body?.error || `Could not stop sharing (${response.status})`) as string);
   return body || {};
 }
-
-function readShareRecords() {
-  if (typeof localStorage === 'undefined') return [];
-  let parsed: unknown = [];
-  let shouldRewrite = false;
-  try {
-    parsed = JSON.parse(localStorage.getItem(SHARE_RECORDS_KEY) || '[]');
-  } catch {
-    parsed = [];
-    shouldRewrite = true;
-  }
-  if (!Array.isArray(parsed)) {
-    parsed = [];
-    shouldRewrite = true;
-  }
-  const now = Date.now();
-  const records = (parsed as RawShareRecord[])
-    .filter(record => record && typeof record === 'object')
-    .filter(record => SHARE_ID_RE.test((record.id || '') as string) && Date.parse((record.expiresAt || '') as string) > now)
-    .map(record => ({
-      id: record.id,
-      profileId: String(record.profileId || ''),
-      profileName: String(record.profileName || 'Profile'),
-      shareUrl: String(record.shareUrl || ''),
-      manageToken: String(record.manageToken || ''),
-      createdAt: String(record.createdAt || ''),
-      expiresAt: String(record.expiresAt || ''),
-    }))
-    .slice(0, 50);
-  if (shouldRewrite || records.length !== (parsed as unknown[]).length) writeShareRecords(records);
-  return records;
-}
-
-function writeShareRecords(records: ShareRecord[]) {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(SHARE_RECORDS_KEY, JSON.stringify(records.slice(0, 50)));
-  } catch {}
-}
-
-function saveShareRecord(record: ShareRecord) {
-  const records = readShareRecords().filter(item => item.id !== record.id) as ShareRecord[];
-  records.unshift(record);
-  writeShareRecords(records);
-}
-
-function removeShareRecord(id: unknown) {
-  writeShareRecords(readShareRecords().filter(record => record.id !== id));
-}
-
-function getShareRecord(id: unknown) {
-  return readShareRecords().find(record => record.id === id) || null;
-}
-
-function getProfileShareRecords(profileId: unknown = state.currentProfile) {
-  return readShareRecords().filter(record => record.profileId === profileId);
-}
-
 
 export async function createProfileShare({ profileId = state.currentProfile, password, expiresDays = 7 }: CreateProfileShareOptions = {}) {
   const secret = validateSharePassword(password);
@@ -374,8 +320,7 @@ export async function createProfileShare({ profileId = state.currentProfile, pas
   // Relay-backed shares exclude meals/photos; only explicit local JSON backups include them.
   const exportObj = await buildClientExportObject(profileId, false, false);
   const envelope = await encryptProfileShareEnvelope(exportObj, secret, { expiresDays: clampExpiryDays(expiresDays) });
-  await postProfileShare(id, envelope, manageTokenHash);
-  return {
+  const result = {
     id,
     shareUrl: buildProfileShareUrl(id),
     password: secret,
@@ -384,6 +329,11 @@ export async function createProfileShare({ profileId = state.currentProfile, pas
     profileName: (exportObj as RawExportOperations).profile.name,
     profileId,
   };
+  await saveShareRecord({ id, profileId, profileName: result.profileName, shareUrl: result.shareUrl, manageToken,
+    createdAt: new Date().toISOString(), expiresAt: result.expiresAt });
+  // A lost response can follow a successful publication. Keep the credential for retrying Stop sharing.
+  await postProfileShare(id, envelope, manageTokenHash);
+  return result;
 }
 
 async function copyText(value: string, successMessage: string) {
@@ -488,6 +438,15 @@ export function openProfileShareModal(profileId: unknown = state.currentProfile)
     title: 'Share Profile',
     body: projectCreateShareBody(profileId),
   });
+  const overlay = document.getElementById(SHARE_OVERLAY_ID);
+  void hydrateShareHistory().then(() => {
+    if (overlay?.isConnected) refreshActiveShareList(overlay, profileId);
+  }).catch(() => {
+    if (overlay?.isConnected) {
+      refreshActiveShareList(overlay, profileId);
+      setStatus('Some saved links could not be read on this device.', 'error');
+    }
+  });
 }
 
 export function closeProfileShareModal() {
@@ -516,15 +475,6 @@ async function handleCreateSubmit(form: ShareFormTarget) {
     setBusy(overlay, true, 'Creating...');
     setStatus('Encrypting profile and creating link...', 'info');
     const result = await createProfileShare({ profileId, password, expiresDays }) as CreatedShareOperations;
-    saveShareRecord({
-      id: result.id,
-      profileId: result.profileId,
-      profileName: result.profileName,
-      shareUrl: result.shareUrl,
-      manageToken: result.manageToken,
-      createdAt: new Date().toISOString(),
-      expiresAt: result.expiresAt,
-    });
     const body = overlay.querySelector('.profile-share-body');
     if (!body) throw new Error('Profile share modal closed before the link was ready.');
     body.outerHTML = renderShareResultBody(result);
@@ -548,8 +498,9 @@ async function handleLoadSubmit(form: ShareFormTarget) {
     const envelope = await fetchProfileShareEnvelope(id);
     setStatus('Decrypting profile...', 'info');
     const exportObj = await decryptProfileShareEnvelope(envelope, password) as RawExportOperations;
-    const json = JSON.stringify(exportObj, null, 2);
-    await importDataJSON(new File([json], 'getbased-shared-profile.json', { type: 'application/json' }));
+    const { importNewSharedProfile } = await loadExportImportModule();
+    const receipt = await importNewSharedProfile(exportObj);
+    if (!receipt.profileId) throw new Error('Shared profile could not be saved.');
     closeProfileShareModal();
     clearShareHash(id);
     showNotification(`Imported shared profile "${(exportObj as RawExportOperations).profile.name}"`, 'success');
@@ -567,15 +518,16 @@ async function handleLoadSubmit(form: ShareFormTarget) {
 async function handleDeleteShare(actionEl: HTMLButtonElement) {
   const overlay = document.getElementById(SHARE_OVERLAY_ID);
   const id = actionEl.dataset.shareId || '';
-  const record = getShareRecord(id);
+
   const list = actionEl.closest<HTMLElement>('[data-profile-share-active-list]');
   const profileId = list?.dataset.profileId || state.currentProfile;
   const previousText = actionEl.textContent;
   try {
     actionEl.disabled = true;
     actionEl.textContent = 'Stopping...';
+    const record = await getShareRecord(id);
     await deleteProfileShareEnvelope(id, record?.manageToken || '');
-    removeShareRecord(id);
+    await removeShareRecord(id);
     refreshActiveShareList(overlay, profileId);
     setStatus('Link stopped. It can no longer load the shared profile.', 'info');
     showNotification('Sharing link stopped', 'success');

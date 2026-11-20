@@ -44,6 +44,7 @@ vi.mock('../js/data.js', () => ({
 }));
 vi.mock('../js/profile.js', () => ({
   createProfile: vi.fn(),
+  discardEmptyImportedProfile: vi.fn(),
   getProfiles: runtime.getProfiles,
   loadProfile: vi.fn(async () => {}),
   migrateProfileData: vi.fn(),
@@ -96,6 +97,45 @@ vi.mock('../js/nostr-discovery.js', () => ({ setSelectedNodeUrl: runtime.setSele
 const { importDataJSON } = await import('../js/export-import.js');
 
 describe('JSON restore runtime', () => {
+  it.each(['profile', 'database'])('preserves separately identified same-day samples through %s import', async kind => {
+    const entries = [
+      { panelId: 'morning', date: '2026-11-11', context: { sampleTime: '08:00', fasting: true }, markers: { glucose: 4.3 } },
+      { panelId: 'evening', date: '2026-11-11', context: { sampleTime: '18:00', fasting: false }, markers: { glucose: 8.9 } },
+    ];
+    runtime.state.importedData = { entries: [] };
+    const payload = kind === 'profile' ? { entries } : { type: 'database', profiles: [{ id: 'profile-1', data: { entries } }] };
+    await importDataJSON(new File([JSON.stringify(payload)], 'portable.json'));
+    const saved = kind === 'profile' ? runtime.state.importedData : JSON.parse(localStorage.getItem('profile-1:imported')!);
+    expect(saved.entries).toMatchObject(entries);
+  });
+  it('creates a separate identity for a namesake and strips live integration credentials from imported data', async () => {
+    const { createProfile } = await import('../js/profile.js');
+    vi.mocked(createProfile).mockResolvedValueOnce('other-profile');
+    const profile = { id: 'other-profile', name: 'Primary', data: { entries: [], notes: [{ date: '2026-11-11', text: 'Fictional' }], agentAccess: { enabled: true, token: 'fixture' }, wearableConnections: { whoop: {} } } };
+    await importDataJSON(new File([JSON.stringify({ type: 'database', profiles: [profile] })], 'clients.json'));
+    expect(localStorage.getItem('profile-1:imported')).toBeNull();
+    const saved = JSON.parse(localStorage.getItem('other-profile:imported')!);
+    expect(saved.notes).toEqual(profile.data.notes);
+    expect(saved).not.toHaveProperty('agentAccess'); expect(saved).not.toHaveProperty('wearableConnections');
+  });
+  it('preserves unreadable existing storage during merge', async () => {
+    localStorage.setItem('profile-1:imported', 'damaged');
+    await importDataJSON(new File([JSON.stringify({ type: 'database', profiles: [{ id: 'profile-1', data: { notes: [] } }] })], 'clients.json'));
+    expect(localStorage.getItem('profile-1:imported')).toBe('damaged');
+    expect(runtime.saveImportedDataForProfile).not.toHaveBeenCalled();
+  });
+  it('returns a new-profile receipt only after durable shared-profile persistence', async () => {
+    const { importNewSharedProfile } = await import('../js/export-import.js');
+    const { createProfile } = await import('../js/profile.js');
+    vi.mocked(createProfile).mockResolvedValue('new-share');
+    const doc = { version: 2, profile: { name: 'Primary' }, entries: [], notes: [{ date: '2026-11-11', text: 'Fixture' }] };
+    await expect(importNewSharedProfile({ ...doc, type: 'database' })).rejects.toThrow('single portable profile');
+    expect(createProfile).not.toHaveBeenCalled();
+    runtime.saveImportedDataForProfile.mockResolvedValueOnce(false);
+    await expect(importNewSharedProfile(doc)).rejects.toThrow('save');
+    await expect(importNewSharedProfile(doc)).resolves.toEqual({ profileId: 'new-share' });
+    expect(localStorage.getItem('profile-1:imported')).toBeNull();
+  });
   it.each(['profile', 'database'])('unions portable ordering moves without altering clinical records in a %s restore', async kind => {
     const a = appendLabOrderMove(null, { item: 'A', after: 'C' }, 'local', 1), b = appendLabOrderMove(null, { item: 'D', before: 'B' }, 'backup', 1);
     const current = { entries: [{ date: '2026-10-20', markers: { 'biochemistry.glucose': 5 } }], customMarkerLifecycle: {}, labOrdering: { markers: a, future: { version: 99, keep: true } } };

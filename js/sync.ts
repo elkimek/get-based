@@ -27,7 +27,7 @@ import {
   getMessengerContextKey, getMessengerToken, hasMessengerSyncIdentity,
   isAgentAccessMigrationDirty, isMessengerEnabled,
   migrateLocalAgentAccessToProfile, refreshAgentAccessFromSyncedProfile,
-  revokeMessengerTokenRemote, setAgentAccessWearableSeriesDays,
+  revokeMessengerTokenRemote, setAgentAccessWearableSeriesDays, queueMessengerRevocation, flushQueuedMessengerRevocations,
   pushContextToGateway, revokeMessengerToken,
 } from './sync-messenger.js';
 import {
@@ -97,7 +97,7 @@ export {
   getMessengerContextKey, getMessengerToken, hasMessengerSyncIdentity,
   isAgentAccessMigrationDirty, isMessengerEnabled,
   migrateLocalAgentAccessToProfile, refreshAgentAccessFromSyncedProfile,
-  revokeMessengerTokenRemote, setAgentAccessWearableSeriesDays,
+  revokeMessengerTokenRemote, setAgentAccessWearableSeriesDays, queueMessengerRevocation, flushQueuedMessengerRevocations,
   pushContextToGateway, revokeMessengerToken,
   checkRelayConnection, getSyncBlocker, getSyncRelay, setSyncRelay,
   getMnemonic, getMnemonicResolutionError, getSyncIdentityFingerprint, getSyncIdentityOwnerId,

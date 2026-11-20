@@ -235,7 +235,7 @@ export function restoreLatestSnapshotMarkerForKey(data: ProfileData, entry: LabE
   const marker = prepared.markers[0]!;
   setLabEntryMarker(entry, dotKey, normalizeToSI(dotKey, marker.value as number, marker.unit, marker), {
     now,
-    source: { file: snap.fileName || null, at: now, snapshotId: snap.id },
+    source: { file: snap.fileName || null, at: now, snapshotId: snap.id, ...(dotKey === 'diabetes.homaIR' ? { reported: true } : {}) },
   });
   return true;
 }

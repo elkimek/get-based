@@ -1,6 +1,6 @@
 // ai-provider-policy.js — provider-neutral inference destinations and policies.
 
-import { getAgentHostAgent, getAgentHostModel } from './agent-chat-settings.js';
+import { getAgentHostAgent, getAgentHostModel, getAgentHostTarget } from './agent-chat-settings.js';
 
 import {
   getCustomApiUrl,
@@ -23,6 +23,7 @@ export interface AIProcessingOptions {
   modelId?: unknown;
   /** Previewing a destination must not temporarily select its CLI adapter. */
   agentId?: string | undefined;
+  targetId?: string | undefined;
 }
 export interface AIProcessingDestination {
   provider: string;
@@ -138,6 +139,7 @@ function selectedPolicy(provider: string, cloudModel: boolean) {
 function destinationLabel(provider: string, boundary: AIProcessingDestination['boundary'], origin: string, policyLabel: string) {
   if (policyLabel) return policyLabel;
   if (provider === 'browser-local') return 'the on-device AI engine';
+  if (provider === 'pii-scrubber') return origin ? `the report scrubbing server at ${origin}` : 'the configured report scrubbing server';
   if (provider === 'routstr') return origin ? `the Routstr node at ${origin}` : 'the selected Routstr node';
   if (provider === 'custom') return origin ? `the custom API at ${origin}` : 'the configured custom API';
   if (provider === 'ollama') {
@@ -158,7 +160,7 @@ function scopeFor(provider: string, boundary: AIProcessingDestination['boundary'
   return `${provider || 'unknown'}:${origin || 'unconfigured'}`;
 }
 
-export function getAIProcessingDestination(provider: string, { endpoint = '', modelId = '', agentId }: AIProcessingOptions = {}): AIProcessingDestination {
+export function getAIProcessingDestination(provider: string, { endpoint = '', modelId = '', agentId, targetId }: AIProcessingOptions = {}): AIProcessingDestination {
   const agent = provider === 'codex-agent' ? agentId ?? getAgentHostAgent() : '';
   if (agent && agent !== 'codex') {
     const model = modelId || getAgentHostModel() || 'default';
@@ -202,7 +204,9 @@ export function getAIProcessingDestination(provider: string, { endpoint = '', mo
     endpoint: resolvedEndpoint,
     origin,
     boundary,
-    scope: scopeFor(provider, boundary, origin, cloudModel),
+    scope: provider === 'personal-agent-gateway'
+      ? `personal-agent-gateway:${encodeURIComponent(agentId || getAgentHostAgent() || 'unknown')}:${encodeURIComponent(targetId || getAgentHostTarget() || 'unknown')}`
+      : scopeFor(provider, boundary, origin, cloudModel),
     label,
     route,
     privacyUrl: policy.privacyUrl,

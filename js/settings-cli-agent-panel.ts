@@ -21,7 +21,7 @@ import {
   getAgentHostEndpoint,
   getAgentHostModel,
   getAgentHostTarget,
-  getAgentHostToken,
+  getAgentHostToken, pairLocalCompanion,
   getChatBackend,
   saveAgentChatSettings,
   setChatBackend,
@@ -59,6 +59,7 @@ export function hydrateCliAgentSettings(host = document.querySelector<HTMLElemen
   if (!host?.isConnected) return;
   const initial = { ...buildCliAgentSettingsSnapshot([],presentationContext()),phase:'scanning' as const,showSetup:false };
   const view = mountCliAgentSettings(host,initial,{
+    pair:async code => { try { await pairLocalCompanion(code); await refreshDetectedAgentList({refresh:true}); } catch (error) { showNotification(error instanceof Error ? error.message : 'Could not pair Companion.', 'error'); } },
     scan:() => refreshDetectedAgentList({ refresh:true }),platform:setCLICompanionPlatform,copy:action => action === 'run' ? copyCLICompanionRunCommand() : action === 'start' ? copyCLICompanionStartCommand() : copyCLICompanionUpdateCommand(),
     login:copyCLIAgentLoginCommand,test:testLocalCodex,toggle:toggleLocalCodex,disclose:toggleCLIAgentOptions,control:controlCLICompanion,
   }); view.setBusy(cliController.isBusy()); void refreshDetectedAgentList({ refresh:true });

@@ -5,6 +5,7 @@
   import { CLI_COPY, CLI_BUTTON, CLI_PRIMARY, CLI_LINK, CLI_KICKER } from '../cli-agent-settings-classes.js';
   let { initial,actions }: { initial:CliAgentSettingsSnapshot;actions:CliAgentSettingsActions } = $props();
   let snapshot = $state(untrack(() => initial)), status = $state(''), busy = $state(false), howOpen = $state(false);
+  let pairingCode = $state('');
   let modelHost: HTMLElement | null = $state(null), frame: HTMLIFrameElement | null = $state(null), frameHeight: number | null = $state(null);
   export function refresh(next: CliAgentSettingsSnapshot): void { if (next.companion?.managementHref !== snapshot.companion?.managementHref) frameHeight = null; snapshot = next; }
   export function getSnapshot(): CliAgentSettingsSnapshot { return snapshot; }
@@ -25,6 +26,12 @@
     <button type="button" class={CLI_BUTTON} disabled={busy} data-settings-action="rescan-cli-agents" onclick={event => run(event,actions.scan)}>Check connection</button>
   </div>
   <p class={CLI_COPY + ' gb:cli:mx-[15px] gb:cli:mt-3 gb:cli:rounded-lg gb:cli:border gb:cli:border-line gb:cli:bg-secondary-surface gb:cli:px-[11px] gb:cli:py-[9px]'}><strong>One assistant across getbased.</strong> The selected CLI agent powers chat, supported image and document imports, summaries, explanations, and other AI features. It can read enabled active-profile context through constrained tools; any proposed data change stays a draft until you apply it.</p>
+  <details class={CLI_COPY}><summary>Pair this browser with Companion</summary>
+    <p>After starting Companion, run this command in a second terminal and paste the private chat code here.</p>
+    <code>{snapshot.platform === 'windows' ? 'node "$env:TEMP/getbased-companion.mjs" pair' : 'node "${TMPDIR:-/tmp}/getbased-companion.mjs" pair'}</code>
+    <label for="companion-pair-code">Chat pairing code</label> <input id="companion-pair-code" type="password" autocomplete="off" spellcheck="false" bind:value={pairingCode}>
+    <button class={CLI_BUTTON} type="button" disabled={busy || !pairingCode.trim()} onclick={event => run(event, () => { const code=pairingCode;pairingCode='';return actions.pair?.(code); })}>Pair browser</button>
+  </details>
   <div class={CLI_KICKER}>Installed CLIs</div>
   <div id="local-agent-list" aria-live="polite" class="gb:cli:px-2.5 gb:cli:pb-2.5">
     {#if snapshot.phase === 'scanning'}<p role="status" class={CLI_COPY + ' gb:cli:p-4 gb:cli:text-center'}><span aria-hidden="true" class="gb:cli:mr-2 gb:cli:inline-block gb:cli:size-3 gb:cli:animate-spin gb:cli:rounded-full gb:cli:border-2 gb:cli:border-line gb:cli:border-t-accent gb:cli:motion-reduce:animate-none"></span>Scanning this computer…</p>{/if}
@@ -50,12 +57,12 @@
     {/each}
     {#if snapshot.showSetup && snapshot.phase !== 'scanning'}
       <div class="local-agent-install-card gb:cli:my-1 gb:cli:flex gb:cli:min-w-0 gb:cli:flex-col gb:cli:gap-2.5 gb:cli:rounded-[11px] gb:cli:border gb:cli:border-line gb:cli:bg-secondary-surface gb:cli:p-[13px]" role="region" aria-label="Connect local CLI agents">
-        <strong class="gb:cli:text-[12.5px]">Connect your installed CLI agents</strong><p class={CLI_COPY}>A browser cannot launch a local program by itself. Copy this one bootstrap command into {snapshot.platform === 'windows' ? 'PowerShell' : 'Terminal'}, then select <strong>Check connection</strong>. Once connected, getbased can install and manage the companion directly.</p>
+        <strong class="gb:cli:text-[12.5px]">Connect your installed CLI agents</strong><p class={CLI_COPY}>A browser cannot launch a local program by itself. Copy this one bootstrap command into {snapshot.platform === 'windows' ? 'PowerShell' : 'Terminal'}, then pair this browser. Once connected, getbased can install and manage the companion directly.</p>
         <div class="gb:cli:flex gb:cli:flex-wrap gb:cli:gap-2" role="group" aria-label="Operating system">{#each [['linux','Linux'],['macos','macOS'],['windows','Windows']] as [value,label]}<button type="button" class={CLI_BUTTON + ' gb:cli:aria-pressed:bg-accent-fill'} disabled={busy} aria-pressed={snapshot.platform === value} data-settings-action="set-cli-companion-platform" data-value={value} onclick={event => run(event,() => actions.platform(value as 'linux'|'macos'|'windows'))}>{label}</button>{/each}</div>
         <strong class="gb:cli:text-xs">Connect once</strong><p class={CLI_COPY}>Downloads one open-source file to your temporary folder. Nothing is installed automatically.</p>
         <code class="gb:cli:min-w-0 gb:cli:rounded-control gb:cli:border gb:cli:border-line gb:cli:bg-surface gb:cli:p-2 gb:cli:font-mono gb:cli:text-[11px] gb:cli:wrap-anywhere" title={snapshot.runCommand}>{snapshot.runCommand}</code>
         <button type="button" class={CLI_PRIMARY} disabled={busy} data-settings-action="copy-cli-companion-run" onclick={event => run(event,() => actions.copy('run'))}>Copy connection command</button>
-        <small class={CLI_COPY}>Already installed but stopped? <button type="button" class={CLI_LINK} disabled={busy} data-settings-action="copy-cli-companion-start" data-command={snapshot.startCommand} onclick={event => run(event,() => actions.copy('start'))}>Copy the start command</button>. Requires Node.js 20+ and at least one configured supported CLI. No port or pairing token is needed. <a class={CLI_LINK} href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">Review the source on GitHub</a>.</small>
+        <small class={CLI_COPY}>Already installed but stopped? <button type="button" class={CLI_LINK} disabled={busy} data-settings-action="copy-cli-companion-start" data-command={snapshot.startCommand} onclick={event => run(event,() => actions.copy('start'))}>Copy the start command</button>. Requires Node.js 20+ and at least one configured supported CLI. Use the pair command in a second terminal to authorize this browser. <a class={CLI_LINK} href="https://github.com/elkimek/get-based/blob/main/bin/getbased-companion.js" target="_blank" rel="noopener">Review the source on GitHub</a>.</small>
       </div>
     {/if}
   </div>

@@ -88,9 +88,15 @@ const importCssSrc = read('css/import.css');
   const restoreSrc = read('js/lab-entry-restore.js');
   assert('JSON import preserves markerSources.at instead of stamping wall-clock time',
     restoreSrc.includes('source: source ? { ...source } : null') && !restoreSrc.includes('...source, at: now'));
-  assert('JSON import canonicalizes insulin through the shared lab entry helper',
-    jsonImportBlock.includes('mergeRestoredLabEntry(existing, entry, importTs)')
-      && restoreSrc.includes('setLabEntryMarker(restored, key, value,'));
+  const restoredPanel = (await import('../js/lab-entry-restore.js')).mergeRestoredLabEntry(
+    { date: '2026-04-12', markers: { 'biochemistry.glucose': 5 } },
+    { date: '2026-04-12', markers: { 'hormones.insulin': 9 } }, 123);
+  assert('JSON import merges the matching collection and coalesces legacy insulin into the canonical marker',
+    jsonImportBlock.includes('restorePortableLabEntry(state.importedData, entry, importTs)')
+      && exportImportSrc.includes('mergeRestoredLabEntry(entries[index], entry, at)')
+      && restoredPanel.markers?.['diabetes.insulin'] === 9
+      && !Object.hasOwn(restoredPanel.markers || {}, 'hormones.insulin')
+      && restoredPanel.markers?.['biochemistry.glucose'] === 5);
   assert('JSON import implementation loads only on the first import action',
     !exportSrc.includes("from './export-import.js'")
       && exportSrc.includes("import('./export-import.js')")

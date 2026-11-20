@@ -7,12 +7,13 @@ import {
   getAgentHostTarget,
   saveAgentChatSettings, setChatBackend,
 } from '../js/agent-chat-settings.js';
+import { stubPairedCompanion } from './helpers/companion-pairing-fixture.js';
 import { clearKeyCache } from '../js/crypto-key-cache.js';
 
 describe('agent chat settings', () => {
-  it('keeps the development companion when the installed host lacks the context tool contract', async () => {
+  it('requires explicit pairing before using even a compatible local host', async () => {
     const capabilities = ['chat-stream', 'companion-control', 'dynamic-tools', 'structured-health-tools'];
-    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
       const url = String(input);
       const payload = { service: 'getbased-agent-host', protocolVersion: 5, capabilities };
       const agent = { id: 'codex', status: 'available', compatible: true };
@@ -22,57 +23,59 @@ describe('agent chat settings', () => {
       return new Response('{}', { status: 404 });
     }));
     await expect(connectDetectedCodex({ requiredCapabilities: capabilities, requiredToolContractVersion: 4 }))
-      .resolves.toMatchObject({ endpoint: 'http://127.0.0.1:18324', toolContractVersion: 4 });
-    expect(getAgentHostEndpoint()).toBe('http://127.0.0.1:18324');
-    expect(getAgentHostToken()).toBe('development-private-token');
-    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url) === 'http://127.0.0.1:8324/v1/status')).toBe(false);
+      .rejects.toThrow('was not detected');
+    expect(getAgentHostToken()).toBe('');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
   it.each([undefined, 3, 'invalid'])('rejects an older or invalid tool contract before publishing credentials: %s', async toolContractVersion => {
     const capabilities = ['chat-stream', 'companion-control', 'dynamic-tools', 'structured-health-tools'];
-    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+    const { pair, fetchMock } = stubPairedCompanion(8324, async (input: unknown) => {
       const url = String(input);
       const payload = { service: 'getbased-agent-host', protocolVersion: 5, capabilities, toolContractVersion };
-      if (url === '/api/local-agents') return new Response(JSON.stringify({ agents: [] }));
       if (url === 'http://127.0.0.1:8324/v1/discovery') return new Response(JSON.stringify({ ...payload, endpoint: 'http://127.0.0.1:8324', token: 'installed-private-token', agents: [{ id: 'codex', status: 'available', compatible: true }] }));
       if (url === 'http://127.0.0.1:8324/v1/status') return new Response(JSON.stringify(payload));
       return new Response('{}', { status: 404 });
-    }));
+    });
+    await pair();
+    fetchMock.mockClear();
     await expect(connectDetectedCodex({ requiredCapabilities: capabilities, requiredToolContractVersion: 4 }))
       .rejects.toThrow('structured context updates');
     expect(getAgentHostToken()).toBe('');
   });
 
-  it('continues past an installed host with general tool support to find the current context tool contract', async () => {
+  it('uses the paired host with the current context tool contract', async () => {
     const capabilities = ['chat-stream', 'companion-control', 'dynamic-tools', 'structured-health-tools'];
-    vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+    const { pair, fetchMock } = stubPairedCompanion(8325, async (input: unknown) => {
       const url = String(input);
       const payload = { service: 'getbased-agent-host', protocolVersion: 5, capabilities };
-      if (url === '/api/local-agents') return new Response(JSON.stringify({ agents: [] }));
       if (url.endsWith('/v1/discovery') && /:832[45]\//.test(url)) {
         const port = new URL(url).port;
         return new Response(JSON.stringify({ ...payload, ...(port === '8325' ? { toolContractVersion: 4 } : {}), endpoint: `http://127.0.0.1:${port}`, token: `private-token-for-${port}`, agents: [{ id: 'codex', status: 'available', compatible: true }] }));
       }
       if (url === 'http://127.0.0.1:8325/v1/status') return new Response(JSON.stringify({ ...payload, toolContractVersion: 4 }));
       return new Response('{}', { status: 404 });
-    }));
+    });
+    await pair();
+    fetchMock.mockClear();
     await expect(connectDetectedCodex({ requiredCapabilities: capabilities, requiredToolContractVersion: 4 }))
       .resolves.toMatchObject({ endpoint: 'http://127.0.0.1:8325', toolContractVersion: 4 });
   });
 
-  it('skips a generally current installed host when only the next host supports the requested gateway feature', async () => {
+  it('verifies the requested feature on the paired gateway target', async () => {
     const caps = ['chat-stream', 'companion-control', 'execution-targets'];
     const json = (payload: unknown) => new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    const { pair, fetchMock } = stubPairedCompanion(8325, async input => {
       const url = String(input);
-      if (url === '/api/local-agents') return json({ agents: [] });
       const port = new URL(url).port;
       if (!['8324', '8325'].includes(port)) throw new Error('Unexpected later probe');
       if (url.endsWith('/v1/discovery')) return json({ service: 'getbased-agent-host', endpoint: `http://127.0.0.1:${port}`, token: `private-token-for-${port}`, capabilities: caps, protocolVersion: 5, agents: [{ id: 'hermes', status: 'available', compatible: true }] });
       if (url.includes('/v1/targets')) return json({ targets: [{ id: 'gateway-home', status: 'available', supportsTextFeatureJobs: port === '8325' }] });
       if (url.endsWith('/v1/status')) return json({ service: 'getbased-agent-host', capabilities: caps, protocolVersion: 5 });
       throw new Error('Unexpected request');
-    }));
+    });
+    await pair();
+    fetchMock.mockClear();
     await expect(connectDetectedAgent('hermes', { requiredCapabilities: ['chat-stream'], requiredTextFeatureTarget: 'gateway-home' })).resolves.toMatchObject({ endpoint: 'http://127.0.0.1:8325' });
     expect(getAgentHostEndpoint()).toBe('http://127.0.0.1:8325');
     expect(getAgentHostToken()).toBe('private-token-for-8325');
@@ -103,22 +106,16 @@ describe('agent chat settings', () => {
     expect(localStorage.getItem('labcharts-chat-backend')).toBe('codex');
   });
 
-  it('normalizes local CLI discovery and requests a real rescan when asked', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ agents: [{
-      id: 'codex', name: 'Codex CLI', description: 'OpenAI official CLI', version: '0.150.1',
-      status: 'available', compatible: true, endpoint: DEFAULT_AGENT_HOST_ENDPOINT, token: 'private-token-value',
-    }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+  it('ignores development inventory until the browser is explicitly paired', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ agents: [{ id: 'codex', compatible: true }] }));
     vi.stubGlobal('fetch', fetchMock);
-
-    const agents = await discoverLocalChatAgents({ refresh: true });
-    expect(fetchMock).toHaveBeenCalledWith('/api/local-agents?refresh=1', expect.objectContaining({ cache: 'no-store' }));
-    expect(agents[0]).toMatchObject({ id: 'codex', description: 'OpenAI official CLI', compatible: true });
+    await expect(discoverLocalChatAgents({ refresh: true })).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('forwards Settings refresh to the installed companion and uses its current version', async () => {
-    const fetchMock = vi.fn(async input => {
+    const { pair, fetchMock } = stubPairedCompanion(8324, async input => {
       const url = String(input);
-      if (url.startsWith('/api/local-agents')) return new Response('{"error":"not_found"}', { status: 404 });
       const target = new URL(url);
       if (target.port !== '8324') throw new TypeError('connection refused');
       return new Response(JSON.stringify({ service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324',
@@ -127,7 +124,8 @@ describe('agent chat settings', () => {
           version: target.searchParams.get('refresh') === 'true' ? 'codex-cli 0.163.0' : 'codex-cli 0.156.1' }],
       }), { status: 200 });
     });
-    vi.stubGlobal('fetch', fetchMock);
+    await pair();
+    fetchMock.mockClear();
     await expect(discoverLocalChatAgents({ refresh: true })).resolves.toEqual([
       expect.objectContaining({ id: 'codex', version: 'codex-cli 0.163.0' }),
     ]);
@@ -135,9 +133,8 @@ describe('agent chat settings', () => {
   });
 
   it.each(['http', 'network', 'invalid-json', 'wrong-service'])('retains discovered agents with unknown versions when only refresh fails: %s', async failure => {
-    const fetchMock = vi.fn(async (input: unknown) => {
+    const { pair, fetchMock } = stubPairedCompanion(8324, async (input: unknown) => {
       const url = String(input);
-      if (url.startsWith('/api/local-agents')) return new Response('{}', { status: 404 });
       if (url === 'http://127.0.0.1:8324/v1/discovery') return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: 'known-discovery-token',
         capabilities: ['companion-control'], agents: [{ id: 'codex', status: 'available', compatible: true, version: 'codex-cli 0.156.1' }],
@@ -150,23 +147,22 @@ describe('agent chat settings', () => {
       }
       throw new Error('unexpected later probe');
     });
-    vi.stubGlobal('fetch', fetchMock);
+    await pair();
+    fetchMock.mockClear();
     await expect(discoverLocalChatAgents({ refresh: true })).resolves.toEqual([expect.objectContaining({
       id: 'codex', status: 'available', compatible: true, version: '', token: 'known-discovery-token',
       endpoint: 'http://127.0.0.1:8324', controlAuthorized: false,
     })]);
     expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
-      '/api/local-agents?refresh=1', 'http://127.0.0.1:8324/v1/discovery',
+      expect.stringMatching(/^http:\/\/127\.0\.0\.1:8324\/v1\/pairing\?challenge=[0-9a-f]{32}$/), 'http://127.0.0.1:8324/v1/discovery',
       'http://127.0.0.1:8324/v1/discovery?refresh=true',
     ]);
   });
 
   it.each(['timeout', 'caller-abort'])('preserves discovered agents on a refresh timeout but respects caller cancellation: %s', async failure => {
-    vi.useFakeTimers();
     const controller = new AbortController();
-    vi.stubGlobal('fetch', vi.fn(async (input: unknown, init?: RequestInit) => {
+    const { pair } = stubPairedCompanion(8324, async (input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith('/api/local-agents')) return new Response('{}', { status: 404 });
       if (url === 'http://127.0.0.1:8324/v1/discovery') return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: 'known-discovery-token',
         capabilities: ['companion-control'], agents: [{ id: 'codex', status: 'available', compatible: true, version: 'codex-cli 0.156.1' }],
@@ -176,26 +172,21 @@ describe('agent chat settings', () => {
         if (failure === 'caller-abort') setTimeout(() => controller.abort(), 100);
       });
       throw new Error('unexpected later probe');
-    }));
+    });
+    await pair();
     const result = discoverLocalChatAgents({ refresh: true, signal: controller.signal });
-    await vi.runAllTimersAsync();
     await expect(result).resolves.toEqual(failure === 'caller-abort' ? [] : [expect.objectContaining({
       id: 'codex', version: '', token: 'known-discovery-token', controlAuthorized: false,
     })]);
-  });
+  }, 8000);
 
-  it('keeps unused-port discovery short but lets an identified companion finish bounded version refresh', async () => {
-    vi.useFakeTimers();
+  it('lets an authenticated Companion finish a bounded version refresh', async () => {
     const payload = (version: string) => new Response(JSON.stringify({ service: 'getbased-agent-host',
       endpoint: 'http://127.0.0.1:8325', token: 'automatic-companion-token', capabilities: ['companion-control'],
       agents: [{ id: 'codex', compatible: true, status: 'available', version }],
     }));
-    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+    const { pair, fetchMock } = stubPairedCompanion(8325, async (input: unknown, init?: RequestInit) => {
       const url = String(input);
-      if (url.startsWith('/api/local-agents')) return new Response('{}', { status: 404 });
-      if (url === 'http://127.0.0.1:8324/v1/discovery') return new Promise<Response>((_resolve, reject) => {
-        init!.signal!.addEventListener('abort', () => reject(new Error('unused port timed out')), { once: true });
-      });
       if (url === 'http://127.0.0.1:8325/v1/discovery') return payload('codex-cli 0.156.1');
       if (url === 'http://127.0.0.1:8325/v1/discovery?refresh=true') return new Promise<Response>((resolve, reject) => {
         const timer = setTimeout(() => resolve(payload('codex-cli 0.163.0')), 800);
@@ -203,20 +194,18 @@ describe('agent chat settings', () => {
       });
       throw new Error('unexpected later probe');
     });
-    vi.stubGlobal('fetch', fetchMock);
+    await pair();
+    fetchMock.mockClear();
     const result = discoverLocalChatAgents({ refresh: true });
-    await vi.runAllTimersAsync();
     await expect(result).resolves.toEqual([expect.objectContaining({ version: 'codex-cli 0.163.0' })]);
     expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
-      '/api/local-agents?refresh=1', 'http://127.0.0.1:8324/v1/discovery',
-      'http://127.0.0.1:8325/v1/discovery', 'http://127.0.0.1:8325/v1/discovery?refresh=true',
+      expect.stringMatching(/^http:\/\/127\.0\.0\.1:8325\/v1\/pairing\?challenge=[0-9a-f]{32}$/), 'http://127.0.0.1:8325/v1/discovery', 'http://127.0.0.1:8325/v1/discovery?refresh=true',
     ]);
   });
 
-  it('discovers a standalone companion without manual endpoint or token input', async () => {
-    const fetchMock = vi.fn(async input => {
+  it('discovers a paired standalone companion on its own port', async () => {
+    const { pair, fetchMock } = stubPairedCompanion(8326, async input => {
       const url = String(input);
-      if (url === '/api/local-agents') return new Response('{"error":"not_found"}', { status: 404 });
       if (url === 'http://127.0.0.1:8326/v1/discovery') {
         return new Response(JSON.stringify({
           service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8326',
@@ -227,7 +216,8 @@ describe('agent chat settings', () => {
       }
       throw new TypeError('connection refused');
     });
-    vi.stubGlobal('fetch', fetchMock);
+    await pair();
+    fetchMock.mockClear();
 
     await expect(discoverLocalChatAgents()).resolves.toEqual([expect.objectContaining({
       id: 'codex', endpoint: 'http://127.0.0.1:8326', token: 'automatic-companion-token',
@@ -236,14 +226,13 @@ describe('agent chat settings', () => {
     expect(fetchMock).not.toHaveBeenCalledWith('http://127.0.0.1:8327/v1/discovery', expect.anything());
   });
 
-  it('continues past an outdated companion when a current one is on the next discovery port', async () => {
+  it('queries only the paired port when an older instance is also available', async () => {
     const discovery = (endpoint: string, token: string, protocolVersion: number, capabilities: string[]) => new Response(JSON.stringify({
       service: 'getbased-agent-host', endpoint, token, protocolVersion, capabilities,
       agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    const { pair, fetchMock } = stubPairedCompanion(8325, async input => {
       const url = String(input);
-      if (url === '/api/local-agents') return new Response('{"error":"not_found"}', { status: 404 });
       if (url === 'http://127.0.0.1:8324/v1/discovery') {
         return discovery('http://127.0.0.1:8324', 'outdated-companion-token', 2, ['chat-stream']);
       }
@@ -251,25 +240,21 @@ describe('agent chat settings', () => {
         return discovery('http://127.0.0.1:8325', 'current-companion-token', 5, ['chat-stream', 'companion-control']);
       }
       throw new TypeError('connection refused');
-    }));
+    });
+    await pair();
+    fetchMock.mockClear();
 
     await expect(discoverLocalChatAgents()).resolves.toEqual([expect.objectContaining({
       endpoint: 'http://127.0.0.1:8325', token: 'current-companion-token', protocolVersion: 5,
     })]);
+    expect(fetchMock.mock.calls.every(([url]) => new URL(String(url)).port === '8325')).toBe(true);
   });
 
   it('recovers from an outdated saved host by switching to a capable companion', async () => {
     localStorage.setItem('labcharts-agent-host-token', 'outdated-companion-token');
     localStorage.setItem('labcharts-agent-host-endpoint', 'http://127.0.0.1:8326');
-    const fetchMock = vi.fn(async input => {
+    const { pair, fetchMock } = stubPairedCompanion(8324, async input => {
       const url = String(input);
-      if (url === '/api/local-agents') return new Response(JSON.stringify({ agents: [{
-        id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
-        endpoint: 'http://127.0.0.1:8326', token: 'outdated-companion-token',
-      }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-      if (url === 'http://127.0.0.1:8326/v1/status') return new Response(JSON.stringify({
-        service: 'getbased-agent-host', protocolVersion: 0, capabilities: [],
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       if (url === 'http://127.0.0.1:8324/v1/discovery') return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324',
         token: 'current-companion-token', protocolVersion: 2,
@@ -282,12 +267,14 @@ describe('agent chat settings', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       throw new TypeError('connection refused');
     });
-    vi.stubGlobal('fetch', fetchMock);
+    await pair();
+    fetchMock.mockClear();
 
     await expect(connectDetectedCodex({ requiredCapabilities: ['chat-stream', 'image-upload'] }))
       .resolves.toMatchObject({ endpoint: 'http://127.0.0.1:8324', protocolVersion: 2 });
     expect(getAgentHostEndpoint()).toBe('http://127.0.0.1:8324');
     expect(getAgentHostToken()).toBe('current-companion-token');
+    expect(fetchMock.mock.calls.every(([url]) => new URL(String(url)).port === '8324')).toBe(true);
   });
 
   it('stores model and reasoning choices without exposing connection controls', async () => {
@@ -348,16 +335,16 @@ describe('agent chat settings', () => {
     expect(getAgentHostModel()).toBe(model);
   });
   it('checks a bound feature connection without saving its refreshed credential or choosing another endpoint', async () => {
-    await saveAgentChatSettings({ endpoint: 'http://127.0.0.1:8324', token: 'original-private-token' });
     const payload = { service: 'getbased-agent-host', protocolVersion: 5, capabilities: ['chat-stream'], toolContractVersion: 47 };
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+    const { pair, fetchMock } = stubPairedCompanion(8324, async (input: unknown) => {
       const url = String(input);
-      if (url === '/api/local-agents') return new Response(JSON.stringify({ agents: [] }));
       if (/http:\/\/127\.0\.0\.1:832[45]\/v1\/discovery/.test(url)) return new Response(JSON.stringify({ ...payload, endpoint: new URL(url).origin, token: 'refreshed-private-token', agents: [{ id: 'codex', status: 'available', compatible: true }] }));
       if (url === 'http://127.0.0.1:8324/v1/status') return new Response(JSON.stringify(payload));
       return new Response('{}', { status: 404 });
     });
-    vi.stubGlobal('fetch', fetchMock);
+    await pair();
+    await saveAgentChatSettings({ endpoint: 'http://127.0.0.1:8324', token: 'original-private-token' });
+    fetchMock.mockClear();
     await expect(connectDetectedAgent('codex', { persistConnection: false, requiredEndpoint: 'http://127.0.0.1:8324', requiredCapabilities: ['chat-stream'] })).resolves.toMatchObject({ endpoint: 'http://127.0.0.1:8324', token: 'refreshed-private-token' });
     expect(getAgentHostEndpoint()).toBe('http://127.0.0.1:8324'); expect(getAgentHostToken()).toBe('original-private-token');
     expect(fetchMock.mock.calls.some(([input]) => String(input) === 'http://127.0.0.1:8325/v1/status')).toBe(false);

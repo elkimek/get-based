@@ -52,6 +52,8 @@ export function projectLightToday(input: LightTodayInput) {
         tone: 'warn', label: `⚠ Logged vitamin D supplements: ${formatIU(value.supplementIU)} IU above the adult intake UL`,
         title: `The adult tolerable upper intake level is 4,000 IU/day from food, beverages, and supplements. The app sees ${formatIU(value.supplementIU)} IU in logged supplements but does not know dietary intake. Its separate ~${formatIU(value.sunIU)} IU-eq sunlight estimate is not intake and is not added. Discuss clinician-directed high-dose treatment with the prescriber.`,
       };
+    else if (value.unknownPotency)
+      budget = { tone: 'info', label: 'Vitamin D supplement total unknown', title: `Known amount: ${formatIU(value.supplementIU)} IU. At least one logged vitamin D ingredient has no convertible daily amount.` };
     else if (value.supplementIU > 0 && value.sunIU > 0)
       budget = {
         tone: 'info', label: `Vit D: ${formatIU(value.supplementIU)} IU supplements · ~${formatIU(value.sunIU)} IU-eq sunlight`,

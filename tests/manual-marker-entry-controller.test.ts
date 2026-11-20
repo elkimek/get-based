@@ -8,10 +8,22 @@ vi.mock('../js/marker-detail-runtime.js',()=>({openWithMarkerDetailStylesheet:(c
 vi.mock('../js/marker-placement.js',()=>({getMarkerStorageDotKey:()=>fixture.dotKey}));
 vi.mock('../js/unit-profiles.js',()=>({getMarkerInputUnits:(...args:unknown[])=>{fixture.calls.push(['units',...args]);return fixture.options;}}));
 vi.mock('../js/modal-lifecycle.js',()=>({openModalOverlay:(overlay:Element,options:unknown)=>{overlay.classList.add('show');fixture.calls.push(['open',overlay.id,options]);}}));
-vi.mock('../js/marker-detail-editing.js',()=>({saveManualEntry:(id:string)=>fixture.calls.push(['save',id])}));
+vi.mock('../js/marker-detail-editing.js',()=>({bindManualEntryOwner:vi.fn(),saveManualEntry:(id:string)=>fixture.calls.push(['save',id])}));
 const {openManualEntryForm,configureMarkerDetailManualEntry}=await import('../js/marker-detail-manual-entry.js');
 beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-15T12:00:00Z'));fixture.unitReads=0;fixture.calls=[];fixture.options=['mmol/L','mg/dL'];fixture.dotKey='bio.glucose';fixture.markerPresent=true;fixture.registry={};sessionStorage.clear();document.body.innerHTML='<div id="modal-overlay"><div id="detail-modal"></div></div>';configureMarkerDetailManualEntry({showDetailModal:(id:string)=>fixture.calls.push(['detail',id])});});
 afterEach(()=>{vi.clearAllTimers();vi.useRealTimers();document.body.innerHTML='';});
+it('requires a collection choice before prefilling a split draw and clears context for a new collection',()=>{
+ const second={date:'2026-06-02',context:{sampleTime:'18:15',fasting:false}};
+ fixture.profile.entries.push(second);
+ try {
+   openManualEntryForm('bio_glucose',second.date);
+   const selector=document.querySelector<HTMLSelectElement>('#me-sample')!;
+   const time=document.querySelector<HTMLInputElement>('#me-sample-time')!;
+   expect(selector.value).toBe('');expect(time.value).toBe('');
+   selector.selectedIndex=2;selector.dispatchEvent(new Event('change'));expect(time.value).toBe('18:15');
+   selector.value='__new__';selector.dispatchEvent(new Event('change'));expect(time.value).toBe('');
+ } finally {fixture.profile.entries.pop();}
+});
 it('preserves native independent unit reads and original context/options/modal defaults without mutating profile data',()=>{
  const before=structuredClone(fixture.profile);openManualEntryForm('bio_glucose','2026-06-02');
  expect(fixture.unitReads).toBe(2);

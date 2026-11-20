@@ -120,6 +120,7 @@ export function setLabEntryCollectionContext(entry: OptionalLabEntry, patch: { s
   else delete entry.context;
   if (Object.keys(sources).length > 0) entry.collectionContextSources = sources;
   else delete entry.collectionContextSources;
+  if (Object.hasOwn(patch, 'fasting')) recalculateLabEntryHOMAIR(entry);
   if (opts.stamp !== false) stampLabEntryUpdated(entry, opts.now);
   return true;
 }
@@ -187,7 +188,7 @@ export function recalculateLabEntryHOMAIR(entry: OptionalLabEntry) {
   const glucose = entry.markers['biochemistry.glucose'];
   const insulinKey = insulinValueKey(entry);
   const insulin = insulinKey ? entry.markers[insulinKey] : undefined;
-  if (typeof glucose === 'number' && Number.isFinite(glucose) && typeof insulin === 'number' && Number.isFinite(insulin)) {
+  if (entry.context?.fasting !== false && typeof glucose === 'number' && Number.isFinite(glucose) && typeof insulin === 'number' && Number.isFinite(insulin)) {
     entry.markers['diabetes.homaIR'] = Math.round(((glucose as number) * (insulin as number)) / 22.5 * 100) / 100;
     const glucoseSource = entry.markerSources?.['biochemistry.glucose'];
     const insulinSource = insulinKey ? entry.markerSources?.[insulinKey] : undefined;

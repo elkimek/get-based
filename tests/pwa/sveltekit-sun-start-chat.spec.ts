@@ -3,7 +3,8 @@ import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
 import { installSunWeatherFixture } from '../helpers/sun-weather-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
@@ -44,23 +45,23 @@ test('Chat refuses live Sun starts and stops while preserving reported and unkno
   const weatherCalls = await installSunWeatherFixture(context);
   const assessments: Array<{ keys: string[] }> = [];
   let stage = 0, round = 0; const wire: Array<{ stage: number; round: number }> = [], errors: string[] = [], receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(JSON.stringify(body)).not.toMatch(/sun-session-private-sentinel|\/private\/|12\.34567|45\.12345/); expect(body.model).toBe('openai/synthetic-sun-session');
+  await installSyntheticOpenRouter(context, async body => {
+    expect(JSON.stringify(body)).not.toMatch(/sun-session-private-sentinel|\/private\/|12\.34567|45\.12345/); expect(body.model).toBe('openai/synthetic-sun-session');
     const prompt = String(body.messages[0]?.content || '');
     if (prompt.startsWith("Based on this person's lab data and profile context")) {
       const example = prompt.split('\n')[1]; if (!example) throw new Error('Missing native assessment shape'); const keys = Object.keys(JSON.parse(example)); assessments.push({ keys });
       const assessment = Object.fromEntries(keys.map(key => [key, { summary: '', dot: 'gray', tip: '' }]));
-      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify(assessment) }, finish_reason: 'stop' }] }) }); return;
+      return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify(assessment) }, finish_reason: 'stop' }] }) };
     }
     if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) {
-      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled setup interpretation","detail":"Only reported setup facts."}' }, finish_reason: 'stop' }] }) }); return;
+      return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled setup interpretation","detail":"Only reported setup facts."}' }, finish_reason: 'stop' }] }) };
     }
     wire.push({ stage, round }); let call: AIToolCall | undefined;
     if (round === 0) call = { id: `read-sun-${stage}`, type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'sunSessions', create: true }) } };
     if (round === 1) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text); expect(current.operations).toEqual(['add', 'update', 'remove']);
       call = { id: `draft-sun-${stage}`, type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'sunSessions', operation: stages[stage]!.operation, snapshotId: current.snapshotId, patch: JSON.stringify(stages[stage]!.patch), evidence: stages[stage]!.statement, reason: 'The user reported changed Sun session facts.' }) } }; }
     if (round === 2) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(false); expect(response.contentItems[0].text).toBe(`Error: ${CHAT_NATIVE_UI_NOTICE}`); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: `Use the native Sun controls (${stage}).` }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: `Use the native Sun controls (${stage}).` }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); const server = await startKitServer(process.env.GETBASED_KIT_ARTIFACT || '.local-notes/sveltekit-build'); let stopped = false;
   try {

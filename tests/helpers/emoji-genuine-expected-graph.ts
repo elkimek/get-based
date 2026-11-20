@@ -19,7 +19,13 @@ export function expectedEmojiSSR(nativeMarkup: string): string {
       button.after(comment(']'));
     }
     cats.append(comment(']'));
+    const search = template.content.querySelector('input')!;
+    search.setAttribute('aria-label', 'Search emoji');
     const grid = template.content.querySelector('.emoji-picker-grid')!;
+    for (const choice of grid.querySelectorAll('[data-emoji]')) {
+      choice.setAttribute('role', 'button');
+      choice.setAttribute('tabindex', '0');
+    }
     const labels = [...grid.querySelectorAll('.emoji-picker-label')];
     for (const label of labels) {
       let boundary = label.nextSibling;

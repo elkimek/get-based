@@ -95,6 +95,7 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   const syncDeltaReadinessSrc = await fetchWithRetry('js/sync-delta-readiness.js');
   const syncTombstonesSrc = await fetchWithRetry('js/sync-tombstones.js');
   const syncMessengerSrc = await fetchWithRetry('js/sync-messenger.js');
+  const agentContextCryptoSrc = await fetchWithRetry('js/agent-context-crypto.js');
   const syncEnvironmentSrc = await fetchWithRetry('js/sync-environment.js');
   const syncIdentitySrc = await fetchWithRetry('js/sync-identity.js');
   const syncDiagnosticsSrc = await fetchWithRetry('js/sync-diagnostics.js');
@@ -425,15 +426,15 @@ const diagnosePresentationContracts = syncLegacyDiagnoseContracts();
   assert('Agent Access uses separate v2 context encryption key, not token-derived crypto',
     syncMessengerSrc.includes('MESSENGER_CONTEXT_KEY_KEY')
       && settingsSyncPanelSrc.includes('GETBASED_AGENT_CONTEXT_KEY')
-      && syncMessengerSrc.includes('AGENT_CONTEXT_CRYPTO_VERSION = 2')
-      && syncMessengerSrc.includes('keyDerivation')
-      && syncMessengerSrc.includes('raw-256-bit-key')
-      && !syncMessengerSrc.includes('deriveAgentContextKey')
-      && !syncMessengerSrc.includes('tokenBytes'));
+      && agentContextCryptoSrc.includes('AGENT_CONTEXT_CRYPTO_VERSION = 2')
+      && agentContextCryptoSrc.includes('keyDerivation')
+      && agentContextCryptoSrc.includes('raw-256-bit-key')
+      && !agentContextCryptoSrc.includes('deriveAgentContextKey')
+      && !agentContextCryptoSrc.includes('tokenBytes'));
   assert('Agent Access context pushes are owner-bound with Sync identity HMAC',
     syncConfigureSrc.includes('getAppOwner: getSyncAppOwner')
       && syncMessengerSrc.includes('signAgentContextRequest')
-      && syncMessengerSrc.includes('agent-context:${ownerId}:${timestamp}:${tokenHash}:${profileId || \'default\'}:${contextHash}')
+      && agentContextCryptoSrc.includes('agent-context:${ownerId}:${timestamp}:${tokenHash}:${profileId || \'default\'}:${contextHash}')
       && syncMessengerSrc.includes('owner: origin.owner')
       && syncMessengerSrc.includes('const scope = captureAgentAccessOperationScope()')
       && syncMessengerSrc.includes('writeKey = ownerWriteKeyBytes(current)?.slice()')

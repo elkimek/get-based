@@ -15,6 +15,7 @@ import {
 } from '../shared/agent-host-protocol.js';
 import { startExternalAgentTurn } from './agent-host-external-turn.js';
 import { createCompanionManagement } from './companion-management.js';
+import { companionChatPairingCode, companionEndpointProof, companionManagementCode } from './agent-host-boundary.js';
 import { AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
 import {
   AGENT_BASE_INSTRUCTIONS, DEFAULT_TOOL_TIMEOUT_MS, DISCOVERY_SESSION_TTL_MS,
@@ -277,6 +278,7 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
   }
   const manage = createCompanionManagement({
     status: statusPayload, control: executeControl,
+    authorizePairing: (code, endpoint) => [0, 1].some(offset => tokenMatches(code, companionManagementCode(token, endpoint, Math.floor(Date.now() / 300_000) - offset))),
     allowParentOrigin: isAllowedCompanionManagementParent,
   });
 
@@ -337,8 +339,16 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     if (url.pathname === '/health' && request.method === 'GET') {
       return jsonResponse({ ok: true, service: 'getbased-agent-host' }, 200, cors);
     }
+    if (url.pathname === '/v1/pairing' && request.method === 'GET') {
+      const challenge = url.searchParams.get('challenge') || '';
+      if (!/^[a-f0-9]{32}$/.test(challenge)) return jsonResponse({ error: 'invalid_challenge' }, 400, cors);
+      const code = companionChatPairingCode(token, url.origin);
+      return jsonResponse({ proof: companionEndpointProof(code, url.origin, origin || '', challenge) }, 200, cors);
+    }
     if (url.pathname === '/v1/discovery' && request.method === 'GET') {
       if (!origin) return jsonResponse({ error: 'origin_required' }, 403, cors);
+      const credential = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
+      if (!tokenMatches(credential, companionChatPairingCode(token, url.origin))) return jsonResponse({ error: 'pairing_required' }, 401, cors);
       if (url.searchParams.get('refresh') === 'true' && options.refreshAgentVersions) {
         try { installedVersions = await options.refreshAgentVersions(); }
         catch { installedVersions = new Map(configuredAgents.map(agent => [agent.id, ''])); }

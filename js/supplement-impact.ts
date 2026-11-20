@@ -10,8 +10,10 @@ interface PendingImpactAnalysis { supplement: SupplementImpactReader; editIdx: n
 
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { callAssistantFeatureAI, hasAssistantFeatureProvider } from './ai-feature-routing.js';
-import { getActiveData } from './data.js';
+import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
+import { getActiveData, getFocusCardFingerprint } from './data.js';
+import { createLabContextDisclosure } from './lab-context-disclosure.js';
+import { isLabMarkersContextEnabled, isSupplementsMedsContextEnabled } from './lab-context-settings.js';
 import { profileStorageKey } from './profile.js';
 import { hashString, isDebugMode } from './utils.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
@@ -112,7 +114,7 @@ function getOverlappingSupplements(supplement: SupplementImpactReader, supps: Su
 // Per-supplement fingerprint: changes when that supp's edit-visible fields or lab dates change.
 // Editing dosage/ingredients/periods for one supp invalidates only that supp's cache entry.
 function getSuppFingerprint(supp: SupplementImpactReader, data: ImpactData) {
-  const labPart = (data.dates || []).join(',');
+  const labPart = JSON.stringify(computeAllImpacts(supp, data));
   const pds = getSupplementPeriods(supp);
   const ings = (supp.ingredients || []).map(i => `${i.name}:${i.amount || ''}:${i.amountValue ?? ''}:${i.amountUnit || ''}:${i.timesPerDay || ''}`).join(',');
   const schedule = supp.schedule && typeof supp.schedule === 'object' ? JSON.stringify(supp.schedule) : '';
@@ -120,10 +122,8 @@ function getSuppFingerprint(supp: SupplementImpactReader, data: ImpactData) {
   return hashString(labPart + '||' + suppPart);
 }
 
-function getImpactCache(): Record<string, ImpactCacheEntry> {
+function parseImpactCache(raw: string | null): Record<string, ImpactCacheEntry> {
   try {
-    const key = profileStorageKey(state.currentProfile, 'suppImpact');
-    const raw = localStorage.getItem(key);
     const parsed = raw ? JSON.parse(raw) : {};
     // Migrate old batch-fingerprint schema (values without `fp` field) by discarding.
     for (const k of Object.keys(parsed)) {
@@ -133,15 +133,27 @@ function getImpactCache(): Record<string, ImpactCacheEntry> {
   } catch { return {}; }
 }
 
-function setImpactCache(cache: Record<string, ImpactCacheEntry>) {
-  try {
-    const key = profileStorageKey(state.currentProfile, 'suppImpact');
-    localStorage.setItem(key, JSON.stringify(cache));
-  } catch { /* quota exceeded */ }
+function getImpactCache() {
+  return parseImpactCache(localStorage.getItem(profileStorageKey(state.currentProfile, 'suppImpact')));
+}
+
+function captureImpactOwner() {
+  const profileId = state.currentProfile;
+  const profileData = state.importedData;
+  const fingerprint = getFocusCardFingerprint();
+  const recipient = JSON.stringify(getAssistantFeatureIdentity());
+  return {
+    key: profileStorageKey(profileId, 'suppImpact'),
+    current: () => state.currentProfile === profileId && state.importedData === profileData
+      && getFocusCardFingerprint() === fingerprint
+      && JSON.stringify(getAssistantFeatureIdentity()) === recipient
+      && isSupplementsMedsContextEnabled() && isLabMarkersContextEnabled(),
+  };
 }
 
 // Debounced queue: coalesces multiple render calls into a single AI request for only the stale/missing supps.
-let _pendingAnalyses = new Map<unknown, PendingImpactAnalysis>(); // suppName -> { supplement, editIdx }
+const _pendingAnalyses = new Map<unknown, PendingImpactAnalysis>();
+let _pendingOwner: ReturnType<typeof captureImpactOwner> | null = null;
 let _analyzeTimer: ReturnType<typeof setTimeout> | null = null;
 let _batchPromise: Promise<void> | null = null;
 
@@ -150,7 +162,8 @@ export function renderSupplementImpact(supplement: SupplementImpactReader, editI
 }
 
 export function projectSupplementImpact(supplement: SupplementImpactReader, editIdx: number): SupplementImpactView {
-  const hasAI = hasAssistantFeatureProvider();
+  const canDisclose = isSupplementsMedsContextEnabled() && isLabMarkersContextEnabled();
+  const hasAI = canDisclose && hasAssistantFeatureProvider();
   const data = getActiveData();
   if (!data || !data.dates || data.dates.length < 2) {
     return { kind: 'hint', hint: 'Needs at least 2 lab dates to compare' };
@@ -165,8 +178,9 @@ export function projectSupplementImpact(supplement: SupplementImpactReader, edit
     return { kind: 'hint', hint };
   }
 
-  const fp = getSuppFingerprint(supplement, data);
-  const cache = getImpactCache();
+  const currentData = createLabContextDisclosure().project(data);
+  const fp = getSuppFingerprint(supplement, currentData);
+  const cache = canDisclose ? getImpactCache() : {};
   const cacheKey = getSupplementRecordId(supplement) || supplement.name;
   const entry = cache[cacheKey as string] || cache[supplement.name as string];
   const cached = (entry && entry.fp === fp) ? entry : null;
@@ -183,28 +197,44 @@ export function projectSupplementImpact(supplement: SupplementImpactReader, edit
     dotId, refreshIndex, summaryClass, summaryId, summaryText };
 
   // Auto-fire only if fingerprint mismatch (edit) or missing entirely - scoped to this supp only.
-  if (!cached && hasAI) scheduleAnalyze(supplement, editIdx, data);
+  if (!cached && hasAI) scheduleAnalyze(supplement, editIdx);
   return view;
 }
 
-function scheduleAnalyze(supplement: SupplementImpactReader, editIdx: number, data: ImpactData) {
+function scheduleAnalyze(supplement: SupplementImpactReader, editIdx: number) {
+  if (!_pendingOwner?.current()) {
+    _pendingAnalyses.clear();
+    _pendingOwner = captureImpactOwner();
+  }
   _pendingAnalyses.set(getSupplementRecordId(supplement) || supplement.name, { supplement, editIdx });
   if (_analyzeTimer) return;
-  _analyzeTimer = setTimeout(() => { _analyzeTimer = null; flushAnalyses(data); }, 50);
+  _analyzeTimer = setTimeout(() => { _analyzeTimer = null; void flushAnalyses(); }, 50);
 }
 
-async function flushAnalyses(data: ImpactData) {
+async function flushAnalyses() {
   const pending = [..._pendingAnalyses.values()];
+  const owner = _pendingOwner;
+  _pendingOwner = null;
   _pendingAnalyses.clear();
-  if (pending.length === 0) return;
+  if (pending.length === 0 || !owner?.current()) return;
   if (_batchPromise) await _batchPromise;
-  await loadImpactsForSupps(pending, data);
+  if (owner.current()) await loadImpactsForSupps(pending, owner);
 }
 
-async function loadImpactsForSupps(pending: PendingImpactAnalysis[], data: ImpactData) {
+async function loadImpactsForSupps(pending: PendingImpactAnalysis[], owner: ReturnType<typeof captureImpactOwner>, userInitiated = false) {
+  const { encryptedGetItem, encryptedSetItem } = await import('./crypto.js');
+  const cache = parseImpactCache(await encryptedGetItem(owner.key).catch(() => null));
+  if (!owner.current()) return;
+  const data = createLabContextDisclosure().project(getActiveData());
   const allSupps = state.importedData.supplements || [];
   const suppEntries: Array<PendingImpactAnalysis & { impacts: SignificantImpact[] }> = [];
   for (const { supplement: s, editIdx } of pending) {
+    if (allSupps[editIdx] !== s) continue;
+    const cached = cache[String(getSupplementRecordId(s) || s.name)];
+    if (!userInitiated && cached?.fp === getSuppFingerprint(s, data)) {
+      applyImpactToDOM(editIdx, cached);
+      continue;
+    }
     const impacts = computeAllImpacts(s, data);
     if (impacts.length === 0) continue;
     suppEntries.push({ supplement: s, impacts, editIdx });
@@ -246,13 +276,16 @@ green=beneficial, yellow=mixed, red=concerning, gray=insufficient data. Mention 
 
   _batchPromise = (async () => {
     try {
-      const result = await callAssistantFeatureAI({ system, messages: [{ role: 'user', content: ctx }], maxTokens: 300 * suppEntries.length + 1000 }) as { text?: unknown };
+      const result = await callAssistantFeatureAI({
+        system, messages: [{ role: 'user', content: ctx }], maxTokens: 300 * suppEntries.length + 1000,
+        requestCurrent: owner.current, consentKind: userInitiated ? 'text' : 'automatic-insight',
+      }) as { text?: unknown };
+      if (!owner.current()) return;
       const cleaned = ((result.text as { replace(pattern: RegExp, replacement: string): unknown }).replace(/<think>[\s\S]*?<\/think>/g, '') as { trim(): unknown }).trim();
       const jsonMatch = (cleaned as { match(pattern: RegExp): { 0?: unknown } | null | undefined }).match(/\{[\s\S]*\}/);
       if (!jsonMatch) return;
       const parsed = JSON.parse(jsonMatch[0] as string) as Record<PropertyKey, unknown>;
 
-      const cache = getImpactCache();
       for (const { supplement: s, editIdx } of suppEntries) {
         const entry = parsed[s.name as string] as { dot?: unknown; summary?: unknown } | null | undefined;
         if (!entry || typeof entry !== 'object') continue;
@@ -269,7 +302,7 @@ green=beneficial, yellow=mixed, red=concerning, gray=insufficient data. Mention 
       // Cap cache at 50 entries (one per supp).
       const keys = Object.keys(cache);
       if (keys.length > 50) { for (const k of keys.slice(0, keys.length - 50)) delete cache[k]; }
-      setImpactCache(cache);
+      await encryptedSetItem(owner.key, JSON.stringify(cache));
     } catch (e) { if (isDebugMode()) console.warn('[suppImpact] AI failed:', getErrorMessage(e, e)); }
   })();
 
@@ -281,19 +314,15 @@ export function refreshSupplementImpact(editIdx: number) {
   const supps = state.importedData.supplements || [];
   const s = supps[editIdx];
   if (!s) return;
-  const data = getActiveData();
-  if (!data) return;
-  const cache = getImpactCache();
-  delete cache[(getSupplementRecordId(s) || s.name) as string];
-  delete cache[s.name as string];
-  setImpactCache(cache);
+  const owner = captureImpactOwner();
+  if (!owner.current()) return;
   const dotEl = document.getElementById(`supp-impact-dot-${editIdx}`);
   if (dotEl) dotEl.className = 'ctx-health-dot ctx-health-dot-shimmer';
   const sumEl = document.getElementById(`supp-impact-summary-${editIdx}`);
   if (sumEl) { sumEl.textContent = ''; sumEl.className = 'supp-impact-summary'; }
   const refreshBtn = dotEl?.closest('.supp-impact-header')?.querySelector('.supp-impact-refresh');
   if (refreshBtn) refreshBtn.remove();
-  scheduleAnalyze(s, editIdx, data);
+  void loadImpactsForSupps([{ supplement: s, editIdx }], owner, true);
 }
 
 function applyImpactToDOM(editIdx: number, cached: ImpactCacheEntry | null | undefined) {

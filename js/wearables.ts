@@ -26,6 +26,7 @@ import {
   formatWearableMetricValue,
   shortDate,
   wearableDisplayUnit,
+  sameBloodPressureObservation,
 } from './wearables-formatters.js';
 import { toggleManualLogChip } from './wearables-manual-form-ui.js';
 import {
@@ -312,6 +313,7 @@ function formatDelta(latest: number | null | undefined, baseline: number | null 
 }
 
 function trendLabel(t: unknown) {
+  if (t === 'insufficient') return 'insufficient trend data';
   if (t === 'declining') return 'declining 30d';
   if (t === 'rising')    return 'rising 30d';
   if (t === 'improving') return 'improving 30d';
@@ -560,12 +562,12 @@ export function renderWearableStrip() {
   // suppress diastolic's standalone card and fold it into sys's render. If
   // somehow only dia exists (no sys), let dia surface on its own so the data
   // isn't invisible.
-  const hasSys = !!summary.metrics?.bp_systolic;
+  const pairedBP = sameBloodPressureObservation(summary.metrics?.bp_systolic, summary.metrics?.bp_diastolic);
   const displayOrder: DisplayItem[] = [];
   const seenDisplay = new Set();
   for (const id of baseMetricOrder) {
     if (STRIP_HIDDEN_METRICS.has(id)) continue;
-    if (id === 'bp_diastolic' && hasSys) continue;
+    if (id === 'bp_diastolic' && pairedBP) continue;
     const m = summary.metrics?.[id];
     if (!m) continue;
     // Wearables-off mode: only manual-sourced cards survive. Vendor metrics
@@ -680,7 +682,7 @@ export function renderWearableStrip() {
     } else {
       const metric=(summary.metrics as NonNullable<SummaryOperations['metrics']>)[metricId];
       if(!metric)continue;
-      const pairedMetric=(metricId==='bp_systolic')?summary.metrics?.bp_diastolic:null;
+      const pairedMetric=(metricId==='bp_systolic' && pairedBP)?summary.metrics?.bp_diastolic:null;
       card={kind:'metric',view:projectCard(metricId,canon,metric,showSourceBadges,sourceMaxDate[metric.primarySource],{pairedMetric,interactive:!reorderMode})};
     }
     const leftLabel=reorderMode?wearableEmptyText(canon.label):'';

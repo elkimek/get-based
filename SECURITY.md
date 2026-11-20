@@ -51,6 +51,16 @@ The operated compatibility proxy accepts only policy-classified wearable, CAMS,
 NRAS, and credential-free public-page operations. It is not a generic AI, voice,
 or Custom API proxy and does not intentionally persist or log forwarded payloads.
 
+## Companion updates
+
+Companion in-app updates verify the exact downloaded bundle with a pinned
+Ed25519 public key before inspecting its version or installing it. Release
+builds pin the public key through `GETBASED_COMPANION_UPDATE_PUBLIC_KEY` and
+produce the detached `getbased-companion.mjs.sig` artifact when the corresponding
+`GETBASED_COMPANION_SIGNING_PRIVATE_KEY` is available to the release build.
+Publish the bundle and signature together. Builds without a pinned update key
+use the manual installation path.
+
 ## Dependency Monitoring
 
 The Svelte build plugin's `deepmerge` import is overridden with the private
@@ -70,7 +80,7 @@ metadata required for its monitoring mode.
 
 `npm run sbom` combines that inventory with `package-lock.json` into
 `artifacts/getbased.cdx.json` in CycloneDX 1.5 format. The Supply chain GitHub
-Actions workflow uploads the SBOM and submits the ten versioned npm vendor
+Actions workflow uploads the SBOM and submits the versioned npm vendor
 components to GitHub's dependency graph, where supported packages receive
 Dependabot vulnerability alerts. Non-npm components such as SQLite and
 venice-e2ee remain visible in the SBOM; unversioned font assets are inventory

@@ -42,7 +42,7 @@ export {
 // ═══════════════════════════════════════════════
 export const UNIT_CONVERSIONS: Record<string, PrimaryUnitConversion> = {
   'biochemistry.glucose': { factor: 18.018, usUnit: 'mg/dl', type: 'multiply' },
-  'biochemistry.urea': { factor: 2.801, usUnit: 'mg/dl', type: 'multiply' },
+  'biochemistry.urea': { factor: 2.801, usUnit: 'mg/dl BUN', type: 'multiply' },
   'biochemistry.creatinine': { factor: 0.01131, usUnit: 'mg/dl', type: 'multiply' },
   'biochemistry.uricAcid': { factor: 0.01681, usUnit: 'mg/dl', type: 'multiply' },
   'biochemistry.bilirubinTotal': { factor: 0.05848, usUnit: 'mg/dl', type: 'multiply' },
@@ -224,6 +224,17 @@ function normalizeFractionStoredPercentValue(
  */
 export function normalizeToSI(key: string, value: number | null | undefined, unit: unknown, context: ClinicalImportContext | null = null) {
   if (value == null || isNaN(value)) return null;
+  if (key === 'biochemistry.urea' && normalizeClinicalUnit(unit) === 'mg/dl') {
+    const name = String(context?.rawName || '');
+    const nitrogen = /\bbun\b|urea[ -]+nitrogen|močovinový dusík/i.test(name);
+    const wholeUrea = /urea|urée|močovina|harnstoff/i.test(name);
+    return parseFloat((value / (!nitrogen && wholeUrea ? 6.006 : 2.801)).toPrecision(6));
+  }
+  if (context?.unitConversionVersion === 2) {
+    if (isFractionStoredPercentMarker(key) && isPercentClinicalUnit(unit)) return parseFloat((value / 100).toPrecision(6));
+    if (key === 'hematology.hematocrit') return ['fraction', '1', 'l/l'].includes(normalizeClinicalUnit(unit)) ? value * 100 : value;
+    if (!unit) return value;
+  }
   // Hematocrit: schema stores as % (40–50) but some labs report as fraction l/l (0.40–0.50).
   if (key === 'hematology.hematocrit' && value < 1.5) return parseFloat((value * 100).toFixed(1));
   if (context?.ratioUnitConvention === 'si') return value;
@@ -547,6 +558,7 @@ export const OPTIMAL_RANGES: Record<string, OptimalRange> = {
   'lipids.nonHdl': { optimalMin: 1.80, optimalMax: 2.60 },
   'lipids.apoB': { optimalMin: 0.40, optimalMax: 0.70 },
   'lipids.apoAI': { optimalMin: 1.40, optimalMax: 1.70 },
+  'lipids.lpAMass': { optimalMin: 0, optimalMax: 30 },
   'lipids.lpA': { optimalMin: 0, optimalMax: 75 },
   // Proteins & Inflammation
   'proteins.hsCRP': { optimalMin: 0.00, optimalMax: 0.50 },

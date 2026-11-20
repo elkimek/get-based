@@ -37,6 +37,13 @@ describe('Apple Health streaming boundaries', () => {
     expect(rows[0]!.weight).toBe(81.65);
   });
 
+  it('parses compact and multiline XML records independently of chunk or newline boundaries', async () => {
+    const compact = xml.replaceAll('\n', '').replaceAll(' startDate=', '\n startDate=');
+    const expected = parseAppleHealthXml(xml);
+    expect(parseAppleHealthXml(compact)).toEqual(expected);
+    expect(await parseAppleHealthBlob(chunkedBlob(compact, 5))).toEqual(expected);
+  });
+
   it('propagates a stream failure instead of returning partial import rows', async () => {
     const failure = new Error('reader failed');
     const blob = new class extends Blob {

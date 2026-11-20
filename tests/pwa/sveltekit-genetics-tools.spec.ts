@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
@@ -38,9 +39,9 @@ test('static genetics corrections survive offline Apply and whole-genome adminis
   let round = 0, stage: 'correction' | 'removal' | 'restore' | 'genomeRemoval' = 'correction'; const wire: unknown[] = [], errors: string[] = [];
   const statements = { correction: 'My lab report says my rs429358 genotype is CT.', removal: 'Remove my rs429358 call and its saved call history. Keep all other SNPs and maternal data.', restore: 'My new report says my rs429358 genotype is CT.', genomeRemoval: 'Remove ALL my saved genome data, including every SNP, maternal data and saved genetic report history.' };
   const evidence = statements.correction;
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON();
-    if (!body.tools) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] }) }); return; }
+  await installSyntheticOpenRouter(context, async body => {
+
+    if (!body.tools) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] }) }; }
     expect(JSON.stringify(body)).not.toMatch(/\/private\/|synthetic-patient|raw-private-DNA-sentinel|private-mutation-sentinel/); wire.push({ stage, round, roles: body.messages.map((message: { role: string }) => message.role) });
     let call: AIToolCall | undefined;
     const resource = stage === 'genomeRemoval' ? 'genome' : 'geneticVariants';
@@ -57,7 +58,7 @@ test('static genetics corrections survive offline Apply and whole-genome adminis
       const result = JSON.parse(body.messages.at(-1).content), response = JSON.parse(result.contentItems[0].text); expect(result.success).toBe(true); expect(response.review.applied).toBe(false);
       expect(response.review.effects.apoe).toEqual(stage === 'correction' ? { before: 'ε3/ε3', after: 'ε3/ε4' } : stage === 'restore' ? { before: null, after: 'ε3/ε4' } : { before: 'ε3/ε4', after: null });
     }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'genomeRemoval' ? 'Use the native genome editor for whole-genome removal.' : 'Review the reported genotype and dependent APOE change before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'genomeRemoval' ? 'Use the native genome editor for whole-genome removal.' : 'Review the reported genotype and dependent APOE change before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false;

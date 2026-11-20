@@ -21,7 +21,8 @@ import {
   refreshAgentAccessFromSyncedProfile,
   generateMessengerToken,
   generateMessengerContextKey,
-  revokeMessengerTokenRemote,
+  flushQueuedMessengerRevocations,
+  queueMessengerRevocation,
   pushContextToGateway,
 } from './sync.js';
 import { saveImportedData } from './data.js';
@@ -146,26 +147,30 @@ export async function toggleMessenger(enabled: unknown) {
         showNotification('Sync owner is still resolving — wait for Cross-device Sync to finish loading before enabling Agent Access.', 'error');
         return;
       }
-      const { previousToken } = generateMessengerToken();
+      await queueMessengerRevocation(getMessengerToken(), mutation.scope);
+      if (!mutation.scope.isCurrent()) throw new Error('The Agent Access profile changed.');
+      generateMessengerToken();
       mutation.captureApplied();
       hydrateMessengerSection(true);
       const saved = await mutation.save('agent-access-enable');
       if (saved === false) throw new Error('saveImportedData returned false while enabling Agent Access');
       mutation.confirmPersisted();
       if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
-      if (previousToken) revokeMessengerTokenRemote(previousToken, mutation.scope);
+      void flushQueuedMessengerRevocations();
       if (mutation.isCurrent()) pushContextToGateway();
       showNotification('Agent Access enabled', 'success');
     } else {
-      const previousToken = disableMessengerTokenLocal();
+      await queueMessengerRevocation(getMessengerToken(), mutation.scope);
+      if (!mutation.scope.isCurrent()) throw new Error('The Agent Access profile changed.');
+      disableMessengerTokenLocal();
       mutation.captureApplied();
       hydrateMessengerSection(true);
       const saved = await mutation.save('agent-access-disable');
       if (saved === false) throw new Error('saveImportedData returned false while disabling Agent Access');
       mutation.confirmPersisted();
       if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
-      revokeMessengerTokenRemote(previousToken, mutation.scope);
-      showNotification('Agent Access disabled', 'success');
+      const revoked = await flushQueuedMessengerRevocations();
+      showNotification(revoked ? 'Agent Access disabled' : 'Agent Access disabled here. Relay removal is pending.', revoked ? 'success' : 'info');
     }
   } catch (err) {
     mutation.rollback();
@@ -239,14 +244,16 @@ export async function regenerateMessengerToken() {
   const mutation = startCredentialMutation();
   if (!mutation) return;
   try {
-    const { previousToken } = generateMessengerToken();
+    await queueMessengerRevocation(getMessengerToken(), mutation.scope);
+    if (!mutation.scope.isCurrent()) throw new Error('The Agent Access profile changed.');
+    generateMessengerToken();
     mutation.captureApplied();
     hydrateMessengerSection(true);
     const saved = await mutation.save('agent-access-regenerate-token');
     if (saved === false) throw new Error('saveImportedData returned false while regenerating Agent Access token');
     mutation.confirmPersisted();
     if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
-    if (previousToken) revokeMessengerTokenRemote(previousToken, mutation.scope);
+    void flushQueuedMessengerRevocations();
     if (mutation.isCurrent()) pushContextToGateway();
     showNotification('Token regenerated — update GETBASED_TOKEN in your agent config', 'success');
   } catch (err) {

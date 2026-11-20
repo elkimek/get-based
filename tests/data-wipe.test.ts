@@ -63,6 +63,8 @@ describe('eraseAllLocalAppData', () => {
     ]));
     localStorage.setItem('labcharts-active-profile-imported', 'sensitive');
     localStorage.setItem('labcharts-api-key', 'secret');
+    localStorage.setItem('getbased-profile-shares-v1', 'old share index');
+    localStorage.setItem('getbased-profile-shares-v1:fixture', 'share credential envelope');
     localStorage.setItem('unrelated-setting', 'keep');
     sessionStorage.setItem('labcharts-import-review-draft-v1', 'sensitive');
     sessionStorage.setItem('oura-oauth-pending', 'sensitive');
@@ -102,6 +104,8 @@ describe('eraseAllLocalAppData', () => {
     expect(localStorage.getItem('labcharts-profiles')).toBeNull();
     expect(localStorage.getItem('labcharts-active-profile-imported')).toBeNull();
     expect(localStorage.getItem('labcharts-api-key')).toBeNull();
+    expect(localStorage.getItem('getbased-profile-shares-v1')).toBeNull();
+    expect(localStorage.getItem('getbased-profile-shares-v1:fixture')).toBeNull();
     expect(localStorage.getItem('unrelated-setting')).toBe('keep');
     expect(sessionStorage.getItem('labcharts-import-review-draft-v1')).toBeNull();
     expect(sessionStorage.getItem('oura-oauth-pending')).toBeNull();
@@ -112,6 +116,31 @@ describe('eraseAllLocalAppData', () => {
       'labcharts-app-v1',
       'labcharts-runtime-v2',
     ]);
+  });
+
+  it('deletes owned OPFS directories and preserves unrelated directories', async () => {
+    const removeEntry = vi.fn(async () => {});
+    const storage = {
+      getDirectory: async () => ({
+        removeEntry,
+        async *entries() {
+          for (const name of ['lens-local', '.getbased4', '.getbased8g3', 'third-party']) {
+            yield [name, { kind: 'directory' }];
+          }
+        },
+      }),
+    };
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'storage');
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: storage });
+    try {
+      await eraseAllLocalAppData();
+      expect(removeEntry.mock.calls).toEqual([
+        ['lens-local', { recursive: true }], ['.getbased4', { recursive: true }], ['.getbased8g3', { recursive: true }],
+      ]);
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'storage', previous);
+      else Reflect.deleteProperty(navigator, 'storage');
+    }
   });
 
   it('uses known profile fallbacks when database enumeration is unavailable', async () => {

@@ -4125,3 +4125,20 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /js/marker-baseline.js
 
 /js/marker-chart-scale.js
+/js/portable-profile-data.js
+/js/withings-measurement-version.js
+/tests/helpers/synthetic-openrouter.js
+/getbased-companion.mjs.sig
+/tests/backup-replacement.test.js
+/js/profile-share-history.js
+/tests/measurement-audit-regressions.test.js
+/js/app-erasure-hooks.js
+/tests/profile-share-history.test.js
+/tests/audit-protected-storage.test.js
+/js/backup-restore-plan.js
+/js/portable-profile-import.js
+/js/crypto-passphrase-key.js
+/js/agent-context-crypto.js
+/js/cashu-wallet-payloads.js
+/js/cashu-wallet-seed-restore.js
+/tests/helpers/companion-pairing-fixture.js

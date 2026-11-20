@@ -44,6 +44,10 @@ export function upsertGeneticsWithCatalog(data: DnaProfileData, rsidInput: unkno
   const previous = geneticsRecordAllowed(data.geneticsLifecycle, oldCall) && geneticsSnpAllowed(states, rsid, oldCall) ? oldCall : undefined;
   const history = previous ? [...(Array.isArray(previous.priorCalls) ? previous.priorCalls : []),
     { call: Object.fromEntries(Object.entries(previous).filter(([key]) => key !== 'priorCalls')), replacedAt: new Date(at).toISOString() }] : [];
+  if (data.genetics.unverifiedReportCalls) {
+    delete data.genetics.unverifiedReportCalls[rsid];
+    if (!Object.keys(data.genetics.unverifiedReportCalls).length) delete data.genetics.unverifiedReportCalls;
+  }
   data.genetics.snps[rsid] = { genotype, normalizedGenotype: match.key, gene: entry.gene, variant: entry.variant, category: entry.category || null,
     markers: entry.markers || [], effect: match.info.effect, valence: match.info.valence, evidence: entry.evidence, relevance: entry.relevance, note: match.info.note, source: metadata,
     updatedAt: assignmentAt, ...(history.length ? { priorCalls: history } : {}) };

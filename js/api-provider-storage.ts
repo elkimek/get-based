@@ -376,20 +376,42 @@ export function savePpqCreditId(id: string) {
   markAISettingsLocal();
 }
 
+const CUSTOM_KEY_PREFIX = 'getbased-custom-credential-v1:';
+function boundCustomCredential(url: string, key: string) {
+  return key ? CUSTOM_KEY_PREFIX + JSON.stringify([url, key]) : '';
+}
 export function getCustomApiUrl() { return localStorage.getItem('labcharts-custom-url') || ''; }
 export function setCustomApiUrl(url: string) {
+  if (url !== getCustomApiUrl()) {
+    // A legacy plaintext-in-vault credential has no authenticated endpoint yet.
+    const old = getCachedKey('labcharts-custom-key');
+    if (old && !old.startsWith(CUSTOM_KEY_PREFIX)) {
+      localStorage.removeItem('labcharts-custom-key');
+      updateKeyCache('labcharts-custom-key', '');
+    }
+  }
   localStorage.setItem('labcharts-custom-url', url);
   markAISettingsLocal();
 }
-export function getCustomApiKey() { return getCachedKey('labcharts-custom-key') || ''; }
-export async function saveCustomApiKey(key: string) { await encryptedSetProviderItemRuntime('labcharts-custom-key', key); updateKeyCache('labcharts-custom-key', key); markAISettingsLocal(); }
+export function getCustomApiKey() {
+  const record = getCachedKey('labcharts-custom-key') || '';
+  if (!record.startsWith(CUSTOM_KEY_PREFIX)) return localStorage.getItem('labcharts-custom-key-requires-binding') === 'true' ? '' : record;
+  try {
+    const pair: unknown = JSON.parse(record.slice(CUSTOM_KEY_PREFIX.length));
+    return Array.isArray(pair) && pair[0] === getCustomApiUrl() && typeof pair[1] === 'string' ? pair[1] : '';
+  } catch { return ''; }
+}
+export async function saveCustomApiKey(key: string) {
+  return saveCustomApiConnection(getCustomApiUrl(), key);
+}
 // Publish a coherent endpoint/key cache only after the encrypted write succeeds.
 // Connection writes serialize; failed endpoint storage restores the previous key.
 let customConnectionWrite: Promise<unknown> = Promise.resolve();
 export function saveCustomApiConnection(url: string, key: string): Promise<void> {
   const operation = customConnectionWrite.then(async () => {
-    const previousKey = getCustomApiKey();
-    await encryptedSetProviderItemRuntime('labcharts-custom-key', key);
+    const previousKey = getCachedKey('labcharts-custom-key') || '';
+    const boundKey = boundCustomCredential(url, key);
+    await encryptedSetProviderItemRuntime('labcharts-custom-key', boundKey);
     try {
       if (url) {
         const endpointChanged = getCustomApiUrl() !== url;
@@ -401,7 +423,7 @@ export function saveCustomApiConnection(url: string, key: string): Promise<void>
       await encryptedSetProviderItemRuntime('labcharts-custom-key', previousKey);
       throw error;
     }
-    updateKeyCache('labcharts-custom-key', key);
+    updateKeyCache('labcharts-custom-key', boundKey);
     markAISettingsLocal();
   });
   customConnectionWrite = operation.catch(() => {});

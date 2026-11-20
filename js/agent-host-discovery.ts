@@ -2,7 +2,7 @@
 
 import { agentHostUpgradeRequiredError, checkAgentHost, listAgentExecutionTargets } from './agent-chat-client.js';
 import {
-  AGENT_HOST_CAPABILITIES, agentHostSupportsCapabilities,
+  agentHostSupportsCapabilities,
   normalizeAgentHostCapabilities, normalizeAgentHostProtocolVersion,
 } from '../shared/agent-host-protocol.js';
 
@@ -31,7 +31,23 @@ interface DiscoveryPayload extends Record<string, unknown> {
   agents?: Record<string, unknown>[];
 }
 
-const LOOPBACK_AGENT_PORTS = Object.freeze(Array.from({ length: 8 }, (_, index) => 8324 + index));
+export function companionPairingEndpoint(code: string) {
+  const match = /^gbchat1\.([1-9]\d{0,4})\.[0-9a-f]{64}$/.exec(code);
+  return match && Number(match[1]) <= 65535 ? `http://127.0.0.1:${match[1]}` : null;
+}
+
+async function verifyCompanionEndpoint(endpoint: string, code: string, signal: AbortSignal) {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  const hex = (value: Uint8Array) => Array.from(value, byte => byte.toString(16).padStart(2, '0')).join('');
+  const challenge = hex(bytes);
+  const response = await fetch(`${endpoint}/v1/pairing?challenge=${challenge}`, {signal, cache:'no-store', redirect:'error'});
+  if (!response.ok) return false;
+  const result = await response.json() as {proof?: string};
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', encoder.encode(code), {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
+  const expected = await crypto.subtle.sign('HMAC', key, encoder.encode(JSON.stringify(['companion-proof-v1',endpoint,location.origin,challenge])));
+  return result.proof === hex(new Uint8Array(expected));
+}
 const LOOPBACK_DISCOVERY_TIMEOUT_MS = 650;
 
 function isOfficialAgentHostPage(locationLike: {hostname?: string} = globalThis.location) {
@@ -76,16 +92,17 @@ export function normalizeDiscoveredAgent(agent: Record<string, unknown> | null |
   };
 }
 
-async function probeLoopbackAgentHost(endpoint: string, parentSignal: AbortSignal | undefined, normalizeEndpoint: (value: string) => string, refresh = false) {
+async function probeLoopbackAgentHost(endpoint: string, code: string, parentSignal: AbortSignal | undefined, normalizeEndpoint: (value: string) => string, refresh = false) {
   const controller = new AbortController();
   let timer = setTimeout(() => controller.abort(), LOOPBACK_DISCOVERY_TIMEOUT_MS);
   const abort = () => controller.abort(parentSignal?.reason);
   parentSignal?.addEventListener('abort', abort, { once: true });
   try {
+    if (!await verifyCompanionEndpoint(endpoint, code, controller.signal)) return [];
     const readDiscovery = async (query = '') => {
       const response = await fetch(`${endpoint}/v1/discovery${query}`, {
-        cache: 'no-store', signal: controller.signal,
-        headers: { Accept: 'application/json' },
+        cache: 'no-store', redirect: 'error', signal: controller.signal,
+        headers: { Accept: 'application/json', Authorization: `Bearer ${code}` },
       });
       if (!response.ok) return null;
       const payload = await response.json() as DiscoveryPayload;
@@ -109,7 +126,8 @@ async function probeLoopbackAgentHost(endpoint: string, parentSignal: AbortSigna
       }
     }
     if (parentSignal?.aborted) return [];
-    const normalizedEndpoint = normalizeEndpoint(payload.endpoint || endpoint);
+    const normalizedEndpoint = normalizeEndpoint(endpoint);
+    if (payload.endpoint !== normalizedEndpoint) return [];
     const token = String(payload.token || '');
     if (token.length < 16 || token.length > 256) return [];
     const protocolVersion = normalizeAgentHostProtocolVersion(payload.protocolVersion);
@@ -137,45 +155,22 @@ async function probeLoopbackAgentHost(endpoint: string, parentSignal: AbortSigna
   }
 }
 
-export async function discoverLoopbackAgentHostsRuntime(options: AgentDiscoveryOptions & {savedEndpoint: string; normalizeEndpoint: (value: string) => string}) {
-  const ports = Array.isArray(options.ports) ? options.ports : LOOPBACK_AGENT_PORTS;
-  const boundedEndpoints = ports.filter(port => Number.isInteger(port) && port >= 1 && port <= 65535)
-    .map(port => `http://127.0.0.1:${port}`);
-  // Probe in port order and stop at the first companion. Browsers report a
-  // caught connection refusal in DevTools, so fanning out to every unused
-  // port made a successful discovery look broken. Keep a custom saved port
-  // first, but let the standard range retain its predictable 8324-first order.
-  const savedIsBounded = boundedEndpoints.includes(options.savedEndpoint);
-  const endpoints = [...new Set([
-    ...(savedIsBounded ? [] : [options.savedEndpoint]),
-    ...boundedEndpoints,
-  ].filter(Boolean))];
-  let legacyCompanion: DiscoveredAgent[] = [];
-  for (const endpoint of endpoints) {
-    if (options.signal?.aborted) return [];
-    const agents = await probeLoopbackAgentHost(endpoint, options.signal, options.normalizeEndpoint, options.refresh);
-    const allowedAgents = agents.filter(agent => isAgentAllowedForDeployment(agent.id));
-    if (!allowedAgents.length) continue;
-    if (options.requiredToolContractVersion && !allowedAgents.some(agent => (agent.toolContractVersion || 0) >= options.requiredToolContractVersion!)) {
-      if (!legacyCompanion.length) legacyCompanion = allowedAgents;
-      continue;
-    }
-    if (options.requiredTextFeatureTarget) {
-      const capable: DiscoveredAgent[] = [];
-      for (const agent of allowedAgents.filter(agent => !options.requiredAgentId || agent.id === options.requiredAgentId)) {
-        try {
-          await requireTextFeatureTarget(agent, options.requiredTextFeatureTarget, options.signal);
-          capable.push(agent);
-        } catch { /* Keep looking; another bounded companion may support this target. */ }
-      }
-      if (capable.length) return capable;
-      continue;
-    }
-    const current = allowedAgents.some(agent => agent.capabilities.includes(AGENT_HOST_CAPABILITIES.COMPANION_CONTROL));
-    if (current) return allowedAgents;
-    if (!legacyCompanion.length) legacyCompanion = allowedAgents;
+export async function discoverLoopbackAgentHostsRuntime(options: AgentDiscoveryOptions & {pairingCode?: string; savedEndpoint: string; normalizeEndpoint: (value: string) => string}) {
+  const code = options.pairingCode || '';
+  const paired = companionPairingEndpoint(code);
+  if (!paired || options.ports && !options.ports.includes(Number(new URL(paired).port))) return [];
+  if (options.signal?.aborted) return [];
+  const agents = await probeLoopbackAgentHost(paired, code, options.signal, options.normalizeEndpoint, options.refresh);
+  const allowed = agents.filter(agent => isAgentAllowedForDeployment(agent.id));
+  if (!options.requiredTextFeatureTarget) return allowed;
+  const capable: DiscoveredAgent[] = [];
+  for (const agent of allowed.filter(agent => !options.requiredAgentId || agent.id === options.requiredAgentId)) {
+    try {
+      await requireTextFeatureTarget(agent, options.requiredTextFeatureTarget, options.signal);
+      capable.push(agent);
+    } catch { /* The selected agent does not support this target. */ }
   }
-  return legacyCompanion;
+  return capable;
 }
 
 export function mergeDiscoveredAgents(primary: DiscoveredAgent[], companions: DiscoveredAgent[], requiredToolContractVersion = 0) {

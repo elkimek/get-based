@@ -2,8 +2,8 @@ import type * as Cashu from '@cashu/cashu-ts';
 import type { EncryptedEnvelopeCheck, PassphraseEnvelope } from './wearable-storage-types.js';
 
 export type WalletProof = Cashu.ProofLike & { _mint?: string };
-export type StoredProof = (WalletProof & { _payload?: null }) | { secret: string; _payload: PassphraseEnvelope };
-export interface StoredMeta { key: string; value?: unknown; _payload?: PassphraseEnvelope }
+export type StoredProof = (WalletProof & { _payload?: null }) | { secret: string; _payload: PassphraseEnvelope | string };
+export interface StoredMeta { key: string; value?: unknown; _payload?: PassphraseEnvelope | string }
 export interface WalletStorageRows { proofs: StoredProof; 'fee-proofs': StoredProof; meta: StoredMeta }
 export type StorageMode = 'plain' | 'encrypted';
 export type CashuStorageSdk = Pick<typeof Cashu, 'OutputData' | 'Mint' | 'sumProofs'>;
@@ -25,6 +25,8 @@ export interface CashuWalletStoreCryptoDeps {
   getEncryptionEnabled(): boolean;
   encryptedGetItem(key: string): Promise<string | null>;
   encryptedSetItem(key: string, value: string): Promise<unknown>;
+  encryptDeviceCredential(key: string, value: string): Promise<string>;
+  decryptDeviceCredential(key: string, value: string): Promise<string | null>;
 }
 export interface ProofCommit { meta?: Record<string, unknown>; feeProofs?: WalletProof[]; deleteKeys?: string[] }
 export type SwapOperation = 'receive' | 'fee' | 'deposit' | 'withdraw' | 'send';

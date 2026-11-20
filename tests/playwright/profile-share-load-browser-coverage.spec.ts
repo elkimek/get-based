@@ -21,15 +21,12 @@ async function openIsolatedShareLoadPage(page: Page) {
       export async function buildClientExportObject() {
         return { version: 2, profile: { name: 'Stub Profile' }, entries: [] };
       }
-      export async function importDataJSON(file) {
-        const text = await file.text();
-        window.__profileShareImports = window.__profileShareImports || [];
-        window.__profileShareImports.push({
-          name: file.name,
-          type: file.type,
-          payload: JSON.parse(text),
-        });
-        return true;
+      export async function loadExportImportModule() {
+        return { async importNewSharedProfile(payload) {
+          window.__profileShareImports = window.__profileShareImports || [];
+          window.__profileShareImports.push({ payload });
+          return { profileId: 'new-profile' };
+        } };
       }
     `, 200);
   await page.goto('/profile-share-load-browser-coverage', { waitUntil: 'load' });
@@ -103,8 +100,7 @@ test('profile share load browser coverage fetches decrypts imports and clears de
       outcomes.fetchesEnvelopeByShareId =
         shareFetch?.method === 'GET';
       outcomes.decryptsAndImportsSharedProfile =
-        imported?.name === 'getbased-shared-profile.json'
-        && imported.type === 'application/json'
+        !!imported
         && (imported.payload as {profile: {name?: unknown}}).profile.name === 'Loaded Share Profile'
         && (imported.payload as {entries: {markers: {metabolic: {glucose?: unknown}}}[]}).entries[0]!.markers.metabolic.glucose === 5.2
         && (imported.payload as {notes: {text?: unknown}[]}).notes[0]!.text === 'shared note';

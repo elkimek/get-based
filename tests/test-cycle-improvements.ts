@@ -113,7 +113,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 6: PER_PROFILE_PREF_SUFFIXES includes phaseOverlay ──
   console.log('Section 6: PER_PROFILE_PREF_SUFFIXES');
   {
-    const src = read('js/backup.js');
+    const src = read('js/backup-restore-plan.js');
     assert('phaseOverlay in PER_PROFILE_PREF_SUFFIXES', src.includes("'phaseOverlay'"));
   }
 

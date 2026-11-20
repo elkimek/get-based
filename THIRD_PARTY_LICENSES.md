@@ -8,7 +8,7 @@ getbased is licensed under [AGPL-3.0-or-later](LICENSE). The vendored and runtim
 |---|---|---|---|---|
 | `chart.min.js` | [Chart.js](https://github.com/chartjs/Chart.js) | 4.4.7 | MIT | https://github.com/chartjs/Chart.js/blob/master/LICENSE.md |
 | `pdf.min.mjs`, `pdf.worker.min.mjs` | [pdf.js](https://github.com/mozilla/pdf.js) (Mozilla) | 4.10.38 | Apache-2.0 | https://github.com/mozilla/pdf.js/blob/master/LICENSE |
-| `mammoth.browser.min.js` | [mammoth.js](https://github.com/mwilliamson/mammoth.js) | 1.8.0 | BSD-2-Clause | https://github.com/mwilliamson/mammoth.js/blob/master/LICENSE |
+| `mammoth.browser.min.js` | [mammoth.js](https://github.com/mwilliamson/mammoth.js) | 1.13.0 | BSD-2-Clause | https://github.com/mwilliamson/mammoth.js/blob/master/LICENSE |
 | `jszip.min.js` | [JSZip](https://github.com/Stuk/jszip) (uses [pako](https://github.com/nodeca/pako) MIT) | 3.10.1 | MIT (dual-licensed MIT or GPLv3 — we elect MIT) | https://github.com/Stuk/jszip/blob/main/LICENSE.markdown |
 | `cashu-ts.js` | [cashu-ts](https://github.com/cashubtc/cashu-ts) | 4.11.0 | MIT OR Apache-2.0 | https://github.com/cashubtc/cashu-ts/blob/v4.11.0/LICENSE |
 | `routstr-crypto.js` | [noble-curves](https://github.com/paulmillr/noble-curves), [noble-hashes](https://github.com/paulmillr/noble-hashes), [scure-base](https://github.com/paulmillr/scure-base) | 2.2.0 each | MIT | Licenses retained in the generated bundle |

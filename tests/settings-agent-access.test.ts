@@ -10,7 +10,7 @@ import {
   regenerateMessengerToken, regenerateMessengerContextKey,
 } from '../js/settings-agent-access-panel.js';
 import { saveImportedData } from '../js/data.js';
-import { pushContextToGateway, revokeMessengerTokenRemote } from '../js/sync.js';
+import { pushContextToGateway, queueMessengerRevocation, flushQueuedMessengerRevocations } from '../js/sync.js';
 
 vi.mock('../js/data.js', () => {
   const save = vi.fn(async (_options?: { reason?: string }) => true);
@@ -18,7 +18,8 @@ vi.mock('../js/data.js', () => {
 });
 vi.mock('../js/sync.js', async importOriginal => ({
   ...await importOriginal<typeof import('../js/sync.js')>(),
-  pushContextToGateway: vi.fn(), revokeMessengerTokenRemote: vi.fn(),
+  pushContextToGateway: vi.fn(), queueMessengerRevocation: vi.fn(async () => undefined),
+  flushQueuedMessengerRevocations: vi.fn(async () => true),
 }));
 
 const original = state.importedData;
@@ -109,7 +110,7 @@ describe('Agent Access component and controller boundary', () => {
     await regenerate();
     expect(state.importedData.agentAccess).toMatchObject({ token, contextKey });
     expect(credential(kind).dataset.masked).toBe('true');
-    expect(pushContextToGateway).not.toHaveBeenCalled(); expect(revokeMessengerTokenRemote).not.toHaveBeenCalled();
+    expect(pushContextToGateway).not.toHaveBeenCalled(); expect(flushQueuedMessengerRevocations).not.toHaveBeenCalled();
   });
 
   it('keeps persisted credentials when disabling fails and permits a subsequent retry', async () => {
@@ -117,8 +118,8 @@ describe('Agent Access component and controller boundary', () => {
     await toggleMessenger(false);
     expect(state.importedData.agentAccess).toMatchObject({ enabled: true, token, contextKey });
     expect(document.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.checked).toBe(true);
-    expect(revokeMessengerTokenRemote).not.toHaveBeenCalled();
+    expect(flushQueuedMessengerRevocations).not.toHaveBeenCalled();
     await toggleMessenger(false); expect(state.importedData.agentAccess).toMatchObject({ enabled: false, token: null, contextKey: null });
-    expect(revokeMessengerTokenRemote).toHaveBeenCalledWith(token, expect.objectContaining({ isCurrent: expect.any(Function) }));
+    expect(queueMessengerRevocation).toHaveBeenCalledWith(token, expect.objectContaining({ isCurrent: expect.any(Function) }));
   });
 });

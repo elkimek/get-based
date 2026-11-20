@@ -35,6 +35,7 @@ describe('compatibility proxy Node adapter', () => {
 
   it('adapts forwarded HTTPS requests and streams the handler response', async () => {
     const port = await listen(createCompatProxyServer({
+      trustForwarded: true,
       proxyHandler: async request => new Response(JSON.stringify({
         url: request.url,
         method: request.method,
@@ -108,14 +109,14 @@ it('closes the connection on an upstream stream error after headers', async () =
 });
 it('uses only the first forwarded host and protocol and preserves the query', async () => {
   let url;
-  const port = await listen(createCompatProxyServer({ proxyHandler: request => { url = request.url; return new Response(null, { status: 204 }); } }));
+  const port = await listen(createCompatProxyServer({ trustForwarded: true, proxyHandler: request => { url = request.url; return new Response(null, { status: 204 }); } }));
   await fetch(`http://127.0.0.1:${port}/api/proxy?provider=test`, { headers: {
     'x-forwarded-host': 'first.test, second.test', 'x-forwarded-proto': 'https, http',
   } });
   expect(url).toBe('https://first.test/api/proxy?provider=test');
 });
 it('rejects malformed forwarded origins without invoking the handler', async () => {
-  const handler = vi.fn(); const port = await listen(createCompatProxyServer({ proxyHandler: handler }));
+  const handler = vi.fn(); const port = await listen(createCompatProxyServer({ trustForwarded: true, proxyHandler: handler }));
   const response = await fetch(`http://127.0.0.1:${port}/api/proxy`, { headers: { 'x-forwarded-host': '[' } });
   expect(response.status).toBe(500); expect(handler).not.toHaveBeenCalled();
 });

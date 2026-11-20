@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { getActiveData, invalidateActiveDataCache } from '../js/data.js';
 import { renderDisplaySettingsPanel, mountDisplaySettingsPanel, disposeDisplaySettingsPanel } from '../js/settings-display-panel.js';
+import { getAllFlaggedMarkers } from '../js/marker-analysis.js';
 import { state } from '../js/state.js';
 
 const original = {
@@ -77,4 +78,11 @@ describe('ANZ unit profile integration', () => {
     expect(anz.getAttribute('aria-pressed')).toBe('true');
     expect(html).toContain('Your original data remains unchanged.');
   });
+});
+
+it.each(['EU', 'US', 'ANZ'] as const)('keeps an HbA1c above the reference limit flagged in %s', system => {
+  state.importedData = { ...original.importedData, entries: [{ date: '2026-08-20', markers: { 'diabetes.hba1c': 42.1 } }], refOverrides: { 'diabetes.hba1c': { refMax: 42, refSource: 'manual' } } };
+  state.unitSystem = system;
+  invalidateActiveDataCache();
+  expect(getAllFlaggedMarkers(getActiveData(), 'reference')).toContainEqual(expect.objectContaining({ markerKey: 'hba1c', status: 'high' }));
 });

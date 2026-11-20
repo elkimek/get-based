@@ -24,6 +24,7 @@ import {
 } from './local-ai-discovery.js';
 import { createInitialResponseTimeout } from './api-transport.js';
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
+import { getLocalAiExecutionLocation } from './local-ai-provider-shared.js';
 import { state } from './state.js';
 import { detectSexFromPDF, patientPseudonym, redactReportText } from './pii-redaction.js';
 import type { RedactionContext, RedactionResult } from './pii-redaction.js';
@@ -266,11 +267,26 @@ function createThinkingContentFilter(onText: (text: string) => void, onThinking:
   };
 }
 
+async function approveReportScrubbing(piiUrl: string, piiModel: string, apiKey: unknown, signal?: AbortSignal | null) {
+  const owner = state.currentProfile;
+  if (getLocalAiExecutionLocation(piiUrl, piiModel) !== 'local') {
+    const { requireAIProcessingApproval } = await import('./cloud-ai-consent.js');
+    await requireAIProcessingApproval('pii-scrubber', { kind: 'report-scrubbing', endpoint: piiUrl, modelId: piiModel });
+  }
+  signal?.throwIfAborted();
+  if (state.currentProfile !== owner || piiUrl !== getOllamaPIIUrl()
+      || piiModel !== getOllamaPIIModel() || apiKey !== getOllamaPIIApiKey()) {
+    throw new Error('The report scrubbing destination or profile changed.');
+  }
+}
+
 export async function sanitizeWithOllamaStreaming(pdfText: string, onChunk: (chunk: string) => void, signal: AbortSignal | null | undefined, onThinking: ((chunk: string) => void) | null | undefined) {
   const piiUrl = getOllamaPIIUrl();
   const piiModel = getOllamaPIIModel();
   ensurePIIModelEligible(piiModel);
   const apiKey = getOllamaPIIApiKey();
+  const originatingProfile = state.currentProfile;
+  await approveReportScrubbing(piiUrl, piiModel, apiKey, signal);
   // Deterministic redaction first so the local model only handles leftovers and
   // repeated identifiers stay consistent throughout this report and its final pass.
   const redaction = preparePIIRedaction(pdfText);
@@ -316,6 +332,7 @@ export async function sanitizeWithOllamaStreaming(pdfText: string, onChunk: (chu
 
   const requestState = createInitialResponseTimeout({
     method: 'POST',
+    redirect: 'error',
     headers,
     body: JSON.stringify({
       model: piiModel,
@@ -329,6 +346,8 @@ export async function sanitizeWithOllamaStreaming(pdfText: string, onChunk: (chu
   } as RequestInit, 30000);
   let resp;
   try {
+    if (state.currentProfile !== originatingProfile) throw new Error('The report profile changed.');
+    await approveReportScrubbing(piiUrl, piiModel, apiKey, signal);
     resp = await fetch(`${baseUrl}/v1/chat/completions`, requestState.fetchOptions);
   } finally {
     requestState.clearRequestTimeout();
@@ -402,6 +421,7 @@ export async function sanitizeWithOllama(pdfText: string) {
   const piiModel = getOllamaPIIModel();
   ensurePIIModelEligible(piiModel);
   const apiKey = getOllamaPIIApiKey();
+  await approveReportScrubbing(piiUrl, piiModel, apiKey);
   // Deterministic redaction first so the local model only handles leftovers and
   // repeated identifiers stay consistent throughout this report and its final pass.
   const redaction = preparePIIRedaction(pdfText);
@@ -412,6 +432,7 @@ export async function sanitizeWithOllama(pdfText: string) {
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
     const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
+      redirect: 'error',
       headers,
       body: JSON.stringify({
         model: piiModel,

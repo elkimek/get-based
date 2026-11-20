@@ -86,6 +86,30 @@ async function waitForOwner(page: Page) {
   return readRuntime(page);
 }
 
+test('creates a fresh identity on the current worker and preserves it across deliberate v7 rollback', async ({
+  browserName, context: defaultContext, page: defaultPage, playwright,
+}, testInfo) => {
+  const browserPage = await getCompatibleBrowserPage({ browserName, context: defaultContext, page: defaultPage, playwright }, testInfo);
+  const { context, page } = browserPage;
+  try {
+    await configureCandidate(context);
+    await context.addInitScript(() => localStorage.setItem('labcharts-sync-enabled', 'true'));
+    let legacyRequests = 0;
+    await page.route(LEGACY_BUNDLE, route => { legacyRequests++; return route.abort(); });
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
+    const current = await waitForOwner(page);
+    expect(current.clientVersion).toBe(8);
+    expect(legacyRequests).toBe(0);
+    await page.unroute(LEGACY_BUNDLE);
+    await page.goto('/app?evolu-client=v7', { waitUntil: 'domcontentloaded' });
+    const rollback = await waitForOwner(page);
+    expect(rollback.clientVersion).toBeNull();
+    expect(rollback.ownerId).toBe(current.ownerId);
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
+    expect((await waitForOwner(page)).ownerId).toBe(current.ownerId);
+  } finally { await browserPage.close(); }
+});
+
 test('starts v8 from its durable identity without the v7 worker', async ({
   browserName, context: defaultContext, page: defaultPage, playwright,
 }, testInfo) => {
@@ -149,6 +173,11 @@ test('keeps the explicit v7 rollback isolated from the v8 runtime', async ({
 
     expect(runtime.clientVersion).toBeNull();
     expect(modernRequests).toBe(0);
+    await page.unroute('**/vendor/evolu8/**');
+    await page.goto('/app', { waitUntil: 'domcontentloaded' });
+    const migrated = await waitForOwner(page);
+    expect(migrated.clientVersion).toBe(8);
+    expect(migrated.ownerId).toBe(runtime.ownerId);
     expect(pageErrors).toEqual([]);
   } finally {
     await browserPage.close();

@@ -672,14 +672,17 @@ storage change. The raw stored card remains the conflict baseline.
 
 Settings supplies an OS-specific bootstrap command for temporary use. It downloads
 the auditable single-file `getbased-companion.mjs` emitted by the production
-build. Temporary mode stops with its Terminal/PowerShell session. Once connected,
-Settings can register automatic startup, pause/resume AI work, restart Codex,
-update the installed bundle or uninstall it. A recovery start command remains
-available if the process has stopped completely.
+build. Temporary mode stops with its terminal session. In a second terminal run
+`node /path/to/getbased-companion.mjs pair`, then enter the private chat code under
+**Settings → AI → CLI agents → Pair this browser with Companion**. A checkout
+can use `node bin/getbased-companion.js pair` after compilation. The browser
+verifies the paired loopback endpoint and exchanges its chat credential for an
+origin-bound session. Re-pair after moving the listener to another port.
 
-Installed mode uses a systemd user service, macOS LaunchAgent or current-user
-Windows scheduled task, without root/administrator access. The browser does not
-expose a port or pairing token. Sources for the entry point, host, installers,
+To enable automatic startup, pause, resume, update or uninstall, run the same
+command with `pair --manage`. Enter the short-lived management code in the
+Companion control panel. Installed mode uses a systemd user service, macOS
+LaunchAgent or current-user Windows scheduled task. Sources for the entry point, host, installers,
 protocol and bundle are in [`bin/`](../bin/), [`server/`](../server/),
 [`lib/`](../lib/), [`shared/`](../shared/) and [`scripts/`](../scripts/).
 

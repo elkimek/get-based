@@ -183,7 +183,7 @@ export function mergeLabEntry(existing: OptionalLabEntry, incoming: OptionalLabE
     || Object.prototype.hasOwnProperty.call(markers, 'hormones.insulin')
     || Object.prototype.hasOwnProperty.call(markers, 'diabetes.insulin_d');
   const wouldDeleteExistingHOMAIR = hasMergedHOMAIR && (!hasMergedGlucose || !hasMergedInsulin);
-  if (homaIRInputChanged && (!wouldDeleteExistingHOMAIR || homaIRInputDeleted)) recalculateLabEntryHOMAIR(base);
+  if ((homaIRInputChanged || hasMergedGlucose && hasMergedInsulin && base.context?.fasting === false) && (!wouldDeleteExistingHOMAIR || homaIRInputDeleted)) recalculateLabEntryHOMAIR(base);
   const sourceFiles = mergeSourceFiles(existing, incoming);
   if (sourceFiles.length) {
     base.sourceFiles = sourceFiles;

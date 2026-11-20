@@ -1,6 +1,9 @@
 // data-wipe.ts — destructive local storage cleanup helpers
+import { releaseAppStorageForErasure } from './app-erasure-hooks.js';
 
 const APP_SESSION_KEY_RE = /^(?:labcharts|chat-onboard-|or_|welcome-details-open$|(?:oura|withings|ultrahuman|polar|whoop|fitbit|google_health)-oauth-pending$)/;
+const SHARE_MANAGEMENT_KEY = 'getbased-profile-shares-v1';
+const EVOLU_OPFS_NAME = /^\.(?:getbased4|getbased8g[1-9]\d*)(?:-[A-Za-z0-9_-]+)?$/;
 
 function failure(label: string, error: unknown) {
   const message = error instanceof Error ? error.message : String(error || 'unknown error');
@@ -117,12 +120,31 @@ async function deleteAppCaches(errors: Error[]) {
   });
 }
 
+async function eraseAppFiles(errors: Error[]) {
+  if (typeof globalThis.navigator?.storage?.getDirectory !== 'function') return;
+  try {
+    const directory = await navigator.storage.getDirectory() as FileSystemDirectoryHandle & {
+      entries(): AsyncIterable<[string, FileSystemHandle]>;
+    };
+    for await (const [name, handle] of directory.entries()) {
+      if (handle.kind !== 'directory' || (name !== 'lens-local' && !EVOLU_OPFS_NAME.test(name))) continue;
+      try {
+        await directory.removeEntry(name, { recursive: true });
+      } catch (error) {
+        if ((error as { name?: string })?.name !== 'NotFoundError') errors.push(failure(`Could not erase application files in ${name}`, error));
+      }
+    }
+  } catch (error) {
+    errors.push(failure('Could not erase origin-private application files', error));
+  }
+}
+
 export async function eraseAllLocalAppData() {
   const errors: Error[] = [];
   const profileIds = collectKnownProfileIds(errors);
   const localKeys = collectStorageKeys(
     globalThis.localStorage,
-    key => key.startsWith('labcharts'),
+    key => key.startsWith('labcharts') || key === SHARE_MANAGEMENT_KEY || key.startsWith(SHARE_MANAGEMENT_KEY + ':'),
     'local storage',
     errors,
   );
@@ -133,6 +155,8 @@ export async function eraseAllLocalAppData() {
     errors,
   );
 
+  try { await releaseAppStorageForErasure(); } catch (error) { errors.push(failure('Could not close application data owners', error)); }
+  await eraseAppFiles(errors);
   removeStorageKeys(globalThis.localStorage, localKeys, 'local storage', errors);
   removeStorageKeys(globalThis.sessionStorage, sessionKeys, 'session storage', errors);
   await deleteIndexedDBDatabasesByPrefix(

@@ -9,6 +9,7 @@ export interface AgentChatSettings {
   effort?: string | undefined; agent?: string | undefined; target?: string | undefined;
 }
 
+const COMPANION_PAIRING_KEY = 'labcharts-companion-pairing';
 export const AGENT_HOST_TOKEN_KEY = 'labcharts-agent-host-token';
 const BACKEND_KEY = 'labcharts-chat-backend';
 const ENDPOINT_KEY = 'labcharts-agent-host-endpoint';
@@ -195,36 +196,28 @@ export function hasAgentChatConnection() {
 }
 
 /**
- * Discover a separately running companion without asking for a URL or token.
- * The fixed, narrow port range is intentionally bounded to getbased hosts.
+ * Discover the loopback endpoint named by the saved CLI-issued chat credential.
  */
 export async function discoverLoopbackAgentHosts(options: AgentDiscoveryOptions = {}) {
   const runtime = await import('./agent-host-discovery.js');
   return runtime.discoverLoopbackAgentHostsRuntime({
-    ...options, savedEndpoint: getAgentHostEndpoint(), normalizeEndpoint: normalizeAgentHostEndpoint,
+    ...options, pairingCode: getCachedKey(COMPANION_PAIRING_KEY) || '', savedEndpoint: getAgentHostEndpoint(), normalizeEndpoint: normalizeAgentHostEndpoint,
   });
 }
 
-export async function discoverLocalChatAgents(options: AgentDiscoveryOptions & {refresh?: boolean | undefined} = {}) {
+export async function pairLocalCompanion(raw: string) {
+  const code = raw.trim();
   const runtime = await import('./agent-host-discovery.js');
-  const url = options.refresh ? '/api/local-agents?refresh=1' : '/api/local-agents';
-  let direct: DiscoveredAgent[] = [];
-  try {
-    const response = await fetch(url, { cache: 'no-store', signal: options.signal } as RequestInit);
-    if (response.ok) {
-      const payload = await response.json() as {agents?: Record<string, unknown>[]};
-      direct = Array.isArray(payload?.agents)
-        ? payload.agents.filter(agent => agent && typeof agent === 'object').map(runtime.normalizeDiscoveredAgent)
-        : [];
-    }
-  } catch { /* hosted/static builds fall back to direct loopback discovery */ }
-  // Prefer a separately installed companion when one exists. The development
-  // server can expose its own temporary host, but service-level controls such
-  // as restart belong to the installed companion on the standard loopback
-  // port. The bounded probe also lets a current host replace a legacy result.
-  const companions = await discoverLoopbackAgentHosts({ refresh: options.refresh, signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: options.requiredAgentId,
-    requiredToolContractVersion: options.requiredToolContractVersion }).catch(() => []);
-  return runtime.mergeDiscoveredAgents(direct, companions, options.requiredToolContractVersion);
+  const endpoint = runtime.companionPairingEndpoint(code);
+  if (!endpoint) throw new Error('Enter the chat pairing code printed by this computer’s Companion.');
+  const agents = await runtime.discoverLoopbackAgentHostsRuntime({pairingCode:code, savedEndpoint:endpoint, normalizeEndpoint:normalizeAgentHostEndpoint});
+  if (!agents.length) throw new Error('The running Companion could not verify this pairing code.');
+  await encryptedSetCredentialItem(COMPANION_PAIRING_KEY, code);
+  await saveAgentChatSettings({endpoint,token:''});
+}
+
+export async function discoverLocalChatAgents(options: AgentDiscoveryOptions & {refresh?: boolean | undefined} = {}) {
+  return discoverLoopbackAgentHosts(options);
 }
 
 export async function connectDetectedAgent(agentId = getAgentHostAgent(), options: AgentConnectionOptions = {}) {
@@ -233,7 +226,6 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
   assertCurrent();
   const runtime = await import('./agent-host-discovery.js');
   assertCurrent();
-  const savedToken = getAgentHostToken(), savedEndpoint = getAgentHostEndpoint();
   const requiredEndpoint = options.requiredEndpoint ? normalizeAgentHostEndpoint(options.requiredEndpoint) : '';
   const permittedEndpoint = (endpoint: string) => !requiredEndpoint || normalizeAgentHostEndpoint(endpoint) === requiredEndpoint;
   const onConnected = options.persistConnection === false ? async () => {} : saveAgentChatSettings;
@@ -243,14 +235,6 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
     agents = await discoverLocalChatAgents({ ...options, requiredAgentId: agentId });
   } catch { /* use a saved local host or direct companion scan below */ }
   const candidates = agents.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required' && permittedEndpoint(agent.endpoint));
-  const knownAgent = agents.find(agent => agent.id === agentId);
-  if (savedToken && knownAgent?.status !== 'login_required' && permittedEndpoint(savedEndpoint)
-    && !candidates.some(agent => agent.endpoint === savedEndpoint)) {
-    candidates.push(runtime.normalizeDiscoveredAgent({
-      id: agentId, name: agentId, status: 'available', compatible: true,
-      endpoint: savedEndpoint, token: savedToken,
-    }));
-  }
   let lastError: unknown = null;
   for (const candidate of candidates) {
     assertCurrent();

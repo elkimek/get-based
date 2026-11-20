@@ -16,6 +16,7 @@ services:
     environment:
       - COMPAT_PROXY_BIND=0.0.0.0
       - COMPAT_PROXY_PORT=8787
+      - COMPAT_PROXY_TRUST_PROXY=1
       - PROXY_RATE_LIMIT_MAX=300
       - PROXY_RATE_LIMIT_WINDOW_MS=60000
     cap_drop:

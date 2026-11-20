@@ -1690,6 +1690,14 @@ the higher-layer behavior through a narrow runtime seam.
 - Secrets and sensitive rows use the existing encryption and IndexedDB paths.
   Do not introduce plaintext fallbacks for OAuth tokens, AI keys, wallet
   proofs, genetics, or health records.
+  Passphrase rotation replaces an authenticated wrapper for the existing data
+  key in a single storage write, and other tabs invalidate their unlocked
+  session when that wrapper changes. Derived AI health caches use the same
+  passphrase boundary. Cashu bearer material and the Sync identity vault use
+  device protection when the profile passphrase is disabled.
+  Agent Access saves a device-protected revocation intent before clearing a
+  credential. The browser retries removal against the originating Sync owner
+  and relay while the intent remains pending.
 - Full backups include supported provider credentials only with passphrase
   protection enabled; device-key envelopes remain excluded from unencrypted
   snapshots and files. Backup settings explain how to include API keys.
@@ -1697,6 +1705,20 @@ the higher-layer behavior through a narrow runtime seam.
   full-restore pipeline, including side stores and the publish-before-pull
   Sync handoff. A full-backup selection ends the import batch, including after
   cancellation or failure, so later files cannot mutate the pre-reload profile.
+  Full restore validates profile ownership, allowed storage fields and side-store
+  records before writing. The device encrypts a rollback journal before replacing
+  the included wearable sources, cycle records, profile storage and registry.
+  Startup finishes interrupted rollback before loading the encryption session.
+  Custom connection keys are bound to their saved endpoint. A restored destination
+  cannot inherit an existing device credential. Encrypted backup headers carry
+  profile IDs only; names remain inside the encrypted registry.
+  Portable exports project client records through an explicit field list, excluding
+  live integration credentials. Shared imports always allocate a new profile and
+  issue a receipt after its data commits. The device encrypts and verifies each
+  Stop sharing credential before upload, and migrates existing link history
+  before removing its plaintext copy. Portable merge matches stable profile
+  IDs and individual lab collections; display names are a legacy fallback only
+  for records without a source ID and one unambiguous local match.
   Restore Backup also recognizes version 2 Export All Clients bundles and asks
   before delegating to the existing client merge importer through a shell-wired
   service port with `preserveGlobalSettings` enabled, including the selected

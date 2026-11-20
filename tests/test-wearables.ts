@@ -140,14 +140,14 @@ const declining = makeRows('2026-01-22', 90, i => {
 });
 const sum = summary.computeWearableSummary(
   { oura: declining },
-  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }
+  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }, {}, '2026-04-21'
 );
 assert('Summary has sources.oura', !!sum.sources?.oura);
 assert('Summary has metrics.hrv_rmssd', !!sum.metrics?.hrv_rmssd);
 const hrv = sum.metrics.hrv_rmssd;
 assert('HRV primarySource = oura', hrv!.primarySource === 'oura');
 assert('HRV latest is most recent (declining)', hrv!.latest < 52);
-assert('HRV baseline ~52 (median of mostly-stable)', Math.abs(hrv!.baseline - 52) < 3, `baseline=${hrv!.baseline}`);
+assert('HRV baseline ~52 (median of mostly-stable)', Math.abs(hrv!.baseline! - 52) < 3, `baseline=${hrv!.baseline}`);
 assert('HRV trend30d is declining', hrv!.trend30d === 'declining', hrv!.trend30d);
 assert('Weekly has up to 12 entries', hrv!.weekly.length <= 12 && hrv!.weekly.length > 0);
 assert('Rolling d7 < d90 on declining series', hrv!.rolling.d7! < hrv!.rolling.d90!);
@@ -159,15 +159,15 @@ console.log('4. L2 Write Gate');
 
 const baseSummary = summary.computeWearableSummary(
   { oura: makeRows('2026-01-22', 90, () => 52) },
-  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }
+  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }, {}, '2026-04-21'
 );
 const driftSummary = summary.computeWearableSummary(
-  { oura: makeRows('2026-01-22', 90, () => 52.5) }, // ~1% drift
-  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }
+  { oura: makeRows('2026-01-22', 90, i => i === 89 ? 52 : 52.5) }, // Small drift, unchanged latest sample
+  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }, {}, '2026-04-21'
 );
 const bigShiftSummary = summary.computeWearableSummary(
   { oura: makeRows('2026-01-22', 90, i => i > 80 ? 40 : 52) }, // ~23% shift on d7
-  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }
+  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }, {}, '2026-04-21'
 );
 
 assert('Gate: initial writes', (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(baseSummary, null).write === true);
@@ -183,7 +183,7 @@ assert('Gate: 15d-stale L2 forces write regardless of drift', minCadenceRes.writ
 // the production 'rising' threshold (0.002 of baseline).
 const risingSummary = summary.computeWearableSummary(
   { oura: makeRows('2026-01-22', 90, i => 52 + i * 0.5) },
-  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }
+  { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }, {}, '2026-04-21'
 );
 const flipRes = (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(risingSummary, baseSummary);
 const hasFlipEvent = flipRes.anomalyEvents?.some(e => e.kind === 'trend-flip' && e.metricId === 'hrv_rmssd');
@@ -329,7 +329,7 @@ assert('Gate: identical snapshot (same latestDate) does NOT write',
   }
   const wearSum = summary.computeWearableSummary(
     { oura: wearTestRows },
-    { oura: { connectedSince: '2026-04-01', lastSyncAt: Date.now() } }
+    { oura: { connectedSince: '2026-04-01', lastSyncAt: Date.now() } }, {}, '2026-04-15'
   );
   assert('Wear-min (steps): d7 mean excludes 0 and non-zero sub-threshold days',
     wearSum.metrics.steps?.rolling?.d7 === 8000,
@@ -343,7 +343,7 @@ assert('Gate: identical snapshot (same latestDate) does NOT write',
       { source: 'oura', date: '2026-04-01', steps: 299 },
       { source: 'oura', date: '2026-04-02', steps: 300 },
     ] },
-    { oura: { connectedSince: '2026-04-01', lastSyncAt: Date.now() } }
+    { oura: { connectedSince: '2026-04-01', lastSyncAt: Date.now() } }, {}, '2026-04-15'
   );
   assert('Wear-min (steps): 299 excluded but 300 included',
     thresholdSum.metrics.steps?.latest === 300 && thresholdSum.metrics.steps.baseline === 300,
@@ -1002,18 +1002,18 @@ const expectedMeasTypes = {
   bp_diastolic: 9, bp_systolic: 10, hr_day: 11,
   spo2_avg: 54, body_temp: 71, skin_temp: 73,
   muscle_mass_kg: 76, water_mass_kg: 77, bone_mass_kg: 88,
-  pwv: 91, vascular_age: 130, visceral_fat: 167,
-  nerve_health_score: 168, cardio_fitness: 169,
+  pwv: 91, vascular_age: 155, visceral_fat: 170,
+  nerve_health_score: 167, cardio_fitness: 123,
 };
 for (const [canonical, measType] of Object.entries(expectedMeasTypes)) {
   assert(`Withings ${canonical} → /measure measType ${measType}`,
     withingsReg!.metrics[canonical as keyof NonNullable<typeof withingsReg>["metrics"]]?.measType === measType);
 }
-// /v2/sleep getsleepsummary — registered fields and their transforms.
+// /v2/sleep getsummary — registered fields and their transforms.
 const expectedSleepFields: Record<string, {field: string; transform?: string}> = {
   sleep_score: { field: 'sleep_score' },
   rhr: { field: 'hr_min' },
-  sleep_total_min: { field: 'asleepduration', transform: 'sec→min' },
+  sleep_total_min: { field: 'total_sleep_time', transform: 'sec→min' },
   sleep_deep_min: { field: 'deepsleepduration', transform: 'sec→min' },
   sleep_light_min: { field: 'lightsleepduration', transform: 'sec→min' },
   sleep_rem_min: { field: 'remsleepduration', transform: 'sec→min' },
@@ -1523,8 +1523,10 @@ assert('crypto.js defines migrateLocalIDB for wearable and cycle raw stores',
   && /getAllCycleImportMetaRaw/.test(cryptoSrc31));
 assert('disableEncryption decrypts local IDB BEFORE clearing the session key',
   /disableEncryption[\s\S]*?migrateLocalIDB\('plain'\)[\s\S]*?_sessionKey\s*=\s*null/.test(cryptoSrc31));
-assert('changePassphrase decrypts under the old key and encrypts under the new key',
-  /_sessionKey\s*=\s*oldKey[\s\S]*?migrateLocalIDB\('plain'\)[\s\S]*?_sessionKey\s*=\s*newKey[\s\S]*?migrateLocalIDB\('encrypted'\)/.test(cryptoSrc31));
+const rotationSrc = cryptoSrc31.slice(cryptoSrc31.indexOf('async function changeEncryptionPassphrase'), cryptoSrc31.indexOf("globalThis.addEventListener?.('storage'", cryptoSrc31.indexOf('async function changeEncryptionPassphrase')));
+assert('changePassphrase verifies both the old data key and new wrapper before publishing without rewriting wearable rows',
+  /openDataKey\(oldPassphrase, previous, true\)[\s\S]*?verifyDataKey\(dataKey\)[\s\S]*?wrapDataKey\(newPassphrase, dataKey\)[\s\S]*?openDataKey\(newPassphrase, manifest\)[\s\S]*?localStorage\.setItem\(ENCRYPTION_MANIFEST_KEY, manifest\)/.test(rotationSrc)
+  && !/migrateLocalIDB|upsertDailyBatchRaw/.test(rotationSrc));
 
 // P0-5: encryption-on + session-locked refuses to silently write plaintext
 const storeSrc31 = await fetch('/js/wearables-store.js').then(r => r.text());
@@ -2062,13 +2064,14 @@ assert('Folder-backup writeLatest uses the full snapshot',
   /buildFullBackupSnapshot[\s\S]*latestFile/.test(backupSrc));
 assert('exportEncryptedBackup is async and uses the full snapshot',
   /export\s+async\s+function\s+exportEncryptedBackup/.test(backupSrc));
-assert('restoreAutoBackup hydrates wearable IDB rows back via restoreWearableIDB',
-  /export\s+async\s+function\s+restoreAutoBackup[\s\S]*?await restoreBackupSideStores\(backup\)/.test(backupSrc) &&
-  /async function restoreBackupSideStores[\s\S]*?restoreWearableIDB\(backup\.wearableIDB\)/.test(backupSrc));
-// v1.31.0: restoreWearableIDB now uses upsertDailyBatchRaw to preserve
-// encryption envelopes from an encrypted backup (no decrypt-on-restore).
-assert('restoreWearableIDB iterates per-source and upsertDailyBatchRaw (preserves encrypted wrappers)',
-  /async function restoreWearableIDB[\s\S]*?upsertDailyBatchRaw/.test(backupSrc));
+assert('restoreAutoBackup applies the full snapshot and awaits per-profile wearable replacements',
+  /export async function restoreAutoBackup[\s\S]*?await applyFullBackup\(backup\)/.test(backupSrc)
+  && /async function applyFullBackup[\s\S]*?await restoreBackupSideStores\(backup, profileIds\)/.test(backupSrc)
+  && /profileIds\.flatMap\(id[\s\S]*?replaceWearableBackupRows\(id, BACKUP_WEARABLE_SOURCES, Object\.values\(backup\.wearableIDB\[id\] \|\| \{\}\)\.flat\(\)\)/.test(backupSrc));
+const rawRestoreSrc = storeSrc31.slice(storeSrc31.indexOf('export async function replaceWearableBackupRows'), storeSrc31.indexOf('// Inclusive range query', storeSrc31.indexOf('export async function replaceWearableBackupRows')));
+assert('wearable restore replaces owned sources and preserves raw encrypted rows in one transaction',
+  /db\.transaction\(STORE_DAILY, 'readwrite'\)[\s\S]*?for \(const source of sources\)[\s\S]*?store\.delete\(IDBKeyRange\.bound\(\[source\], \[source, \[\]\]\)\)[\s\S]*?for \(const row of rows\)[\s\S]*?store\.put\(row\)/.test(rawRestoreSrc)
+  && rawRestoreSrc.includes('tx.abort()') && rawRestoreSrc.includes('await done;'));
 
 // P0-C: PDF report falls back to wearableSummary.metrics for biometrics.
 const reportSrc2 = await fetch('/js/export-report.js').then(r => r.text());

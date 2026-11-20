@@ -15,7 +15,8 @@ const runtime = vi.hoisted(() => {
   return {
     marker,
     state: {
-      importedData: { entries: [] },
+      importedData: { entries: [] as Array<{date: string; markers: Record<string, number>}> },
+      currentProfile: 'one',
       markerRegistry: { lipids_glucose: marker },
       unitSystem: 'EU',
       currentView: 'lipids',
@@ -69,11 +70,13 @@ vi.mock('../js/marker-detail-store.js', () => ({
 }));
 
 const { saveManualEntry } = await import('../js/marker-detail-editing.js');
+const { showConfirmDialog } = await import('../js/utils.js');
 
 describe('moved marker editing compatibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     runtime.state.importedData = { entries: [] };
+    runtime.state.currentProfile = 'one';
     document.body.innerHTML = `
       <input id="me-date" value="2026-08-01">
       <input id="me-value" value="5.4">
@@ -94,6 +97,18 @@ describe('moved marker editing compatibility', () => {
         sampleTime: null,
         fasting: null,
       },
+    }, expect.any(Function));
+  });
+  it.each(['profile', 'measurement'])('rejects an old overwrite confirmation after a %s change', async change => {
+    const row = {date: '2026-08-01', markers: {'biochemistry.glucose': 4.4}};
+    runtime.state.importedData.entries = [row];
+    vi.mocked(showConfirmDialog).mockImplementationOnce(async () => {
+      if (change === 'profile') runtime.state.currentProfile = 'two';
+      else row.markers['biochemistry.glucose'] = 5.3;
+      return true;
     });
+    await saveManualEntry('lipids_glucose');
+    expect(showConfirmDialog).toHaveBeenCalledOnce();
+    expect(runtime.saveManualMarkerValue).not.toHaveBeenCalled();
   });
 });

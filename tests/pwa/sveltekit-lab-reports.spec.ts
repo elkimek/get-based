@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
@@ -41,9 +42,9 @@ test('static report metadata is readable and refused removal retains every sourc
   }, { seeded, registry });
   let round = 0; const wire: unknown[] = [], errors: string[] = [];
   const evidence = 'Remove the latest report for my evening plasma sample collected on 20 October 2026. Keep the morning sample unchanged.';
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON();
-    if (!body.tools) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] }) }); return; }
+  await installSyntheticOpenRouter(context, async body => {
+
+    if (!body.tools) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' }, finish_reason: 'stop' }] }) }; }
     expect(JSON.stringify(body)).not.toMatch(/\/private\/|synthetic-patient|raw-private-extraction/); wire.push({ round, roles: body.messages.map((message: { role: string }) => message.role) });
     let call: AIToolCall | undefined;
     if (round === 0) call = { id: 'read-report', type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource: 'labReports', recordId: 'evening-report' }) } };
@@ -54,7 +55,7 @@ test('static report metadata is readable and refused removal retains every sourc
     if (round === 2) {
       const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(false); expect(result.contentItems[0].text).toBe(`Error: ${CHAT_NATIVE_UI_NOTICE}`);
     }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Use the native report history to remove a report.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Use the native report history to remove a report.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false;

@@ -50,7 +50,7 @@ export const SECONDARY_UNIT_CONVERSIONS: Record<string, SecondaryUnitConversion[
   // Urea: SI unit is mmol/l (urea molecule). Some european mass-concentration units (mg/l, g/l)
   // express the whole urea molecule (MW 60.06).
   // "BUN" mg/dL is handled by the PRIMARY UNIT_CONVERSIONS entry.
-  'biochemistry.urea': multiplyUnits(['mg/l', 60.06], ['g/l', 0.06006]),
+  'biochemistry.urea': multiplyUnits(['mg/dl urea', 6.006], ['mg/l', 60.06], ['g/l', 0.06006]),
   'biochemistry.creatinine': multiplyUnits(['mg/l', 0.1131], ['µmol/l', 1]),
   'biochemistry.uricAcid': multiplyUnits(['mg/l', 0.1681], ['mmol/l', 0.001]),
   'biochemistry.bilirubinTotal': multiplyUnits(['mg/l', 0.5848], ['µmol/l', 1]),
@@ -113,13 +113,9 @@ export const SECONDARY_UNIT_CONVERSIONS: Record<string, SecondaryUnitConversion[
   'lipids.nonHdl': cholesterolUnits(),
   'lipids.apoAI': proteinMassUnits(),
   'lipids.apoB': proteinMassUnits(),
-  // Lp(a): SI unit is nmol/l (particle count). Mass units (mg/l, mg/dl) report total
-  // particle mass and have NO exact molar conversion — the ratio depends on apo(a)
-  // isoform size and the assay. ~2.4 nmol/L per mg/dL (i.e. ~0.24 nmol/L per mg/L, so
-  // factor 4.167) is a widely-used approximation only; the 2022 EAS consensus
-  // discourages mg↔nmol conversion for clinical decisions. Sanity check: Unilabs SK's
-  // 0–300 mg/L (= 0–30 mg/dL) upper-normal ≈ 72 nmol/L, near the schema optimalMax 75.
-  'lipids.lpA': multiplyUnits(['mg/l', 4.167]),
+  // FEU and DDU are different measurands. Only explicit FEU units are interchangeable here.
+  'lipids.lpAMass': multiplyUnits(['mg/l', 10], ['g/l', 0.01]),
+  'coagulation.dDimer': multiplyUnits(['ng/ml FEU', 1000], ['µg/l FEU', 1000], ['µg/ml FEU', 1]),
   'iron.iron': multiplyUnits(['µg/l', 55.85], ['mg/l', 0.05585], ['µmol/l', 1]),
   'iron.ferritin': multiplyUnits(['mg/l', 0.001], ['µg/l', 1]),
   'iron.transferrin': proteinMassUnits(),

@@ -55,7 +55,7 @@ fi
 # won't propagate. Log to /tmp so we can inspect if it dies unexpectedly.
 SERVER_PID=""
 if ! server_reachable "$PORT"; then
-  nohup node "$DIR/dev-server.js" "$PORT" > /tmp/dev-server.log 2>&1 < /dev/null &
+  GETBASED_DEV_TEST_FIXTURES=1 nohup node "$DIR/dev-server.js" "$PORT" > /tmp/dev-server.log 2>&1 < /dev/null &
   SERVER_PID=$!
   disown "$SERVER_PID" 2>/dev/null || true
   # Poll until listen actually succeeds — a plain sleep 1 was racy on

@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
@@ -33,9 +34,9 @@ test('static Light chat reviews cascade effects and saves offline through a stop
   }, { seeded, registry });
   const statements = { update: 'My office now uses warm LEDs and I spend two hours there after sunset.', remove: 'Remove my office room from my indoor Light Environment assessment.' };
   let stage: 'update' | 'remove' = 'update', round = 0; const wire: unknown[] = [], errors: string[] = [];
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(JSON.stringify(body)).not.toMatch(/\/private\/|light-sentinel|measurement-sentinel/);
-    if (!body.tools) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled Light verdict","detail":"Unknown measurements remain unknown."}' }, finish_reason: 'stop' }] }) }); return; }
+  await installSyntheticOpenRouter(context, async body => {
+    expect(JSON.stringify(body)).not.toMatch(/\/private\/|light-sentinel|measurement-sentinel/);
+    if (!body.tools) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled Light verdict","detail":"Unknown measurements remain unknown."}' }, finish_reason: 'stop' }] }) }; }
     wire.push({ stage, round }); let call: AIToolCall | undefined;
     if (round === 0) call = { id: `read-${stage}`, type: 'function', function: { name: 'getbased_read_data', arguments: '{"resource":"lightRooms","recordId":"room-office"}' } };
     if (round === 1) {
@@ -46,7 +47,7 @@ test('static Light chat reviews cascade effects and saves offline through a stop
       const result = JSON.parse(body.messages.at(-1).content); expect(result.success).toBe(true); const review = JSON.parse(result.contentItems[0].text).review; expect(review.applied).toBe(false);
       if (stage === 'remove') expect(review.effects).toEqual({ unlinkedScreens: [{ id: 'screen-laptop', device: 'laptop' }], preservedMeasurementCount: 1 });
     }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the changed room and any screen/history effects before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the changed room and any screen/history effects before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false; const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};

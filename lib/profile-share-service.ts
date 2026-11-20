@@ -25,6 +25,7 @@ export interface ProfileShareObjectStore extends Record<string, unknown> {
   list(options?: ProfileShareListOptions): Promise<ProfileShareListPage>;
   delete(pathnames: string[], options?: ProfileShareRequestOptions): Promise<void>;
   isPreconditionFailure(error: unknown): boolean;
+  isCapacityFailure?(error: unknown): boolean;
   hashRateLimitSubject?: ((subject: string) => Promise<string> | string) | undefined;
 }
 export type ProfileShareHandler = (request: Request, store: ProfileShareObjectStore | null) => Response | Promise<Response>;
@@ -98,6 +99,7 @@ const SHARE_VERSION = 1;
 const MAX_SHARE_BYTES = 3_750_000;
 const MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MIN_KDF_ITERATIONS = 100_000;
+const MAX_KDF_ITERATIONS = 600_000;
 const MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
 const LEGACY_RATE_LIMIT_PREFIX = 'profile-share-rate/v1/';
 const RATE_LIMIT_PREFIX = 'profile-share-rate/v2/';
@@ -214,6 +216,7 @@ function normalizeEnvelope(envelope: ShareEnvelope | null | undefined) {
   if (!Number.isInteger(iterations) || iterations < MIN_KDF_ITERATIONS) {
     return { error: `PBKDF2 iterations must be at least ${MIN_KDF_ITERATIONS}.` };
   }
+  if (iterations > MAX_KDF_ITERATIONS) return { error: `PBKDF2 iterations must not exceed ${MAX_KDF_ITERATIONS}.` };
   if (envelope.cipher?.name !== 'AES-GCM') {
     return { error: 'Unsupported cipher.' };
   }
@@ -384,7 +387,9 @@ async function runBoundedMaintenance(now: number, currentWindowStart: number, op
   try {
     await putBlob(claimPath, JSON.stringify({ claimedAt: new Date(now).toISOString() }), privateJsonOptions(cleanupOptions, false));
   } catch (error) {
-    return;
+    // A full store must still be able to reclaim expired rows. Concurrent sweeps
+    // read the same immutable records and use idempotent deletes.
+    if (!options.isCapacityFailure?.(error)) return;
   }
   try {
     await cleanupExpiredBlobState(now, currentWindowStart, cleanupOptions);

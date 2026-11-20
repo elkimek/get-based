@@ -47,6 +47,7 @@ const walletTransfersSrc = await fetchWithRetry('js/cashu-wallet-transfers.js');
 const walletSrc = [walletFacadeSrc, walletTransfersSrc].join('\n');
 const nodePaymentsSrc = await fetchWithRetry('js/routstr-node-payments.js');
 const walletStoreSrc = await fetchWithRetry('js/cashu-wallet-store.js');
+const payloadsSrc = await fetchWithRetry('js/cashu-wallet-payloads.js');
 const appAIInteractionSrc = await fetchWithRetry('js/app-ai-interaction-modules.js');
 const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
 const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
@@ -153,7 +154,7 @@ assert('MAX_WALLET_BALANCE safety cap', walletSrc.includes('MAX_WALLET_BALANCE')
 console.log('4. Proof Management');
 
 assert('Proofs stored in IndexedDB', walletStoreSrc.includes('indexedDB.open('));
-assert('Proofs tagged with _mint for namespacing', walletStoreSrc.includes('_mint: _normalizeMintUrl(mintUrl)'));
+assert('Proofs tagged with _mint for namespacing', payloadsSrc.includes('_mint: _normalizeMintUrl(mintUrl)'));
 assert('Legacy untagged proofs migrated', walletStoreSrc.includes('_migrateUntaggedProofs'));
 assert('Fee proofs stored separately', walletStoreSrc.includes('STORE_FEES'));
 assert('Fee proofs migrated from localStorage', walletStoreSrc.includes("localStorage.getItem('cashu-fee-proofs')"));
@@ -162,10 +163,12 @@ assert('Counter reservations use atomic IndexedDB transactions',
   walletStoreSrc.includes("db.transaction(STORE_META, update ? 'readwrite' : 'readonly')") &&
   walletStoreSrc.includes('current + count'));
 assert('Cashu bearer proofs use encrypted IDB envelopes with hashed storage keys',
-  walletStoreSrc.includes("`enc:v1:${await _digestStorageKey(secret)}`")
-    && walletStoreSrc.includes('_payload: await _encryptWalletPayload(normalized)'));
+  payloadsSrc.includes("`enc:v1:${await _digestStorageKey(secret)}`")
+    && payloadsSrc.includes('await _encryptWalletPayload(normalized)')
+    && payloadsSrc.includes('cashu-proof:${storageKey}'));
 assert('Cashu recovery metadata uses encrypted IDB envelopes',
-  walletStoreSrc.includes("_payload: await _encryptWalletPayload({ value })"));
+  payloadsSrc.includes('await _encryptWalletPayload({ value })')
+    && payloadsSrc.includes('cashu-meta:${key}'));
 assert('Cashu storage participates in encryption enable, disable, and passphrase migrations',
   cryptoSrc.includes("import('./cashu-wallet-store.js')")
     && cryptoSrc.includes('cashuStore.configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps())')
@@ -176,8 +179,8 @@ assert('Cashu storage receives crypto only when wallet storage is needed',
     && walletSrc.includes("from './crypto.js'")
     && walletSrc.includes('configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps())'));
 assert('Cashu encrypted writes fail closed while the encryption session is locked',
-  walletStoreSrc.includes("code = 'session-locked'")
-    && /if\s*\(!envelope\)\s*throw\s+_sessionLockedError\(\)/.test(walletStoreSrc));
+  payloadsSrc.includes("code = 'session-locked'")
+    && /if\s*\(!envelope\)\s*throw\s+_sessionLockedError\(\)/.test(payloadsSrc));
 
 // ═══════════════════════════════════════
 // 5. CASHU WALLET — DEPOSIT RECOVERY

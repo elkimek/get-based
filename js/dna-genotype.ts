@@ -91,3 +91,12 @@ export function findSnpHint<Hint>(entry: GenotypeEntry<unknown, Hint> | null | u
   if (!entry || !entry.snpHints) return null;
   return findStrandAwareEntry(entry.snpHints, genotype, isPalindromicEntry(entry))?.value || null;
 }
+
+export function parseClinicalSnpGenotypeTail(tail: unknown) {
+  const cleaned = String(tail || '').replace(/\s+/g, ' ');
+  if (/\b(?:no[- ]?call|not called|undetermined|unavailable|inconclusive)\b/i.test(cleaned)) return null;
+  const repeatMatches = [...cleaned.matchAll(/(?:^|[^\d])(\d+\s*[\/|]\s*\d+)(?=\s*(?:[–-]|—|\b|$))/g)];
+  if (repeatMatches.length) return repeatMatches.length === 1 ? normalizeGenotype(repeatMatches[0]![1]) : null;
+  const matches = [...cleaned.matchAll(/(?:^|[^A-Z])([ACGT]{2})(?=\s*(?:[–-]|—|\b|$))/g)];
+  return matches.length === 1 ? matches[0]![1]! : null;
+}

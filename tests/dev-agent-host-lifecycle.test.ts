@@ -37,7 +37,7 @@ it('disables watch and preserves configured strict port', () => {
 });
 it.each([10, 51, 60])('recognizes a readiness banner split at byte %s', split => {
   const f = fixture(); f.child.stdout.emit('data', banner.slice(0, split)); f.child.stdout.emit('data', banner.slice(split));
-  expect(state(f)).toMatchObject({ status: 'available', endpoint: 'http://127.0.0.1:8325', token: 'private-token' }); f.controller.close();
+  expect(state(f)).toMatchObject({ status: 'available', endpoint: 'http://127.0.0.1:8325', token: '', controlAuthorized:false }); f.controller.close();
 });
 it('does not accept a partial port before the readiness line is complete', () => {
   const f = fixture(); f.child.stdout.emit('data', 'getbased Companion listening at http://127.0.0.1:8');

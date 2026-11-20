@@ -242,7 +242,7 @@ test('profile share modal creates copies and manages active encrypted links', as
         && deleted[0]!.id === postedBody.id
         && typeof (deleted[0]!.body as {manageToken:string}).manageToken === 'string'
         && (deleted[0]!.body as {manageToken:string}).manageToken.length >= 20
-        && (JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]') as Record<string,unknown>).length === 0;
+        && localStorage.getItem('getbased-profile-shares-v1:' + postedBody.id) === null;
     } finally {
       profileShare.closeProfileShareModal();
       (state as {profiles:unknown}).profiles = saved.profiles;

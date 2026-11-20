@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
@@ -32,15 +33,15 @@ test('self-reported Environment chat approval preserves other data and reaches t
   }, { seeded, registry });
   const statement = 'I now turn my WiFi off at night.'; let round = 0;
   const wire: number[] = [], background: string[] = [], errors: string[] = [], receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(body.model).toBe('openai/synthetic-environment'); expect(JSON.stringify(body)).not.toMatch(/\/private\//);
-    if (!body.tools) { expect(String(body.messages[0]?.content || '')).toMatch(/^Based on this person's lab data and profile context/); background.push('native context-card summary'); await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }); return; }
+  await installSyntheticOpenRouter(context, async body => {
+    expect(body.model).toBe('openai/synthetic-environment'); expect(JSON.stringify(body)).not.toMatch(/\/private\//);
+    if (!body.tools) { expect(String(body.messages[0]?.content || '')).toMatch(/^Based on this person's lab data and profile context/); background.push('native context-card summary'); return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }; }
     wire.push(round); let call: AIToolCall | undefined;
     if (round === 0) call = { id: 'read-environment', type: 'function', function: { name: 'getbased_read_context_card', arguments: '{"card":"environment"}' } };
     if (round === 1) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text); expect(current.emf.mode).toBe('selfReport');
       call = { id: 'draft-environment', type: 'function', function: { name: 'getbased_draft_context', arguments: JSON.stringify({ card: 'environment', snapshotId: current.snapshotId, changes: [{ field: 'emfMitigation', values: ['WiFi off at night', 'minimal Bluetooth'] }], evidence: statement, reason: 'The user reported a new general habit.' }) } }; }
     if (round === 2) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); expect(JSON.parse(response.contentItems[0].text).status).toBe('pending_user_approval'); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review your proposed Environment context change.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review your proposed Environment context change.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message))); const server = await startKitServer(artifact.directory); let stopped = false;
   try {

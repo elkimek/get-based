@@ -823,7 +823,7 @@
   display: none;
 }
 @utility dashboard-native-data-db-hero-bio-001 {
-  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: center;
   gap: 24px; cursor: pointer;
   width: 100%;
   border: 0;
@@ -848,7 +848,7 @@
 @utility dashboard-native-data-db-hero-bio-label-actual-006 { font-size: 13px; color: var(--text-secondary); }
 @utility dashboard-native-data-db-hero-bio-label-delta-007 { font-family: var(--font-mono); font-size: 13px; color: var(--red); }
 @utility dashboard-native-data-db-hero-bio-right-008 {
-  width: 220px; display: flex; flex-direction: column; gap: 10px;
+  width: min(100%, 220px); display: flex; flex-direction: column; gap: 10px;
   font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary);
 }
 @utility dashboard-native-data-db-hero-row-db-hero-scale-009 { display: flex; justify-content: space-between; gap: 10px; }

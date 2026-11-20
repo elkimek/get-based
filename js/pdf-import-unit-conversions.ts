@@ -54,12 +54,15 @@ function getSchemaUnitForMarker(key: string) {
   return MARKER_SCHEMA[catKey!]?.markers?.[markerKey!]?.unit || '';
 }
 
-function isRecognizedUnitForMarker(key: string, unit: unknown) {
+export function isRecognizedUnitForMarker(key: string, unit: unknown) {
   if (!key) return false;
-  if (!unit) return true;
+  if (!unit) return !getSchemaUnitForMarker(key);
   const aiUnit = normalizeUnitStr(unit);
   const siUnit = getSchemaUnitForMarker(key);
   if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return true;
+  if (!siUnit && ['ratio', 'fraction', '1', 'l/l'].includes(aiUnit)) return true;
+  if (key === 'hematology.hematocrit' && ['fraction', '1', 'l/l'].includes(aiUnit)) return true;
+  if (key === 'biochemistry.urea' && aiUnit === 'mg/dl') return true;
   const primaryConv = UNIT_CONVERSIONS[key];
   if (primaryConv?.type === 'multiply' && primaryConv.usUnit) {
     if (aiUnit === normalizeUnitStr(primaryConv.usUnit)) return true;

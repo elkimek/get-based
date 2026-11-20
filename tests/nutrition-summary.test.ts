@@ -112,7 +112,7 @@ describe('nutrition rolling summaries', () => {
 
     expect(summary.windows.d7.dailyAverages.energyKcal).toBe(550);
     expect(summary.windows.d7.dailyAverages.vitaminDMcg).toBe(10);
-    expect(summary.windows.d7.nutrientCoverage.vitaminDMcg).toMatchObject({ observedMeals: 1, totalMeals: 1 });
+    expect(summary.windows.d7.nutrientCoverage.vitaminDMcg).toMatchObject({ observedMeals: 1, totalMeals: 2, completeDays: 1 });
   });
 
   it('includes explicitly attributed AI composition estimates in nutrient summaries', () => {
@@ -169,12 +169,23 @@ describe('nutrition rolling summaries', () => {
   it('excludes partial days from a nutrient average when another meal lacks that nutrient', () => {
     const summary = computeNutritionSummary([
       { eatenAt: '2026-08-23T08:00:00.000Z', localDate: '2026-08-23', nutrients: { magnesiumMg: 100 } },
-      { eatenAt: '2026-08-23T18:00:00.000Z', localDate: '2026-08-23', nutrients: { energyKcal: 800 } },
+      { eatenAt: '2026-08-23T18:00:00.000Z', localDate: '2026-08-23', nutrients: { energyKcal: 800 }, source: { kind: 'ai-photo-estimate' } },
       { eatenAt: '2026-08-22T08:00:00.000Z', localDate: '2026-08-22', nutrients: { magnesiumMg: 200 } },
     ], { now: new Date('2026-08-23T12:00:00.000Z') });
 
     expect(summary.windows.d7.dailyAverages.magnesiumMg).toBe(200);
     expect(summary.windows.d7.nutrientCoverage.magnesiumMg!.completeDays).toBe(1);
+  });
+
+  it('averages clock times around midnight and withholds ambiguous opposite clock times', () => {
+    const days = [
+      { eatenAt: '2026-08-22T23:45:00Z', localTimeMinutes: 1425, localDate: '2026-08-22', nutrients: { energyKcal: 300 } },
+      { eatenAt: '2026-08-23T00:15:00Z', localTimeMinutes: 15, localDate: '2026-08-23', nutrients: { energyKcal: 300 } },
+    ];
+    const summary = () => computeNutritionSummary(days, { now: new Date('2026-08-23T12:00:00Z') }).windows.d7.timing;
+    expect(summary().averageFirstMealMinutes).toBe(0);
+    days[1]!.localTimeMinutes = 705;
+    expect(summary().averageFirstMealMinutes).toBeNull();
   });
 
   it('sums explicit drink events without requiring every meal to contain a fluid field', () => {

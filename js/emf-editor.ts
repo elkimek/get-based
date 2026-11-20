@@ -518,7 +518,8 @@ function projectComparisonView(sorted: AssessmentOperations[]):EMFComparisonView
   for (const name of roomNames) {
     const beforeRoom = before.rooms.find(room => room.name === name);
     const afterRoom = after.rooms.find(room => room.name === name);
-    const sleeping = (afterRoom || beforeRoom)?.sleeping !== false;
+    const beforeSleeping = beforeRoom?.sleeping !== false;
+    const afterSleeping = afterRoom?.sleeping !== false;
     const label = emfComparisonText(name);
     const cells:EMFComparisonCell[] = [];
     for (const measurementType of MEASUREMENT_TYPES) {
@@ -529,9 +530,9 @@ function projectComparisonView(sorted: AssessmentOperations[]):EMFComparisonView
         continue;
       }
       const beforeSeverity = beforeValue != null
-        ? (getEMFSeverity as SeverityReader)(measurementType.key, beforeValue, sleeping) : null;
+        ? (getEMFSeverity as SeverityReader)(measurementType.key, beforeValue, beforeSleeping) : null;
       const afterSeverity = afterValue != null
-        ? (getEMFSeverity as SeverityReader)(measurementType.key, afterValue, sleeping) : null;
+        ? (getEMFSeverity as SeverityReader)(measurementType.key, afterValue, afterSleeping) : null;
       if (beforeValue != null && afterValue != null) {
         const delta = (afterValue as number) - (beforeValue as number);
         const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '=';
