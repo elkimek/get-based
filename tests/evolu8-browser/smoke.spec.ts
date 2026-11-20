@@ -1,5 +1,6 @@
 import type { BrowserContext, Page, PlaywrightTestArgs, PlaywrightWorkerArgs, PlaywrightWorkerOptions, TestInfo } from '@playwright/test';
 import { devices, expect, test } from '@playwright/test';
+import { startPwaServer } from '../pwa/app-server.js';
 
 const LEGACY_BUNDLE = '**/vendor/evolu/evolu-bundle.js';
 const ONE_TAB_ERROR = 'Evolu 8 requires this app to stay open in only one tab in this browser';
@@ -46,20 +47,24 @@ async function getCompatibleBrowserPage({ browserName, context, page, playwright
   // WebKit intentionally withholds OPFS in private browsing, while Playwright
   // test contexts are incognito-style. A persistent profile matches normal
   // Safari storage behavior without mocking any filesystem API.
-  const persistentContext = await playwright.webkit.launchPersistentContext(
-    testInfo.outputPath('webkit-profile'),
-    {
-      ...devices['Desktop Safari'],
-      baseURL: String(testInfo.project.use.baseURL),
-      serviceWorkers: 'block',
-    },
-  );
-  const persistentPage = persistentContext.pages()[0] || await persistentContext.newPage();
-  return {
-    context: persistentContext,
-    page: persistentPage,
-    close: async () => persistentContext.close(),
+  // Cocoa can retain OPFS for an origin across separate Playwright profiles.
+  // Keep one loopback origin for this case, including its reloads and tabs.
+  const server = await startPwaServer(testInfo.project.use.baseURL);
+  let persistentContext: BrowserContext | undefined;
+  const close = async () => {
+    try { await persistentContext?.close(); }
+    finally { await server.close(); }
   };
+  try {
+    persistentContext = await playwright.webkit.launchPersistentContext(testInfo.outputPath('webkit-profile'), {
+      ...devices['Desktop Safari'], baseURL: server.origin, serviceWorkers: 'block',
+    });
+    const persistentPage = persistentContext.pages()[0] || await persistentContext.newPage();
+    return { context: persistentContext, page: persistentPage, close };
+  } catch (error) {
+    await close();
+    throw error;
+  }
 }
 
 async function readRuntime(page: Page) {
