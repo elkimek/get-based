@@ -159,7 +159,7 @@ test('failed update preserves the installed app; retry updates two tabs without 
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const snapshot = await Promise.race([
-        page.evaluate(async () => {
+        page.evaluate(async failedPath => {
           const failure = (error: unknown) => ({ state: 'error',
             name: error instanceof Error ? error.name.slice(0, 64) : typeof error });
           const workerState = (worker: ServiceWorker | null) => worker ? { state: worker.state } : null;
@@ -178,11 +178,11 @@ test('failed update preserves the installed app; retry updates two tabs without 
                 })) };
             } catch (error) { return failure(error); }
           };
-          const readCachedScript = async () => {
+          const readCachedScript = async (path: string, cacheName: string) => {
             try {
               // CacheStorage.match with cacheName never creates a missing cache.
-              const response = await caches.match('/js/url-safety.js', { cacheName: 'labcharts-vbuild-build-a' });
-              if (!response) return { state: 'missing' };
+              const response = await caches.match(path, {cacheName});
+              if (!response) return {state: 'missing', cachePresent: await caches.has(cacheName)};
               const metadata = { status: response.status, contentType: (response.headers.get('content-type') || '').slice(0, 96) };
               if (!response.body) return { state: 'no-body', ...metadata };
               const reader = response.body.getReader();
@@ -208,16 +208,19 @@ test('failed update preserves the installed app; retry updates two tabs without 
               return { state: 'complete', ...metadata, bytes, sha256 };
             } catch (error) { return failure(error); }
           };
-          const [workers, cachedScript] = await Promise.all([readWorkers(), readCachedScript()]);
-          return { document: documentState, workers, cachedScript };
-        }).then(value => ({ state: 'complete', value }), error => ({ state: 'error',
+          const scriptCaches = failedPath ? ['labcharts-vbuild-build-a', 'labcharts-vbuild-build-b'].map(
+            async cacheName => ({cacheName, ...await readCachedScript(failedPath, cacheName)})
+          ) : [];
+          const [workers, entries] = await Promise.all([readWorkers(), Promise.all(scriptCaches)]);
+          return {document: documentState, workers, cachedScript: {path: failedPath, entries}};
+        }, failedScripts[0]?.path ?? null).then(value => ({ state: 'complete', value }), error => ({ state: 'error',
           name: error instanceof Error ? error.name.slice(0, 64) : typeof error })),
         new Promise<{ state: 'timeout'; timeoutMs: number }>(resolve => {
           timer = setTimeout(() => resolve({ state: 'timeout', timeoutMs: 2_000 }), 2_000);
         }),
       ]);
       const file = test.info().outputPath('pwa-lifecycle-failure-state.json');
-      await writeFile(file, JSON.stringify({ schemaVersion: 1, failedScripts, droppedFailures, snapshot }, null, 2),
+      await writeFile(file, JSON.stringify({ schemaVersion: 2, failedScripts, droppedFailures, snapshot }, null, 2),
         { encoding: 'utf8', flag: 'wx' });
       await test.info().attach('pwa-lifecycle-failure-state', { path: file, contentType: 'application/json' });
     } catch {

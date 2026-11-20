@@ -469,7 +469,7 @@ test('requested insights survive reload and backups; bulk updates reuse complete
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
   }
-  await prepareDemoProfile(page);
+  await prepareDemoProfile(page, { stableInsightEvidence: true });
   const calls: string[][] = [];
   await page.exposeFunction('recordBiologyAIRequest', (ids: string[]) => calls.push(ids));
   const installProvider = async () => page.evaluate(async () => {
@@ -483,21 +483,11 @@ test('requested insights survive reload and backups; bulk updates reuse complete
       },
     });
   });
-  await page.evaluate(async () => {
-    const { state } = await import('/js/state.js');
-    const { setProfileSex, setProfileDob } = await import('/js/profile.js');
-    await setProfileSex(state.currentProfile, state.profileSex);
-    await setProfileDob(state.currentProfile, state.profileDob);
-    state.importedData.biologyScoreAI = {};
-    // Keep evidence stable for this storage/reuse test. Hydration readiness is
-    // covered separately; recalculating old Light sessions changes real context.
-    state.importedData.sunSessions = []; state.importedData.deviceSessions = [];
-    state.importedData.sunDefaults = { completedAt: Date.now() };
-    await (await import('/js/data.js')).saveImportedData();
-  });
   await installProvider();
-  await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
-  await page.evaluate(async () => (await import('/js/biology-scores.js')).loadBiologyScoreInsights({ force: true }));
+  await page.evaluate(async () => {
+    await (await import('/js/views.js')).navigate('biology-scores');
+    await (await import('/js/biology-scores.js')).loadBiologyScoreInsights({ force: true });
+  });
   const first = page.locator('#biology-score-metabolicFlexibility [data-biology-score-ai-summary]');
   // The 6x CPU slowdown also delays lazy context preparation before inference.
   await expect(first).toContainText('The core markers show a mixed pattern.', { timeout: 30000 });
@@ -515,6 +505,10 @@ test('requested insights survive reload and backups; bulk updates reuse complete
     state.importedData.biologyScoreAI = {};
     await (await import('/js/data.js')).saveImportedData();
     await (await import('/js/export-import.js')).importDataJSON(new File([JSON.stringify(json)], 'biology-roundtrip.json', { type: 'application/json' }));
+    // Open the restored profile at the feature under test on the next cold launch.
+    // A client export omits the profile's local navigation preference.
+    const { profileStorageKey } = await import('/js/profile.js');
+    localStorage.setItem(profileStorageKey(state.currentProfile, 'lastViewV1'), 'biology-scores');
     return { backup: data.biologyScoreAI, json: json.biologyScoreAI, restored: state.importedData.biologyScoreAI };
   });
   expect(exported.json).toEqual(exported.backup);
@@ -523,10 +517,8 @@ test('requested insights survive reload and backups; bulk updates reuse complete
   await page.reload({ waitUntil: 'load' });
   await waitForAsyncCondition(() => page.evaluate(async () => !!(await import('/js/state.js')).state.importedData.biologyScoreAI?.metabolicFlexibility?.summary), 0);
   await installProvider();
-  await page.evaluate(async () => {
-    (await import('/js/views.js')).navigate('biology-scores');
-    await (await import('/js/biology-scores.js')).loadBiologyScoreInsights();
-  });
+  await expect(first).toBeVisible();
+  await page.evaluate(async () => (await import('/js/biology-scores.js')).loadBiologyScoreInsights());
   await expect(first).toContainText('The core markers show a mixed pattern.');
   await expect(first).not.toContainText('refresh needed');
   await expect(page.locator('.biology-score-ai-teaser-label').filter({ hasText: 'refresh needed' })).toHaveCount(0);
@@ -537,7 +529,9 @@ test('requested insights survive reload and backups; bulk updates reuse complete
   expect(calls.at(-1)).toEqual(['summary', 'explanation']);
   await page.locator('#biology-score-biologicalCoherence [data-biology-score-ai-summary] button').click();
   await expect(first.getByRole('button')).toBeEnabled();
-  await page.evaluate(async () => (await import('/js/biology-scores.js')).loadBiologyScoreInsights({ force: true }));
+  // The button already requested a forced update. A non-forced call joins that
+  // same pending load and is a no-op when it has completed (automatic AI is off).
+  await page.evaluate(async () => (await import('/js/biology-scores.js')).loadBiologyScoreInsights());
   expect(calls).toHaveLength(initialCalls + 1);
 });
 
