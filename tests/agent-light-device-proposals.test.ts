@@ -197,4 +197,6 @@ it('preset hydration adopts its accepted fields over their unsaved deletion and 
 });
 
 import { retiredRecordActions } from './helpers/retired-health-record-actions.js';
-retiredRecordActions('lightDevices',['add','update','remove']);
+retiredRecordActions('lightDevices', (title, verify) => {
+  it.each(['add', 'update', 'remove'])(title, verify);
+});

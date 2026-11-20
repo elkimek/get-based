@@ -25,7 +25,7 @@ afterEach(async () => {
   if (active === null) localStorage.removeItem('labcharts-active-profile'); else localStorage.setItem('labcharts-active-profile', active);
 });
 import { defineRetiredManagement } from './helpers/chat-management-retirement.js';
-defineRetiredManagement('labs.overlays');
+defineRetiredManagement('labs.overlays', (title, run) => it(title, run));
 
 it('rolls back a partially failed multi-switch save before publishing cached modes', async () => {
   const writer = Storage.prototype.setItem; vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, name, value) { if (name === profileStorageKey(profile, 'suppOverlay')) throw new Error('No space'); return writer.call(this, name, value); });
