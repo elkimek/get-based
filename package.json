@@ -99,7 +99,7 @@
     "typescript": "7.0.2",
     "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/7da6228c0cef3ad516196129eea2f9d64760e6b3.tar.gz",
     "vitest": "^5.1.0",
-    "magic-string": "0.30.21",
+    "magic-string": "1.4.5",
     "@tailwindcss/node": "4.3.3",
     "postcss": "8.5.26",
     "deepmerge": "file:scripts/vendor-packages/svelte-config-merge",
