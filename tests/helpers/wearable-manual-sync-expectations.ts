@@ -93,7 +93,8 @@ function store(value: unknown): StoreReceipt {
   return structuredClone(value) as StoreReceipt;
 }
 export function qualifyWearableManualDaily(original: unknown, state: string, phase: number): unknown {
-  wearableManualMirror(state); assert([0, 1, 2].includes(phase), 'Known closed-client phase');
+  const mirror = wearableManualMirror(state);
+  assert([0, 1, 2].includes(phase), 'Known closed-client phase');
   const daily = store(original);
   for (const row of daily.values) {
     assert.equal(row.source, 'manual'); assert(!Object.hasOwn(row, '_manualSyncAt'), 'Original rows predate edit clocks');
@@ -101,8 +102,12 @@ export function qualifyWearableManualDaily(original: unknown, state: string, pha
       const clocks: Record<string, number> = {bp_systolic: at, bp_diastolic: at, rhr: at, tags: at, note: at};
       if (state !== 'after-bp-save') clocks.weight = at;
       row._manualSyncAt = clocks;
-    } else row.bpPaired = true;
-    if (row.date !== '2026-08-06' && phase > 0) row._manualSyncAt = {weight: 0, bp_systolic: 0, bp_diastolic: 0, rhr: 0};
+    } else {
+      const fields = ['weight','bp_systolic','bp_diastolic','rhr'].filter(field =>
+        typeof row[field] === 'number' && row[field] === mirror[`${field}.${row.date}`]?.value);
+      if (fields.includes('bp_systolic') && fields.includes('bp_diastolic')) row.bpPaired = true;
+      if (phase > 0 && fields.length) row._manualSyncAt = Object.fromEntries(fields.map(field => [field,0]));
+    }
   }
   return daily;
 }

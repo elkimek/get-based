@@ -44,11 +44,12 @@ export function createCiPlan(full: boolean, affected: TestPlan | null): CiPlan {
   const add = (suite: NativeSuite, engine: NativeLane['engine'], shards = 1) => {
     for (let shard = 1; shard <= shards; shard++) native.push({id: `${suite}-${shard}-of-${shards}`, suite, engine, shard: `${shard}/${shards}`, coverage: full && suite === 'browser'});
   };
-  // Full Chromium coverage exceeded the runner deadline with four shards.
-  if (full || selectedNative!.browser.length) add('browser', 'chromium', full ? 8 : Math.min(4, selectedNative!.browser.length));
+  if (!full && selectedNative!.browser.length) add('browser', 'chromium', Math.min(4, selectedNative!.browser.length));
   if (full || selectedNative!.firefox.length) add('firefox', 'firefox');
   if (full || selectedNative!.pwa.length) add('pwa', 'all');
   if (full || selectedNative!.browser.some(file => /(?:^|\/)settings-display-pilot\.spec\.[jt]s$/.test(file)) || selectedNative!.pwa.some(file => /(?:^|\/)settings-display-pilot\.spec\.[jt]s$/.test(file))) add('display', 'all');
+  // Admit compatibility jobs in the first wave alongside a subset of full Chromium coverage.
+  if (full) add('browser', 'chromium', 8);
   const kit: KitLane[] = [];
   for (const project of full ? projects : ['kit-chromium'] as const) {
     const webkit = project === 'kit-webkit' || project === 'kit-mobile-webkit';

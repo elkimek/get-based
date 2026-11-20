@@ -94,10 +94,12 @@ describe('isolated CI matrix selection', () => {
     const plan = createCiPlan(true, null);
     for (const id of ['', 'browser-1-of-5', 'browser-1-of-4 --headed', '../foreign']) expect(() => nativeLaneCommand(plan, id)).toThrow();
     expect(() => kitLaneCommand(plan, 'pwa-chromium-1-of-2')).toThrow();
-    const edited = structuredClone(plan); edited.nativeMatrix.include[0]!.shard = '1/1';
+    const edited = structuredClone(plan); edited.nativeMatrix.include[0]!.shard = '1/2';
     expect(() => nativeLaneCommand(edited, edited.nativeMatrix.include[0]!.id)).toThrow('Exact derived CI scheduling plan');
-    const wrongCoverage = structuredClone(plan); wrongCoverage.nativeMatrix.include[0]!.coverage = false;
-    expect(() => nativeLaneCommand(wrongCoverage, wrongCoverage.nativeMatrix.include[0]!.id)).toThrow();
+    const wrongCoverage = structuredClone(plan);
+    const coverageLane = wrongCoverage.nativeMatrix.include.find(lane => lane.coverage)!;
+    coverageLane.coverage = false;
+    expect(() => nativeLaneCommand(wrongCoverage, coverageLane.id)).toThrow();
   });
 });
 
