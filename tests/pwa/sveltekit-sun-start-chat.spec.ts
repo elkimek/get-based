@@ -6,7 +6,7 @@ import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
 import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
 import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
-import { installSunWeatherFixture } from '../helpers/sun-weather-fixture.js';
+import { installOfflineSunWeatherFixture } from '../helpers/sun-weather-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
@@ -42,7 +42,7 @@ test('Chat refuses live Sun starts and stops while preserving reported and unkno
     { statement: 'Start another Sun timer using my saved location with only my face uncovered. Other exposure details are unreported.', patch: { regions: ['face'], useSavedLocation: true }, operation: 'start' },
   ];
 
-  const weatherCalls = await installSunWeatherFixture(context);
+  const weatherCalls = await installOfflineSunWeatherFixture(context);
   const assessments: Array<{ keys: string[] }> = [];
   let stage = 0, round = 0; const wire: Array<{ stage: number; round: number }> = [], errors: string[] = [], receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
   await installSyntheticOpenRouter(context, async body => {

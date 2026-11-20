@@ -5,7 +5,7 @@ import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
 import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
-import { installSunWeatherFixture } from '../helpers/sun-weather-fixture.js';
+import { installOfflineSunWeatherFixture } from '../helpers/sun-weather-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
@@ -42,7 +42,7 @@ test('Sun session chat corrections and partial recording retain source evidence 
     { statement: `Record fifteen minutes outdoors starting at ${reportedStart}. Other exposure facts have not been reported.`, patch: { startedAt: reportedStart, durationMin: 15 }, operation: 'add' },
     { statement: 'Remove the original recorded Sun session and its local history, keeping the new fifteen-minute record.', patch: {}, operation: 'remove' },
   ];
-  let createdId = ''; const weatherCalls = await installSunWeatherFixture(context);
+  let createdId = ''; const weatherCalls = await installOfflineSunWeatherFixture(context);
   const assessments: Array<{ keys: string[] }> = [];
   let stage = 0, round = 0; const wire: Array<{ stage: number; round: number }> = [], errors: string[] = [], receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
   await installSyntheticOpenRouter(context, async body => {
