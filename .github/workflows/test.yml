@@ -132,7 +132,8 @@ jobs:
   unit:
     needs: prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Allow the full runner to qualify its coverage receipts after executing every file.
+    timeout-minutes: ${{ needs.prepare.outputs.full == 'true' && 35 || 25 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -170,7 +171,7 @@ jobs:
         if: needs.prepare.outputs.full == 'true'
         run: |
           # Leave room for native TypeScript and nested producer subprocesses.
-          # Keep the complete suite, coverage denominator and deadlines intact.
+          # Preserve the complete suite, coverage denominator and case deadlines.
           node node_modules/vitest/vitest.mjs run --coverage --maxWorkers=2
           node node_modules/vitest/vitest.mjs run --config vitest.critical.config.js
       - name: Affected unit tests and mandatory changed-source checks

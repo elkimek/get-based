@@ -12,10 +12,12 @@ export function startIsolatedChatKitServer(artifact: string) {
   return startKitServer(artifact, [], { isolated: true });
 }
 
-export async function startKitServer(artifact: string, routes: KitServerRoute[] = [], { isolated = false } = {}) {
+export async function startKitServer(artifact: string, routes: KitServerRoute[] = [], { isolated = false, sameOriginOnly = false } = {}) {
   const deployment = JSON.parse(await fs.readFile('vercel.json', 'utf8')) as { routes: { headers?: Record<string, string> }[] };
   const deploymentCsp = deployment.routes.map(route => route.headers?.['Content-Security-Policy']).find(Boolean)!;
-  const csp = isolated ? deploymentCsp.replace(/connect-src[^;]*/, "connect-src 'self'") : deploymentCsp;
+  // A second policy intersects the deployed CSP without intercepting asset or worker requests.
+  const csp = sameOriginOnly ? [deploymentCsp, "connect-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; frame-src 'self'; form-action 'self'"]
+    : isolated ? deploymentCsp.replace(/connect-src[^;]*/, "connect-src 'self'") : deploymentCsp;
   const state = { buildId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', offline: false, failPath: '' };
   const sockets = new Set<Socket>();
   const types: Record<string, string> = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.html': 'text/html',
