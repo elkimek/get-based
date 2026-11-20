@@ -41,6 +41,14 @@ function defaultDataDirectory(source: NodeJS.ProcessEnv, platform: NodeJS.Platfo
   return join(dataRoot, 'getbased-agent-host');
 }
 
+function replacePrivateFile(destination: string, value: string | Buffer) {
+  const temporary = `${destination}.${randomBytes(8).toString('hex')}`;
+  try {
+    writeFileSync(temporary, value, { flag: 'wx', mode: 0o600 });
+    renameSync(temporary, destination);
+  } finally { rmSync(temporary, { force: true }); }
+}
+
 function refreshCodexAuth(sourceAuth: string, targetAuth: string) {
   const sourceDigestPath = `${targetAuth}.source-sha256`;
   let auth: Buffer;
@@ -53,14 +61,12 @@ function refreshCodexAuth(sourceAuth: string, targetAuth: string) {
     throw new Error('Codex login was not found. Run `codex login` first.');
   }
   const digest = createHash('sha256').update(auth).digest('hex');
-  const previous = existsSync(sourceDigestPath) ? readFileSync(sourceDigestPath, 'utf8') : '';
+  let previous = '';
+  try { previous = readFileSync(sourceDigestPath, 'utf8'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   if (!existsSync(targetAuth) || previous !== digest) {
-    const temporary = `${targetAuth}.${randomBytes(8).toString('hex')}`;
-    try {
-      writeFileSync(temporary, auth, { flag: 'wx', mode: 0o600 });
-      renameSync(temporary, targetAuth);
-    } finally { rmSync(temporary, { force: true }); }
-    writeFileSync(sourceDigestPath, digest, { mode: 0o600 });
+    replacePrivateFile(targetAuth, auth);
+    replacePrivateFile(sourceDigestPath, digest);
   }
   chmodSync(targetAuth, 0o600);
 }

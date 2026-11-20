@@ -223,7 +223,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         changeHistory: [],
         emfAssessment: { assessments: [] },
       };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
       document.querySelectorAll('.emf-lightbox,.notification-container').forEach(el => el.remove());
       document.getElementById('confirm-dialog-overlay')?.remove();
 
@@ -287,6 +287,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         mediaType: 'image/svg+xml',
         base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
       }];
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture photo');
       emf.selectEMFRoom(id, 0);
       await waitFor('.emf-photo-thumb img', 'EMF photo thumbnail');
       document.querySelector<HTMLElement>('.emf-photo-thumb img')?.click();
@@ -330,6 +331,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         outputTokens: 18,
         date: '2026-06-16T00:00:00.000Z',
       };
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture comparison');
       await emf.openEMFAssessmentEditor();
       await waitFor('.emf-editor-actions button[data-emf-action="toggle-compare"]', 'EMF compare button');
       document.querySelector<HTMLElement>('.emf-editor-actions button[data-emf-action="toggle-compare"]')?.click();
@@ -439,7 +441,7 @@ test('Light audit defaults cover fallback dependency accessors', async ({ page }
           createdAt: baseTime - 500,
         }],
       };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
 
       audits.configureLightEnvAudits({
         maybeAnalyzeAuditAfterSave: (audit: unknown) => calls.push(['default-auto-audit', (audit as { id?: unknown }).id]),
@@ -605,7 +607,7 @@ test('Light audit history covers save expand update compare interpret and delete
         ],
         lightAudits: [oldAudit, midAudit, newAudit],
       };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
       document.getElementById('confirm-dialog-overlay')?.remove();
       document.getElementById('prompt-dialog-overlay')?.remove();
 

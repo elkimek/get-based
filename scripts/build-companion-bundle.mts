@@ -41,19 +41,19 @@ export async function buildCompanionBundle({ outputRoot = ROOT }: { outputRoot?:
     throw new Error('Companion build must emit exactly one getbased-companion.mjs file.');
   }
   const outputPath = path.join(outputRoot, chunks[0]!.fileName);
-  const stat = await fs.stat(outputPath);
-  if (stat.size > MAX_COMPANION_BUNDLE_BYTES) {
-    throw new Error(`Companion bundle ${stat.size} bytes exceeds ${MAX_COMPANION_BUNDLE_BYTES}.`);
+  const bundle = Buffer.from(chunks[0]!.code);
+  if (bundle.byteLength > MAX_COMPANION_BUNDLE_BYTES) {
+    throw new Error(`Companion bundle ${bundle.byteLength} bytes exceeds ${MAX_COMPANION_BUNDLE_BYTES}.`);
   }
   await fs.chmod(outputPath, 0o755);
   const signaturePath = outputPath + '.sig';
   if (signingKey) {
-    const signature = sign(null, await fs.readFile(outputPath), signingKey);
+    const signature = sign(null, bundle, signingKey);
     await fs.writeFile(signaturePath, signature.toString('base64') + '\n');
   } else {
     await fs.rm(signaturePath, { force: true });
   }
-  return { outputPath, bytes: stat.size };
+  return { outputPath, bytes: bundle.byteLength };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

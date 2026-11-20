@@ -272,6 +272,7 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
         lastUpdated: fallbackAt,
         _syncFallback: [profileId, fallbackAt],
       }];
+      await cryptoStore.encryptedSetItem('labcharts-profiles', JSON.stringify(state.profiles));
       state.currentProfile = fallbackProfileId;
       (state as {importedData:unknown}).importedData = profileStore.createDefaultProfileData();
       localStorage.setItem('labcharts-active-profile', fallbackProfileId);

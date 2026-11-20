@@ -110,6 +110,7 @@ test('startup profile migrates legacy storage and applies saved display state', 
         window.__encryptedReads.push(key);
         return localStorage.getItem(key);
       }
+      export async function encryptedRemoveItem(key) { localStorage.removeItem(key); }
       export async function encryptedSetItem(key, value) {
         window.__encryptedWrites.push([key, value]);
         localStorage.setItem(key, value);
@@ -407,13 +408,18 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
         window.__startupUICalls.push('maybeShowBackupNudge');
       }
     `,
-    '**/js/sync.js*': `
+    '**/js/sync-settings-state.js*': `
+      export function isSyncConfigured() { return true; }
       export function primeSyncState() {
         window.__startupUICalls.push('primeSyncState');
       }
+    `,
+    '**/js/sync.js*': `
       export async function initSync() {
         window.__startupUICalls.push('initSync');
       }
+    `,
+    '**/js/sync-ui.js*': `
       export function renderSyncIndicator() {
         window.__startupUICalls.push('renderSyncIndicator');
       }

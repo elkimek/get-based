@@ -136,16 +136,16 @@ function _encodeRecoveryToken(cashuts: Pick<CashuRuntime, 'getEncodedToken'>, mi
 let _walletLock = Promise.resolve();
 let walletStorageProtection: { factory: IDBFactory; encrypted: boolean } | null = null;
 
-function _withWalletLock<Value>(fn: () => Promise<Value>): Promise<Value> {
+function _withWalletLock<Value>(fn: () => Promise<Value>, protectStorage = true): Promise<Value> {
   if (navigator.locks?.request) {
-    return navigator.locks.request(WALLET_LOCK_NAME, { mode: 'exclusive' }, () => _withModuleWalletLock(fn));
+    return navigator.locks.request(WALLET_LOCK_NAME, { mode: 'exclusive' }, () => _withModuleWalletLock(fn, protectStorage));
   }
   // Production browser mutations require a lock shared by all tabs.
   if (globalThis.document?.defaultView) return Promise.reject(new Error('This browser lacks Web Locks support required to protect wallet funds across tabs. Update your browser before using the wallet.'));
-  return _withModuleWalletLock(fn);
+  return _withModuleWalletLock(fn, protectStorage);
 }
 
-function _withModuleWalletLock<Value>(fn: () => Promise<Value>): Promise<Value> {
+function _withModuleWalletLock<Value>(fn: () => Promise<Value>, protectStorage: boolean): Promise<Value> {
   let release!: () => void;
   const gate = new Promise<void>(r => release = r);
   const prev = _walletLock;
@@ -153,7 +153,7 @@ function _withModuleWalletLock<Value>(fn: () => Promise<Value>): Promise<Value> 
   return prev.then(async () => {
     try {
       const encrypted = getCashuWalletStoreCryptoDeps().getEncryptionEnabled();
-      if (walletStorageProtection?.factory !== indexedDB || walletStorageProtection.encrypted !== encrypted) {
+      if (protectStorage && (walletStorageProtection?.factory !== indexedDB || walletStorageProtection.encrypted !== encrypted)) {
         await migrateCashuWalletStorage(encrypted ? 'encrypted' : 'plain');
         walletStorageProtection = { factory: indexedDB, encrypted };
       }
@@ -738,7 +738,7 @@ export async function destroyWalletDB() {
     _wallet = null;
     _mintUrl = null;
     return _destroyWalletDBStorage();
-  });
+  }, false);
 }
 
 configureCashuWalletTransferDependencies({

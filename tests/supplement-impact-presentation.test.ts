@@ -10,7 +10,7 @@ import { renderSupplementImpactView } from '../js/supplement-impact-presentation
 const fixture: { source: string; sha256: string } = JSON.parse(fs.readFileSync(new URL('./fixtures/supplement-impact-original.json', import.meta.url), 'utf8'));
 expect(createHash('sha256').update(fixture.source).digest('hex')).toBe('a8bfce23de59ba9db0cd00e6fc4ee7dd1a8d3086631c03434689f0d56f35f960');
 const current = fs.readFileSync(new URL('../js/supplement-impact.js', import.meta.url), 'utf8');
-const currentProcedure = current.slice(current.indexOf('export function renderSupplementImpact('), current.indexOf('function scheduleAnalyze(')).replace(/^export /gm, '');
+const currentProcedure = current.slice(current.indexOf('export function renderSupplementImpact('), current.indexOf('async function restoreSavedImpact(')).replace(/^export /gm, '');
 const originalProcedure = stripTypeScriptTypes(fixture.source).replace(/^export /gm, '');
 interface Case { ai: boolean; data: 'none' | 'empty' | 'one' | 'before' | 'after' | 'mixed'; impacts: boolean; cached: boolean; stale?: boolean; dot?: string; summary?: unknown; index?: unknown; excluded?: 'labs' | 'supplements' }
 function tree(node: Node): unknown {
@@ -52,6 +52,7 @@ function run(source: string, input: Case, failAt = Infinity) {
     getSuppFingerprint() { read('fingerprint'); return 'same'; },
     getImpactCache() { read('cache'); return input.cached ? { record: entry } : {}; },
     getSupplementRecordId() { read('record-id'); return 'record'; },
+    restoreSavedImpact() {},
     scheduleAnalyze(s: unknown, index: unknown, ...args: unknown[]) {
       read('schedule'); expect(s).toBe(supplement); expect(index).toBe(input.index ?? 2);
       if (source === originalProcedure) expect(args).toEqual([data]);

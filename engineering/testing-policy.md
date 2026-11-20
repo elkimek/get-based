@@ -128,13 +128,13 @@ reuses those full gates and adds separate real-model and container runtime check
 
 The [native Knowledge Base acceptance](../tests/pwa/sveltekit-knowledge-base.spec.ts)
 requires real Worker transport and OPFS persistence on Chromium, Firefox, desktop
-WebKit and mobile WebKit. Its WebKit cases run on macOS Cocoa because the pinned
-Linux WPE engine does not implement the required synchronous file-handle backend.
-The Cocoa cases use isolated persistent profiles because the pinned private data
-store exposes OPFS but cannot initialize its filesystem. A required native Worker
-control verifies exact write, flush and read bytes across a complete browser
-restart before the unchanged application acceptance runs; private-store behavior
-is recorded only as a diagnostic. Standard UI shards for both shipping WebKit
+WebKit and mobile WebKit. Its shipping WebKit cases run on macOS Cocoa. Local
+Linux WebKit diagnostics use isolated persistent profiles because the pinned
+private stores can expose OPFS and fail to initialize the filesystem. A native
+Worker must write, flush and recover the exact bytes across a complete browser
+restart before the application acceptance runs. The Linux WPE diagnostic also
+restarts the browser from that profile after closing the last tab, while the
+application server stays stopped. Standard UI shards for both shipping WebKit
 projects also run on Cocoa; Chromium and Firefox shipping acceptance and all native
 suites retain their Linux placement. The planner preserves the same global case
 inventory and disjoint standard/OPFS partitions; the full aggregate rejects

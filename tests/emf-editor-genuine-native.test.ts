@@ -65,7 +65,7 @@ it('retains exact current parent bytes and complete genuine comment graph for co
 function preview(native:boolean,scenario:string){
  const owner=native?nativeEMFEditor():current,trace:string[]=[];
  document.body.innerHTML=scenario==='missing-modal'?'<div id="modal-overlay"></div>':'<div id="modal-overlay"><div id="detail-modal">original</div></div>';
- const parsed:{date?:unknown;consultant?:unknown;rooms:unknown;note?:unknown}={date:'2026-06-12',consultant:'Consultant <&>',note:'Imported note',rooms:[{name:'Bedroom',location:'Pillow <&>',measurements:{acElectric:{value:8},rfMicrowave:{value:0}},sources:['WiFi <&>'],mitigations:['Off <&>']},{name:'Office',measurements:{}}]};
+ const parsed:{date?:unknown;consultant?:unknown;rooms:unknown;note?:unknown}={date:'2026-06-12',consultant:'Consultant <&>',note:'Imported note',rooms:[{name:'Bedroom',location:'Pillow <&>',measurements:{acElectric:{value:8,unit:'V/m'},rfMicrowave:{value:0,unit:'µW/m²'}},sources:['WiFi <&>'],mitigations:['Off <&>']},{name:'Office',measurements:{}}]};
  if(scenario==='empty')parsed.rooms=[];
  if(scenario==='unknown-date')parsed.date=null;
  if(scenario==='no-consultant')parsed.consultant='';

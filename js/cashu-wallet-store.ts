@@ -37,6 +37,7 @@ const MNEMONIC_KEY = 'labcharts-cashu-wallet-mnemonic';
 const storeRuntime = {} as CashuWalletStoreRuntime;
 let _db: IDBDatabase | null = null;
 let _indexedDBFactory: IDBFactory | null = null;
+let pendingDbOpen: Promise<IDBDatabase> | null = null;
 let _legacyProofsMigrated = false;
 let closedForErasure = false;
 const _lastProofChecks = new Map<string, number>();
@@ -61,15 +62,17 @@ function _sumProofsAsNumber(cashuts: CashuStorageSdk, proofs: WalletProof[]) {
 
 export function _openDB(): Promise<IDBDatabase> {
   if (closedForErasure) return Promise.reject(new Error('Wallet storage is being erased.'));
-  if (_db && _indexedDBFactory === indexedDB) return Promise.resolve(_db);
+  const factory = indexedDB;
+  if (_db && _indexedDBFactory === factory) return Promise.resolve(_db);
+  if (pendingDbOpen) return pendingDbOpen;
   if (_db) {
     try { _db.close(); } catch {}
     _db = null;
     _legacyProofsMigrated = false;
     _lastProofChecks.clear();
   }
-  return new Promise<IDBDatabase>((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+  pendingDbOpen = new Promise<IDBDatabase>((resolve, reject) => {
+    const req = factory.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = function() {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_PROOFS)) {
@@ -83,23 +86,35 @@ export function _openDB(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = function() {
-      _db = req.result;
-      _indexedDBFactory = indexedDB;
+      const db = req.result;
+      if (closedForErasure || factory !== indexedDB) {
+        db.close();
+        reject(new Error('Wallet storage changed while opening.'));
+        return;
+      }
+      _db = db;
+      _indexedDBFactory = factory;
+      db.onversionchange = () => {
+        db.close();
+        if (_db === db) _db = null;
+      };
       _migrateFeeProofs().catch(() => {});
-      resolve(_db);
+      resolve(db);
     };
     req.onerror = function() { reject(req.error); };
-  });
+  }).finally(() => { pendingDbOpen = null; });
+  return pendingDbOpen;
 }
 
 registerAppErasureHook(async () => {
-  const close = () => {
+  const close = async () => {
     closedForErasure = true;
+    await pendingDbOpen?.catch(() => {});
     _db?.close();
     _db = null;
   };
   if (navigator.locks?.request) await navigator.locks.request(WALLET_LOCK_NAME, close);
-  else close();
+  else await close();
 });
 
 async function _migrateUntaggedProofs() {
@@ -694,6 +709,7 @@ export async function migrateCashuWalletStorage(mode: string) {
 }
 
 export async function _destroyWalletDBStorage() {
+  await pendingDbOpen?.catch(() => {});
   if (_db) {
     try { _db.close(); } catch {}
   }

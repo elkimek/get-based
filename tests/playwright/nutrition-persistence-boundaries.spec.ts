@@ -19,7 +19,9 @@ test('meal proposal rolls back its local cache and live surface when the profile
       if (args[1] === key) request.addEventListener('success', () => this.transaction.abort(), { once: true });
       return request;
     };
-    const draft = { profileId: state.currentProfile, kind: 'meal', status: 'pending', payload: { name: 'Synthetic lunch', eatenAt: '2026-09-21T12:00:00Z', nutrients: { energyKcal: 500 } } };
+    const { prepareLegacyAgentDraftReview } = await import('/js/agent-draft-upgrade.js');
+    const legacy = { id: 'fixture-meal', profileId: state.currentProfile, kind: 'meal', status: 'pending', payload: { name: 'Synthetic lunch', eatenAt: '2026-09-21T12:00:00Z', nutrients: { energyKcal: 500 } } };
+    const [draft] = await prepareLegacyAgentDraftReview(legacy, 'Save this reported lunch.');
     let error = '';
     try { await applyAgentDraft(draft); } catch (e) { error = (e as {message: string}).message; }
     finally { IDBObjectStore.prototype.put = put; }
@@ -29,7 +31,7 @@ test('meal proposal rolls back its local cache and live surface when the profile
   });
   expect(result.failed.error).toContain('could not be saved');
   expect(result.failed).toMatchObject({ liveCount: 0, cacheCount: 0, unchanged: true });
-  expect(result.notice).toContain('saved');
+  expect(result.notice).toBe('Meal added.');
   expect(result.saved).toEqual(['Synthetic lunch']);
 });
 

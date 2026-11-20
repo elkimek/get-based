@@ -13,7 +13,13 @@ test('EU C-peptide imports keep picomoles and saved reviews repair legacy values
     state.profileSex = null;
     state.profileDob = null;
     (state as { importedData: unknown }).importedData = { entries: [{ date: '2026-10-01', markers: { 'biochemistry.glucose': 5 } }], importSnapshots: [], customMarkers: {} };
+    if (!await data.saveImportedData()) throw new Error('Could not persist the source collection');
     review.showImportPreview({ date: '2026-10-01', fileName: 'synthetic-cpeptide.pdf', markers: [{ rawName: 'C-peptide', matched: true, mappedKey: 'diabetes.cPeptide', value: 662, unit: 'pmol/L', refMin: 165.5, refMax: 993 }] });
+    const destination = document.querySelector<HTMLSelectElement>('#import-sample-destination')!;
+    const existing = [...destination.options].filter(option => option.value && option.value !== 'new');
+    if (existing.length !== 1) throw new Error('Expected one existing sample');
+    destination.value = existing[0]!.value;
+    destination.dispatchEvent(new Event('change', { bubbles: true }));
     await commit.confirmImport();
     data.invalidateActiveDataCache();
     const snapshot = state.importedData.importSnapshots[0];
@@ -33,6 +39,7 @@ test('EU C-peptide imports keep picomoles and saved reviews repair legacy values
     const { state } = await import('/js/state.js');
     state.importedData.entries[0]!.markers['diabetes.cPeptide'] = 662;
     Object.assign(state.importedData.refOverrides['diabetes.cPeptide'], { refMin: 165.5, refMax: 993 });
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not persist the historical fixture');
   });
   for (let attempt = 0; attempt < 2; attempt++) {
     await page.evaluate(async id => {

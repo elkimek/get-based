@@ -959,6 +959,13 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.redeemFees(makeTestInvoice(1))).rejects.toThrow('No fee proofs to redeem');
   });
 
+  it('shares the first wallet database open so clearing data can close every connection', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    await Promise.all([wallet.getMintUrl(), wallet.getMintUrl(), wallet.getWalletBalance()]);
+    await expect(wallet.destroyWalletDB()).resolves.toBeUndefined();
+    expect(await indexedDB.databases()).not.toContainEqual(expect.objectContaining({ name: 'getbased-cashu' }));
+  });
+
   it('keeps existing proofs and the original seed when restore cannot be proven', async () => {
     const stub = installCashuStub();
     const wallet = await loadWallet() as CashuWalletOperations;

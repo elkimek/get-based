@@ -204,6 +204,9 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         }],
       };
 
+      const { encryptedSetItem } = await import('/js/crypto.js');
+      await encryptedSetItem(`labcharts-${profileId}-imported`, JSON.stringify(state.importedData));
+
       const defaultEmptyPrompt = utils.showPromptDialog('Default empty prompt');
       await setPromptValue('');
       const defaultEmptyResult = await defaultEmptyPrompt;

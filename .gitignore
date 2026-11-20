@@ -4142,3 +4142,4 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /js/cashu-wallet-payloads.js
 /js/cashu-wallet-seed-restore.js
 /tests/helpers/companion-pairing-fixture.js
+/tests/audit-insight-caches.test.js

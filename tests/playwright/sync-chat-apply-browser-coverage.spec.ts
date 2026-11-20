@@ -135,10 +135,9 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
         threads: [{ id: 'corrupt-remote', messageCount: 1, updatedAt: '2026-06-08T09:00:00.000Z' }],
         messages: { 'corrupt-remote': [{ role: 'assistant', content: 'recovered from corrupt index' }] },
       });
-      outcomes.corruptLocalIndexRecovers =
-        corruptApplied === true
-        && (readJson(threadsKey) as ChatFixtureRowOperations[]).some(thread => thread.id === 'corrupt-remote')
-        && (readJson(msgKey('corrupt-remote')) as ChatFixtureRowOperations[])?.[0]?.content === 'recovered from corrupt index';
+      outcomes.unreadableLocalIndexPreservesBothStoredIndexAndMessages =
+        corruptApplied === false && localStorage.getItem(threadsKey) === 'not-json'
+        && localStorage.getItem(msgKey('corrupt-remote')) === null;
 
       localStorage.setItem(threadsKey, JSON.stringify([
         { id: 'keep', messageCount: 1, updatedAt: '2026-06-08T10:00:00.000Z' },

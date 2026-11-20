@@ -316,6 +316,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
         lastUpdated: 1,
         pinned: false,
       }];
+      await crypto.encryptedSetItem('labcharts-profiles', JSON.stringify(state.profiles));
       state.profileSex = null;
       state.profileDob = null;
       (state as {importedData:unknown}).importedData = profile.createDefaultProfileData();
@@ -473,7 +474,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
     }
 
     return outcomes;
-  }, { onboardingUrl: moduleUrl('/js/onboarding-view.js') });
+  }, { onboardingUrl: '/js/onboarding-view.js' });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);

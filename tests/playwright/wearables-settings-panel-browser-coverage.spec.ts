@@ -121,6 +121,10 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
 });
 
 test('wearables settings panel browser coverage renders rows, counts, and navigation toggles', async ({ page }) => {
+  await page.route('**/api/proxy', route => {
+    if (!route.request().postDataJSON()?.wearable_runtime_config) return route.fallback();
+    return route.fulfill({ json: { overrides: {}, configured: { google_health: false } } });
+  });
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
@@ -272,7 +276,7 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
         && fitbitRow?.textContent!.includes('self-host only')
         && fitbitRow?.textContent!.includes('Disconnect legacy Fitbit')
         && !fitbitRow?.textContent!.includes('Connect Google Health')
-        && !fitbitRow?.textContent!.includes('Reconnect'));
+        && !fitbitRow?.querySelector('[data-wearable-settings-action="connect"]'), fitbitRow?.textContent?.trim());
       const ultrahumanDocsLink = ultrahumanRow?.querySelector('.wearable-row-detail a.wearable-row-link');
       check('experimental self-host setup row renders native docs link without Connect',
         ultrahumanRow?.textContent!.includes('Set up on your server')
@@ -291,10 +295,12 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
 
       toggle!.checked = false;
       toggle!.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+      await waitFor(() => localStorage.getItem(hiddenKey) === '1', 'durable strip preference');
       check('delegated strip visibility toggle stores per-profile hidden preference',
         settings.isWearableStripHidden() === true && localStorage.getItem(hiddenKey) === '1');
       toggle!.checked = true;
       toggle!.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+      await waitFor(() => localStorage.getItem(hiddenKey) === null, 'durable preference removal');
       check('delegated strip visibility toggle removes hidden preference',
         settings.isWearableStripHidden() === false && localStorage.getItem(hiddenKey) == null);
 

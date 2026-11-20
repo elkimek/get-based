@@ -482,8 +482,9 @@ function projectImportPreview(parsed:PreviewInput):EMFImportPreviewView {
   for(const type of MEASUREMENT_TYPES){
    const measurement=(room.measurements||{})[type.key];if(!measurement)continue;
    const definition=SBM_2015_THRESHOLDS[type.key]!,sleeping=SLEEPING_ROOMS.has(room.name as string);
-   const unit=measurement.unit==null?definition.unit:text(measurement.unit);
-   const severity=typeof measurement.value==='number'&&Number.isFinite(measurement.value)&&measurement.value>=0&&unit===definition.unit?(getEMFSeverity as SeverityReader)(type.key,measurement.value,sleeping)??null:null;
+   const reportedUnit = measurement.unit;
+   const unit = typeof reportedUnit === 'string' && reportedUnit.trim() ? reportedUnit : 'Unit missing';
+   const severity=typeof measurement.value==='number'&&Number.isFinite(measurement.value)&&measurement.value>=0&&reportedUnit===definition.unit?(getEMFSeverity as SeverityReader)(type.key,measurement.value,sleeping)??null:null;
    const value=measurement.value==null?'Unknown':`${measurement.value}`;
    measurements.push({label:type.short,value,unit,severity});
   }

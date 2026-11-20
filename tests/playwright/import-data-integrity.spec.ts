@@ -10,9 +10,17 @@ test('commit rejects duplicate and blank rows, and preserves custom units across
     commit.configurePdfImportCommitDeps({ maybeShowEncryptionNudge: () => {} });
     (await import('/js/pdf-import-review-runtime.js')).configurePdfImportReviewRuntimeDeps({ buildSidebar: () => {}, navigate: () => {}, updateHeaderDates: () => {} });
     (state as {importedData: unknown}).importedData = { entries: [], customMarkers: {}, importSnapshots: [] };
+    if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
     const glucose = (value: number) => ({ rawName: 'Glucose', value, unit: 'mmol/l', matched: true, mappedKey: 'biochemistry.glucose' });
     const run = async (markers: NonNullable<Parameters<typeof review.showImportPreview>[0]>['markers'], date = '2026-01-01') => {
       review.showImportPreview({ date, fileName: 'synthetic.pdf', markers });
+      const choice = document.querySelector<HTMLSelectElement>('#import-sample-destination');
+      if (choice) {
+        const sample = choice.querySelector<HTMLOptionElement>('option[value^="sample_"]');
+        if (!sample) throw new Error('Expected the existing collection');
+        choice.value = sample.value;
+        choice.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       await commit.confirmImport();
     };
     await run([glucose(5), glucose(7)]);
@@ -49,6 +57,7 @@ test('matched custom marker ranges use the saved unit after import and snapshot 
     (await import('/js/pdf-import-review-runtime.js')).configurePdfImportReviewRuntimeDeps({ buildSidebar: () => {}, navigate: () => {}, updateHeaderDates: () => {} });
     const key = 'auditSpecialty.analyte';
     (state as {importedData: unknown}).importedData = { entries: [], customMarkers: { [key]: { name: 'Analyte', unit: 'mg/l' } }, importSnapshots: [] };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not persist the custom marker fixture');
     for (const [date, value, unit, refMin, refMax] of [
       ['2026-01-01', 10, 'mg/l', 5, 20], ['2026-02-01', 1, 'g/l', 0.5, 2],
     ] as [string, number, string, number, number][]) {

@@ -26,11 +26,20 @@ test('the real demo dashboard packs without overlapping cards', async ({ page })
   })).toBe(true);
   const pair = await grid.locator('[data-widget-id="focus"], [data-widget-id="spotlight"]').evaluateAll(cards => cards.map(card => {
     const r = card.getBoundingClientRect();
-    return { width: r.width, bottom: r.bottom };
+    return { width: r.width, bottom: r.bottom, columns: Number((card as HTMLElement).style.getPropertyValue('--widget-columns')) };
   }));
   expect(pair).toHaveLength(2);
   expect(Math.abs(pair[0]!.bottom - pair[1]!.bottom)).toBeLessThanOrEqual(1);
-  expect(pair[0]!.width).not.toBe(pair[1]!.width);
+  // Demo copy and dated results can give equal-height cards an even split.
+  // Verify both real card widths match the allocation across the full row.
+  const gap = await grid.evaluate(el => parseFloat(getComputedStyle(el).columnGap));
+  const rowWidth = await grid.evaluate(el => el.clientWidth);
+  expect(pair[0]!.columns + pair[1]!.columns).toBe(12);
+  for (const card of pair) {
+    expect(card.columns).toBeGreaterThanOrEqual(3);
+    expect(card.columns).toBeLessThanOrEqual(9);
+    expect(Math.abs(card.width - ((rowWidth + gap) * card.columns / 12 - gap))).toBeLessThanOrEqual(1);
+  }
   await expect(grid.locator('.db-spotlight .db-spark')).toHaveCSS('height', '80px');
   await page.screenshot({ path: '/tmp/getbased-packed-dashboard.png' });
 });

@@ -95,7 +95,7 @@ test('Light environment assessment drives delegated room and screen controls', a
         lightMeasurements: [],
         lightAudits: [],
       };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
       localStorage.removeItem('labcharts-light-env-active-room');
       document.getElementById('light-env-assessment-overlay')?.remove();
       (window as unknown as {endTour?:()=>unknown}).endTour?.();

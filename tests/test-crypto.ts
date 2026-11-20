@@ -452,14 +452,18 @@ try {
     /catch \(error\)[\s\S]{0,700}return;\s*\}\s*services\.clearEncryptionSession/.test(passphraseControllerSrc)
     && !/catch \(error\)[\s\S]{0,700}localStorage\.removeItem/.test(passphraseControllerSrc));
   const bkSrc0 = await fetchWithRetry('js/backup.js');
+  const restorePlan = await fetchWithRetry('js/backup-restore-plan.js');
   assert('Backup includes encryptionSalt field', bkSrc0.includes('encryptionSalt'));
   assert('Restore sets labcharts-encryption-enabled', bkSrc0.includes("localStorage.setItem('labcharts-encryption-enabled'"));
   assert('Restore sets labcharts-encryption-salt', bkSrc0.includes("localStorage.setItem('labcharts-encryption-salt'"));
   assert('Backup includes labcharts-api-key', src.includes("'labcharts-api-key'") || bkSrc0.includes("'labcharts-api-key'"));
   assert('Backup includes labcharts-venice-key', src.includes("'labcharts-venice-key'") || bkSrc0.includes("'labcharts-venice-key'"));
-  assert('Backup includes labcharts-ai-provider', bkSrc0.includes("'labcharts-ai-provider'"));
+  assert('Backup includes labcharts-ai-provider through the settings allowlist',
+    bkSrc0.includes('GLOBAL_SETTINGS_KEYS') && restorePlan.includes("'labcharts-ai-provider'"));
   assert('Backup includes settings field', bkSrc0.includes('settings,') || bkSrc0.includes('settings:'));
-  assert('Restore writes global settings', bkSrc0.includes('backup.settings'));
+  assert('Restore writes settings only after applying the restore allowlist',
+    restorePlan.includes('backup.settings') && restorePlan.includes('GLOBAL_SETTINGS_KEYS.includes(key)')
+    && bkSrc0.includes('prepareBackupRestore(backup,') && bkSrc0.includes('Object.entries(values)'));
 } catch (e) {
   assert('crypto.js source inspection', false, (e as {message?: unknown}).message);
 }

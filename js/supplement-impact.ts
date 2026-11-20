@@ -198,7 +198,19 @@ export function projectSupplementImpact(supplement: SupplementImpactReader, edit
 
   // Auto-fire only if fingerprint mismatch (edit) or missing entirely - scoped to this supp only.
   if (!cached && hasAI) scheduleAnalyze(supplement, editIdx);
+  else if (!cached && canDisclose) void restoreSavedImpact(supplement, editIdx, fp);
   return view;
+}
+
+async function restoreSavedImpact(supplement: SupplementImpactReader, editIdx: number, fingerprint: string) {
+  const owner = captureImpactOwner();
+  // Plain saved entries were already handled by the synchronous render.
+  if (!localStorage.getItem(owner.key)?.startsWith('v1:')) return;
+  const { encryptedGetItem } = await import('./crypto.js');
+  const cache = parseImpactCache(await encryptedGetItem(owner.key).catch(() => null));
+  if (!owner.current() || state.importedData.supplements?.[editIdx] !== supplement) return;
+  const entry = cache[String(getSupplementRecordId(supplement) || supplement.name)] || cache[String(supplement.name)];
+  if (entry?.fp === fingerprint) applyImpactToDOM(editIdx, entry);
 }
 
 function scheduleAnalyze(supplement: SupplementImpactReader, editIdx: number) {

@@ -70,6 +70,7 @@ const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
 const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
 const cryptoSrc = await fetchWithRetry('js/crypto.js');
 const backupSrc = await fetchWithRetry('js/backup.js');
+const backupPlanSrc = await fetchWithRetry('js/backup-restore-plan.js');
 const exportSrc = await fetchWithRetry('js/export.js');
 const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
 const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
@@ -309,9 +310,9 @@ assert('Node refund is gated before its mutation until the local wallet has a se
     && (/if \(!owns\(\)\)\s*(?:\{\s*)?return;/).test(nodeRefundSrc) && durableRefundCallIdx > nodeRefundSrc.indexOf('await deps.hasSeed()'));
 assert('Wallet mnemonic excluded from generic settings apply', !syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
 assert('Generic backup excludes wallet identity but keeps node preference',
-  !backupSrc.includes("'labcharts-cashu-wallet-mint'") &&
-  !backupSrc.includes("'labcharts-cashu-wallet-mnemonic'") &&
-  backupSrc.includes("'labcharts-routstr-node'"));
+  ![backupSrc, backupPlanSrc].some(source => source.includes("'labcharts-cashu-wallet-mint'")
+    || source.includes("'labcharts-cashu-wallet-mnemonic'"))
+  && backupSrc.includes('GLOBAL_SETTINGS_KEYS') && backupPlanSrc.includes("'labcharts-routstr-node'"));
 
 // ═══════════════════════════════════════
 // 12. EXPORT/IMPORT INTEGRATION

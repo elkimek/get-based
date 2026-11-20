@@ -80,7 +80,7 @@ test('light environment browser coverage handles summary modal prompt and source
         lightMeasurements: [],
         lightAudits: [],
       };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
       localStorage.removeItem('labcharts-light-env-active-room');
       document.getElementById('light-env-assessment-overlay')?.remove();
 
@@ -279,7 +279,7 @@ test('light environment browser coverage handles screens tools and confirm delet
         lightMeasurements: [],
         lightAudits: [],
       };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
       const officeId = await lightEnv.addRoom('Office');
       const livingId = await lightEnv.addRoom('Living room');
       const bedroomId = await lightEnv.addRoom('Bedroom');

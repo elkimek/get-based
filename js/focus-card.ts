@@ -206,7 +206,10 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
     if (!cached.fingerprint) return;
     return;
   }
-  if (cached?.text && !refreshStale) return;
+  if (cached?.text && !refreshStale) {
+    replaceFocusCardBody(el, {kind: 'message', text: 'Your data changed since this insight was generated. Refresh to update it.'});
+    return;
+  }
   if (!hasAssistantFeatureProvider()) {
     replaceFocusCardBody(el, {kind: 'message', text: 'Enable AI to generate insights'});
     return;
