@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import {expect, test, type Page} from '@playwright/test';
 import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
 import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
-import {activate, artifactInputs, profile} from './kit-native-receipts.js';
+import {activate, artifactInputs, expectControlledKitArtifact, profile} from './kit-native-receipts.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
@@ -104,10 +104,15 @@ test('reviewed chat sample cycle edits load offline and preserve independent dra
   });
   async function reviewChange() {
     if (await page.locator('#modal-overlay').isVisible()) await closeMarker(page);
-    if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
-    await expect(page.locator('#chat-input')).toBeVisible(); await expect(page.locator('#chat-input')).toBeEnabled();
+    const panel = page.locator('#chat-panel.open[aria-hidden="false"]:not([inert])');
+    if (!await panel.isVisible()) await activate(page, page.locator('#chat-fab'));
+    await expect(panel).toBeVisible();
+    const input = panel.getByRole('textbox', {name: 'Chat message', exact: true});
+    await expect(input).toBeEnabled();
     const previous = await profile(page, artifact.state); round = 0;
-    await page.locator('#chat-input').fill(changes[stage]!.evidence); await activate(page, page.locator('#chat-send-btn'));
+    const evidence = changes[stage]!.evidence;
+    await input.fill(evidence); await expect(input).toHaveValue(evidence);
+    await activate(page, panel.getByRole('button', {name: 'Send message', exact: true}));
     const pending = page.locator('.chat-agent-draft-pending'), consent = page.locator('#cloud-ai-consent-overlay.show'); await expect(pending.or(consent)).toBeVisible();
     if (await consent.isVisible()) { await consent.locator('input[type="checkbox"]').check(); await activate(page, consent.locator('[data-ai-processing-action="approve"]')); }
     await expect(pending).toContainText('Lab Samples'); expect(await profile(page, artifact.state)).toEqual(previous);
@@ -130,7 +135,7 @@ test('reviewed chat sample cycle edits load offline and preserve independent dra
       if (record.id === 'default') { expect({ ...record, lastUpdated: original.lastUpdated }).toEqual(original); expect(record.lastUpdated).toBeGreaterThanOrEqual(minimum); expect(record.lastUpdated).toBeLessThanOrEqual(maximum); }
       else expect(record).toEqual(original);
     }
-    await page.reload(); await ready(page, server.origin); await reviewChange();
+    await page.reload(); await expectControlledKitArtifact(page); await reviewChange();
     await expect(page.locator('#lab-sample-form')).toHaveCount(0); await expect(row()).toContainText('Cycle day 21'); await expect(row()).not.toContainText('Mid-luteal');
     receipts.cleared = await profile(page, artifact.state); const cleared = data(receipts.cleared); expect(cleared.entries[0]!.context).toMatchObject({ cycleDay: 21, cyclePhase: null, cyclePhaseDetail: null, cyclePhaseSource: null }); expect(cleared.entries[1]).toEqual(current.entries[1]); expect(protectedFields(cleared)).toEqual(protectedFields(data(before)));
     await reviewChange(); await expect(page.locator('#lab-sample-form')).toHaveCount(0);
