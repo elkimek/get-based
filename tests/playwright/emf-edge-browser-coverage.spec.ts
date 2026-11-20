@@ -268,8 +268,9 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
       await waitUntil(() => !!document.querySelector<HTMLElement>('#emf-interp-overlay.show #emf-interp-generate'), 'EMF interpretation modal');
       (document.getElementById('emf-interp-generate'))!.click();
       await waitUntil(
-        () => (imported)!.interpretation?.text.includes('Final EMF interpretation'),
-        'EMF streamed interpretation saved'
+        () => (imported)!.interpretation?.text.includes('Final EMF interpretation')
+          && !!document.querySelector('#emf-interp-overlay.show [data-emf-interp-action="discuss"]'),
+        'EMF streamed interpretation saved and ready to discuss'
       );
       const interpBody = document.getElementById('emf-interp-body')?.textContent || '';
       outcomes.streamInterpretationStripsThinkingSavesUsageAndAddsDiscuss =
