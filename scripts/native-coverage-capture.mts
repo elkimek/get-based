@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {productionFunctionIndex} from './coverage-source.mjs';
+import {productionFunctionIndexes} from './coverage-source.mjs';
 import {nativeDigest, nativeSelected, readNativeBlob, readNativeCapture, readNativeRegular} from './native-coverage-storage.mjs';
 import {nativeFunctionMappers, UnmappedNativeFunction} from './native-coverage-functions.mjs';
 import {replayNativeTransform, NATIVE_WRAPPER_PREFIX} from './native-coverage-transform.mjs';
@@ -36,8 +36,13 @@ export class NativeCaptureMapper {
     assert.equal(raw.result.length, capture.snapshots.length, 'Missing native script snapshot');
     const scriptIds = new Set<string>(), results: NativeMappedCapture[] = [];
     const pending: Array<{transform: NativeTransform; complete: (mapper: ReturnType<typeof nativeFunctionMappers>[number]) => void}> = [];
+    const pendingOwnership = new Map<string, string>();
     const flush = () => {
       if (!pending.length) return;
+      for (const [file, index] of productionFunctionIndexes(pendingOwnership, config.root)) {
+        this.#ownership.set(file, new Set(index.owned.map(fn => `${fn.start}:${fn.end}`)));
+      }
+      pendingOwnership.clear();
       const mappers = nativeFunctionMappers(pending.map(item => item.transform));
       for (const [index, item] of pending.entries()) item.complete(mappers[index]!);
       pending.length = 0;
@@ -66,7 +71,7 @@ export class NativeCaptureMapper {
       this.#mapped.set(cacheKey, entries);
       const unseen = script.functions.filter(fn => !entries.has(`${fn.ranges[0]!.startOffset}:${fn.ranges[0]!.endOffset}`));
       const finish = () => {
-        let owned = this.#ownership.get(relative); if (!owned) {owned = new Set(productionFunctionIndex(canonical, relative, config.root).owned.map(fn => `${fn.start}:${fn.end}`)); this.#ownership.set(relative, owned);}
+        const owned = this.#ownership.get(relative)!;
         for (const native of script.functions) {
           const first = native.ranges[0]!, identity = entries.get(`${first.startOffset}:${first.endOffset}`); assert(identity);
           if ('reason' in identity) result.unmapped.push({file: relative, start: first.startOffset, end: first.endOffset, count: first.count, runtimeLength: runtime.length, reason: identity.reason});
@@ -82,6 +87,7 @@ export class NativeCaptureMapper {
             const info = capture.moduleExecutionInfo.filter(([file]) => file === path.join(config.root, relative)); assert.equal(info.length, 1, 'Missing public module execution offset');
             transform = await replayNativeTransform(config.root, relative, canonical, runtime, snapshot, info[0]![1].startOffset, unique<NativeGeometry>('geometry'), unique<NativeObservation>('observation'), capture.environment);
           }
+          if (!this.#ownership.has(relative)) pendingOwnership.set(relative, canonical);
           pending.push({transform, complete: mapper => {
             for (const native of unseen) {
               const first = native.ranges[0]!, key = `${first.startOffset}:${first.endOffset}`;
