@@ -271,9 +271,8 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      # Admit Cocoa alongside the four Linux shards without opening all ten lanes.
-      # The short OPFS partition releases capacity for the remaining Cocoa shard;
-      # account concurrency and runner availability still bound actual starts.
+      # The first wave includes both Linux engines and both Cocoa projects.
+      # Remaining shards start as capacity becomes available.
       max-parallel: 8
       matrix: ${{ fromJSON(needs.prepare.outputs.kit_matrix) }}
     steps:

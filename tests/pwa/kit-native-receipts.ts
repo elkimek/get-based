@@ -178,6 +178,22 @@ export async function activate(page: Page, control: Locator) {
   if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) await control.tap(); else await control.click();
 }
 
+export async function openKitChatComposer(page: Page) {
+  const panel = page.locator('#chat-panel.open[aria-hidden="false"]:not([inert])');
+  if (!await panel.isVisible()) await activate(page, page.locator('#chat-fab'));
+  await expect(panel).toBeVisible();
+  const input = panel.getByRole('textbox', {name: 'Chat message', exact: true});
+  await expect(input).toBeVisible();
+  await expect(input).toBeEnabled();
+  return {
+    async send(evidence: string) {
+      await input.fill(evidence);
+      await expect(input).toHaveValue(evidence);
+      await activate(page, panel.getByRole('button', {name: 'Send message', exact: true}));
+    },
+  };
+}
+
 export async function resumePausedArtifactChat(page: Page) {
   if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
   const resume = page.locator('[data-chat-empty-action="resume-ai"]');

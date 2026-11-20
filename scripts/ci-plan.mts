@@ -51,22 +51,29 @@ export function createCiPlan(full: boolean, affected: TestPlan | null): CiPlan {
   // Admit compatibility jobs in the first wave alongside a subset of full Chromium coverage.
   if (full) add('browser', 'chromium', 8);
   const kit: KitLane[] = [];
+  const additionalFirefox: KitLane[] = [];
   for (const project of full ? projects : ['kit-chromium'] as const) {
     const webkit = project === 'kit-webkit' || project === 'kit-mobile-webkit';
     const selected = affected?.kit || [];
     const standardCount = webkit ? selected.filter(file => file !== KIT_OPFS_FILE).length : selected.length;
-    const shards = full ? 2 : Math.min(4, standardCount);
-    for (let shard = 1; shard <= shards; shard++) kit.push({
-      id: `${project}-${shard}-of-${shards}`, project,
-      engine: project === 'kit-chromium' ? 'chromium' : project === 'kit-firefox' ? 'firefox' : 'webkit',
-      shard: `${shard}/${shards}`, runner: webkit ? 'macos-15' : 'ubuntu-latest', caseScope: webkit ? 'webkit-standard' : 'all',
-    });
+    const fullShards = project === 'kit-firefox' ? 4 : 2;
+    const shards = full ? fullShards : Math.min(4, standardCount);
+    for (let shard = 1; shard <= shards; shard++) {
+      // Admit desktop and mobile Cocoa in the first wave alongside both Linux engines.
+      const lanes = project === 'kit-firefox' && shard > 2 ? additionalFirefox : kit;
+      lanes.push({
+        id: `${project}-${shard}-of-${shards}`, project,
+        engine: project === 'kit-chromium' ? 'chromium' : project === 'kit-firefox' ? 'firefox' : 'webkit',
+        shard: `${shard}/${shards}`, runner: webkit ? 'macos-15' : 'ubuntu-latest', caseScope: webkit ? 'webkit-standard' : 'all',
+      });
+    }
     // Both WebKit shipping projects use Cocoa. Keep the unchanged Worker/OPFS
     // partition separate from standard UI shards, with exact union completeness.
     if (webkit && (full || selected.includes(KIT_OPFS_FILE))) kit.push({
       id: `${project}-opfs-1-of-1`, project, engine: 'webkit', shard: '1/1', runner: 'macos-15', caseScope: 'webkit-opfs',
     });
   }
+  kit.push(...additionalFirefox);
   return {
     schemaVersion: 2, full, affected,
     deferred: {

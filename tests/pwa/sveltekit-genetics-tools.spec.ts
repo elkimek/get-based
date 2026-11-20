@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
 import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
-import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
+import { activate, artifactInputs, cacheReceipt, openKitChatComposer, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready } from '../helpers/light-artifact-navigation.js';
@@ -12,10 +12,6 @@ import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
 const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-health-data-model.js',
   'js/genetics-records.js', 'js/genetics-proposals.js', 'js/genetics-mutations.js', 'js/genetics-record-store.js', 'js/dna-haplogroup-catalog.js', 'js/genetics-snp-lifecycle.js', 'js/genetics-summary.js', 'js/genetics-lifecycle.js',
   'js/agent-draft-presentation.js', 'js/components/ChatAgentDraftCards.svelte'] as const;
-async function openChat(page: Page) {
-  if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
-  await expect(page.locator('#chat-input')).toBeVisible();
-}
 
 test('static genetics corrections survive offline Apply and whole-genome administration is refused through a stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000);
@@ -64,9 +60,10 @@ test('static genetics corrections survive offline Apply and whole-genome adminis
   const server = await startKitServer(artifact.directory); let stopped = false;
   const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
   try {
-    await ready(page, server.origin); server.state.offline = true; await openChat(page);
+    await ready(page, server.origin); server.state.offline = true;
+    const composer = await openKitChatComposer(page);
     receipts.before = await profile(page, artifact.state);
-    await page.locator('#chat-input').fill(evidence); await activate(page, page.locator('#chat-send-btn'));
+    await composer.send(evidence);
     await expect(page.locator('.chat-agent-draft-pending, #cloud-ai-consent-overlay.show')).toBeVisible();
     const consent = page.locator('#cloud-ai-consent-overlay.show');
     if (await consent.isVisible()) { await consent.locator('input[type="checkbox"]').check(); await activate(page, consent.locator('[data-ai-processing-action="approve"]')); }
@@ -87,7 +84,7 @@ test('static genetics corrections survive offline Apply and whole-genome adminis
     receipts.corrected = receipts.saved;
     for (const nextStage of ['removal', 'restore'] as const) {
       await expect(page.locator('#chat-send-btn.streaming')).toHaveCount(0); stage = nextStage; round = 0;
-      await page.locator('#chat-input').fill(statements[nextStage]); await activate(page, page.locator('#chat-send-btn'));
+      await composer.send(statements[nextStage]);
       const pending = page.locator('.chat-agent-draft-pending'); await expect(pending).toContainText(nextStage === 'removal' ? 'Removed SNP evidence' : 'Explicit SNP restoration');
       expect((await profile(page, artifact.state)).stored).toEqual(receipts.saved.stored);
       await pending.getByRole('button', { name: 'Apply', exact: true }).focus(); await page.keyboard.press('Enter');
@@ -102,7 +99,7 @@ test('static genetics corrections survive offline Apply and whole-genome adminis
       expect(protectedFields(result)).toEqual(protectedFields(before)); receipts.saved = receipts[nextStage];
     }
     await expect(page.locator('#chat-send-btn.streaming')).toHaveCount(0); stage = 'genomeRemoval'; round = 0;
-    await page.locator('#chat-input').fill(statements.genomeRemoval); await activate(page, page.locator('#chat-send-btn'));
+    await composer.send(statements.genomeRemoval);
     const removal = page.locator('#chat-messages').filter({ hasText: 'Use the native genome editor for whole-genome removal.' }); await expect(removal).toBeVisible();
     await expect(page.locator('.chat-agent-draft-pending')).toHaveCount(0); expect(round).toBe(2);
     expect(await removal.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
@@ -116,7 +113,7 @@ test('static genetics corrections survive offline Apply and whole-genome adminis
     expect(wire).toHaveLength(11); await cacheReceipt(page, artifact);
     await server.close(); stopped = true; await expect(fetch(server.origin + '/app')).rejects.toThrow(); await page.close(); expect(context.pages()).toHaveLength(0);
     page = await context.newPage(); await ready(page, server.origin); receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.saved);
-    await openChat(page); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(3); expect(errors).toEqual([]);
+    await openKitChatComposer(page); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(3); expect(errors).toEqual([]);
     await page.setViewportSize({ width: 1280, height: 900 }); await activate(page, page.getByRole('button', { name: /^Genome/ }));
     await expect(page.locator('#main-content [data-widget-id="genome"]')).not.toContainText('No DNA data imported yet');
     expect(await artifactInputs(owners, [])).toEqual(artifact);

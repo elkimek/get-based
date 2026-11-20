@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
 import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
-import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
+import { activate, artifactInputs, cacheReceipt, openKitChatComposer, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready } from '../helpers/light-artifact-navigation.js';
@@ -12,10 +12,6 @@ import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
 const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-health-data-model.js',
   'js/lab-report-records.js', 'js/lab-report-proposals.js', 'js/lab-report-mutations.js', 'js/lab-report-samples.js', 'js/lab-report-store.js',
   'js/agent-draft-presentation.js', 'js/components/ChatAgentDraftCards.svelte'] as const;
-async function openChat(page: Page) {
-  if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
-  await expect(page.locator('#chat-input')).toBeVisible();
-}
 
 test('static report metadata is readable and refused removal retains every source through stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000);
@@ -61,9 +57,10 @@ test('static report metadata is readable and refused removal retains every sourc
   const server = await startKitServer(artifact.directory); let stopped = false;
   const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
   try {
-    await ready(page, server.origin); server.state.offline = true; await openChat(page);
+    await ready(page, server.origin); server.state.offline = true;
+    const composer = await openKitChatComposer(page);
     receipts.before = await profile(page, artifact.state);
-    await page.locator('#chat-input').fill(evidence); await activate(page, page.locator('#chat-send-btn'));
+    await composer.send(evidence);
     const response = page.locator('#chat-messages').filter({ hasText: 'Use the native report history to remove a report.' });
     await expect(response.or(page.locator('#cloud-ai-consent-overlay.show'))).toBeVisible();
     const consent = page.locator('#cloud-ai-consent-overlay.show');
@@ -80,7 +77,7 @@ test('static report metadata is readable and refused removal retains every sourc
     expect(wire).toHaveLength(3); await cacheReceipt(page, artifact);
     await server.close(); stopped = true; await expect(fetch(server.origin + '/app')).rejects.toThrow(); await page.close(); expect(context.pages()).toHaveLength(0);
     page = await context.newPage(); await ready(page, server.origin); receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.saved);
-    await openChat(page); await expect(page.locator('.chat-agent-draft-pending, .chat-agent-draft-applied')).toHaveCount(0); expect(errors).toEqual([]);
+    await openKitChatComposer(page); await expect(page.locator('.chat-agent-draft-pending, .chat-agent-draft-applied')).toHaveCount(0); expect(errors).toEqual([]);
     expect(await artifactInputs(owners, [])).toEqual(artifact);
   } finally {
     await info.attach('static-report-receipt', { body: JSON.stringify({ artifact, receipts, wire, errors, stopped, boundary: 'Real static public chat, controlled native provider output, read-only metadata and exact refused removal, cached first use, mobile/axe, unchanged whole profile receipts, actual feature-source maps and stopped-origin zero-page cold launch. No runtime mutation calls or live provider inference.' }, null, 2), contentType: 'application/json' });

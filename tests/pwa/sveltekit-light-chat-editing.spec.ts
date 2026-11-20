@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
 import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
-import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
+import { activate, artifactInputs, cacheReceipt, openKitChatComposer, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
@@ -13,10 +13,6 @@ const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply
   'js/light-env-store.js', 'js/light-env-editor.js', 'js/light-env-model.js', 'js/light-env-ai-analysis.js',
   'js/light-screen-ai-analysis.js', 'js/light-tools-ai-analysis.js', 'js/sun-context-environment.js',
   'js/agent-draft-presentation.js', 'js/components/ChatAgentDraftCards.svelte'] as const;
-async function openChat(page: Page) {
-  if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
-  await expect(page.locator('#chat-input')).toBeVisible();
-}
 test('static Light chat reviews cascade effects and saves offline through a stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000); const artifact = await artifactInputs(owners, []);
   const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as Record<string, unknown>;
@@ -52,10 +48,12 @@ test('static Light chat reviews cascade effects and saves offline through a stop
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false; const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
   try {
-    await ready(page, server.origin); server.state.offline = true; await openChat(page); receipts.before = await profile(page, artifact.state);
+    await ready(page, server.origin); server.state.offline = true;
+    const composer = await openKitChatComposer(page);
+    receipts.before = await profile(page, artifact.state);
     for (const next of ['update', 'remove'] as const) {
       stage = next; round = 0; await expect(page.locator('#chat-send-btn.streaming')).toHaveCount(0);
-      await page.locator('#chat-input').fill(statements[stage]); await activate(page, page.locator('#chat-send-btn'));
+      await composer.send(statements[stage]);
       await expect(page.locator('.chat-agent-draft-pending, #cloud-ai-consent-overlay.show')).toBeVisible();
       const consent = page.locator('#cloud-ai-consent-overlay.show'); if (await consent.isVisible()) { await consent.locator('input[type="checkbox"]').check(); await activate(page, consent.locator('[data-ai-processing-action="approve"]')); }
       const card = page.locator('.chat-agent-draft-pending'); await expect(card).toContainText('Light Rooms');
@@ -75,7 +73,7 @@ test('static Light chat reviews cascade effects and saves offline through a stop
     expect(protectedFields(saved)).toEqual(protectedFields(before)); expect(wire).toHaveLength(6); await cacheReceipt(page, artifact);
     await server.close(); stopped = true; await expect(fetch(server.origin + '/app')).rejects.toThrow(); await page.close(); expect(context.pages()).toHaveLength(0);
     page = await context.newPage(); await ready(page, server.origin); receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.remove);
-    await openChat(page); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(2); await page.setViewportSize({ width: 1280, height: 900 }); await openLight(page);
+    await openKitChatComposer(page); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(2); await page.setViewportSize({ width: 1280, height: 900 }); await openLight(page);
     await activate(page, page.locator('[data-light-env-action="open-assessment"]')); const dialog = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true }); await expect(dialog).toBeVisible(); await expect(dialog.locator('[data-light-environment-room]')).toHaveCount(0); await expect(dialog.locator('[data-light-environment-screen]')).toHaveCount(1);
     expect(errors).toEqual([]); expect(await artifactInputs(owners, [])).toEqual(artifact);
   } finally {

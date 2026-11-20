@@ -12,14 +12,15 @@ describe('isolated CI matrix selection', () => {
       .toEqual(['1/8', '2/8', '3/8', '4/8', '5/8', '6/8', '7/8', '8/8']);
     expect(plan.nativeMatrix.include.filter(lane => lane.suite !== 'browser').map(lane => lane.suite)).toEqual(['firefox', 'pwa', 'display']);
     expect(plan.kitMatrix.include.map(lane => [lane.project, lane.shard])).toEqual([
-      ['kit-chromium', '1/2'], ['kit-chromium', '2/2'], ['kit-firefox', '1/2'], ['kit-firefox', '2/2'],
+      ['kit-chromium', '1/2'], ['kit-chromium', '2/2'], ['kit-firefox', '1/4'], ['kit-firefox', '2/4'],
       ['kit-webkit', '1/2'], ['kit-webkit', '2/2'], ['kit-webkit', '1/1'],
       ['kit-mobile-webkit', '1/2'], ['kit-mobile-webkit', '2/2'], ['kit-mobile-webkit', '1/1'],
+      ['kit-firefox', '3/4'], ['kit-firefox', '4/4'],
     ]);
-    expect(plan.kitMatrix.include.map(lane => lane.engine)).toEqual(['chromium', 'chromium', 'firefox', 'firefox', 'webkit', 'webkit', 'webkit', 'webkit', 'webkit', 'webkit']);
+    expect(plan.kitMatrix.include.map(lane => lane.engine)).toEqual(['chromium', 'chromium', 'firefox', 'firefox', 'webkit', 'webkit', 'webkit', 'webkit', 'webkit', 'webkit', 'firefox', 'firefox']);
     expect(plan.unit && plan.performance && plan.native && plan.kit).toBe(true);
     expect(plan.jobs).toEqual({prepare: true, unit: true, native: true, kit: true, performance: true, coverage: true});
-    expect(new Set([...plan.nativeMatrix.include, ...plan.kitMatrix.include].map(lane => lane.id)).size).toBe(21);
+    expect(new Set([...plan.nativeMatrix.include, ...plan.kitMatrix.include].map(lane => lane.id)).size).toBe(23);
   });
   it('keeps the required unit job but acquires no browsers for documentation-only changes', () => {
     const plan = createCiPlan(false, affected({changedFiles: ['README.md']}));
@@ -80,7 +81,7 @@ describe('isolated CI matrix selection', () => {
       expect(environment['PLAYWRIGHT_KIT_OUTPUT_DIR']).toBe(path.join(process.cwd(), '.local-notes/ci/results', lane.id));
       return environment['GETBASED_KIT_GUARD_REPORT'];
     });
-    expect(new Set(receipts).size).toBe(10);
+    expect(new Set(receipts).size).toBe(12);
   });
   it('serializes exact GitHub matrix outputs and booleans', () => {
     const plan = createCiPlan(false, affected({performance: true})), outputs = ciPlanOutputs(plan);
@@ -135,7 +136,7 @@ describe('native Cocoa shipping acceptance placement', () => {
       ['kit-webkit', '1/2', 'webkit-standard'], ['kit-webkit', '2/2', 'webkit-standard'], ['kit-webkit', '1/1', 'webkit-opfs'],
       ['kit-mobile-webkit', '1/2', 'webkit-standard'], ['kit-mobile-webkit', '2/2', 'webkit-standard'], ['kit-mobile-webkit', '1/1', 'webkit-opfs'],
     ]);
-    expect(plan.kitMatrix.include.filter(lane => lane.runner === 'ubuntu-latest')).toHaveLength(4);
+    expect(plan.kitMatrix.include.filter(lane => lane.runner === 'ubuntu-latest')).toHaveLength(6);
     expect(plan.jobs.kit).toBe(true);
     for (const lane of plan.kitMatrix.include) {
       expect(lane.runner).toBe(lane.engine === 'webkit' ? 'macos-15' : 'ubuntu-latest');
@@ -219,7 +220,7 @@ describe('small merge gate and complete scheduled verification', () => {
     const plan = createCiPlan(true, null);
     expect(plan.deferred).toEqual({native: [], kitProjects: []});
     expect(plan.nativeMatrix.include).toHaveLength(11);
-    expect(plan.kitMatrix.include).toHaveLength(10);
+    expect(plan.kitMatrix.include).toHaveLength(12);
     expect(plan.jobs.coverage).toBe(true);
   });
 });

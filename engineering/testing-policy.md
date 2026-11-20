@@ -941,10 +941,12 @@ shipping SvelteKit acceptance, and isolated performance measurement. Every
 consumer restores the producer's exact catalog before its one dependency-install
 compilation, then verifies the complete artifact inventory and current authored
 source fingerprint. Lifecycle suites remain serial within each runner; independent
-Chromium tests use a bounded CPU-aware worker count. Four native Chromium shards
-feed the unchanged combined-coverage collector. Four SvelteKit projects use up to
-two file shards each, with complete selected-case identity and finite capability
-skip checks at the final gate. Partial coverage inputs or missing selected jobs
+Chromium tests use a bounded CPU-aware worker count. Eight native Chromium shards
+feed the combined-coverage collector. Full shipping runs use four Firefox file
+shards and two Chromium file shards. Desktop and mobile WebKit each use two
+standard shards and a dedicated Worker/OPFS shard. The final gate verifies the
+complete set of selected case identities and permitted capability skips.
+Partial coverage inputs or missing selected jobs
 fail the gate. PR runs cancel superseded scoped runs; full release evidence stays
 separate. The required merge-check context remains `test`. Immutable Kit receipt artifacts keep each GitHub run attempt
 in a separate directory. A failed-job rerun may reuse successful receipts from the
