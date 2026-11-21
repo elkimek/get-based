@@ -2,17 +2,31 @@ import fs from 'node:fs';
 import {expect,test} from './coverage-fixture.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {scopedFrozenStyles,type FrozenStyleBlock} from '../helpers/frozen-style-scope.js';
-import type {CameraMessageView,CameraToolKey} from '../../js/light-camera-presentation.js';
+import type {CameraMessageView,CameraToolKey,CameraToolPresentationProps} from '../../js/light-camera-presentation.js';
 const original=JSON.parse(fs.readFileSync('tests/fixtures/light-camera-original.json','utf8')) as {
  shells:{key:CameraToolKey;authored:string}[];messages:{view:CameraMessageView;html:string}[];styleBlocks:FrozenStyleBlock[];
 };
-test('camera tools preserve frozen shells, results and live geometry with native focus',async({page},info)=>{
+for (const mode of ['server-rendered', 'native client'] as const) test(
+ `camera tools preserve frozen shells, results and live geometry with native focus (${mode})`, async ({page}, info) => {
  test.setTimeout(120000);await installDiscussionFixture(page.context());await page.goto('/app');
  await expect(page.locator('html[data-app-ready]')).toBeAttached();await page.emulateMedia({reducedMotion:'reduce'});
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
- await page.evaluate(async({original,css})=>{
+ await page.evaluate(async({original,css,mode})=>{
   await(await import('/js/light-sun-loader.js')).loadLightSunUI();
-  const {renderHTML}=await import('/js/components/LightCameraPresentation.svelte.html.js');
+  const server = mode === 'server-rendered' ? await import('/js/components/LightCameraPresentation.svelte.html.js') : null;
+  const client = mode === 'native client' ? await import('/js/components/LightCameraPresentation.svelte.native.js') : null;
+  const dispose: (() => Promise<void>)[] = [];
+  function render(target: Element, props: CameraToolPresentationProps) {
+   if (client) {
+    target.replaceChildren();
+    const instance = client.mount(client.default, {target, props});
+    client.flushSync();
+    dispose.push(async () => {
+     await client.unmount(instance);
+     if (target.childElementCount) throw new Error(`Camera ${props.kind} nodes leaked after disposal`);
+    });
+   } else if (server) target.innerHTML = server.renderHTML(props);
+  }
   const {projectAimingGuide}=await import('/js/light-camera-presentation.js');
   // Explicit improvements: shrinkable calibration input, visible focus, and 44px coarse controls.
   const style=document.createElement('style');style.textContent=css+'[data-original] #lux-cal-reference{min-width:0}@media(pointer:coarse){[data-original] #lux-cal-reference{min-width:44px}[data-original] .modal-close,[data-original] .import-btn,[data-original] .ctx-btn-option,[data-original] input,[data-original] summary{min-width:44px;min-height:44px}}';document.head.append(style);
@@ -24,8 +38,14 @@ test('camera tools preserve frozen shells, results and live geometry with native
    const pair=document.createElement('div');pair.dataset.pair=name;
    for(const kind of ['original','current']){
     const section=document.createElement('section');section.dataset[kind]='';section.className='modal-overlay light-tool-overlay show';section.style.cssText='position:static;display:block;padding:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;cursor:default';
-    section.innerHTML=kind==='original'?sample.authored:renderHTML({kind:'shell',view:{tool,guide:projectAimingGuide(tool),zones}});
-    if(message){const target=tool==='cct'?'#cct-coherence':tool==='spectrum'?'#spec-result':tool==='flicker'?'#flicker-result':tool==='darkness'?'#dark-status':tool==='glass-transmission'?'#glass-result':'#lux-source-line';section.querySelector(target)!.innerHTML=kind==='original'?message.html:renderHTML(message.view);}
+    if (kind === 'original') section.innerHTML = sample.authored;
+    else render(section, {kind: 'shell', view: {tool, guide: projectAimingGuide(tool), zones}});
+    if (message) {
+     const selector = tool==='cct'?'#cct-coherence':tool==='spectrum'?'#spec-result':tool==='flicker'?'#flicker-result':tool==='darkness'?'#dark-status':tool==='glass-transmission'?'#glass-result':'#lux-source-line';
+     const target = section.querySelector(selector)!;
+     if (kind === 'original') target.innerHTML = message.html;
+     else render(target, message.view);
+    }
     if(name==='lux-manual'){section.querySelector<HTMLElement>('#lux-live-dial')!.hidden=true;section.querySelector<HTMLElement>('#lux-manual-entry')!.hidden=false;}
     section.querySelectorAll('details').forEach(node=>node.open=true);pair.append(section);
    }
@@ -38,7 +58,12 @@ test('camera tools preserve frozen shells, results and live geometry with native
    const tool=prefix==='glass'?'glass-transmission':prefix as CameraToolKey;
    pair(message.view.kind+'-'+index,tool,message);
   }
- },{original,css:scopedFrozenStyles(original.styleBlocks)});
+  Object.assign(host, {
+   async dispose() {
+    for (const unmount of dispose.toReversed()) await unmount();
+   },
+  });
+ },{original,css:scopedFrozenStyles(original.styleBlocks),mode});
  const host=page.locator('#light-camera-acceptance');let pairs=0;
  const widths=[320,430,431,700,721,1100];
  for(const width of widths)for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']){
@@ -65,5 +90,6 @@ test('camera tools preserve frozen shells, results and live geometry with native
   expect(style.outline).toBeGreaterThanOrEqual(2);if(style.coarse){expect(style.width).toBeGreaterThanOrEqual(44);expect(style.height).toBeGreaterThanOrEqual(44);}
  }
  const disclosure=host.locator('[data-pair=lux] summary');await disclosure.focus();await page.keyboard.press('Space');await expect(disclosure.locator('..')).not.toHaveAttribute('open');await page.keyboard.press('Enter');await expect(disclosure.locator('..')).toHaveAttribute('open','');
- expect(errors).toEqual([]);fs.writeFileSync(info.outputPath('light-camera-parity.json'),JSON.stringify({pairs,controls,widths,themes:6,pageErrors:errors}));
+ await host.evaluate(element => (element as HTMLElement & {dispose: () => Promise<void>}).dispose());
+ expect(errors).toEqual([]);fs.writeFileSync(info.outputPath('light-camera-parity.json'),JSON.stringify({mode,pairs,controls,widths,themes:6,pageErrors:errors}));
 });
