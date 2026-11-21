@@ -63,3 +63,82 @@ test.describe('coarse-pointer touch targets', () => {
     await page.evaluate(async () => (await import('/js/routstr-settings-component.js')).disposeRoutstrSettings()); expect(await held!.evaluate(element => (element as HTMLTextAreaElement).value)).toBe(''); await held!.dispose(); await expect(panel).toHaveCount(0);
   });
 });
+
+test('wallet actions require the current Routstr account before opening a review', async ({ page, baseURL }) => {
+  if (!baseURL) throw new Error('Wallet ownership fixture needs the local test origin');
+  const origin = new URL(baseURL).origin;
+  const external: string[] = [];
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.origin === origin) return route.continue();
+    external.push(url.hostname);
+    return route.abort();
+  });
+  await page.routeWebSocket('**/*', socket => {
+    external.push(new URL(socket.url()).hostname);
+    socket.close();
+  });
+  await routeHtml(page, '**/routstr-wallet-owner-test',
+    '<!doctype html><html><body><main id="ai-provider-panel"><div data-routstr-settings-host></div></main></body></html>');
+  await page.goto('/routstr-wallet-owner-test');
+  const firstNode = 'https://original-node.synthetic.test';
+  const secondNode = 'https://next-node.synthetic.test';
+  await page.evaluate(async node => {
+    const [{ configureProviderPanelRendererRuntime }, panels] = await Promise.all([
+      import('/js/provider-panel-renderers-runtime.js'),
+      import('/js/provider-wallet-panels.js'),
+    ]);
+    const fixture = { selectedNode: node, transfers: [] as string[] };
+    Object.assign(window, { walletOwnerFixture: fixture });
+    const transfer = (name: string) => async () => {
+      fixture.transfers.push(name);
+      throw new Error('The fixture must stop at the wallet review');
+    };
+    localStorage.setItem('labcharts-ai-provider', 'routstr');
+    configureProviderPanelRendererRuntime({ getSelectedNodeUrl: () => fixture.selectedNode });
+    panels.configureRoutstrWalletRuntime({
+      cashuGetMintUrl: async () => 'https://synthetic-mint.test',
+      cashuGetBalance: async () => 12,
+      cashuGetMaxWithdrawable: async () => 12,
+      cashuHasWalletSeed: async () => true,
+      cashuRecoverPendingFunding: async () => null,
+      cashuRecoverPendingDeposit: async () => null,
+      cashuRecoverPendingWithdraw: async () => null,
+      cashuGetPendingNodeRefund: async () => null,
+      cashuCreateFundingInvoice: transfer('fund'),
+      cashuCreateWithdrawQuote: transfer('quote'),
+      cashuExecuteWithdraw: transfer('withdraw'),
+      cashuSendAsToken: transfer('send'),
+      cashuDepositToNode: transfer('deposit to node'),
+    });
+    panels.hydrateRoutstrSettings();
+  }, firstNode);
+
+  const wallet = page.getByRole('region', { name: 'Cashu wallet', exact: true });
+  const withdraw = wallet.getByRole('button', { name: 'Withdraw', exact: true });
+  const deposit = wallet.getByRole('button', { name: 'Deposit', exact: true });
+  const withdrawalReview = wallet.getByRole('region', { name: 'Withdraw wallet funds', exact: true });
+  const fundingReview = wallet.locator('[data-wallet-funding-view]');
+  await expect(wallet.locator('#routstr-wallet-balance')).toContainText('12 sats');
+  await withdraw.press('Enter');
+  await expect(withdrawalReview).toBeVisible();
+  await withdraw.press('Enter');
+  await expect(withdrawalReview).toHaveCount(0);
+
+  await page.evaluate(node => {
+    (window as Window & { walletOwnerFixture?: { selectedNode: string } }).walletOwnerFixture!.selectedNode = node;
+  }, secondNode);
+  await expect(page.locator('#routstr-node-label')).toHaveText(new URL(firstNode).hostname);
+  await deposit.press('Enter');
+  await expect(fundingReview).toHaveCount(0);
+  await expect(wallet.locator('#routstr-wallet-fund-area')).toBeHidden();
+
+  await page.evaluate(async () => (await import('/js/provider-wallet-panels.js')).hydrateRoutstrSettings());
+  await expect(page.locator('#routstr-node-label')).toHaveText(new URL(secondNode).hostname);
+  await deposit.press('Enter');
+  await expect(fundingReview).toBeVisible();
+  expect(await page.evaluate(() =>
+    (window as Window & { walletOwnerFixture?: { transfers: string[] } }).walletOwnerFixture!.transfers,
+  )).toEqual([]);
+  expect(external).toEqual([]);
+});

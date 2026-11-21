@@ -80,6 +80,25 @@ it('orders tied report receipts by identity and withholds unrecognized marker ro
   expect(await stored()).toEqual(before);
 });
 
+it('reports valid exclusions and withholds a report whose excluded row is outside the import', async () => {
+  const morning = state.importedData.importSnapshots[0]!;
+  morning.excludedIndices = [0];
+  state.importedData.importSnapshots.push({...morning, id: 'invalid-exclusion-report', excludedIndices: [1]});
+  expect(await saveImportedData()).toBe(true);
+  const before = await stored();
+  const valid = await readCurrentLabReport(profile, 'morning-report');
+  expect(valid?.record).toMatchObject({markerCount: 0, excludedCount: 1, sourceKeys: [glucose]});
+  const runtime = tools();
+  const catalog = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports'}});
+  expect(catalog.success).toBe(true);
+  expect(JSON.parse(catalog.contentItems[0].text).records.map((record: {recordId: string}) => record.recordId))
+    .toEqual(['evening-report', 'morning-report', 'older-evening']);
+  const invalid = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports', recordId: 'invalid-exclusion-report'}});
+  expect(invalid.success).toBe(false);
+  expect(invalid.contentItems[0].text).not.toMatch(/private|patient[.]pdf/);
+  expect(await stored()).toEqual(before);
+});
+
 it('rejects an exact report read when the active profile changes while hashing its revision', async () => {
   const before = await stored(), digest = crypto.subtle.digest.bind(crypto.subtle);
   vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(async (...args) => {
