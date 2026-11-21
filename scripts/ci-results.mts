@@ -143,7 +143,7 @@ function parseShard(shard: string) {
   assert(match && Number.isSafeInteger(current) && Number.isSafeInteger(total) && current <= total && total <= 64, 'Invalid coverage shard N/M');
   return {current, total};
 }
-function coverageFile(directory: string, file: string): CoverageFile {
+function readCoverageFile(directory: string, file: string) {
   assert(path.basename(file) === file && file.endsWith('.json'), 'Invalid raw coverage filename');
   const target = path.join(directory, file);
   const body = regular(target, `Nonregular raw coverage file: ${file}`), value = object(JSON.parse(body.toString('utf8')), `Coverage ${file}`);
@@ -152,10 +152,11 @@ function coverageFile(directory: string, file: string): CoverageFile {
     const record = object(entry, `Coverage entry ${file}`);
     assert(typeof record['url'] === 'string', `Invalid coverage URL: ${file}`);
   }
-  return {file, sha256: digest(body), bytes: body.length, entries: value['entries'].length};
+  const receipt: CoverageFile = {file, sha256: digest(body), bytes: body.length, entries: value['entries'].length};
+  return {receipt, value};
 }
 export function createCoverageInventory(directory: string, shard: string): CoverageInventory {
-  const files = jsonFiles(directory).map(file => coverageFile(directory, file));
+  const files = jsonFiles(directory).map(file => readCoverageFile(directory, file).receipt);
   assert(files.length > 0 && files.some(file => file.entries > 0), 'Coverage shard has no readable nonempty raw coverage');
   return {schemaVersion: 1, shard: parseShard(shard), files};
 }
@@ -179,7 +180,8 @@ function validateUnitCoverage(file: string): {files: number; sha256: string} {
   assert(statements > 0, 'Unit coverage contains no statements');
   return {files: files.length, sha256: digest(body)};
 }
-function qualifyBrowserCoverageUnion(directory: string, inventories: readonly unknown[], expectedShards: number) {
+type ReadVerifiedBrowserCoverage = (file: string, body: Record<string, unknown>) => void;
+function qualifyBrowserCoverageUnion(directory: string, inventories: readonly unknown[], expectedShards: number, readVerified?: ReadVerifiedBrowserCoverage) {
   assert(Number.isSafeInteger(expectedShards) && expectedShards > 0 && expectedShards <= 64 && inventories.length === expectedShards, 'Wrong coverage shard count');
   const shardIds = new Set<number>(), files = new Map<string, CoverageFile>();
   for (const raw of inventories) {
@@ -193,9 +195,10 @@ function qualifyBrowserCoverageUnion(directory: string, inventories: readonly un
     for (const entry of inventory['files']) {
       const declared = object(entry, 'Coverage file');
       assert(typeof declared['file'] === 'string' && !files.has(declared['file']), 'Duplicate or invalid raw coverage file');
-      const actual = coverageFile(directory, declared['file']);
+      const {receipt: actual, value} = readCoverageFile(directory, declared['file']);
       assert(actual.sha256 === declared['sha256'] && actual.bytes === declared['bytes'] && actual.entries === declared['entries'], `Coverage body differs: ${actual.file}`);
       files.set(actual.file, actual); shardEntries += actual.entries;
+      readVerified?.(actual.file, value);
     }
     assert(shardEntries > 0, 'Coverage inventory has no nonempty browser entries');
   }
@@ -210,17 +213,27 @@ export function qualifyCoverageUnion(directory: string, inventories: readonly un
 }
 /** Native function-only evidence has its own explicit, asynchronously replayed contract. */
 export async function qualifyNativeCoverageUnion(directory: string, inventories: readonly unknown[], expectedShards: number, unitFile: string, options: NativeCoverageReadOptions = {}) {
-  const browser = qualifyBrowserCoverageUnion(directory, inventories, expectedShards);
+  return (await readQualifiedNativeCoverageUnion(directory, inventories, expectedShards, unitFile, options)).qualification;
+}
+
+/** Consume browser bytes after digest validation and return the independently replayed unit receipt. */
+export async function readQualifiedNativeCoverageUnion(directory: string, inventories: readonly unknown[], expectedShards: number, unitFile: string, options: NativeCoverageReadOptions = {}, readVerified?: ReadVerifiedBrowserCoverage) {
+  const browser = qualifyBrowserCoverageUnion(directory, inventories, expectedShards, readVerified);
   const root = options.root ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const receipt = await readNativeFunctionCoverage(unitFile, {root, ...(options.expectedRevision === undefined ? {} : {expectedRevision: options.expectedRevision})});
   const body = regular(unitFile, 'Unit native coverage must be a regular file');
   assert(same(JSON.parse(body.toString('utf8')), receipt), 'Native unit receipt changed during qualification');
-  return {...browser, unit: {
+  const qualification = {...browser, unit: {
     format: 'native-functions', producer: receipt.producer, files: receipt.files.length, sha256: digest(body),
     calledFunctions: receipt.files.reduce((sum, entry) => sum + entry.called.length, 0),
     unmappedFunctions: receipt.files.reduce((sum, entry) => sum + entry.unmapped.length, 0), unattributedScripts: receipt.unattributed.length,
     mappingComplete: receipt.files.every(entry => entry.unmapped.length === 0), tests: receipt.tests,
   }};
+  return {qualification, native: receipt};
+}
+
+export function readCoverageInventories(directory: string) {
+  return jsonFiles(directory).map(file => json(path.join(directory, file)));
 }
 export function qualifyJobs(needsValue: unknown, selectedValue: unknown, full: boolean, coverageJob = 'coverage') {
   const needs = object(needsValue, 'Job results'), selected = object(selectedValue, 'Selected jobs');
@@ -248,7 +261,7 @@ async function main(): Promise<void> {
   else if (mode === 'coverage-verify') {
     const format = args.includes('--unit-format') ? value('--unit-format') : 'istanbul';
     assert(format === 'istanbul' || format === 'native-functions', 'Unknown unit coverage format');
-    const directory = value('--directory'), inventories = jsonFiles(value('--inventories')).map(file => json(path.join(value('--inventories'), file))), shards = Number(value('--shards')), unit = value('--unit');
+    const directory = value('--directory'), inventories = readCoverageInventories(value('--inventories')), shards = Number(value('--shards')), unit = value('--unit');
     result = format === 'native-functions' ? await qualifyNativeCoverageUnion(directory, inventories, shards, unit) : qualifyCoverageUnion(directory, inventories, shards, unit);
   }
   else if (mode === 'aggregate') {

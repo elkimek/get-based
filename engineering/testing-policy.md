@@ -691,6 +691,10 @@ the same compiled coordinate space as browser collection. Its explicit
 must retain its own native entry count, exact canonical source mapping, complete
 public transform witness and collected-versus-finished test membership. The
 consumer independently rederives these identities from the retained raw capture.
+The full CI reporter folds each browser receipt after checking its declared
+digest and replays the native unit witness once in the same process. It writes
+the qualification record and enforces the denominator and floors only after
+all expected evidence passes these checks.
 Large inspector source-map URLs are stored once as authenticated, content-addressed
 JSON strings in the versioned capture transport. Readers restore their exact
 logical metadata before validation and replay, accept earlier inline captures,
