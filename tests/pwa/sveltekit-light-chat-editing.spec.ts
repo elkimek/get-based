@@ -11,7 +11,7 @@ import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-data-apply.js', 'js/agent-health-data-model.js',
   'js/light-env-mutations.js', 'js/light-env-record-store.js', 'js/light-env-records.js', 'js/light-env-proposals.js',
   'js/light-env-store.js', 'js/light-env-editor.js', 'js/light-env-model.js', 'js/light-env-ai-analysis.js',
-  'js/light-screen-ai-analysis.js', 'js/light-tools-ai-analysis.js', 'js/sun-context-environment.js',
+  'js/light-screen-ai-analysis.js', 'js/light-tools-ai-analysis.js', 'js/light-today-ai.js', 'js/sun-context-environment.js',
   'js/agent-draft-presentation.js', 'js/components/ChatAgentDraftCards.svelte'] as const;
 test('static Light chat reviews cascade effects and saves offline through a stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000); const artifact = await artifactInputs(owners, []);
@@ -30,8 +30,12 @@ test('static Light chat reviews cascade effects and saves offline through a stop
   }, { seeded, registry });
   const statements = { update: 'My office now uses warm LEDs and I spend two hours there after sunset.', remove: 'Remove my office room from my indoor Light Environment assessment.' };
   let stage: 'update' | 'remove' = 'update', round = 0; const wire: unknown[] = [], errors: string[] = [];
+  let holdColdVerdict = false;
+  let releaseColdVerdict!: () => void;
+  const verdictResponse = new Promise<void>(resolve => { releaseColdVerdict = resolve; });
   await installSyntheticOpenRouter(context, async body => {
     expect(JSON.stringify(body)).not.toMatch(/\/private\/|light-sentinel|measurement-sentinel/);
+    if (holdColdVerdict && !body.tools && String(body.messages[0]?.content).includes('You summarize a single day')) await verdictResponse;
     if (!body.tools) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled Light verdict","detail":"Unknown measurements remain unknown."}' }, finish_reason: 'stop' }] }) }; }
     wire.push({ stage, round }); let call: AIToolCall | undefined;
     if (round === 0) call = { id: `read-${stage}`, type: 'function', function: { name: 'getbased_read_data', arguments: '{"resource":"lightRooms","recordId":"room-office"}' } };
@@ -71,12 +75,33 @@ test('static Light chat reviews cascade effects and saves offline through a stop
     expect(saved.lightMeasurements).toEqual([{ ...(before.lightMeasurements as object[])[0], roomSnapshot: { id: 'room-office', name: 'Office' }, updatedAt: expect.any(Number) }]);
     const protectedFields = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value).filter(([key]) => !['lightEnvironment', 'lightMeasurements', '_deleted', '_deletedAt', '_deletedClearedAt'].includes(key)));
     expect(protectedFields(saved)).toEqual(protectedFields(before)); expect(wire).toHaveLength(6); await cacheReceipt(page, artifact);
+    const finePointer = await page.evaluate(() => matchMedia('(pointer: fine)').matches);
     await server.close(); stopped = true; await expect(fetch(server.origin + '/app')).rejects.toThrow(); await page.close(); expect(context.pages()).toHaveLength(0);
+    holdColdVerdict = finePointer;
     page = await context.newPage(); await ready(page, server.origin); receipts.cold = await profile(page, artifact.state); expect(receipts.cold).toEqual(receipts.remove);
     await openKitChatComposer(page); await expect(page.locator('.chat-agent-draft-applied')).toHaveCount(2); await page.setViewportSize({ width: 1280, height: 900 }); await openLight(page);
-    await activate(page, page.locator('[data-light-env-action="open-assessment"]')); const dialog = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true }); await expect(dialog).toBeVisible(); await expect(dialog.locator('[data-light-environment-room]')).toHaveCount(0); await expect(dialog.locator('[data-light-environment-screen]')).toHaveCount(1);
+    const assessment = page.locator('[data-light-env-action="open-assessment"]');
+    if (holdColdVerdict) {
+      const hero = page.locator('.light-page .light-today-hero');
+      await expect(hero).toHaveAttribute('data-ai-state', 'analyzing');
+      await assessment.scrollIntoViewIfNeeded();
+      const box = await assessment.boundingBox();
+      if (!box) throw new Error('The assessment button has no layout box.');
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      try {
+        releaseColdVerdict();
+        await expect(hero).toContainText('Controlled Light verdict');
+      } finally {
+        await page.mouse.up();
+      }
+    } else {
+      await activate(page, assessment);
+    }
+    const dialog = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true }); await expect(dialog).toBeVisible(); await expect(dialog.locator('[data-light-environment-room]')).toHaveCount(0); await expect(dialog.locator('[data-light-environment-screen]')).toHaveCount(1);
     expect(errors).toEqual([]); expect(await artifactInputs(owners, [])).toEqual(artifact);
   } finally {
+    releaseColdVerdict();
     await info.attach('static-light-chat-receipt', { body: JSON.stringify({ artifact, receipts, wire, errors, stopped, boundary: 'Real static chat/native tools and keyboard approvals, controlled OpenRouter output, offline first use, complete protected receipts, mobile/axe, cached source bodies and stopped-origin zero-page cold launch. No runtime mutation calls or live inference.' }, null, 2), contentType: 'application/json' });
     if (!stopped) await server.close();
   }

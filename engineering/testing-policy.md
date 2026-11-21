@@ -291,7 +291,10 @@ queued work across profile/root/epoch changes and shared daily deduplication.
 checks original geometry, six themes, two widths, foreground contrast, focus and
 coarse targets. [`sveltekit-light-review-ai.spec.ts`](../tests/pwa/sveltekit-light-review-ai.spec.ts)
 opens actual cached reviews offline and checks full canonical profile equality
-over two cold launches. These focused checks do not establish whole-app acceptance.
+over two cold launches. [`sveltekit-light-chat-editing.spec.ts`](../tests/pwa/sveltekit-light-chat-editing.spec.ts)
+verifies that a background daily verdict updates its own surface during a native
+pointer gesture and the same click opens the assessment after offline relaunch.
+These focused checks do not establish whole-app acceptance.
 [`views-router-refresh.test.ts`](../tests/views-router-refresh.test.ts) checks
 that background same-route refreshes preserve an open mobile menu while explicit
 navigation and route changes still close it. The static persistence check also
