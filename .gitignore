@@ -3366,6 +3366,7 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /tests/helpers/migration-review-context-runtime.js
 /tests/helpers/migration-review-exact-source-inverse.js
 /tests/helpers/migration-review-marker-placement.js
+/tests/helpers/compiled-svelte-graph.js
 
 /tests/helpers/biometric-pwa-expected-annotations.js
 /tests/helpers/biometric-pwa-expected-annotations.js.map

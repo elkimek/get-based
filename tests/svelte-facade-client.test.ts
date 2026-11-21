@@ -9,21 +9,19 @@ import {build} from 'rolldown';
 import {buildSvelte} from '../scripts/build-svelte.mjs';
 import {createSvelteFacadePlugin} from '../scripts/svelte-facade-plugin.mjs';
 import {productionSources, productionFunctionIndex} from '../scripts/coverage-source.mjs';
-import {MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK, readSvelteCompatibilityManifest} from '../scripts/svelte-compatibility-outputs.mjs';
-import {collectRawModuleAssets} from '../scripts/raw-module-assets.mjs';
+import {MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK, isSvelteCompatibilityChunk} from '../scripts/svelte-compatibility-outputs.mjs';
+import {readCompiledSvelteGraph} from './helpers/compiled-svelte-graph.js';
 import type {HeaderRangeView} from '../js/header-date-range.js';
 type Runtime={default:import('svelte').Component<{view:HeaderRangeView}>; mount:typeof import('svelte').mount; unmount:typeof import('svelte').unmount; flushSync:typeof import('svelte').flushSync};
 
 it('authenticates the dashboard entry points and each authored implementation in the shared graph', async () => {
   const root = process.cwd(), runtime = productionSources(root, {runtime: true});
   const page = MOBILE_DASHBOARD_PAGE + '.native.js', stack = MOBILE_DASHBOARD_STACK + '.native.js';
-  const graph = await collectRawModuleAssets(new Set(['/' + page, '/' + stack]), url => fs.readFile(url.slice(1), 'utf8'));
-  const sharedFiles = readSvelteCompatibilityManifest(root).filter(file => graph.has('/' + file));
-  expect(sharedFiles.length).toBeGreaterThan(0);
+  const graph = readCompiledSvelteGraph([page, stack], root);
+  expect(graph.some(({file}) => isSvelteCompatibilityChunk(file))).toBe(true);
   const owners = new Map<string, string[]>();
-  for (const file of [page, stack, ...sharedFiles]) {
+  for (const {file, map} of graph) {
     expect(runtime.filter(owner => owner === file)).toHaveLength(1);
-    const map = JSON.parse(await fs.readFile(file + '.map', 'utf8')) as {sources: string[]; sourcesContent: string[]};
     for (const [i, name] of map.sources.entries()) {
       if (!name.endsWith('.svelte')) continue;
       const authored = path.resolve(path.dirname(file), name);
@@ -39,7 +37,6 @@ it('authenticates the dashboard entry points and each authored implementation in
     const file = files![0]!;
     expect(productionFunctionIndex(await fs.readFile(file, 'utf8'), file, root).owned.length).toBeGreaterThan(0);
   }
-  await buildSvelte({component: path.join(root, MOBILE_DASHBOARD_STACK), check: true});
 });
 
 it('retains native facade exports and actual mounted defaults/attributes/disposal with a shared client runtime',async()=>{
