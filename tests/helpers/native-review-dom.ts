@@ -5,6 +5,7 @@ interface RenderedElement {
   attributes: string[][];
   text: string;
   checked?: boolean;
+  selected?: boolean;
   value?: string;
   children: RenderedElement[];
 }
@@ -14,11 +15,18 @@ function renderedElement(element: Element): RenderedElement {
     tag: element.tagName,
     attributes: Array.from(element.attributes, ({name, value}) => [
       name, name === 'style' && element instanceof HTMLElement ? element.style.cssText : value,
-    ]).filter(([name]) => !(element instanceof HTMLInputElement && (name === 'checked' || name === 'value')))
-      .sort(([first], [second]) => first!.localeCompare(second!)),
-    text: Array.from(element.childNodes).filter(node => node.nodeType === Node.TEXT_NODE)
-      .map(node => node.textContent).join('').replace(/\s+/g, ' ').trim(),
+    ]).filter(([name]) => {
+      if (element instanceof HTMLInputElement && (name === 'checked' || name === 'value')) return false;
+      return !(element instanceof HTMLOptionElement && name === 'selected');
+    }).sort(([first], [second]) => first!.localeCompare(second!)),
+    // HTML carries the textarea value as parser text. The client writes the
+    // same initial value to the control, measured below without trimming.
+    text: element instanceof HTMLTextAreaElement ? ''
+      : Array.from(element.childNodes).filter(node => node.nodeType === Node.TEXT_NODE)
+        .map(node => node.textContent).join('').replace(/\s+/g, ' ').trim(),
     ...(element instanceof HTMLInputElement ? {checked: element.checked, value: element.value} : {}),
+    ...(element instanceof HTMLOptionElement ? {selected: element.selected} : {}),
+    ...(element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement ? {value: element.value} : {}),
     children: Array.from(element.children, renderedElement),
   };
 }

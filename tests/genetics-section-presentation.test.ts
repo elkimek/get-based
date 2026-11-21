@@ -1,13 +1,17 @@
+// @vitest-environment jsdom
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import {createRequire} from 'node:module';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 import {JSDOM} from 'jsdom';
 import {parse} from 'svelte/compiler';
 import * as evidence from '../js/dna-evidence.js';
 import {findGenotypeInfo} from '../js/dna-genotype.js';
 import {renderGeneticsSectionView,captureGeneticsText,captureGeneticsAction as captureActualGeneticsAction} from '../js/genetics-section-presentation.js';
-const ports=vi.hoisted(()=>({change:(s:string)=>s,pristine:''}));
+type GeneticsProps = Parameters<typeof import('../js/components/GeneticsSection.svelte.html.js').renderHTML>[0];
+const ports=vi.hoisted(()=>({change:(s:string)=>s,pristine:'', observe: null as null | ((props: GeneticsProps) => void)}));
 let index=0;
 function tree(markup:string):unknown {
   const dom=new JSDOM('');try{
@@ -53,11 +57,11 @@ function raw(kind:string,markup:string,props:unknown=null):void{
 }
 vi.mock('../js/components/GeneticsSection.svelte.html.js',async load=>{
   const real=await load<typeof import('../js/components/GeneticsSection.svelte.html.js')>();
-  return {renderHTML:(props:Parameters<typeof real.renderHTML>[0])=>{const html=real.renderHTML(props);ports.pristine=html;raw('compiled',html,props);return ports.change(html);}};
+  return {renderHTML:(props:Parameters<typeof real.renderHTML>[0])=>{const html=real.renderHTML(props);ports.observe?.(props);ports.pristine=html;raw('compiled',html,props);return ports.change(html);}};
 });
 const escapeHTML=(x:unknown)=>x==null?'':String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 interface Owner {renderGeneticsSection():string;configureDnaUi(deps:Record<string,unknown>):unknown;toggleGeneticsCollapse():void;toggleGeneticsExpand(button:HTMLElement):void}
-const original=fs.readFileSync(new URL('./fixtures/genetics-section-original-controller.js.txt',import.meta.url),'utf8');
+const original=fs.readFileSync('tests/fixtures/genetics-section-original-controller.js.txt','utf8');
 function owner(source:string,genetics:unknown,options:{collapsed?:boolean;table?:unknown;mismatch?:unknown;stale?:unknown;trace?:string[];document?:Document}={}):{api:Owner;writes:Array<[string,string]>}{
   const trace=options.trace??[],writes:Array<[string,string]>=[];
   const actions=(action:string,attrs:Record<string,unknown>={})=>{
@@ -78,7 +82,7 @@ function owner(source:string,genetics:unknown,options:{collapsed?:boolean;table?
     loadSnpTable:()=>{trace.push('load');return Promise.resolve(catalog);}});
   return {api,writes};
 }
-const candidate=fs.readFileSync(new URL('../js/dna-ui.js',import.meta.url),'utf8');
+const candidate=fs.readFileSync('js/dna-ui.js','utf8');
 const call=(valence:string)=>({effect:valence==='risk'?'mild':'none',valence,note:'note <safe>&'});
 const catalog:Record<string,unknown>={};
 const snps:Record<string,unknown>={};
@@ -115,6 +119,28 @@ describe('complete Genetics section original native contract',()=>{
    }else expect(currentTree(current)).toEqual(tree(old));
    expect(newTrace).toEqual(oldTrace);
  });
+ it.each(cases)('retains native Genetics controls and literal data for %s', async (name, genetics, options) => {
+   const presented: GeneticsProps[] = [];
+   ports.observe = props => presented.push(props);
+   let html: string;
+   try { html = owner(candidate, genetics, options).api.renderGeneticsSection(); }
+   finally { ports.observe = null; }
+   expect(presented).toHaveLength(1);
+   const native = createRequire(import.meta.url)('../js/components/GeneticsSection.svelte.native.js') as typeof import('../js/components/GeneticsSection.svelte.native.js');
+   const props = presented[0]!;
+   await expectNativeReview(html, host => {
+     const owned = native.mount(native.default, {target: host, props});
+     native.flushSync();
+     return () => native.unmount(owned);
+   }, host => {
+     expect(host.querySelector('script,[data-legacy-date]')).toBeNull();
+     if (name === 'collapsed') expect(host.querySelector('.genetics-body')?.classList.contains('hidden')).toBe(true);
+     if (name === 'all') {
+       expect(host.querySelector('.genetics-show-all')).not.toBeNull();
+       expect(host.querySelector('details.genetics-other-snps')?.getAttribute('open')).toBeNull();
+     }
+   });
+ });
  it('preserves missing-catalog async navigation and exact empty return',async()=>{
    for(const source of [original,candidate]){const trace:string[]=[];const api=owner(source,{snps},{table:null,trace}).api;const html=api.renderGeneticsSection();raw('loading',html);expect(html).toBe('');await Promise.resolve();expect(trace).toEqual(['table','load','navigate:dashboard']);}
  });
@@ -140,7 +166,7 @@ describe('complete Genetics section original native contract',()=>{
    }
  });
  it('has no authored raw HTML or event attributes/directives',()=>{
-   const ast=parse(fs.readFileSync(new URL('../js/components/GeneticsSection.svelte',import.meta.url),'utf8'),{modern:true});
+   const ast=parse(fs.readFileSync('js/components/GeneticsSection.svelte','utf8'),{modern:true});
    function visit(v:unknown):void{if(!v||typeof v!=='object')return;const n=v as Record<string,unknown>;expect(n.type).not.toBe('HtmlTag');expect(n.type).not.toBe('EventDirective');if(n.type==='Attribute')expect(String(n.name)).not.toMatch(/^on(?::|[a-z])/i);for(const x of Object.values(n))if(Array.isArray(x))x.forEach(visit);else visit(x);}visit(ast);
  });
  for(const [name,mutate]of [
