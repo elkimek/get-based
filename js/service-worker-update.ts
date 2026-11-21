@@ -483,7 +483,14 @@ export async function registerServiceWorkerUpdates({
   }
 
   try {
-    const registration = await serviceWorkerContainer.register!('/service-worker.js', { updateViaCache: 'none' });
+    const register = () => serviceWorkerContainer.register!('/service-worker.js', { updateViaCache: 'none' });
+    const hadController = !!serviceWorkerContainer.controller;
+    const registration = await register().catch(error => {
+      // If worker evaluation fails during first install, there is no worker
+      // to check for updates. Make one more registration attempt on this page.
+      if (hadController || serviceWorkerContainer.controller) throw error;
+      return register();
+    });
     registeredContainer = serviceWorkerContainer;
     reloadPage = () => win.location!.reload();
     win.addEventListener?.('pagehide', suspendVersionUpdateBanner);

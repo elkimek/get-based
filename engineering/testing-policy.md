@@ -743,7 +743,10 @@ as well as [installation, version and offline failure paths](../tests/service-wo
 and [proved retry-chunk behavior](../tests/service-worker-retry-aliases.test.ts).
 Early activation requires direct identity replies from all live documents; missing
 replies must defer activation without reloading an old document. Verify both that
-legacy close-and-reopen boundary and normal identified-tab updates. Stylesheet
+legacy close-and-reopen boundary and normal identified-tab updates. A rejected
+first registration receives one fresh attempt while the app is uncontrolled.
+The static lifecycle regression checks that the recovered worker caches its
+shell and owns a new offline launch. Stylesheet
 ownership tests must reject unknown or missing owned bodies, retain the same rule
 for exact retry URLs, and bind startup CSS only to proven cached app navigations.
 Their inclusion must retain the same module floors; additional selected execution

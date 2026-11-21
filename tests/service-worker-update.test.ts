@@ -99,6 +99,20 @@ describe('service worker update prompt', () => {
     expect(register).toHaveBeenCalledWith({ win, serviceWorkerContainer, cacheStorage: null });
   });
 
+  it.each([false, true])('bounds an unavailable worker registration (existing controller: %s)', async hasController => {
+    const serviceWorkerContainer: UpdateContainerView = {
+      controller: hasController ? {} : null,
+      register: vi.fn(async () => { throw new Error('Synthetic import unavailable'); }),
+      addEventListener: vi.fn(),
+    };
+    await expect(serviceWorkerUpdate!.registerServiceWorkerUpdates({
+      win: {location: {hostname: 'getbased.health', search: '', reload: vi.fn()}},
+      serviceWorkerContainer,
+    })).resolves.toBeNull();
+    expect(serviceWorkerContainer.register).toHaveBeenCalledTimes(hasController ? 1 : 2);
+    expect(serviceWorkerContainer.addEventListener).not.toHaveBeenCalled();
+  });
+
   it('turns a secondary-tab controllerchange into a reload prompt', async () => {
     const { registerServiceWorkerUpdates } = serviceWorkerUpdate!;
     let onControllerChange: (() => void) | null = null;

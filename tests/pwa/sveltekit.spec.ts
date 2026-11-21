@@ -77,6 +77,38 @@ test('static shell preserves aliases, manifest, CSP, lazy styles and delegated p
   } finally { await server.close(); }
 });
 
+test('first launch recovers when the release worker import is briefly unavailable', async ({ page, context }, info) => {
+  let workerBoots = 0;
+  let runtimeRequests = 0;
+  const server = await startKitServer(artifact, [async (request, response) => {
+    if (request.url === '/service-worker.js') workerBoots++;
+    if (request.url !== '/service-worker-runtime.js' || ++runtimeRequests !== 1) return false;
+    response.writeHead(503, {'Cache-Control': 'no-store'});
+    response.end('Synthetic first worker import failure');
+    return true;
+  }]);
+  await prepare(context, page);
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1');
+    await expectControlledKitArtifact(page);
+    expect(workerBoots).toBe(2);
+    expect(runtimeRequests).toBeGreaterThanOrEqual(2);
+    const cacheName = 'labcharts-vbuild-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    expect(await page.evaluate(async name => ({names: await caches.keys(),
+      documentCached: Boolean(await caches.match('/app', {cacheName: name})),
+      runtimeCached: Boolean(await caches.match('/service-worker-runtime.js', {cacheName: name})),
+    }), cacheName)).toEqual({names: [cacheName], documentCached: true, runtimeCached: true});
+    server.state.offline = true;
+    await page.close();
+    const cold = await context.newPage();
+    await cold.goto(server.origin + '/app?dev-sw=1');
+    await expectControlledKitArtifact(cold);
+  } finally {
+    await info.attach('worker-install-requests', {body: JSON.stringify({workerBoots, runtimeRequests}), contentType: 'application/json'});
+    await server.close();
+  }
+});
+
 test('first Display open and cold launch work offline while retaining local and IndexedDB data', async ({ page, context }) => {
   const server = await startKitServer(artifact); const errors = await prepare(context, page);
   try {
