@@ -1,7 +1,13 @@
+// @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {describe, expect, it} from 'vitest';
 import {JSDOM} from 'jsdom';
 import type {ProfileRecord} from '../js/profile.js';
-import {clientListText, projectClientListRow, projectClientListTag, renderClientListMenuButton, renderClientListOverview} from '../js/client-list-presentation.js';
+import {clientListText, type ClientListOverviewView, type ClientListMenuButtonView, projectClientListRow, projectClientListTag, renderClientListMenuButton, renderClientListOverview} from '../js/client-list-presentation.js';
+
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
 
 const profile = (overrides: Partial<ProfileRecord> = {}): ProfileRecord => ({
   id: 'ada', name: 'Ada', avatar: null, lastUpdated: 123, notes: 'line one\nline two',
@@ -113,4 +119,83 @@ describe('Client List presentation boundaries', () => {
     expect(() => {host.innerHTML = renderOneRow(p, null, () => '', () => '#4f8cff');}).toThrow('name');
     expect(host.firstChild).toBe(previous);
   });
+});
+
+const emptyView: ClientListOverviewView = {
+  activeCount: 0, search: '', sort: 'lastUpdated', status: 'active',
+  showTags: false, tags: [], clearTag: false, archivedCount: 0, empty: true, rows: [], archivedRows: null,
+};
+
+const literalTag = '<span>Reported</span>';
+const rowFor = (record: Partial<ProfileRecord>) =>
+  projectClientListRow(profile(record), 'ada', () => '8 minutes ago', () => '#4f8cff');
+
+it.each([
+  {view: emptyView, rows: [], message: '0 active profiles'},
+  {
+    view: {
+      ...emptyView, activeCount: 1, search: '<literal>', sort: 'az', status: 'all', empty: false,
+      showTags: true, clearTag: true, tags: [projectClientListTag(literalTag, true)],
+      rows: [rowFor({name: '<em>Selected profile</em>', status: 'flagged', pinned: true, tags: [literalTag]})],
+      archivedCount: 1, archivedRows: [rowFor({id: 'archived', name: 'Archived client', status: 'archived', avatar: 'data:image/png;base64,AA'})],
+    },
+    rows: ['ada', 'archived'], message: '1 active profile',
+  },
+  {
+    view: {
+      ...emptyView, activeCount: 2, sort: 'za', status: 'flagged', showTags: true,
+      tags: [projectClientListTag('No matches', false)],
+    },
+    rows: [], message: '2 active profiles',
+  },
+  {
+    view: {
+      ...emptyView, activeCount: 2, sort: 'created', status: 'archived', empty: false,
+      rows: [rowFor({id: 'archived', name: 'Archived client', status: 'archived', tags: [], notes: ''})],
+    },
+    rows: ['archived'], message: '2 active profiles',
+  },
+])('keeps native client rows, filters and count consistent with the projected view ($view.sort)', async ({view, rows, message}) => {
+  const component = load('../js/components/ClientListOverview.svelte.native.js') as typeof import('../js/components/ClientListOverview.svelte.native.js');
+  await expectNativeReview(renderClientListOverview(view), root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('.cl-count')?.textContent).toBe(message);
+    expect(root.querySelector<HTMLInputElement>('#cl-search')?.value).toBe(view.search);
+    expect(root.querySelector<HTMLSelectElement>('.cl-sort')?.value).toBe(view.sort);
+    expect(root.querySelector<HTMLSelectElement>('.cl-status-filter')?.value).toBe(view.status);
+    expect(Array.from(root.querySelectorAll('.cl-row[role="button"][tabindex="0"]'), row =>
+      [row, ...row.querySelectorAll('button')].map(action => action.getAttribute('data-cl-profile-id')),
+    )).toEqual(rows.map(id => [id, id, id]));
+    expect(root.querySelector('.cl-empty')?.textContent ?? '').toBe(view.empty ? 'No clients match your filters' : '');
+    expect(root.querySelector<HTMLDetailsElement>('details')?.open ?? null).toBe(view.archivedRows ? false : null);
+    expect(root.querySelector('.cl-tag-chip.active')?.textContent ?? '').toBe(view.clearTag ? literalTag : '');
+    expect(root.querySelector('em, literal')).toBeNull();
+    expect(document.activeElement?.id).toBe('cl-search');
+    expect(root.querySelector<HTMLInputElement>('#cl-json-import')?.style.display).toBe('none');
+  }, '#cl-search');
+});
+
+it('leaves native list menu actions bound to their exact client and danger state', async () => {
+  const component = load('../js/components/ClientListMenuButton.svelte.native.js') as typeof import('../js/components/ClientListMenuButton.svelte.native.js');
+  for (const view of [
+    {icon: 'pin', label: 'Pin client', action: 'pin-profile', profileId: 'ada', danger: false},
+    {icon: 'archive', label: 'Archive client', action: 'archive-profile', profileId: 'ada', danger: false},
+    {icon: 'trash', label: 'Delete <em>client</em>', action: 'delete-profile', profileId: 'archived', danger: true},
+  ] satisfies ClientListMenuButtonView[]) {
+    await expectNativeReview(renderClientListMenuButton(view.icon, view.label, view.action, view.profileId, view.danger), root => {
+      const mounted = component.mount(component.default, {target: root, props: {view}});
+      component.flushSync();
+      return () => component.unmount(mounted);
+    }, root => {
+      const button = root.querySelector('button');
+      expect(button?.type).toBe('button');
+      expect(button?.getAttribute('data-cl-profile-id')).toBe(view.profileId);
+      expect(button?.classList.contains('cl-menu-danger')).toBe(view.danger);
+      expect(button?.querySelector('span')?.textContent).toBe(view.label);
+      expect(button?.querySelector('em')).toBeNull();
+    });
+  }
 });

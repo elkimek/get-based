@@ -34,6 +34,7 @@ function renderedElement(element: Element): RenderedElement {
 export async function expectNativeReview(
   referenceHtml: string, mount: (root: HTMLElement) => () => Promise<void>,
   verify?: (root: HTMLElement) => void,
+  focusSelector = 'button:not(:disabled), input:not(:disabled), summary',
 ) {
   const reference = document.createElement('div');
   reference.innerHTML = referenceHtml;
@@ -44,7 +45,7 @@ export async function expectNativeReview(
   try {
     dispose = mount(host);
     expect(renderedElement(host)).toEqual(renderedElement(reference));
-    const focusable = host.querySelector<HTMLElement>('button:not(:disabled), input:not(:disabled), summary');
+    const focusable = host.querySelector<HTMLElement>(focusSelector);
     if (focusable) {
       focusable.focus();
       expect(document.activeElement).toBe(focusable);
