@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } });
 async function openDisplay(page: Page) {

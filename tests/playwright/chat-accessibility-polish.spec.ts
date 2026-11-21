@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
