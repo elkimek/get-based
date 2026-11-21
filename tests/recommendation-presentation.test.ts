@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import {expect, it} from 'vitest';
 import {projectRecommendationCard, projectRecommendationEmpty, projectRecommendationList, type RecommendationPresentationView} from '../js/recommendation-presentation.js';
@@ -6,6 +7,18 @@ import {recommendationCardClasses} from '../js/recommendation-cards-classes.js';
 import {renderHTML} from '../js/components/RecommendationPresentation.svelte.html.js';
 import {renderHTML as renderPageHTML} from '../js/components/RecommendationPage.svelte.html.js';
 import type {RecommendationPageView} from '../js/recommendation-page-presentation.js';
+
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+function checkNativeTipsPage(view: RecommendationPageView, check: (root: HTMLElement) => void) {
+  const component = load('../js/components/RecommendationPage.svelte.native.js') as typeof import('../js/components/RecommendationPage.svelte.native.js');
+  return expectNativeReview(renderPageHTML({view}), root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, check);
+}
 
 function render(view: RecommendationPresentationView) {
   const root = document.createElement('div');
@@ -136,7 +149,7 @@ it('authors all card/list markup without raw HTML and replaces exactly the four 
 });
 
 
-it('composes the four typed page list groups through the actual authored recommendation owner', () => {
+it('composes the four typed page list groups through the actual authored recommendation owner', async () => {
   const groups = ['top', 'rows', 'saved', 'dismissed'];
   const view: RecommendationPageView = {
     header: {title: 'Tips', subtitle: null, className: '', actions: null}, actions: {buttons: [], affiliate: false},
@@ -151,5 +164,27 @@ it('composes the four typed page list groups through the actual authored recomme
   expect(root.querySelectorAll('[data-dashboard-rec-action="dismiss"]')).toHaveLength(4);
   expect(root.querySelector('[data-rec-id="saved"] [data-dashboard-rec-action="save"]')?.textContent).toBe('Bookmarked');
   expect(root.querySelector('[data-rec-id="dismissed"] [data-dashboard-rec-action="dismiss"]')?.textContent).toBe('Show');
+  await checkNativeTipsPage(view, mounted => {
+    expect([...mounted.querySelectorAll('[data-widget-id]')].map(card => card.getAttribute('data-widget-id'))).toEqual(groups);
+    expect([...mounted.querySelectorAll('.rec-next-list > article')].map(card => card.getAttribute('data-rec-id'))).toEqual(groups);
+    expect(mounted.querySelector('[data-rec-id="saved"] [data-dashboard-rec-action="save"]')?.textContent).toBe('Bookmarked');
+    expect(mounted.querySelector('[data-rec-id="dismissed"] [data-dashboard-rec-action="dismiss"]')?.textContent).toBe('Show');
+  });
   expect(JSON.stringify(view)).toBe(before);
+});
+
+
+it.each(['loading', 'empty', 'disabled'] as const)('retains native Tips copy and actions while %s', async kind => {
+  const content: RecommendationPageView['content'] = kind === 'disabled'
+    ? {kind, widget: {id: 'privacy', title: 'Tips are disabled', size: 'full', description: null, compact: false, tools: {move: null, dashboard: null}}}
+    : {kind};
+  const view: RecommendationPageView = {
+    header: {title: 'Tips', subtitle: null, className: '', actions: null},
+    actions: {buttons: [], affiliate: false}, content,
+  };
+  await checkNativeTipsPage(view, root => {
+    expect(root.querySelector('article')).toBeNull();
+    expect(root.textContent).toContain(kind === 'loading' ? 'Loading tips...' : kind === 'empty' ? 'No data-linked tips yet.' : 'Tips are disabled');
+    expect(root.querySelector('[data-lens-page-action="open-privacy-settings"]') !== null).toBe(kind === 'disabled');
+  });
 });
