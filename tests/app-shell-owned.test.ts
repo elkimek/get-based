@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import fs from 'node:fs';
+import {createRequire} from 'node:module';
 import path from 'node:path';
 import {beforeEach,expect,it} from 'vitest';
 import {renderHTML} from '../js/components/AppShell.svelte.html.js';
@@ -56,6 +57,37 @@ it('retires replaced native ownership and does not hydrate the Kit-owned route a
  ensureAppShell();const old=element('chat-input');document.body.replaceChildren(host());expect(ensureAppShell()).toBe(true);expect(element('chat-input')).not.toBe(old);
  const kit=document.createElement('div');kit.id='kit-root';kit.innerHTML=renderHTML();document.body.replaceChildren(kit);
  const input=element('chat-input');expect(ensureAppShell()).toBe(true);expect(ensureChatShell()).toBe(true);expect(element('chat-input')).toBe(input);
+});
+it('mounts the emitted Kit page once and disposes its shell without touching sibling hosts', async () => {
+ const load = createRequire(import.meta.url);
+ const page = load('../js/kit/routes/app/+page.svelte.native.js') as typeof import('../js/kit/routes/app/+page.svelte.native.js');
+ const reference = host(), root = document.createElement('div'), sibling = document.createElement('div');
+ root.id = 'kit-root';
+ sibling.textContent = 'Independent host';
+ document.body.replaceChildren(root, sibling);
+ const view = page.mount(page.default, {target: root});
+ try {
+  page.flushSync();
+  const control = element('chat-input') as HTMLTextAreaElement;
+  const originalControl = reference.querySelector<HTMLTextAreaElement>('#chat-input')!;
+  expect(root.querySelectorAll('#chat-input')).toHaveLength(1);
+  expect(root.querySelectorAll('[data-prerendered-welcome]')).toHaveLength(1);
+  expect([...root.children].map(node => node.id)).toEqual([...reference.children].map(node => node.id));
+  expect({placeholder: control.placeholder, value: control.value, disabled: control.disabled})
+   .toEqual({placeholder: originalControl.placeholder, value: originalControl.value, disabled: originalControl.disabled});
+  control.value = 'Existing draft in the Kit route';
+  control.focus();
+  expect(ensureAppShell()).toBe(true);
+  expect(ensureChatShell()).toBe(true);
+  expect(element('chat-input')).toBe(control);
+  expect(document.activeElement).toBe(control);
+  expect(control.value).toBe('Existing draft in the Kit route');
+ } finally {
+  await page.unmount(view);
+ }
+ expect(root.children).toHaveLength(0);
+ expect(sibling.isConnected).toBe(true);
+ expect(sibling.textContent).toBe('Independent host');
 });
 it('changes only shell snapshot bytes and fails closed for missing or duplicate shell markers',()=>{
  const before='<!doctype html><html><head></head><body><div id="legal-consent-overlay">Gate</div><script src="js/legal-consent-bootstrap.js"></script>';
