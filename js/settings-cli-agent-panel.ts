@@ -144,20 +144,20 @@ async function hydrateAgentModelControls() {
   const unchanged = () => current() && getAgentHostTarget(requestedAgent) === initialTarget && getAgentHostModel() === initialModel && getAgentHostEffort() === initialEffort;
   let requestedTarget = '';
   const initiatingConnection = captureAgentConnection();
-  let connection: ReturnType<typeof captureAgentConnection> | null = null;
+  const ownsInitialSelection = () => unchanged() && initiatingConnection.isCurrent();
   try {
     const agent = requestedAgent;
-    await connectDetectedAgent(agent,{ isCurrent:() => unchanged() && initiatingConnection.isCurrent() });
-    if (!unchanged()) return;
-    connection = captureAgentConnection();
-    const targets = await listAgentExecutionTargets({
-      endpoint: connection.endpoint, token: connection.token, agent,
+    // Catalog reads use their own verified credentials while Settings actions own the saved connection.
+    const { endpoint, token } = await connectDetectedAgent(agent, {
+      persistConnection: false, isCurrent: ownsInitialSelection,
     });
-    if (!unchanged() || !connection.isCurrent()) return;
+    if (!ownsInitialSelection()) return;
+    const targets = await listAgentExecutionTargets({ endpoint, token, agent });
+    if (!ownsInitialSelection()) return;
     agentTargets = targets;
     if (!agentTargets.some(target => target.id === getAgentHostTarget(agent))) {
       await saveAgentChatSettings({ target: 'local' });
-      if (!current() || !connection.isCurrent()) return;
+      if (!current() || !initiatingConnection.isCurrent()) return;
     }
     const activeTarget = agentTargets.find(target => target.id === getAgentHostTarget(agent));
     if (activeTarget?.status === 'unavailable') {
@@ -168,19 +168,19 @@ async function hydrateAgentModelControls() {
     const target = getAgentHostTarget(agent);
     requestedTarget = target;
     const models = await listAgentModels({
-      endpoint: connection.endpoint,
-      token: connection.token,
+      endpoint,
+      token,
       agent,
       target,
       model: selectedModel || undefined,
     });
-    if (!current() || !connection.isCurrent() || getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target || getAgentHostModel() !== selectedModel || getAgentHostEffort() !== selectedEffort) return;
+    if (!current() || !initiatingConnection.isCurrent() || getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target || getAgentHostModel() !== selectedModel || getAgentHostEffort() !== selectedEffort) return;
     agentModels = cacheAgentModelCatalog(models, agent, target);
     agentModelsAgentId = agent;
     agentModelsTargetId = target;
     showAgentModelControls(options, agentModels);
   } catch (error) {
-    if (!current() || !(connection || initiatingConnection).isCurrent() || getAgentHostAgent() !== requestedAgent
+    if (!current() || !initiatingConnection.isCurrent() || getAgentHostAgent() !== requestedAgent
       || (requestedTarget && getAgentHostTarget(requestedAgent) !== requestedTarget)) return;
     agentModels = []; agentModelsAgentId = ''; agentModelsTargetId = '';
     showAgentModelControls(options, [], error instanceof Error ? error.message : 'Could not load this execution target. Check its connection, then try again.');
