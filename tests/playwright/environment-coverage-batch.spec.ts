@@ -1,6 +1,6 @@
 import { nativeEnvironmentView } from '../helpers/light-genuine-child-native-receipts.js';
 type EmfRoomFixtureReader = { name?: unknown; location?: unknown; sources: unknown[]; mitigations: unknown[]; photos?: unknown[]; measurements: Record<string, { value?: unknown; unit?: unknown; meter?: unknown }> };
-type EmfAssessmentFixtureReader = { id?: unknown; date?: unknown; label?: unknown; rooms: EmfRoomFixtureReader[] };
+type EmfAssessmentFixtureReader = { id?: unknown; date?: unknown; label?: unknown; consultant?: unknown; rooms: EmfRoomFixtureReader[] };
 type AuditFixtureReader = { id?: unknown; label?: unknown; updatedAt?: unknown; rooms?: { id?: unknown }[]; measurements?: { length: unknown } };
 import type {Page} from '@playwright/test';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
@@ -232,6 +232,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       document.querySelector<HTMLElement>('.emf-editor-actions .import-btn-primary')?.click();
       await waitUntil(() => assessments().length === 1, 'new EMF assessment');
       const id = activeAssessment().id;
+      await waitFor(`#detail-modal .emf-assessment-card.expanded [data-emf-assessment-id="${id}"][data-emf-field="date"]`, 'new EMF assessment editor');
       outcomes.newAssessmentExpandsWithDefaultBedroom =
         activeAssessment().rooms[0]!.name === 'Bedroom'
         && document.querySelector('.emf-assessment-card.expanded')?.textContent!.includes('Sleeping area') === true;
@@ -246,15 +247,18 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
 
       document.querySelector<HTMLElement>(`#emf-sources-${id}-0 .ctx-tag:not(.active)`)?.click();
       document.querySelector<HTMLElement>(`#emf-mits-${id}-0 .ctx-tag:not(.active)`)?.click();
-      emf.saveEMFExplicit();
+      if (!await emf.saveEMFExplicit()) throw new Error('EMF editor did not commit the reviewed values');
       await waitUntil(
-        () => activeAssessment().rooms[0]!.sources.length > 0 && activeAssessment().rooms[0]!.mitigations.length > 0,
-        'EMF tags saved'
+        () => activeAssessment().rooms[0]!.sources.length > 0 && activeAssessment().rooms[0]!.mitigations.length > 0
+          && document.querySelector('.emf-severity-dot') !== null,
+        'saved EMF tags and rendered reading severity'
       );
       outcomes.measurementAndTagsPersist =
         activeAssessment().date === '2026-06-01'
         && activeAssessment().label === 'Before shielding'
+        && activeAssessment().consultant === 'Building Bio Lab'
         && activeAssessment().rooms[0]!.location === 'Pillow side'
+        && activeAssessment().rooms[0]!.measurements.acElectric!.value === 28
         && activeAssessment().rooms[0]!.measurements.acElectric!.meter === 'NFA1000'
         && activeAssessment().rooms[0]!.sources.length > 0
         && activeAssessment().rooms[0]!.mitigations.length > 0
