@@ -7,9 +7,11 @@ import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import type {ImportReviewMarker} from '../../js/pdf-import-review-runtime.js';
 import type {ImportReviewPresentationInput, ImportUnitOptions, ImportReviewStatus, ImportUnitMenuOption} from '../../js/import-review-presentation.js';
 import type {RecRenderCandidate} from '../../types/dashboard-recommendation-widget.js';
+import type {RecommendationPresentationView} from '../../js/recommendation-presentation.js';
 type Prepared = Omit<ImportReviewPresentationInput, 'rows'> & {rows: {marker: ImportReviewMarker; index: number; status: ImportReviewStatus; prepared: {labRange: string; unitOptions: ImportUnitOptions}}[]};
 interface Sample {kind: string; name: string; html: string; input: Record<string, unknown>; prepared?: Prepared}
-interface PairHost extends HTMLElement {pairs: HTMLElement[]}
+type RenderMode = 'server-rendered' | 'native client';
+interface PairHost extends HTMLElement {pairs: HTMLElement[]; dispose(): Promise<void>}
 const frozen = JSON.parse(fs.readFileSync('tests/fixtures/review-recommendations-original.json', 'utf8')) as {
  samples: Sample[]; styleBlocks: {css: string; atRules: {name: string; params: string}[]}[];
 };
@@ -32,10 +34,10 @@ const properties = [
   'scrollbar-gutter', 'text-align', 'text-decoration', 'cursor',
 ];
 
-async function mountPairs(page: Page, samples: Sample[]) {
+async function mountPairs(page: Page, samples: Sample[], mode: RenderMode = 'server-rendered') {
  await installDiscussionFixture(page.context(), {provider: 'openrouter', paused: true});
  await prepareDemoProfile(page); await page.emulateMedia({reducedMotion: 'reduce'});
- await page.evaluate(async ({samples, css}) => {
+ await page.evaluate(async ({samples, css, mode}) => {
   await Promise.all(['/css/import.css', '/css/recommendations.css', '/css/dashboard-core.css', '/css/dashboard-data.css', '/css/dashboard-widgets.css'].map(href => new Promise<void>((resolve, reject) => {
    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href; link.onload = () => resolve(); link.onerror = () => reject(new Error(href)); document.head.append(link);
   })));
@@ -45,16 +47,35 @@ async function mountPairs(page: Page, samples: Sample[]) {
    import('/js/components/ImportUnitMenu.svelte.html.js'), import('/js/import-review-presentation.js'), import('/js/import-review-classes.js'),
    import('/js/import-review-row-actions.js'), import('/js/components/RecommendationPresentation.svelte.html.js'), import('/js/recommendation-presentation.js'),
   ]);
+  const [nativeReview, nativeRecommendations] = mode === 'native client' ? await Promise.all([
+   import('/js/components/ImportReviewPresentation.svelte.native.js'),
+   import('/js/components/RecommendationPresentation.svelte.native.js'),
+  ]) : [null, null];
+  const dispose: (() => Promise<void>)[] = [];
   const style = document.createElement('style'); style.textContent = css + '\n#review-recs-parity *,#review-recs-parity *::before,#review-recs-parity *::after{transition:none!important;animation:none!important}'; document.head.append(style);
-  const host: PairHost = Object.assign(document.createElement('div'), {pairs: [] as HTMLElement[]});
+  const host: PairHost = Object.assign(document.createElement('div'), {
+   pairs: [] as HTMLElement[],
+   async dispose() {
+    for (const unmount of dispose) await unmount();
+   },
+  });
   host.id = 'review-recs-parity'; host.style.cssText = 'position:fixed;inset:0;background:var(--bg-primary);z-index:20000'; document.body.append(host);
-  for (const sample of samples) {
-   let current: string; const input = sample.input;
+  function populateCurrent(wrapper: HTMLElement, sample: Sample) {
+   const input = sample.input;
    if (sample.kind === 'review') {
     const prepared = sample.prepared!;
     const modal = document.createElement('div'); modal.id = 'import-modal'; modal.dataset.importReviewView = '';
     modal.className = styleOwner.importReviewClasses('modal import-preview-modal');
-    modal.innerHTML = shell.renderHTML({view: model.projectImportReviewPresentation({...prepared, rows: prepared.rows.map(row => model.projectImportReviewRow(row.marker, row.index, row.status, row.prepared))})});
+    wrapper.append(modal);
+    const view = model.projectImportReviewPresentation({...prepared, rows: prepared.rows.map(row => model.projectImportReviewRow(row.marker, row.index, row.status, row.prepared))});
+    if (nativeReview) {
+     const component = nativeReview.mount(nativeReview.default, {target: modal, props: {view}});
+     nativeReview.flushSync();
+     dispose.push(async () => {
+      await nativeReview.unmount(component);
+      if (modal.childElementCount) throw new Error(`Import review nodes leaked from ${sample.name}`);
+     });
+    } else modal.innerHTML = shell.renderHTML({view});
     const excluded = new Set(((input.result as {_excludedImportIndices?: number[]})._excludedImportIndices || []));
     for (const row of modal.querySelectorAll<HTMLElement>('tbody tr')) {
      if (!excluded.has(Number(row.dataset.importIdx))) continue;
@@ -63,33 +84,47 @@ async function mountPairs(page: Page, samples: Sample[]) {
     }
     const rows = modal.querySelectorAll('tbody tr');
     if (rows.length) modal.querySelector('#import-visible-count')!.textContent = `${rows.length}/${rows.length} shown`;
-    current = modal.outerHTML;
-   } else if (sample.kind === 'unit') current = unit.renderHTML({view: model.projectImportUnitControl(input.marker as ImportReviewMarker, input.idx as number, input.unitOptions as ImportUnitOptions)});
-   else if (sample.kind === 'map-control') current = mapping.renderHTML({view: model.projectImportMapControl(input.marker as ImportReviewMarker, input.idx as number)});
-   else if (sample.kind === 'exclude') current = action.renderHTML({view: model.projectImportExcludeControl(input.markerName as string, input.excluded as boolean)});
+   } else if (sample.kind === 'unit') wrapper.innerHTML = unit.renderHTML({view: model.projectImportUnitControl(input.marker as ImportReviewMarker, input.idx as number, input.unitOptions as ImportUnitOptions)});
+   else if (sample.kind === 'map-control') wrapper.innerHTML = mapping.renderHTML({view: model.projectImportMapControl(input.marker as ImportReviewMarker, input.idx as number)});
+   else if (sample.kind === 'exclude') wrapper.innerHTML = action.renderHTML({view: model.projectImportExcludeControl(input.markerName as string, input.excluded as boolean)});
    else if (sample.kind === 'unit-menu') {
     const popup = document.createElement('div');
     for (const [name, value] of Object.entries(input.attributes as Record<string, string>)) popup.setAttribute(name, value);
     popup.className = styleOwner.importReviewClasses('import-unit-menu'); popup.dataset.importReviewView = '';
-    popup.innerHTML = menu.renderHTML({options: model.projectImportUnitMenu(input.options as ImportUnitMenuOption[])}); current = popup.outerHTML;
-   } else if (sample.kind === 'recommendation-card') current = recommendations.renderHTML({view: {kind: 'card', card: recModel.projectRecommendationCard(input.candidate as RecRenderCandidate, input.compact)}});
-   else if (sample.kind === 'recommendation-empty') current = recommendations.renderHTML({view: {kind: 'empty', empty: recModel.projectRecommendationEmpty(input.message)}});
-   else if (sample.kind === 'recommendation-list') current = recommendations.renderHTML({view: {kind: 'list', cards: recModel.projectRecommendationList(input.candidates as RecRenderCandidate[], input.compact)}});
-   else if (sample.kind === 'recommendation-widget') {
-    if (input.enabled === false) current = recommendations.renderHTML({view: {kind: 'disabled'}});
-    else if (input.loading) current = recommendations.renderHTML({view: {kind: 'loading'}});
-    else {
-     const candidates = (input.candidates as RecRenderCandidate[]).slice(0, 3);
-     current = candidates.length ? recommendations.renderHTML({view: {kind: 'widget', cards: recModel.projectRecommendationList(candidates, true)}}) : recommendations.renderHTML({view: {kind: 'empty', empty: recModel.projectRecommendationEmpty()}});
-    }
-   } else throw new Error('Unsupported geometry owner ' + sample.kind);
+    popup.innerHTML = menu.renderHTML({options: model.projectImportUnitMenu(input.options as ImportUnitMenuOption[])});
+    wrapper.append(popup);
+   } else {
+    let view: RecommendationPresentationView;
+    if (sample.kind === 'recommendation-card') view = {kind: 'card', card: recModel.projectRecommendationCard(input.candidate as RecRenderCandidate, input.compact)};
+    else if (sample.kind === 'recommendation-empty') view = {kind: 'empty', empty: recModel.projectRecommendationEmpty(input.message)};
+    else if (sample.kind === 'recommendation-list') view = {kind: 'list', cards: recModel.projectRecommendationList(input.candidates as RecRenderCandidate[], input.compact)};
+    else if (sample.kind === 'recommendation-widget') {
+     if (input.enabled === false) view = {kind: 'disabled'};
+     else if (input.loading) view = {kind: 'loading'};
+     else {
+      const candidates = (input.candidates as RecRenderCandidate[]).slice(0, 3);
+      view = candidates.length ? {kind: 'widget', cards: recModel.projectRecommendationList(candidates, true)} : {kind: 'empty', empty: recModel.projectRecommendationEmpty()};
+     }
+    } else throw new Error('Unsupported geometry owner ' + sample.kind);
+    if (nativeRecommendations) {
+     const component = nativeRecommendations.mount(nativeRecommendations.default, {target: wrapper, props: {view}});
+     nativeRecommendations.flushSync();
+     dispose.push(async () => {
+      await nativeRecommendations.unmount(component);
+      if (wrapper.childElementCount) throw new Error(`Recommendation nodes leaked from ${sample.name}`);
+     });
+    } else wrapper.innerHTML = recommendations.renderHTML({view});
+   }
+  }
+  for (const sample of samples) {
    const pair = document.createElement('div'); pair.dataset.name = sample.name; pair.dataset.kind = sample.kind; pair.style.cssText = 'position:absolute;inset:0';
-   for (const [sideKind, html] of [['original', sample.html], ['current', current]]) {
-    const side = document.createElement('section'); side.dataset[sideKind!] = ''; side.style.cssText = 'position:absolute;inset:0';
+   for (const sideKind of ['original', 'current'] as const) {
+    const side = document.createElement('section'); side.dataset[sideKind] = ''; side.style.cssText = 'position:absolute;inset:0';
     const wrapper = document.createElement('div');
     if (sample.kind === 'review') wrapper.className = 'modal-overlay show';
     else {wrapper.style.cssText = 'display:contents'; if (sideKind === 'current' && !sample.kind.startsWith('recommendation')) wrapper.dataset.importReviewView = '';}
-    wrapper.innerHTML = html!;
+    if (sideKind === 'original') wrapper.innerHTML = sample.html;
+    else populateCurrent(wrapper, sample);
     // The historical receipt stays immutable. Its expected copy adds only the
     // approved original-index column and the two new-cell style properties.
     if (sideKind === 'original' && sample.kind === 'review') {
@@ -105,7 +140,7 @@ async function mountPairs(page: Page, samples: Sample[]) {
    host.pairs.push(pair);
   }
   await document.fonts.ready;
- }, {samples, css: originalCSS});
+ }, {samples, css: originalCSS, mode});
 }
 async function setTheme(page: Page, theme: string) {
  await page.evaluate(async theme => {
@@ -139,23 +174,32 @@ async function compareAll(page: Page) {
   return problems;
  }, properties);
 }
-for (const owner of ['review', 'controls', 'recommendations'] as const) {
- test(`authored ${owner} preserves frozen layout and all breakpoint/theme properties`, async ({page}, info) => {
+const parityCases = [
+ {owner: 'review', mode: 'server-rendered'},
+ {owner: 'review', mode: 'native client'},
+ {owner: 'controls', mode: 'server-rendered'},
+ {owner: 'recommendations', mode: 'server-rendered'},
+ {owner: 'recommendations', mode: 'native client'},
+] as const;
+for (const {owner, mode} of parityCases) {
+ test(`authored ${owner} preserves frozen layout and all breakpoint/theme properties (${mode})`, async ({page}, info) => {
   test.setTimeout(300000);
   const samples = frozen.samples.filter(sample => owner === 'review' ? sample.kind === 'review' : owner === 'controls' ? ['unit', 'map-control', 'unit-menu', 'exclude'].includes(sample.kind) : sample.kind.startsWith('recommendation'));
-  await mountPairs(page, samples); let comparisons = 0;
+  await mountPairs(page, samples, mode); let comparisons = 0;
   for (const width of widths) {
    await page.setViewportSize({width, height: 1000});
    for (const theme of themes) {await setTheme(page, theme); await page.mouse.move(0, 0); expect(await compareAll(page), `${owner}/${width}/${theme}`).toEqual([]); comparisons += samples.length;}
   }
-  fs.writeFileSync(info.outputPath(`review-recs-${owner}-geometry.json`), JSON.stringify({owner, featureDelta: owner === 'review' ? 'original-row-number-column' : null, comparisons, samples: samples.length, widths, themes, properties}, null, 2));
+  await page.locator('#review-recs-parity').evaluate(element => (element as PairHost).dispose());
+  fs.writeFileSync(info.outputPath(`review-recs-${owner}-geometry.json`), JSON.stringify({owner, mode, featureDelta: owner === 'review' ? 'original-row-number-column' : null, comparisons, samples: samples.length, widths, themes, properties}, null, 2));
  });
 }
 
-test('authored review and recommendation controls preserve actual keyboard focus properties', async ({page}, info) => {
+for (const mode of ['server-rendered', 'native client'] as const) test(
+ `authored review and recommendation controls preserve actual keyboard focus properties (${mode})`, async ({page}, info) => {
  test.setTimeout(180000);
  const samples = frozen.samples.filter(sample => ['review', 'unit', 'map-control', 'unit-menu', 'exclude', 'recommendation-card', 'recommendation-widget'].includes(sample.kind));
- await mountPairs(page, samples); await page.setViewportSize({width: 1440, height: 1000});
+ await mountPairs(page, samples, mode); await page.setViewportSize({width: 1440, height: 1000});
  let checks = 0;
  for (const theme of themes) {
   await setTheme(page, theme); await page.mouse.move(0, 0); await page.keyboard.press('Tab');
@@ -183,7 +227,8 @@ test('authored review and recommendation controls preserve actual keyboard focus
    return count;
   }, [...properties, 'outline-width', 'outline-color', 'outline-style', 'outline-offset']);
  }
- fs.writeFileSync(info.outputPath('review-recs-focus.json'), JSON.stringify({checks, samples: samples.length, themes}, null, 2));
+ await page.locator('#review-recs-parity').evaluate(element => (element as PairHost).dispose());
+ fs.writeFileSync(info.outputPath('review-recs-focus.json'), JSON.stringify({mode, checks, samples: samples.length, themes}, null, 2));
 });
 
 test('authored review and recommendation hover properties preserve native capability behavior', async ({page}, info) => {

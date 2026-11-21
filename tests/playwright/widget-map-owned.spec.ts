@@ -10,7 +10,8 @@ type Sample = {name: string; html: string} & (
   {kind: 'dashboard-picker'; input: DashboardPickerInput}
   | {kind: 'import-map'; input: {marker: Parameters<typeof projectImportMarkerMap>[0]; currentKey: string; query?: string}; activeCategory: string; categories: Parameters<typeof projectImportMarkerMapCategories>[0]; results: Parameters<typeof projectImportMarkerMapResults>[0]}
 );
-interface PairHost extends HTMLElement {pairs: HTMLElement[]}
+type RenderMode = 'server-rendered' | 'native client';
+interface PairHost extends HTMLElement {pairs: HTMLElement[]; dispose(): Promise<void>}
 const frozen = JSON.parse(fs.readFileSync('tests/fixtures/widget-map-original.json', 'utf8')) as {
   samples: Sample[];
   styleBlocks: Array<{css: string; atRules: Array<{name: string; params: string}>}>;
@@ -34,11 +35,11 @@ const properties = [
   'scrollbar-gutter', 'text-align', 'text-decoration', 'cursor',
 ];
 
-async function mountPairs(page: Page) {
+async function mountPairs(page: Page, mode: RenderMode) {
   await installDiscussionFixture(page.context(), {provider: 'openrouter', paused: true});
   await prepareDemoProfile(page);
   await page.emulateMedia({reducedMotion: 'reduce'});
-  await page.evaluate(async ({samples, css}) => {
+  await page.evaluate(async ({samples, css, mode}) => {
     await Promise.all(['css/dashboard-widgets.css', 'css/import.css'].map(href => new Promise<void>((resolve, reject) => {
       const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href;
       link.onload = () => resolve(); link.onerror = () => reject(new Error('Cannot load parity stylesheet ' + href));
@@ -53,26 +54,68 @@ async function mountPairs(page: Page) {
       import('/js/import-marker-map-presentation.js'),
       import('/js/import-marker-map-classes.js'),
     ]);
+    const clients = mode === 'native client' ? await Promise.all([
+      import('/js/components/DashboardPickerPresentation.svelte.native.js'),
+      import('/js/components/ImportMarkerMapPresentation.svelte.native.js'),
+      import('/js/components/ImportMarkerMapCategories.svelte.native.js'),
+      import('/js/components/ImportMarkerMapResults.svelte.native.js'),
+    ]) : null;
+    const disposers: (() => Promise<void>)[] = [];
     const style = document.createElement('style');
     style.textContent = css + '\n#widget-map-parity *,#widget-map-parity *::before,#widget-map-parity *::after{transition:none!important;animation:none!important}';
     document.head.append(style);
-    const host: PairHost = Object.assign(document.createElement('div'), {pairs: [] as HTMLElement[]});
+    const host: PairHost = Object.assign(document.createElement('div'), {
+      pairs: [] as HTMLElement[],
+      async dispose() {
+        for (const unmount of disposers) await unmount();
+      },
+    });
     host.id = 'widget-map-parity'; host.style.cssText = 'position:fixed;inset:0;background:var(--bg-primary);z-index:20000'; document.body.append(host);
-    for (const sample of samples) {
-      let current: string;
-      if (sample.kind === 'dashboard-picker') current = dashboard.renderHTML({view: dashboardProject.projectDashboardPickerPresentation(sample.input)});
-      else {
-        const overlay = document.createElement('div');
-        overlay.className = mapClasses.importMarkerMapClasses('modal-overlay import-map-modal-overlay');
-        overlay.dataset.importMarkerMapView = '';
-        overlay.innerHTML = shell.renderHTML({view: mapProject.projectImportMarkerMap(sample.input.marker)});
-        overlay.querySelector('.import-map-categories')!.innerHTML = categories.renderHTML({categories: mapProject.projectImportMarkerMapCategories(sample.categories, sample.activeCategory)});
-        overlay.querySelector('.import-map-results')!.innerHTML = results.renderHTML({results: mapProject.projectImportMarkerMapResults(sample.results, sample.input.currentKey)});
-        current = overlay.outerHTML;
+    function renderCurrent(side: HTMLElement, sample: Sample) {
+      if (sample.kind === 'dashboard-picker') {
+        const props = {view: dashboardProject.projectDashboardPickerPresentation(sample.input)};
+        if (clients) {
+          const picker = clients[0].mount(clients[0].default, {target: side, props});
+          clients[0].flushSync();
+          disposers.push(async () => {
+            await clients[0].unmount(picker);
+            if (side.childElementCount) throw new Error(`Dashboard picker nodes leaked from ${sample.name}`);
+          });
+        } else side.innerHTML = dashboard.renderHTML(props);
+        return;
       }
+      const overlay = document.createElement('div');
+      overlay.className = mapClasses.importMarkerMapClasses('modal-overlay import-map-modal-overlay');
+      overlay.dataset.importMarkerMapView = '';
+      side.append(overlay);
+      const shellProps = {view: mapProject.projectImportMarkerMap(sample.input.marker)};
+      const categoryProps = {categories: mapProject.projectImportMarkerMapCategories(sample.categories, sample.activeCategory)};
+      const resultProps = {results: mapProject.projectImportMarkerMapResults(sample.results, sample.input.currentKey)};
+      if (clients) {
+        const [, root, categoryList, resultList] = clients;
+        const shell = root.mount(root.default, {target: overlay, props: shellProps});
+        root.flushSync();
+        const categoryView = categoryList.mount(categoryList.default, {target: overlay.querySelector('.import-map-categories')!, props: categoryProps});
+        const resultView = resultList.mount(resultList.default, {target: overlay.querySelector('.import-map-results')!, props: resultProps});
+        root.flushSync();
+        disposers.push(async () => {
+          await resultList.unmount(resultView);
+          await categoryList.unmount(categoryView);
+          await root.unmount(shell);
+          if (overlay.childElementCount) throw new Error(`Import marker map nodes leaked from ${sample.name}`);
+        });
+      } else {
+        overlay.innerHTML = shell.renderHTML(shellProps);
+        overlay.querySelector('.import-map-categories')!.innerHTML = categories.renderHTML(categoryProps);
+        overlay.querySelector('.import-map-results')!.innerHTML = results.renderHTML(resultProps);
+      }
+    }
+    for (const sample of samples) {
       const pair = document.createElement('div'); pair.dataset.name = sample.name; pair.dataset.kind = sample.kind; pair.style.cssText = 'position:absolute;inset:0';
-      for (const [kind, html] of [['original', sample.html], ['current', current]]) {
-        const side = document.createElement('section'); side.dataset[kind!] = ''; side.style.cssText = 'position:absolute;inset:0'; side.innerHTML = html!;
+      for (const kind of ['original', 'current'] as const) {
+        const side = document.createElement('section'); side.dataset[kind] = ''; side.style.cssText = 'position:absolute;inset:0';
+        if (kind === 'original') side.innerHTML = sample.html;
+        else renderCurrent(side, sample);
         side.querySelector('.modal-overlay')!.classList.add('show');
         if (sample.kind === 'import-map') (side.querySelector('input') as HTMLInputElement).value = sample.input.query || '';
         pair.append(side);
@@ -80,7 +123,7 @@ async function mountPairs(page: Page) {
       host.pairs.push(pair);
     }
     await document.fonts.ready;
-  }, {samples: frozen.samples, css: originalCSS});
+  }, {samples: frozen.samples, css: originalCSS, mode});
 }
 async function setTheme(page: Page, theme: string) {
   await page.evaluate(async theme => {
@@ -159,10 +202,11 @@ async function interactionChecks(page: Page, interaction: 'hover' | 'focus') {
   }
   return checks;
 }
-test('authored dashboard and import mapping pickers preserve frozen layout, theme, hidden-card, hover and keyboard focus states', async ({page}, info) => {
+for (const mode of ['server-rendered', 'native client'] as const) test(
+  `authored dashboard and import mapping pickers preserve frozen layout, theme, hidden-card, hover and keyboard focus states (${mode})`, async ({page}, info) => {
   // The complete frozen matrix is slower under mobile WebKit emulation.
   test.setTimeout(600000);
-  await mountPairs(page);
+  await mountPairs(page, mode);
   let comparisons = 0, hovers = 0, focusedControls = 0;
   for (const width of widths) {
     await page.setViewportSize({width, height: 1000});
@@ -180,5 +224,6 @@ test('authored dashboard and import mapping pickers preserve frozen layout, them
     hovers += await interactionChecks(page, 'hover');
     focusedControls += await interactionChecks(page, 'focus');
   }
-  fs.writeFileSync(info.outputPath('widget-map-parity.json'), JSON.stringify({comparisons, hovers, focusedControls, samples: frozen.samples.length, widths, themes, properties}, null, 2));
+  await page.locator('#widget-map-parity').evaluate(element => (element as PairHost).dispose());
+  fs.writeFileSync(info.outputPath('widget-map-parity.json'), JSON.stringify({mode, comparisons, hovers, focusedControls, samples: frozen.samples.length, widths, themes, properties}, null, 2));
 });
