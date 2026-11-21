@@ -9,12 +9,16 @@ import {
 } from '../lib/companion-install.js';
 import { runAgentMCPBridge } from '../lib/agent-mcp-bridge.js';
 import { findExistingCompanion } from '../lib/companion-existing.js';
+import { companionChatPairingCode, companionManagementCode } from '../lib/agent-host-boundary.js';
+import { prepareAgentHostStorage } from '../lib/agent-host-storage.js';
 
 const HELP = `getbased Companion
 
 Usage:
   getbased-companion install [--dry-run]  Install and start at login
   getbased-companion run                  Run the companion in this terminal
+  getbased-companion pair                 Show the private browser chat pairing code
+  getbased-companion pair --manage        Show a short-lived local management code
   getbased-companion start                Start an installed companion
   getbased-companion stop                 Stop an installed companion
   getbased-companion restart              Restart the installed user service
@@ -32,11 +36,21 @@ export async function main(args: string[], options: { bundlePath?: string } = {}
     process.stdout.write(HELP);
     return;
   }
+  if (command === 'pair') {
+    const {token} = prepareAgentHostStorage({requireCodexAuth: false});
+    const existing = await findExistingCompanion({installationToken: token});
+    if (!existing) throw new Error('Start this user’s current Companion before pairing.');
+    const management = args.includes('--manage');
+    const code = management ? companionManagementCode(token, existing.endpoint) : companionChatPairingCode(token, existing.endpoint);
+    process.stdout.write(management ? `Enter this code at ${existing.endpoint}/manage within five minutes:\n` : 'Enter this private code in Settings → AI → CLI agents:\n');
+    process.stdout.write(code + '\n');
+    return;
+  }
   if (command === 'run') {
     if (process.env.GETBASED_COMPANION_SERVICE !== '1') {
-      const existing = await findExistingCompanion();
+      const existing = await findExistingCompanion({installationToken: prepareAgentHostStorage({requireCodexAuth:false}).token});
       if (existing) {
-        process.stdout.write(`getbased Companion is already running at ${existing.endpoint}. No second process was started.\nReturn to getbased and select Check connection.\nLocal management (current Companion versions): ${existing.endpoint}/manage\nStopping this command does not stop the existing Companion.\n`);
+        process.stdout.write(`getbased Companion is already running at ${existing.endpoint}. No second process was started.\nRun the Companion pair command in a second terminal, then enter the code in getbased.\nLocal management (current Companion versions): ${existing.endpoint}/manage\nStopping this command does not stop the existing Companion.\n`);
         return;
       }
     }
@@ -49,7 +63,7 @@ export async function main(args: string[], options: { bundlePath?: string } = {}
       dryRun: args.includes('--dry-run'),
     });
     if (result.installed) {
-      process.stdout.write(`getbased Companion is installed and running on ${companionPlatformName()}. Return to getbased and select Check connection.\n`);
+      process.stdout.write(`getbased Companion is installed and running on ${companionPlatformName()}. Run the Companion pair command in a second terminal, then enter the code in getbased.\n`);
       process.stdout.write(`Service: ${result.serviceFile}\n`);
     } else {
       process.stdout.write(`Dry run successful. Service would be installed at ${result.serviceFile}\n`);

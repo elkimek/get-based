@@ -40,8 +40,8 @@ const fixtures:Record<string,Fixture>={
  'manual rows older than range':()=>({metricId:'weight',metric:metric({primarySource:'manual'}),manual:[row('weight',74,'2025-01-01')]}),
  'manual all-time older chart':()=>({metricId:'weight',metric:metric({primarySource:'manual'}),rows:[row('weight',74,'2025-01-01')],manual:[row('weight',74,'2025-01-01')],range:'all'}),
  'manual pulse readings':()=>({metricId:'rhr',metric:metric({primarySource:'manual'}),rows:[row('rhr',64)],manual:[row('rhr',64)]}),
- 'BP paired same source':()=>({metricId:'bp_systolic',metric:metric({primarySource:'withings',latest:123,baseline:121}),paired:metric({primarySource:'withings',latest:79,baseline:78}),rows:[row('bp_systolic',123,'2026-06-30',{bp_diastolic:79}),row('bp_systolic',121,'2026-06-29',{bp_diastolic:77})]}),
- 'BP diastolic ID redirects native':()=>({metricId:'bp_diastolic',metric:metric({primarySource:'withings',latest:123}),paired:metric({primarySource:'withings',latest:79}),rows:[row('bp_systolic',123,'2026-06-30',{bp_diastolic:79})]}),
+ 'BP paired same source':()=>({metricId:'bp_systolic',metric:metric({latestBpPaired:true,primarySource:'withings',latest:123,baseline:121}),paired:metric({latestBpPaired:true,primarySource:'withings',latest:79,baseline:78}),rows:[row('bp_systolic',123,'2026-06-30',{source:'withings',bpPaired:true,bp_diastolic:79}),row('bp_systolic',121,'2026-06-29',{source:'withings',bpPaired:true,bp_diastolic:77})]}),
+ 'BP diastolic ID redirects native':()=>({metricId:'bp_diastolic',metric:metric({latestBpPaired:true,primarySource:'withings',latest:123}),paired:metric({latestBpPaired:true,primarySource:'withings',latest:79}),rows:[row('bp_systolic',123,'2026-06-30',{source:'withings',bpPaired:true,bp_diastolic:79})]}),
  'BP paired different sources':()=>({metricId:'bp_systolic',metric:metric({primarySource:'withings',latest:123}),paired:metric({primarySource:'manual',latest:79}),sources:{withings:{},manual:{}},rows:[row('bp_systolic',123)],manual:[row('bp_diastolic',79)]}),
  'BP split summary dates':()=>({metricId:'bp_systolic',metric:metric({latest:123,latestDate:'2026-06-30'}),paired:metric({latest:79,latestDate:'2026-06-29'})}),
  'BP incomplete summary dates':()=>({metricId:'bp_systolic',metric:metric({latest:123,latestDate:''}),paired:metric({latest:79,latestDate:''})}),
@@ -105,7 +105,41 @@ function chartCallbackReceipts(config:Record<string,unknown>){const data=config.
 const originalFixtureBytes=readFileSync(path.join(import.meta.dirname,'fixtures/wearable-detail-original.json'));
 expect(createHash('sha256').update(originalFixtureBytes).digest('hex')).toBe(WEARABLE_DETAIL_ORIGINAL_FIXTURE_SHA256);
 const originals=JSON.parse(new TextDecoder().decode(originalFixtureBytes)) as {name:string;original:unknown}[];
-it.each(Object.entries(fixtures))('%s preserves genuine public async raw/DOM/focus/action/chart/getter/throw receipts',async(name,fixture)=>{const native=qualifyWearableDetailExpectedReceipt(name,originals.find(row=>row.name===name)!.original),next=await receipt(candidate,fixture);expect(normalizeWearableReceipt(next)).toEqual(normalizeWearableReceipt(native));expect(next.after).toEqual(next.before);expect(next.registryAfter).toEqual(next.registryBefore);});
+const reviewedUnpaired:Record<string,Record<string,string>>=JSON.parse(readFileSync(path.join(import.meta.dirname,'fixtures/wearable-detail-unpaired-sha256.json'),'utf8'));
+function addPairEvidence(snapshot:unknown) {
+ const withEvidence=structuredClone(snapshot);
+ const property=(record:unknown,name:string):unknown[]=>{
+  if(!Array.isArray(record))throw Error('Expected recorded property descriptors');
+  const entry=record.find((field:unknown)=>Array.isArray(field)&&field[0]===name);
+  if(!entry||!Array.isArray(entry[3][1]))throw Error('Missing original '+name);
+  return entry[3][1];
+ };
+ const metrics=property(property(withEvidence,'wearableSummary'),'metrics');
+ for(const id of ['bp_systolic','bp_diastolic'])property(metrics,id).push(['latestBpPaired',true,true,['value',true,true]]);
+ return withEvidence;
+}
+it.each(Object.entries(fixtures))('%s preserves genuine public async raw/DOM/focus/action/chart/getter/throw receipts',async(name,fixture)=>{
+ const native=normalizeWearableReceipt(qualifyWearableDetailExpectedReceipt(name,originals.find(row=>row.name===name)!.original)) as Record<string,unknown>;
+ const next=await receipt(candidate,fixture), actual=normalizeWearableReceipt(next) as Record<string,unknown>;
+ const changed=reviewedUnpaired[name];
+ if(changed) {
+  expect(document.querySelector('.wearable-detail-stat-val')?.textContent).toBe('123 mmHg');
+  expect(next.trace.filter(call=>call.startsWith('read:')&&!call.includes(':1970-01-01:'))).toHaveLength(1);
+  for(const [key,digest] of Object.entries(changed)) {
+    expect(actual[key]).not.toEqual(native[key]);
+    expect(createHash('sha256').update(JSON.stringify(actual[key])).digest('hex')).toBe(digest);
+  }
+  const unchanged=(row:Record<string,unknown>)=>Object.fromEntries(Object.entries(row).filter(([key])=>!Object.hasOwn(changed,key)));
+  expect(unchanged(actual)).toEqual(unchanged(native));
+ }else {
+  if(name==='BP paired same source'||name==='BP diastolic ID redirects native'){
+   native.before=addPairEvidence(native.before);native.after=addPairEvidence(native.after);
+   expect(document.querySelector('.wearable-detail-stat-val')?.textContent).toBe('123/79 mmHg');
+  }
+  expect(actual).toEqual(native);
+ }
+ expect(next.after).toEqual(next.before);expect(next.registryAfter).toEqual(next.registryBefore);
+});
 afterEach(()=>vi.restoreAllMocks());
 
 afterAll(()=>vi.useRealTimers());

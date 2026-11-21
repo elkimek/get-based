@@ -12,6 +12,7 @@ interface PromptEstimateOptions { tools?: unknown; system?: unknown; messages?: 
 export interface LocalAiRequestOptions extends OllamaInferenceOptions {
   maxTokens?: number | undefined; minOutputTokens?: number | undefined;
   promptCharsPerToken?: number | undefined; modelOverride?: unknown;
+  requestCurrent?: (() => boolean) | undefined;
 }
 interface PromptMessage { content?: unknown; tool_calls?: unknown }
 interface PromptBlock { text?: unknown; type?: unknown }
@@ -106,6 +107,11 @@ export async function callOllamaChat({ system, messages, maxTokens, onStream, si
 }
 
 export async function callOpenAICompatibleLocalAPI(opts: LocalAiRequestOptions) {
+  const assertCurrent = () => {
+    opts.signal?.throwIfAborted();
+    if (opts.requestCurrent?.() === false) throw new Error('The AI request recipient or owner changed.');
+  };
+  assertCurrent();
   const config = getOllamaConfig();
   const model = String(opts?.modelOverride || getOllamaMainModel());
   const url = config.url.replace(/\/+$/, '');
@@ -172,6 +178,7 @@ export async function callOpenAICompatibleLocalAPI(opts: LocalAiRequestOptions) 
   if (useNativeInfer && nativeRequest && providerAdapter.infer) {
     let nativeResult;
     try {
+      assertCurrent();
       nativeResult = await providerAdapter.infer({
         config,
         model,
@@ -200,6 +207,7 @@ export async function callOpenAICompatibleLocalAPI(opts: LocalAiRequestOptions) 
   if (!compatibleAdapter.infer) throw new Error('OpenAI-compatible inference adapter is unavailable.');
   let result;
   try {
+    assertCurrent();
     result = await compatibleAdapter.infer({ config, model, opts, plan, modelDetail });
   } finally {
     rememberLocalAiRuntimeUse({ baseUrl: config.url, providerId: runtimeProviderId, model });

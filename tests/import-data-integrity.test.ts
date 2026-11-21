@@ -19,7 +19,7 @@ it('accepts zero and allows explicit exclusion of an invalid row', () => {
   expect(result.markers[0]!.value).toBe(0);
 });
 it('detects collisions between canonical insulin and its aliases', () => {
-  const markers = ['diabetes.insulin', 'hormones.insulin'].map(mappedKey => ({ ...row, mappedKey }));
+  const markers = ['diabetes.insulin', 'hormones.insulin'].map(mappedKey => ({ ...row, unit: 'mU/l', mappedKey }));
   expect(prepareImportCommit({ date, markers }, new Set()).error).toContain('same marker');
 });
 it.each(['2026-02-30', '', 'invalid'])('rejects invalid date %s', date => {
@@ -81,7 +81,7 @@ it('adopts incoming units for a custom marker whose saved unit is empty or white
   for (const unit of ['', '   ']) {
     const result = prepareImportCommit({date, markers: [marker]}, new Set(), {'custom.analyte': {unit}});
     expect(result.error).toBeNull();
-    expect(result.markers).toEqual([marker]);
+    expect(result.markers).toEqual([{ ...marker, unitConversionVersion: 2 }]);
   }
   const incompatible = prepareImportCommit({date, markers: [marker]}, new Set(), {'custom.analyte': {unit: 'mmol/l'}});
   expect(incompatible.error).toContain('cannot be converted');

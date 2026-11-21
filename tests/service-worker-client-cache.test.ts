@@ -674,6 +674,51 @@ it('does not establish ownership from a failed atomic app-shell navigation', asy
   expect(document.postMessage).toHaveBeenCalledWith({type: 'REQUEST_CLIENT_BUILD_ID'});
 });
 
+it('preserves an exact cached-shell proof across censuses before the new document is enumerable', async () => {
+  vi.useFakeTimers();
+  const previous = client('previous'), incoming = client('incoming'), worker = runtime([previous]);
+  await worker.put(oldKey, '/styles.css', 'previous stylesheet');
+  await worker.put(currentKey, '/styles.css', 'incoming stylesheet');
+  await worker.put(currentKey, '/app', 'exact current shell');
+  await worker.activate();
+  await worker.report(previous, 'a');
+  expect(await (await worker.fetch('/app?dev-sw=1', {}, '', incoming.id, true))!.text()).toBe('exact current shell');
+  // While the new window is reserved, other windows can trigger repeated censuses.
+  await worker.report(previous, 'a');
+  await worker.report(previous, 'a');
+  worker.setClients([previous, incoming]);
+  const startup = worker.fetch('/styles.css', {}, incoming.id);
+  await vi.advanceTimersByTimeAsync(2000);
+  const response = await startup;
+  expect(response?.status).toBe(200);
+  expect(await response!.text()).toBe('incoming stylesheet');
+  // Once enumerated, the live new window keeps its proof after startup.
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(await (await worker.fetch('/styles.css', {}, incoming.id))!.text()).toBe('incoming stylesheet');
+  expect(await (await worker.fetch('/styles.css', {}, previous.id))!.text()).toBe('previous stylesheet');
+  expect(worker.fetchImpl).not.toHaveBeenCalled();
+});
+
+it('drops abandoned cached navigations at expiry or capacity and preserves directly reported ownership', async () => {
+  vi.useFakeTimers();
+  const worker = runtime([]);
+  await worker.put(currentKey, '/app', 'exact current shell');
+  await worker.put(currentKey, '/styles.css', 'incoming stylesheet');
+  await worker.put(oldKey, '/styles.css', 'previous stylesheet');
+  for (let index = 0; index <= 128; index++) {
+    await worker.fetch('/app', {}, '', `reserved-${index}`, true);
+  }
+  await expectUnavailableResponse(await worker.fetch('/styles.css', {}, 'reserved-0'));
+  expect(await (await worker.fetch('/styles.css', {}, 'reserved-1'))!.text()).toBe('incoming stylesheet');
+  const reported = client('reserved-128');
+  worker.setClients([reported]);
+  await worker.report(reported, 'a');
+  await vi.advanceTimersByTimeAsync(60_000);
+  await expectUnavailableResponse(await worker.fetch('/styles.css', {}, 'reserved-1'));
+  expect(await (await worker.fetch('/styles.css', {}, reported.id))!.text()).toBe('previous stylesheet');
+  expect(worker.fetchImpl).not.toHaveBeenCalled();
+});
+
 
 it('defers conservatively when either activation census is unavailable', async () => {
   const old = client('old'), worker = runtime([old]);

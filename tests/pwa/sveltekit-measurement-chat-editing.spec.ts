@@ -3,7 +3,8 @@ import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 import { CHAT_NATIVE_UI_NOTICE } from '../../shared/chat-control-policy.js';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
@@ -44,9 +45,9 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
   }, { seeded, registry });
   const statements = { value: 'My office meter reading was actually 250 lux.', checkpoint: 'Save a checkpoint of my current light environment called After correction.', remove: 'Remove my current office lux reading, keeping my saved audit checkpoints.', removeRoom: 'Remove my office room, keeping my saved audit checkpoints.' };
   let stage: keyof typeof statements = 'value', round = 0, checkpointId = ''; const wire: unknown[] = [], errors: string[] = [];
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(JSON.stringify(body)).not.toMatch(/measurement-private-sentinel|\/private\//);
-    if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) { await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled light interpretation","detail":"Reported facts and frozen source evidence."}' }, finish_reason: 'stop' }] }) }); return; }
+  await installSyntheticOpenRouter(context, async body => {
+    expect(JSON.stringify(body)).not.toMatch(/measurement-private-sentinel|\/private\//);
+    if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) { return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled light interpretation","detail":"Reported facts and frozen source evidence."}' }, finish_reason: 'stop' }] }) }; }
     wire.push({ stage, round }); const resource = stage === 'checkpoint' ? 'lightAudits' : stage === 'removeRoom' ? 'lightRooms' : 'lightMeasurements'; let call: AIToolCall | undefined;
     if (round === 0) call = { id: `read-${stage}`, type: 'function', function: { name: 'getbased_read_data', arguments: JSON.stringify({ resource, ...(stage === 'checkpoint' ? { create: true } : { recordId: stage === 'removeRoom' ? 'room-office' : 'measure-office' }) }) } };
     if (round === 1) {
@@ -57,7 +58,7 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
       }
     }
     if (round === 2) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const review = JSON.parse(response.contentItems[0].text).review; expect(review.applied).toBe(false); if (stage === 'checkpoint') expect(review.effects.capturedCounts).toEqual({ rooms: 1, screens: 0, measurements: 1 }); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'checkpoint' ? 'Save light checkpoints with the native audit form.' : 'Review the reading or frozen checkpoint before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: stage === 'checkpoint' ? 'Save light checkpoints with the native audit form.' : 'Review the reading or frozen checkpoint before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
   const server = await startKitServer(artifact.directory); let stopped = false; const receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
@@ -69,6 +70,8 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
     await expect(dialog).toBeVisible(); await dialog.getByRole('textbox').fill('Original'); await activate(page, dialog.getByRole('button', { name: 'Save audit', exact: true })); await expect(dialog).not.toBeVisible();
     await expect(page.locator('.light-audit-card')).toContainText('Original');
     await activate(page, page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true }).getByRole('button', { name: 'Close', exact: true }));
+    const menu = page.getByRole('button', { name: 'Menu', exact: true });
+    if (await menu.isVisible()) await activate(page, menu);
     await activate(page, page.locator('[data-nav-action="navigate"][data-nav-route="body"]')); await expect(page.locator('.lens-page-header h2')).toHaveText('Biometrics');
     receipts.before = await profile(page, artifact.state); const initial = receipts.before.stored as ProfileData;
     await openChat(page, { paused: true }); await activate(page, page.locator('[data-chat-empty-action="resume-ai"]'));
@@ -85,7 +88,9 @@ test('static measurement correction, checkpoint and removal preserve frozen sour
         await openAssessment(page); await activate(page, page.locator('[data-light-env-action="save-audit"]'));
         const native = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Save audit', exact: true }) }); await expect(native).toBeVisible();
         await native.getByRole('textbox').fill('After correction'); await activate(page, native.getByRole('button', { name: 'Save audit', exact: true })); await expect(native).not.toBeVisible();
-        checkpointId = ((await profile(page, artifact.state)).stored as ProfileData).lightAudits!.find(row => row.label === 'After correction')!.id;
+        const savedCheckpoint = async () => ((await profile(page, artifact.state)).stored as ProfileData).lightAudits?.find(row => row.label === 'After correction');
+        await expect.poll(async () => (await savedCheckpoint())?.id).toBeTruthy();
+        checkpointId = (await savedCheckpoint())!.id;
         await expect.poll(async () => ((await profile(page, artifact.state)).stored as ProfileData).lightAudits?.find(row => row.id === checkpointId)?.aiAnalysis?.status).toBe('ok');
         receipts.checkpoint = await profile(page, artifact.state);
         await openChat(page); continue;

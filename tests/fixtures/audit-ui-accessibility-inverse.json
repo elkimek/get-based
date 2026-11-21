@@ -1,0 +1,98 @@
+[
+  {
+    "file": "js/nav.ts",
+    "currentSha256": "c3266101121392325f6acfbad1a3c1b3197a927def0af775f9d3bef100c350f1",
+    "previousSha256": "f24dcd9f4958bc0c4a87ba73201ea56f650659ef0cdc7294b4ef1116c279ac04",
+    "edits": [
+      {
+        "start": 5688,
+        "current": "function syncMobileSidebarAccess() {\n  const sidebar = document.getElementById('sidebar-nav');\n  if (!sidebar || typeof matchMedia === 'undefined') return;\n  const mobile = matchMedia('(max-width: 1024px)').matches;\n  const open = sidebar.classList.contains('mobile-open');\n  sidebar.inert = mobile && !open;\n  document.getElementById('sidebar-toggle')?.setAttribute('aria-expanded', String(open));\n}\n\n",
+        "previous": ""
+      },
+      {
+        "start": 6136,
+        "current": "  if (typeof document !== 'undefined') syncMobileSidebarAccess();\n",
+        "previous": ""
+      },
+      {
+        "start": 6306,
+        "current": "  if (typeof matchMedia !== 'undefined') matchMedia('(max-width: 1024px)').addEventListener?.('change', () => {\n    closeMobileSidebar();\n    syncMobileSidebarAccess();\n  });\n",
+        "previous": ""
+      },
+      {
+        "start": 21863,
+        "current": "    syncMobileSidebarAccess();\n    sidebar.querySelector<HTMLElement>('[tabindex=\"0\"],button,a[href]')?.focus();\n",
+        "previous": ""
+      },
+      {
+        "start": 22076,
+        "current": "  const sidebar = document.getElementById('sidebar-nav');\n  const toggle = document.getElementById('sidebar-toggle');\n  toggle?.setAttribute('aria-expanded', 'false');\n  if (sidebar?.contains(document.activeElement)) toggle?.focus();\n  sidebar?.classList.remove('mobile-open');\n  syncMobileSidebarAccess();\n",
+        "previous": "  document.getElementById('sidebar-nav')?.classList.remove('mobile-open');\n"
+      }
+    ]
+  },
+  {
+    "file": "js/components/ManualMarkerEntry.svelte",
+    "currentSha256": "0c73e37f118f490ab06a15bc1234021bbb8b8dd605eb373b60a7b755a5bf5234",
+    "previousSha256": "82369ceb595ad0a0bcd4bb865ffe7ac3dea4f69ff5fd49f4418670fa25edd76b",
+    "edits": [
+      {
+        "start": 1022,
+        "current": "      </div>\n      <div class=\"me-field\" id=\"me-sample-field\" hidden>\n        <label for=\"me-sample\">Collection</label>\n        <select id=\"me-sample\"></select>\n",
+        "previous": ""
+      }
+    ]
+  },
+  {
+    "file": "js/components/CustomMarkerForm.svelte",
+    "currentSha256": "6b17cce7d86742b27aab7ed775427e411bf30c276ca1a5b55fe8e51b63702bea",
+    "previousSha256": "52adc10836815a41a7a717cf58d88a833d25e5ce364523502c9d97b93c331774",
+    "edits": [
+      {
+        "start": 443,
+        "current": "        <div class=\"gb-modal-title\" id=\"cm-form-title\">Create New Biomarker</div>\n",
+        "previous": "        <div class=\"gb-modal-title\">Create New Biomarker</div>\n"
+      },
+      {
+        "start": 755,
+        "current": "        <label for=\"cm-category\">Category</label>\n",
+        "previous": "        <!-- svelte-ignore a11y_label_has_associated_control --><label>Category</label>\n"
+      },
+      {
+        "start": 1143,
+        "current": "            <span id=\"cm-new-cat-icon\" aria-label=\"Choose category icon\" title=\"Pick icon\" role=\"button\" tabindex=\"0\" data-custom=\"\" data-marker-detail-action=\"pick-new-cat-icon\">🔖</span>\n            <input type=\"text\" id=\"cm-new-cat\" aria-label=\"Category name\" placeholder=\"Category name\">\n",
+        "previous": "            <span id=\"cm-new-cat-icon\" title=\"Pick icon\" role=\"button\" tabindex=\"0\" data-custom=\"\" data-marker-detail-action=\"pick-new-cat-icon\">🔖</span>\n            <input type=\"text\" id=\"cm-new-cat\" placeholder=\"Category name\">\n"
+      },
+      {
+        "start": 1509,
+        "current": "        <label for=\"cm-name\">Marker name</label>\n",
+        "previous": "        <!-- svelte-ignore a11y_label_has_associated_control --><label>Marker name</label>\n"
+      },
+      {
+        "start": 1722,
+        "current": "        <label for=\"cm-unit\">Unit</label>\n",
+        "previous": "        <!-- svelte-ignore a11y_label_has_associated_control --><label>Unit</label>\n"
+      },
+      {
+        "start": 1883,
+        "current": "        <span id=\"cm-ref-label\">Reference range (optional)</span>\n        <div class=\"cm-range-row\" role=\"group\" aria-labelledby=\"cm-ref-label\">\n          <input type=\"number\" id=\"cm-ref-min\" aria-label=\"Minimum reference value\" step=\"any\" placeholder=\"Min\">\n",
+        "previous": "        <!-- svelte-ignore a11y_label_has_associated_control --><label>Reference range (optional)</label>\n        <div class=\"cm-range-row\">\n          <input type=\"number\" id=\"cm-ref-min\" step=\"any\" placeholder=\"Min\">\n"
+      },
+      {
+        "start": 2192,
+        "current": "          <input type=\"number\" id=\"cm-ref-max\" aria-label=\"Maximum reference value\" step=\"any\" placeholder=\"Max\">\n",
+        "previous": "          <input type=\"number\" id=\"cm-ref-max\" step=\"any\" placeholder=\"Max\">\n"
+      },
+      {
+        "start": 2363,
+        "current": "        <span id=\"cm-opt-label\">Optimal range (optional)</span>\n        <div class=\"cm-range-row\" role=\"group\" aria-labelledby=\"cm-opt-label\">\n          <input type=\"number\" id=\"cm-opt-min\" aria-label=\"Minimum optimal value\" step=\"any\" placeholder=\"Min\">\n",
+        "previous": "        <!-- svelte-ignore a11y_label_has_associated_control --><label>Optimal range (optional)</label>\n        <div class=\"cm-range-row\">\n          <input type=\"number\" id=\"cm-opt-min\" step=\"any\" placeholder=\"Min\">\n"
+      },
+      {
+        "start": 2668,
+        "current": "          <input type=\"number\" id=\"cm-opt-max\" aria-label=\"Maximum optimal value\" step=\"any\" placeholder=\"Max\">\n",
+        "previous": "          <input type=\"number\" id=\"cm-opt-max\" step=\"any\" placeholder=\"Max\">\n"
+      }
+    ]
+  }
+]

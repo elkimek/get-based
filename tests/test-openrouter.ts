@@ -60,7 +60,7 @@ assert('callOpenRouterAPI exists', apiOpenRouterSrc.includes('function callOpenR
 assert('extraHeaders in helper signature', apiOpenAICompatibleSrc.includes('extraHeaders = {}'));
 assert('extraHeaders spread in fetch headers', apiOpenAICompatibleSrc.includes('...extraHeaders'));
 assert('hasAIProvider handles openrouter', /provider === 'openrouter'\)\s+return hasOpenRouterKey\(\)/.test(apiProviderStorageSrc));
-assert('callClaudeAPI handles openrouter', /provider === 'openrouter'\)\s+return callOpenRouterAPI\(/.test(apiSrc));
+assert('callClaudeAPI handles openrouter', apiSrc.includes('openrouter: async () => (await loadOpenRouterApi()).callOpenRouterAPI') && apiSrc.includes('dispatch({ ...opts, requestCurrent })'));
 assert('callOpenRouterAPI sends HTTP-Referer', apiOpenRouterSrc.includes("'HTTP-Referer'"));
 assert('callOpenRouterAPI sends X-Title', apiOpenRouterSrc.includes("'X-Title': 'getbased'"));
 // api.js carries the hyphenated 'anthropic/claude-sonnet-4-6' string as the

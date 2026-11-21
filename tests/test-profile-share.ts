@@ -105,7 +105,7 @@ try {
 
 console.log('3. App wiring and UI source');
 assert('profile-share module imports reusable export builder',
-  profileShareSrc.includes("import { buildClientExportObject, importDataJSON } from './export.js'"));
+  profileShareSrc.includes("import { buildClientExportObject, loadExportImportModule } from './export.js'"));
 assert('Profile share module loads lazily with a cached retry path',
   profileShareLoaderSrc.includes("import('./profile-share.js')") &&
   profileShareLoaderSrc.includes("import('./profile-share.js?lazy-retry=1')") &&
@@ -138,7 +138,8 @@ assert('Share modal requires explicit encrypted upload consent',
   shareViewSrc.includes('temporary share copies are not backed up') &&
   shareViewSrc.includes('Anyone with both the link and password can open it'));
 assert('Share modal lists and can stop links created on this device',
-  profileShareSrc.includes('const SHARE_RECORDS_KEY') &&
+  read('js/profile-share-history.js').includes('encryptDeviceCredential') &&
+  profileShareSrc.includes('getProfileShareRecords') &&
   profileShareSrc.includes('function renderActiveShareList') &&
   shareViewSrc.includes('Created on this device') &&
   shareViewSrc.includes('data-profile-share-action="delete-link"') &&
@@ -235,8 +236,8 @@ assert('exportClientJSON downloads the reusable export object',
   exportSrc.includes('new Blob([JSON.stringify(exportObj, null, 2)]'));
 assert('Single-profile export still excludes wearableConnections',
   !/wearableConnections:\s*data\.wearableConnections/.test(exportSrc));
-assert('Shared profile import uses existing importDataJSON path',
-  profileShareSrc.includes("await importDataJSON(new File([json], 'getbased-shared-profile.json'"));
+assert('Shared profile import requires a new-profile receipt',
+  profileShareSrc.includes("await importNewSharedProfile("));
 assert('Relay-backed profile shares exclude local meal records and photos',
   profileShareSrc.includes('buildClientExportObject(profileId, false, false)'));
 

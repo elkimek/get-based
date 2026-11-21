@@ -56,20 +56,8 @@ async function openStartupOrchestratorPage(page: Page) {
         window.__startupCalls.push('restore-draft');
       }
     `);
-  await routeJavaScript(page, '**/js/sync.js*', `
-      export function configureSyncLifecycleDeps({ enableSync, disableSync, pauseSync }) {
-        window.__startupCalls.push(['sync-lifecycle-deps', typeof enableSync, typeof disableSync, typeof pauseSync]);
-      }
-    `);
-  await routeJavaScript(page, '**/js/sync-configure.js*', `
-      export function configureSyncModules({ enableSync }) {
-        window.__startupCalls.push(['sync-modules', typeof enableSync]);
-      }
-    `);
-  await routeJavaScript(page, '**/js/sync-lifecycle.js*', `
-      export async function enableSync() {}
-      export async function disableSync() {}
-      export async function pauseSync() {}
+  await routeJavaScript(page, '**/js/sync-startup.js*', `
+      export function configureStartupSync() { window.__startupCalls.push('configure-local-sync'); }
     `);
   await page.goto('/startup-orchestrator-browser-coverage', { waitUntil: 'load' });
 }
@@ -112,8 +100,7 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
 
       outcomes.startAppInstallsOneSetOfShellHooksWithoutUsageGlobal =
         !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('emf')
-        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => Array.isArray(call) && call[0] === 'sync-lifecycle-deps').length === 1
-        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => Array.isArray(call) && call[0] === 'sync-modules').length === 1
+        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'configure-local-sync').length === 1
         && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'events').length === 1
         && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'refresh').length === 1
         && !('_getActiveProfileId' in window);

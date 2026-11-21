@@ -5,6 +5,7 @@ import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
 
 import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { getErrorMessage } from './caught-error.js';
+import { projectPortableProfileData, hasPortableProfileContent, readStoredPortableProfile } from './portable-profile-data.js';
 import { migrateCustomMarkerIdentities } from './custom-marker-identity.js';
 import { migrateMarkerPlacements } from './marker-placement.js';
 import { state } from './state.js';
@@ -20,7 +21,7 @@ import {
   saveProfiles,
   switchProfile,
 } from './profile.js';
-import { encryptedGetItem, encryptedRemoveItem } from './crypto.js';
+import { encryptedGetItem, encryptedSetItem, encryptedRemoveItem } from './crypto.js';
 import { withCommittedPersonaStorage } from './persona-storage-transaction.js';
 import { clearProfileStorage, listStoredProfileIds } from './profile-storage-cleanup.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
@@ -212,19 +213,16 @@ export async function buildClientExportObject(profileId: string, includeChat = f
   const profiles = getProfiles();
   const profile = profiles.find(p => p.id === profileId);
   if (!profile) throw new Error('Profile not found');
-  const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
+  const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true });
   const nutrition = includeNutrition ? await buildProfileNutritionArchive(profileId) : null;
-  let data: ClientDataReader | null;
-  try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
-  if (!data || typeof data !== 'object') data = {};
+  const data = projectPortableProfileData(readStoredPortableProfile(raw)) as ClientDataReader;
   (migrateCustomMarkerIdentities as (value:unknown)=>ReturnType<typeof migrateCustomMarkerIdentities>)(data?.customMarkers);
   if (data) (migrateMarkerPlacements as (data: unknown)=>ReturnType<typeof migrateMarkerPlacements>)(data);
-  const hasManualReadings = data.manualBodyReadings && typeof data.manualBodyReadings === 'object'
-    && !Array.isArray(data.manualBodyReadings) && Object.keys(data.manualBodyReadings).length > 0
-    && (await import('./wearables-manual.js')).hasManualBodyReadings(data.manualBodyReadings);
-  if ((!data || !data.entries || data.entries.length === 0) && !nutrition?.meals?.length && !hasManualReadings) throw new Error('No data to export for this client');
+  const chat = includeChat ? await _exportChatData(profileId) : null;
+  if (!hasPortableProfileContent(data) && !nutrition?.meals?.length && !chat) throw new Error('No data to export for this client');
 
   const exportObj: ClientExportObject = {
+    ...data,
     version: 2, exportedAt: new Date().toISOString(),
     profile: { name: profile.name, sex: profile.sex || null, dob: profile.dob || null, location: profile.location || null, tags: profile.tags || [], notes: profile.notes || '', status: profile.status || 'active', avatar: profile.avatar || null, pinned: profile.pinned || false, height: profile.height || null, heightUnit: profile.heightUnit || 'cm' },
     entries: data.entries || [], notes: data.notes || [], supplements: data.supplements || [],
@@ -283,10 +281,7 @@ export async function buildClientExportObject(profileId: string, includeChat = f
     importSnapshots: data.importSnapshots || [],
     ...(nutrition ? { nutrition } : {}),
   };
-  if (includeChat) {
-    const chat = await _exportChatData(profileId);
-    if (chat) exportObj.chat = chat;
-  }
+  if (chat) exportObj.chat = chat;
   return exportObj;
 }
 
@@ -324,9 +319,8 @@ export async function buildAllDataBundle() {
     profiles:  ([]),
   };
   for (const p of profiles) {
-    const raw = await encryptedGetItem(profileStorageKey(p.id, 'imported'));
-    let data: ClientDataReader | null;
-    try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
+    const raw = await encryptedGetItem(profileStorageKey(p.id, 'imported'), { throwOnDecryptError: true });
+    const data = projectPortableProfileData(readStoredPortableProfile(raw));
     (migrateCustomMarkerIdentities as (value:unknown)=>ReturnType<typeof migrateCustomMarkerIdentities>)(data?.customMarkers);
     (migrateMarkerPlacements as (data: unknown)=>ReturnType<typeof migrateMarkerPlacements>)(data);
     const chat = await _exportChatData(p.id);
@@ -353,7 +347,9 @@ export async function buildAllDataBundle() {
 
 
 export async function exportAllDataJSON() {
-  const json = await buildAllDataBundle();
+  let json: string | null;
+  try { json = await buildAllDataBundle(); }
+  catch (error) { showNotification(getErrorMessage(error, 'Could not export clients.'), 'error'); return; }
   if (!json) { showNotification('No profiles to export', 'error'); return; }
   const bundle = JSON.parse(json);
   const blob = new Blob([json], { type: 'application/json' });
@@ -488,8 +484,8 @@ export async function loadDemoData(sex: string = 'male') {
       // Focus card cache ships without a fingerprint — loadFocusCard
       // treats that as a hand-authored prefill and never auto-refreshes
       // against a live provider. Manual ↻ clears the cache.
-      localStorage.setItem(profileStorageKey(profileId, 'focusCard'),
-        JSON.stringify({ text: (demoJson.focusCard as { text: unknown }).text }));
+      try { await encryptedSetItem(profileStorageKey(profileId, 'focusCard'),
+        JSON.stringify({ text: (demoJson.focusCard as { text: unknown }).text })); } catch { /* Optional demo prefill. */ }
     }
     if ((demoJson?.contextHealth as { dots?: unknown } | null | undefined)?.dots || demoJson?.entries?.length) {
       try {
@@ -544,7 +540,7 @@ export async function loadDemoData(sex: string = 'male') {
             sources[k] = 'demo';
             try { fingerprints[k] = getCardFingerprint(k, ctx); } catch (_) {}
           }
-          localStorage.setItem(cacheKey, JSON.stringify({ dots, summaries, cardSummaries, fingerprints, sources, fixedDemo: true }));
+          await encryptedSetItem(cacheKey, JSON.stringify({ dots, summaries, cardSummaries, fingerprints, sources, fixedDemo: true }));
         }
 
       } catch (_) { /* prefill is best-effort */ }

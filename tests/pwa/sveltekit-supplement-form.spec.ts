@@ -3,8 +3,7 @@ import {expect,test,type Page} from '@playwright/test';
 import {createDefaultProfileData,migrateProfileData} from '../../js/profile.js';
 import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
-import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
-import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
+import {captureOfflineLaunchDiagnostics, installOfflineStartupDiagnostics, navigateWithOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {activate,artifactInputs,cacheReceipt,profile} from './kit-native-receipts.js';
 import {verifySupplementEdit,type SupplementEdit} from '../helpers/supplement-pwa-receipt.js';
 const authored=['js/supplement-form-presentation.js','js/components/SupplementIngredientRow.svelte.html.js','js/components/SupplementPeriodRow.svelte.html.js',
@@ -23,6 +22,22 @@ type NativeProfile=Awaited<ReturnType<typeof profile>>;
 interface EventReceipt {type:string;target:string;action:string|null;trusted:boolean;value:string|null}
 interface ObservedWindow extends Window {supplementPwaEvent(value:EventReceipt):Promise<void>;supplementPwaCsp(value:string):Promise<void>}
 const panel=(page:Page)=>page.locator('#modal-overlay.show #supp-form-panel[data-edit-index="0"]');
+async function ready(page: Page, origin: string) {
+ const info = test.info();
+ await navigateWithOfflineLaunchDiagnostics(page, origin + '/app?dev-sw=1', info);
+ try {
+  await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({timeout: 30_000});
+  await expect.poll(() => page.evaluate(async () => {
+   const registration = await navigator.serviceWorker.getRegistration(location.href);
+   const controller = navigator.serviceWorker.controller;
+   return registration?.active?.state === 'activated' && controller?.state === 'activated'
+    && controller.scriptURL === registration.active.scriptURL && controller.scriptURL === location.origin + '/service-worker.js';
+  }), {timeout: 30_000, message: 'The active release service worker must control the application before offline use'}).toBe(true);
+ } catch (error) {
+  await captureOfflineLaunchDiagnostics(page, info);
+  throw error;
+ }
+}
 async function showWidget(page:Page){
  const close=page.getByRole('button',{name:'Close chat',exact:true});if(await close.isVisible())await activate(page,close);
  const manage=page.locator('.dashboard-widget[data-widget-id="supplements"] .supp-add-btn[data-supp-action="open-editor"]');
@@ -90,9 +105,18 @@ test('static authored Supplement form first use offline and two zero-page cold l
  await context.exposeBinding('supplementPwaEvent',(_,value:EventReceipt)=>events.push(value));await context.exposeBinding('supplementPwaCsp',(_,value:string)=>csp.push(value));
  await context.addInitScript(()=>{const observed=window as unknown as ObservedWindow;for(const type of ['click','input','change','keydown'])document.addEventListener(type,event=>{const element=event.target;if(!(element instanceof Element)||!element.closest('#detail-modal,#confirm-dialog-overlay,.dashboard-widget[data-widget-id="supplements"]'))return;void observed.supplementPwaEvent({type,target:element.id||element.className,action:element.closest('[data-supp-action]')?.getAttribute('data-supp-action')??null,trusted:event.isTrusted,value:element instanceof HTMLInputElement||element instanceof HTMLSelectElement||element instanceof HTMLTextAreaElement?element.value:null});},true);document.addEventListener('securitypolicyviolation',event=>{void observed.supplementPwaCsp(event.violatedDirective);});});
  await context.routeWebSocket('**/*',socket=>{external.push(socket.url());socket.close();});
- const server=await startKitServer(artifact.directory);let stopped=false;await context.route('**/*',async route=>{const url=new URL(route.request().url());if(['http:','https:'].includes(url.protocol)&&url.origin!==server.origin){external.push(url.href);await route.abort();}else await route.continue();});
+ // Request routing disables WebKit's resource caching and intercepts worker installation.
+ // The response CSP blocks network egress while the real worker installs and serves its cache.
+ const server=await startKitServer(artifact.directory,[],{sameOriginOnly:true});
+ let stopped=false;
+ context.on('request',request=>{
+  const url=new URL(request.url());
+  if(['http:','https:'].includes(url.protocol)&&url.origin!==server.origin) external.push(url.href);
+ });
  const phases:Array<{phase:number;before:NativeProfile;after:NativeProfile;mutation:ReturnType<typeof verifySupplementEdit>}>=[];
  try{
+  const networkPolicy = (await fetch(server.origin + '/index.html')).headers.get('Content-Security-Policy');
+  expect(networkPolicy).toContain("connect-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; frame-src 'self'; form-action 'self'");
   await ready(page,server.origin);await ready(page,server.origin);await showWidget(page);await expect(page.locator('#supp-form-panel')).toHaveCount(0);
   let expected=await profile(page,artifact.state);expect(expected.stored).toEqual(seeded);expect(expected.live).toEqual(seeded);expect(expected.profiles).toEqual(registry);expect(expected.rawCommitted).toBe(JSON.stringify(seeded));expect(expected.rawProfiles).toBe(JSON.stringify(registry));const cache=await cacheReceipt(page,artifact);
   await info.attach('supplement-before-origin-stop-raw',{body:JSON.stringify({artifact,expected,cache},null,2),contentType:'application/json'});

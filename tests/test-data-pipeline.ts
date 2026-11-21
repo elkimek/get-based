@@ -174,8 +174,8 @@ const dataModule = await import('../js/data.js');
   // HbA1c: 31.0 mmol/mol -> (31.0/10.929) + 2.15 = 4.9865 -> toFixed(1) = 5.0
   const hUS = usData.categories.diabetes!.markers.hba1c!;
   assert('hba1c US unit is %', hUS.unit === '%', `got "${hUS.unit}"`);
-  assert(`hba1c US @ ${ANCHOR_DATE} = 5.0`, hUS.values[usIdx] === 5,
-    `got ${hUS.values[usIdx]}, expected 5.0`);
+  assert(`HbA1c retains precision before US display rounding @ ${ANCHOR_DATE}`,
+    hUS.values[usIdx] === 31 / 10.929 + 2.15 && hUS.values[usIdx]!.toFixed(1) === '5.0');
 
   // Hemoglobin: factor 0.1, stored as g/L -> g/dL
   const hbUS = usData.categories.hematology!.markers.hemoglobin!;
@@ -583,7 +583,11 @@ const dataModule = await import('../js/data.js');
     dataJsSrc.includes("from './unit-profiles.js'") && dataJsSrc.includes('convertCanonicalToDisplay'));
   assert('data.js imports OPTIMAL_RANGES', dataJsSrc.includes('OPTIMAL_RANGES'));
   assert('data.js imports PHASE_RANGES', dataJsSrc.includes('PHASE_RANGES'));
-  assert('data.js has getActiveData function', dataJsSrc.includes('export function getActiveData()'));
+  const profileProjection = dataModule.getActiveData();
+  const reportProjection = dataModule.getActiveData([{ date: '2026-10-18', markers: { 'biochemistry.glucose': 5 } }]);
+  assert('getActiveData projects the selected report rows without replacing the cached profile',
+    reportProjection.dates.length === 1 && reportProjection.dates[0] === '2026-10-18'
+    && dataModule.getActiveData() === profileProjection);
   assert('data.js has applyUnitConversion function', dataJsSrc.includes('export function applyUnitConversion('));
   assert('data.js has filterDatesByRange function', dataJsSrc.includes('export function filterDatesByRange('));
   assert('marker-analysis has detectTrendAlerts function', markerAnalysisSrc.includes('export function detectTrendAlerts('));

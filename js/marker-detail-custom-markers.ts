@@ -41,6 +41,7 @@ export function openCreateMarkerModal() {
 
 function renderCreateMarkerModal() {
   const modal = setDetailModalShell('gb-form-modal', 'marker-form-modal');
+  modal?.setAttribute('aria-labelledby', 'cm-form-title');
   const overlay = document.getElementById('modal-overlay');
   if (!modal) return;
   const data = getActiveData();

@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
 import { runBrowserScript } from '../tests/playwright/browser-script-runner.js';
 import { enforceFunctionCoverage, enforceFeatureCoverage, resolveCoverageMinimum } from './coverage-gate.mjs';
-import { isProductionSource, productionSources, productionFunctionIndex, matchSourceFunction, summarizeFeatures } from './coverage-source.mjs';
+import { isProductionSource, productionSources, productionFunctionIndex, productionFunctionIndexes, matchSourceFunction, summarizeFeatures } from './coverage-source.mjs';
 import { renderCoverageMarkdown, renderCoverageHtml } from './coverage-report.mjs';
 import {readNativeFunctionCoverage, type NativeCoverageReceipt} from './native-coverage-receipt.mjs';
 import {
@@ -22,7 +22,7 @@ import {
 } from './coverage-model-helpers.mjs';
 
 import type { Browser, Page } from 'playwright';
-import type { CoverageSourceFunction } from './coverage-source.mjs';
+import type { CoverageFunctionIndex, CoverageSourceFunction } from './coverage-source.mjs';
 import type { CoverageMinimumReader, FeatureBaselineReader } from './coverage-gate.mjs';
 
 // Private operation readers for unvalidated collector JSON; no validation is implied.
@@ -57,6 +57,7 @@ const includeVitestCoverage = process.env.INCLUDE_VITEST_COVERAGE === '1' ||
 const requirePlaywrightCoverageShards = process.env.REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS === '1' ||
   process.env.REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS === 'true';
 const sourceCache = new Map<string, string>();
+const functionIndexes = new Map<string, CoverageFunctionIndex>();
 
 const COVERAGE_FIXTURES: BrowserFixture[] = [
   ['export/import browser fixture', 'tests/test-export-import.js'],
@@ -185,8 +186,16 @@ function locToRange(source: string, loc: RawSpan | null | undefined, offsets = l
   return end > start ? { start, end } : null;
 }
 
+function runtimeFunctionIndex(file: string) {
+  const cached = functionIndexes.get(file);
+  if (cached) return cached;
+  const index = productionFunctionIndex(sourceForFile(file), file, repoRoot);
+  functionIndexes.set(file, index);
+  return index;
+}
+
 function getFileMetrics(model: CoverageModel, file: string, total: unknown = 0, source: string | null = null): FileMetrics {
-  const index = model.has(file) ? null : productionFunctionIndex(sourceForFile(file), file, repoRoot);
+  const index = model.has(file) ? null : runtimeFunctionIndex(file);
   const metrics: FileMetrics = model.get(file) || {
     file,
     total: 0,
@@ -555,6 +564,10 @@ async function writeCoverageReport(playwrightModel: CoverageModel, fixtures: rea
 }
 
 async function main() {
+  if (includeVitestCoverage) {
+    const sources = new Map(productionSources(repoRoot, {runtime: true}).map(file => [file, sourceForFile(file)]));
+    for (const [file, index] of productionFunctionIndexes(sources, repoRoot)) functionIndexes.set(file, index);
+  }
   const suiteCoverage = readPlaywrightCoverageShards();
   if (suiteCoverage.files.length) {
     for (const { file, error } of suiteCoverage.unreadable) {

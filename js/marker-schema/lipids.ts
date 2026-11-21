@@ -12,6 +12,7 @@ export const LIPIDS_CATEGORY = {
     nonHdl: { name: "Non-HDL Cholesterol", unit: "mmol/l", refMin: 0.00, refMax: 3.80, desc: "All atherogenic cholesterol particles combined (LDL + VLDL + remnants); a better cardiovascular predictor than LDL alone." },
     apoAI: { name: "Apo A-I", unit: "g/l", refMin: 1.00, refMax: 1.70, desc: "The main protein of HDL particles; reflects protective cholesterol transport capacity and cardiovascular health." },
     apoB: { name: "Apo B", unit: "g/l", refMin: 0.50, refMax: 1.00, desc: "The protein on each LDL particle; directly counts atherogenic particles, making it a superior cardiovascular risk marker." },
-    lpA: { name: "Lp(a)", unit: "nmol/l", refMin: 0, refMax: 125, desc: "Lipoprotein(a), a mostly genetic atherogenic particle. Values above ~125 nmol/L (≈50 mg/dL, assay-dependent) are commonly treated as risk-enhancing." }
+    lpA: { name: "Lp(a)", unit: "nmol/l", refMin: 0, refMax: 125, desc: "Lipoprotein(a), a mostly genetic atherogenic particle. The molar assay measures particle concentration." },
+    lpAMass: { name: "Lp(a) mass", unit: "mg/dl", refMin: 0, refMax: 50, desc: "Lipoprotein(a) measured by mass. Interpret with the reporting laboratory's interval. The assay does not support a fixed conversion to particle concentration." }
   }
 } satisfies MarkerCategory;

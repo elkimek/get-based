@@ -67,6 +67,15 @@ const scenarios:Scenario[]=[{name:'two-recent'},{name:'three-earlier-singular',c
  ...['false','true','null','throw-first','throw-second'].map(provider=>({name:'provider-'+provider,provider}))];
 for(const scenario of scenarios)it('preserves complete native comparison public renderer '+scenario.name,()=>{
  const before=fixtures.find(row=>row.name===scenario.name)!.original,after=capture(candidate,scenario),expected=expectedEMFComparisonReceipt(before);
+ if (scenario.kind === 'daytime' || scenario.kind === 'sleeping-getter') {
+  // Preserve the original tree and receipt except the two historical cells
+  // whose severity follows the earlier assessment's sleeping setting.
+  expected.raw = expected.raw.replace('color:var(--green)">20</span>', 'color:var(--yellow)">20</span>')
+    .replace('color:var(--yellow)">30</span>\n', 'color:var(--orange)">30</span>\n');
+  const host = document.createElement('div'); host.innerHTML = expected.raw;
+  expected.dom = tree(host) as typeof expected.dom;
+ }
+ if (scenario.kind === 'proxy-room') expected.trace.splice(expected.trace.indexOf('room.measurements'), 0, 'room.sleeping');
  if(scenario.kind==='initialize') {
   // The retained original receipt proves its one empty-container mutation.
   // The current renderer must produce the same full UI while making no profile mutation.
@@ -84,3 +93,20 @@ for(const scenario of scenarios)it('preserves complete native comparison public 
  if(scenario.name==='zero-native-assessments')expect(before.state).toEqual(after.state);
 });
 it('retains the complete ordered set of original native receipts',()=>{expect(fixtures.map(row=>row.name)).toEqual(scenarios.map(row=>row.name));expect(fixtures.every(row=>JSON.stringify(row.original)===JSON.stringify(row.candidate))).toBe(true);});
+
+it('uses each assessment’s saved sleeping-room threshold for the same reading', async () => {
+  const { state } = await import('../js/state.js');
+  const { emfEditorState, renderEMFEditor } = await import('../js/emf-editor.js');
+  const old = state.importedData.emfAssessment, oldMode = emfEditorState.compareMode;
+  try {
+    state.importedData.emfAssessment = { assessments: [true, false].map((sleeping, index) => ({ date: `2026-05-0${index + 1}`, rooms: [{ name: 'Study', sleeping, measurements: { acElectric: { value: 2 } } }] })) };
+    emfEditorState.compareMode = true;
+    const host = { innerHTML: '' };
+    renderEMFEditor(host);
+    const holder = document.createElement('div');
+    holder.innerHTML = host.innerHTML;
+    const readings = holder.querySelectorAll('.emf-compare-cell span');
+    expect(readings[0]?.getAttribute('style')).toContain('--yellow');
+    expect(readings[2]?.getAttribute('style')).toContain('--green');
+  } finally { state.importedData.emfAssessment = old; emfEditorState.compareMode = oldMode; }
+});

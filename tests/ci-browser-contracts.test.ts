@@ -41,7 +41,11 @@ describe('cross-browser and platform matrix admission', () => {
       return Number(maximum);
     };
     const plan = createCiPlan(true, null);
-    expect(plan.nativeMatrix.include.slice(0, limit('native'))).toEqual(plan.nativeMatrix.include);
+    const admittedNative = plan.nativeMatrix.include.slice(0, limit('native'));
+    expect(admittedNative.filter(lane => lane.suite !== 'browser').map(lane => lane.suite))
+      .toEqual(['firefox', 'pwa', 'display']);
+    expect(admittedNative.some(lane => lane.coverage)).toBe(true);
+    expect(admittedNative.length).toBeLessThan(plan.nativeMatrix.include.length);
     const admitted = plan.kitMatrix.include.slice(0, limit('kit'));
     expect([...new Set(admitted.map(lane => lane.project))]).toEqual([...KIT_PROJECTS]);
     expect(new Set(admitted.map(lane => lane.runner))).toEqual(new Set(['ubuntu-latest', 'macos-15']));

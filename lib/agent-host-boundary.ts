@@ -105,6 +105,22 @@ export function tokenMatches(received: string, expected: string) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
+/** Browser possession grants chat or management, never the installation credential. */
+export function companionChatPairingCode(token: string, endpoint: string) {
+  const port = new URL(endpoint).port;
+  const key = createHmac('sha256', token).update(JSON.stringify(['chat-pairing-v1', endpoint])).digest('hex');
+  return `gbchat1.${port}.${key}`;
+}
+
+export function companionEndpointProof(code: string, endpoint: string, origin: string, challenge: string) {
+  return createHmac('sha256', code).update(JSON.stringify(['companion-proof-v1', endpoint, origin, challenge])).digest('hex');
+}
+
+export function companionManagementCode(token: string, endpoint: string, period = Math.floor(Date.now() / 300_000)) {
+  const key = createHmac('sha256', token).update(JSON.stringify(['management-pairing-v1', endpoint, period])).digest('hex');
+  return `gbmanage1.${new URL(endpoint).port}.${period}.${key}`;
+}
+
 function signThreadId(payload: string, token: string) {
   return createHmac('sha256', token).update(payload).digest('base64url');
 }

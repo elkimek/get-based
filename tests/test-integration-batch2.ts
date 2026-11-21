@@ -382,6 +382,8 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     ...immuneIdentityKeys,
     // mmol/l electrolytes (= mEq/L for monovalent ions)
     'electrolytes.sodium', 'electrolytes.potassium', 'electrolytes.chloride',
+    // Lp(a) mass stays in mg/dL in both profiles.
+    'lipids.lpAMass',
     // Same unit in US
     'hormones.shbg', 'hormones.lh', 'hormones.fsh',
     'thyroid.tsh',
@@ -435,6 +437,10 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     'boneDensity.zScoreSpine', 'boneDensity.zScoreFemurTotal', 'boneDensity.zScoreFemurNeck',
   ]);
 
+  for (const system of ['EU', 'US'] as const) {
+    const lpAMass = resolveMarkerUnitProfile('lipids.lpAMass', system);
+    assert('Lp(a) mass preserves mg/dL in ' + system, lpAMass.unit?.toLowerCase() === 'mg/dl' && lpAMass.isIdentity);
+  }
   let unconverted = [];
   for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
     for (const mKey of Object.keys(cat.markers || {})) {

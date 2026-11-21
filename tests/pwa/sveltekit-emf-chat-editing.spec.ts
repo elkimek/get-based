@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
 import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
@@ -32,9 +33,9 @@ test('EMF chat correction preserves private evidence and survives a stopped-orig
   }, { seeded, registry });
   const statement = 'My bedroom AC electric reading is now 2 V/m.';
   let round = 0; const wire: number[] = [], background: string[] = [], errors: string[] = [], receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
-  await context.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON(); expect(body.model).toBe('openai/synthetic-emf'); expect(JSON.stringify(body)).not.toMatch(/emf-private-sentinel|\/private\//);
-    if (!body.tools) { const system = String(body.messages[0]?.content || ''); expect(system).toMatch(/^Based on this person's lab data and profile context/); background.push('native context-card summary'); await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }); return; }
+  await installSyntheticOpenRouter(context, async body => {
+    expect(body.model).toBe('openai/synthetic-emf'); expect(JSON.stringify(body)).not.toMatch(/emf-private-sentinel|\/private\//);
+    if (!body.tools) { const system = String(body.messages[0]?.content || ''); expect(system).toMatch(/^Based on this person's lab data and profile context/); background.push('native context-card summary'); return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{}' } }] }) }; }
     wire.push(round);
     let call: AIToolCall | undefined;
     if (round === 0) call = { id: 'list-emf', type: 'function', function: { name: 'getbased_read_data', arguments: '{"resource":"emfMeasurements"}' } };
@@ -45,7 +46,7 @@ test('EMF chat correction preserves private evidence and survives a stopped-orig
       call = { id: 'draft-emf', type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'emfMeasurements', operation: 'update', snapshotId: read.snapshotId, patch: '{"value":2,"unit":"V/m"}', evidence: statement, reason: 'The user reported a corrected room reading.' }) } };
     }
     if (round === 3) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); expect(JSON.parse(response.contentItems[0].text).review.applied).toBe(false); }
-    round++; await route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the EMF reading correction before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` });
+    round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the EMF reading correction before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); context.on('page', opened => opened.on('pageerror', error => errors.push(error.message))); const server = await startKitServer(artifact.directory); let stopped = false;
   try {

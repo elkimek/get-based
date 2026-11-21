@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createServer } from 'node:http';
+import { companionChatPairingCode, companionManagementCode } from '../../lib/agent-host-boundary.js';
 import { createAgentHostService } from '../../lib/agent-host-service.js';
 
 let server: ReturnType<typeof createServer>, endpoint: string;
@@ -33,6 +34,8 @@ test.afterAll(async () => { server.closeAllConnections(); await new Promise<unkn
 
 test('local management runs controls while hosted discovery stays chat-only', async ({ page }) => {
   await page.goto(endpoint + '/manage');
+  await page.getByLabel('Management code').fill(companionManagementCode('private-installation-secret',endpoint));
+  await page.getByRole('button',{name:'Unlock controls'}).click();
   await expect(page.locator('#status')).toHaveText('Connected');
   await expect(page.locator('#startup-description')).toContainText('Connected for this terminal session');
   await page.setViewportSize({ width: 360, height: 740 });
@@ -53,9 +56,26 @@ test('local management runs controls while hosted discovery stays chat-only', as
   await expect(page.locator('#status')).toHaveText('Connected');
   await expect(page.locator('#startup-description')).toContainText('Connected for this terminal session');
   expect(actions).toEqual(['install', 'update', 'restart', 'restart-companion', 'uninstall']);
-  const discovery = await page.request.get(endpoint + '/v1/discovery', { headers: { Origin: 'https://app.getbased.health' } });
+  const discovery = await page.request.get(endpoint + '/v1/discovery', { headers: { Origin: 'https://app.getbased.health', Authorization:`Bearer ${companionChatPairingCode('private-installation-secret',endpoint)}` } });
   const data = await discovery.json();
   expect(data.controlAuthorized).toBe(false);
   expect((await page.request.post(endpoint + '/v1/control', { headers: { Origin: 'https://app.getbased.health', Authorization: `Bearer ${data.token}` }, data: { action: 'install' } })).status()).toBe(403);
   expect((await page.request.get(endpoint + '/manage', { headers: { Origin: 'https://app.getbased.health' } })).status()).toBe(403);
+});
+
+test('pairs a browser to a locally authenticated Companion and keeps its chat credential encrypted', async ({page, baseURL}) => {
+  const app = new URL(baseURL!).origin;
+  await page.route('**/*', route => [app, endpoint].includes(new URL(route.request().url()).origin) ? route.continue() : route.abort());
+  await page.goto('/app');
+  const results = await page.evaluate(async ({endpoint, code}) => {
+    const modulePath = '/js/agent-chat-settings.js';
+    const settings: typeof import('../../js/agent-chat-settings.js') = await import(modulePath);
+    const before = await settings.discoverLocalChatAgents();
+    await settings.pairLocalCompanion(code);
+    const [host] = await settings.discoverLocalChatAgents();
+    const stored = localStorage.getItem('labcharts-companion-pairing') || '';
+    return {before:before.length, paired:host?.endpoint === endpoint, newSession:!!host?.token && host.token !== code,
+      controls:host?.controlAuthorized, encrypted:/^(d1:|v1:)/.test(stored) && !stored.includes(code)};
+  }, {endpoint, code:companionChatPairingCode('private-installation-secret', endpoint)});
+  expect(results).toEqual({before:0, paired:true, newSession:true, controls:false, encrypted:true});
 });

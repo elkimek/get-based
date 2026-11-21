@@ -16,6 +16,7 @@
 import { transactionCompletion as txPromise } from './transaction-completion.js';
 import type { DeviceLocalEnvelope, PassphraseEnvelope, StoredWearableRow, WearableDeleteOptions, WearablesStoreCryptoDeps, WearableVersionGuard } from './wearable-storage-types.js';
 
+import { WITHINGS_MEASUREMENT_VERSION, WITHINGS_RECLASSIFIED_METRICS } from './withings-measurement-version.js';
 import { queueManualRowWrite } from './wearables-manual-lock.js';
 
 const DB_PREFIX = 'labcharts-wearables-';
@@ -227,6 +228,9 @@ async function _decryptRowIfWrapped(profileId: string, row: StoredWearableRow | 
   // producing nested envelopes that `isEncryptedObject` couldn't detect
   // on the next read. Returning null forces callers to treat the row as
   // unreadable, which is the honest semantic when the session is locked.
+  if (unwrapped.source === 'withings' && unwrapped.withingsMeasurementVersion !== WITHINGS_MEASUREMENT_VERSION) {
+    for (const metric of WITHINGS_RECLASSIFIED_METRICS) delete unwrapped[metric];
+  }
   return unwrapped;
 }
 
@@ -422,6 +426,23 @@ export async function upsertDailyBatchRaw(profileId: string, rows: readonly (Sto
   // cannot be silently overwritten by a patch computed from an older row.
   return rows.some(row => row?.source === 'manual')
     ? queueManualRowWrite(profileId, write) : write();
+}
+
+/** A full restore replaces transportable rows. Device-key-only sources stay on their owning device. */
+export async function replaceWearableBackupRows(profileId: string, sources: readonly string[], rows: StoredWearableRow[]) {
+  await queueManualRowWrite(profileId, async () => {
+    const db = await openWearablesDB(profileId);
+    const tx = db.transaction(STORE_DAILY, 'readwrite');
+    const done = txPromise(tx);
+    try {
+      const store = tx.objectStore(STORE_DAILY);
+      for (const source of sources) store.delete(IDBKeyRange.bound([source], [source, []]));
+      for (const row of rows) store.put(row);
+    } catch (error) {
+      tx.abort(); await done.catch(() => {}); throw error;
+    }
+    await done;
+  });
 }
 
 // Inclusive range query for ONE source. ISO dates; lexicographic order matches

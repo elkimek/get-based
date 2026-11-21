@@ -337,9 +337,18 @@ function openImportUnitPicker(button: HTMLElement) {
     const disabled = unitOptions.schemaBacked && optionIdx === 0 && currentUnit && !unitOptions.units.includes(currentUnit);
     return {unit, index: idx, selected, disabled: Boolean(disabled)};
   }))});
-  document.body.append(menu);
+  (button.closest('[role="dialog"]') || document.body).append(menu);
   positionImportUnitMenu(button, menu);
   button.setAttribute('aria-expanded', 'true');
+  const options = Array.from(menu.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+  (options.find(option => option.getAttribute('aria-selected') === 'true') || options[0])?.focus();
+  menu.addEventListener('keydown', event => {
+    const index = options.indexOf(document.activeElement as HTMLButtonElement);
+    const next = event.key === 'ArrowDown' ? (index + 1) % options.length
+      : event.key === 'ArrowUp' ? (index - 1 + options.length) % options.length
+        : event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : null;
+    if (next != null) { event.preventDefault(); options[next]?.focus(); }
+  });
 }
 
 function selectImportUnitOption(optionEl: HTMLElement) {
@@ -351,6 +360,7 @@ function selectImportUnitOption(optionEl: HTMLElement) {
   if (!control) return;
   updateImportMarkerUnitValue(control, nextUnit);
   closeImportUnitPicker();
+  control.focus();
 }
 
 function getImportReviewRow(idx: number, controlEl: HTMLElement | null = null) {
@@ -430,8 +440,8 @@ export function showImportPreview(parseResult: PendingImport) {
     if (m.refMin == null && m.refMax == null) continue;
     const schemaRef = refLookup[m.mappedKey!];
     if (!schemaRef) continue;
-    const siMin = m.refMin != null ? normalizeToSI(m.mappedKey!, m.refMin, m.unit, m) : null;
-    const siMax = m.refMax != null ? normalizeToSI(m.mappedKey!, m.refMax, m.unit, m) : null;
+    const siMin = m.refMin != null ? normalizeToSI(m.mappedKey!, m.refMin, m.unit, { ...m, unitConversionVersion: 2 }) : null;
+    const siMax = m.refMax != null ? normalizeToSI(m.mappedKey!, m.refMax, m.unit, { ...m, unitConversionVersion: 2 }) : null;
     if ((siMin !== schemaRef.refMin && !(siMin != null && schemaRef.refMin != null && Math.abs(siMin - schemaRef.refMin) < 0.001)) ||
         (siMax !== schemaRef.refMax && !(siMax != null && schemaRef.refMax != null && Math.abs(siMax - schemaRef.refMax) < 0.001))) {
       rangesDiffCount++;

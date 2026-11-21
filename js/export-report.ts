@@ -31,9 +31,9 @@ import { trackUsage } from './schema.js';
 import {
   wearableDisplayUnit,
   wearableDisplayValue,
-  weightToKilograms,
+  weightToKilograms, sameBloodPressureObservation,
 } from './wearables-formatters.js';
-import { buildReportDataSnapshot, buildReportGenetics, formatReportDataForAgent, REPORT_GENOME_MODES } from './export-report-data.js';
+import { buildReportSampleResults, buildReportDataSnapshot, buildReportGenetics, formatReportDataForAgent, REPORT_GENOME_MODES } from './export-report-data.js';
 import { getSupplementsOverlappingRange } from './supplement-medication-domain.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
 import { requireAIProcessingApproval } from './cloud-ai-consent.js';
@@ -326,13 +326,13 @@ function getLatestReportBloodPressure() {
     for (const entry of biometrics.bp) {
       const sys = Number(entry.sys ?? entry.systolic);
       const dia = Number(entry.dia ?? entry.diastolic);
-      if (Number.isFinite(sys) && Number.isFinite(dia)) {
+      if (Number.isFinite(sys) && sys > 0 && Number.isFinite(dia) && dia > 0) {
         candidates.push({ value: `${formatValue(sys)}/${formatValue(dia)} mmHg`, date: entry.date || '' });
       }
     }
   }
   const wm = state.importedData?.wearableSummary?.metrics as MetricSnapshot | undefined;
-  if (Number.isFinite(wm?.bp_systolic?.latest) && Number.isFinite(wm?.bp_diastolic?.latest)) {
+  if (sameBloodPressureObservation(wm?.bp_systolic, wm?.bp_diastolic) && Number.isFinite(wm?.bp_systolic?.latest) && Number.isFinite(wm?.bp_diastolic?.latest)) {
     candidates.push({
       value: `${formatValue(wm!.bp_systolic!.latest)}/${formatValue(wm!.bp_diastolic!.latest)} mmHg`,
       date: wm!.bp_systolic!.latestDate || wm!.bp_diastolic!.latestDate || '',
@@ -405,13 +405,13 @@ export function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexL
   return rows.filter(row => row.value != null && String(row.value).trim() && (includeBody || !['Weight', 'BMI', 'Blood pressure', 'Resting pulse', 'Body fat'].includes(row.label)));
 }
 
-function filterDataByDateIndices(data: ActiveData, indices: readonly number[], cutoffStr: string | null): ActiveData {
+function filterDataByDateIndices(data: ActiveData, indices: readonly number[], cutoffStr: string | null, endDate?: string): ActiveData {
   const selectedDates = new Set(indices.map(i => data.dates[i]));
   for (const category of Object.values(data.categories || {})) {
     for (const marker of Object.values(category.markers || {})) {
       if (!(marker.singlePoint || category.singlePoint) || !marker.values?.some(value => value != null)) continue;
       const singleDate = marker.singleDate || category.singleDate;
-      if (singleDate && (!cutoffStr || singleDate >= cutoffStr)) selectedDates.add(singleDate);
+      if (singleDate && (!cutoffStr || singleDate >= cutoffStr) && (!endDate || singleDate <= endDate)) selectedDates.add(singleDate);
     }
   }
   const filtered: ActiveData = {
@@ -433,7 +433,7 @@ function filterDataByDateIndices(data: ActiveData, indices: readonly number[], c
     for (const [mKey, marker] of Object.entries(cat.markers || {})) {
       if (marker.singlePoint || cat.singlePoint) {
         const spDate = marker.singleDate || cat.singleDate;
-        if (spDate && cutoffStr && spDate < cutoffStr) {
+        if (spDate && ((cutoffStr && spDate < cutoffStr) || (endDate && spDate > endDate))) {
           filteredCat.markers[mKey] = { ...marker, values: [null], singleDate: null };
         } else {
           filteredCat.markers[mKey] = marker;
@@ -482,11 +482,12 @@ function filterDataByReportRange(rawData: ActiveData, range: string | undefined)
   if (!rawData || range === 'all') return rawData;
   const cutoffStr = getReportCutoffDate(range);
   if (!cutoffStr) return rawData;
+  const endDate = formatReportDateKey(new Date());
   const indices: number[] = [];
   for (let i = 0; i < (rawData.dates || []).length; i++) {
-    if (rawData.dates[i]! >= cutoffStr) indices.push(i);
+    if (rawData.dates[i]! >= cutoffStr && rawData.dates[i]! <= endDate) indices.push(i);
   }
-  return filterDataByDateIndices(rawData, indices, cutoffStr);
+  return filterDataByDateIndices(rawData, indices, cutoffStr, endDate);
 }
 
 function filterReportCategories(data: ActiveData, categoryKeys: unknown) {
@@ -512,7 +513,8 @@ function getReportNotes(options: Pick<NormalizedReportOptions, 'dateRange'>) {
   const notes = (state.importedData.notes || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const cutoffStr = getReportCutoffDate(options.dateRange);
   if (!cutoffStr) return notes;
-  return notes.filter(note => !note.date || note.date >= cutoffStr);
+  const endDate = formatReportDateKey(new Date());
+  return notes.filter(note => !note.date || (note.date >= cutoffStr && note.date <= endDate));
 }
 
 function getReportSupplements(options: Pick<NormalizedReportOptions, 'dateRange'>) {
@@ -637,7 +639,12 @@ export function buildPreparedReportPayload(options: ReportCoreOptions = {}): Pre
   const reportOptions = normalizeReportOptions(options);
   reportOptions.startDate = getReportCutoffDate(reportOptions.dateRange);
   reportOptions.endDate = formatReportDateKey(new Date());
-  const rawData = getActiveData();
+  let rawData = getActiveData();
+  const splitDays = new Set(Object.keys(rawData.labCollections || {}));
+  const entries = state.importedData.entries || [];
+  const orderedEntries = splitDays.size ? [...entries].sort((a, b) => a.date.localeCompare(b.date)
+    || String(a.context?.sampleTime ?? a.sampleTime ?? '').localeCompare(String(b.context?.sampleTime ?? b.sampleTime ?? ''))) : entries;
+  if (splitDays.size) rawData = getActiveData(orderedEntries);
   let data = filterDataByReportRange(rawData, reportOptions.dateRange);
   data = filterReportCategories(data, reportOptions.categoryKeys);
   const profiles = getProfiles();
@@ -649,7 +656,10 @@ export function buildPreparedReportPayload(options: ReportCoreOptions = {}): Pre
   const supps = getReportSupplements(reportOptions);
   const contextSections = buildReportContextSections(data).filter(section => !reportOptions.contextTitles || reportOptions.contextTitles.includes(section.title));
   const runtimeWindow = typeof window !== 'undefined' ? window as Window & { _snpTableCache?: ReportSnpCatalog } : null;
+  const sampleResults = reportOptions.sections.some(id => REPORT_LAB_SECTION_IDS.includes(id)) && splitDays.size
+    ? buildReportSampleResults(data, orderedEntries, splitDays, state.importedData, reportOptions.rangeMode, getActiveData) : undefined;
   const reportData = buildReportDataSnapshot({
+    ...(sampleResults && {sampleResults}),
     data,
     profile,
     importedData: { ...state.importedData, notes, supplements: supps },

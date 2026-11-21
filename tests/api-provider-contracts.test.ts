@@ -10,10 +10,11 @@ type ProviderTestGlobals = typeof globalThis & {
 };
 interface ProviderContract {
   name: string; key: string; options?: Record<string, unknown>;
-  setup(): void;
+  setup(): void | Promise<void>;
   assertRequest(request: ReturnType<typeof providerRequestFromFetchCall>): void;
 }
 
+import { saveCustomApiConnection } from '../js/api-provider-storage.js';
 import { largeLocalImportOptions, lmStudioInferenceFixture, lmStudioLoadFixture, lmStudioModel } from './helpers/lmstudio-fixtures.js';
 import { jsonResponse } from './helpers/http-responses.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -73,7 +74,8 @@ vi.mock('../vendor/venice-nvidia.js', () => ({
   createNrasTokenVerifier: veniceNvidiaMocks.createTokenVerifier,
 }));
 
-import { updateKeyCache } from '../js/crypto.js';
+import { encryptedSetCredentialItem, updateKeyCache } from '../js/crypto.js';
+import { configureApiProviderStorageRuntimeDeps } from '../js/api-provider-storage-runtime.js';
 import { configureAppExtension } from '../js/app-extension-runtime.js';
 import { checkOpenAICompatible, clearLocalAiDiscovery, discoverLocalAI } from '../js/local-ai-discovery.js';
 import { estimateLocalAiPromptTokens } from '../js/api-local.js';
@@ -103,8 +105,7 @@ import {
   setAIPaused,
   setAIProvider,
   setCustomApiModel,
-  setCustomApiUrl,
-  setOllamaMainModel,
+    setOllamaMainModel,
   setOpenRouterModel,
   setPpqModel,
   setPpqPrivateMode,
@@ -205,6 +206,7 @@ function configureVeniceE2EEFixture(key: string, model: string) {
 }
 
 beforeEach(() => {
+  configureApiProviderStorageRuntimeDeps({ encryptedSetItem: encryptedSetCredentialItem });
   configureAppExtension(null);
   localStorage.clear();
   sessionStorage.clear();
@@ -387,10 +389,9 @@ const providerContracts: ProviderContract[] = [
   {
     name: 'Custom remote',
     key: 'custom-contract-key',
-    setup() {
+    async setup() {
       setAIProvider('custom');
-      updateKeyCache('labcharts-custom-key', this.key);
-      setCustomApiUrl('https://custom.example/v1/');
+      await saveCustomApiConnection('https://custom.example/v1/', this.key);
       setCustomApiModel('custom-model');
     },
     assertRequest(request) {
@@ -630,7 +631,7 @@ describe('AI provider request contracts', () => {
   });
 
   it.each(providerContracts)('routes $name through its expected chat-completion contract', async (contract) => {
-    contract.setup();
+    await contract.setup();
 
     const result = await callClaudeAPI(baseChatOptions(contract.options));
     expect(result).toMatchObject({
@@ -650,7 +651,7 @@ describe('AI provider request contracts', () => {
   it.each(providerContracts.filter(contract => contract.name !== 'Local AI'))(
     'keeps FocusCard reasoning controls compatible with $name',
     async (contract) => {
-      contract.setup();
+      await contract.setup();
       let postCount = 0;
       globalThis.fetch = vi.fn(async (_url, init = {}) => {
         if (init.method !== 'POST') return jsonResponse({}, { status: 404 });

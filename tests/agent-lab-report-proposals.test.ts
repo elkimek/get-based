@@ -64,8 +64,9 @@ it('lists exact report identities without publishing private source metadata or 
 it('freezes faithful result, calculation, collection and stored-range effects before approval', async () => {
   const before = await stored(), { draft, nativeReview } = await propose(), payload = draft.payload as { baseline: string };
   const snapshot = JSON.parse(payload.baseline); expect(snapshot.plan.results).toEqual(expect.arrayContaining([
-    expect.objectContaining({ key: glucose, before: 7, after: 6 }), expect.objectContaining({ key: insulin, before: 10, after: null }), expect.objectContaining({ key: homa, before: 3.11, after: null }),
+    expect.objectContaining({ key: glucose, before: 7, after: 6 }), expect.objectContaining({ key: insulin, before: 10, after: null }),
   ]));
+  expect(snapshot.plan.results).not.toContainEqual(expect.objectContaining({ key: homa })); // A nonfasting derived HOMA is already withheld.
   expect(snapshot.plan.collection).toContainEqual({ field: 'sampleTime', before: '16:00', after: '15:30' });
   expect(snapshot.plan.ranges[0]).toMatchObject({ key: glucose, before: { referenceMin: 4.5 }, after: { referenceMin: 3.7 } });
   expect(nativeReview.plan).toEqual(snapshot.plan);

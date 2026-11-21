@@ -48,6 +48,9 @@ integrations.getbased.health {
 ```
 
 Caddy supplies and sanitizes the standard `X-Forwarded-*` headers by default.
+The Compose service accepts those headers through its loopback-published port.
+Set `COMPAT_PROXY_TRUST_PROXY=1` on a direct Node deployment only when all
+requests reach the listener through a trusted, sanitizing reverse proxy.
 Do not add an access logger that records request bodies or authorization data.
 
 ## Verification and rollback

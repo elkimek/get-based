@@ -1,6 +1,7 @@
 import type { SyncProfileRow } from './sync-payload.js';
 import type { DeltaItemRow } from './sync-delta-row-codec.js';
 import type { DevicePersistenceStatus, OwnerReplicationStatus } from './sync-state.js';
+import { registerAppErasureHook } from './app-erasure-hooks.js';
 
 interface SyncAppOwner extends Record<string, unknown> { id?: string; mnemonic?: string }
 /** Common runtime operations exposed by both supported Evolu adapters. */
@@ -159,3 +160,9 @@ export function clearSyncRuntimeState() {
   _readyPromise = null;
   _queryLoadedPromise = null;
 }
+
+registerAppErasureHook(async () => {
+  const evolu = getSyncEvolu() as { [Symbol.asyncDispose]?: () => Promise<void> } | null;
+  clearSyncRuntimeState();
+  await evolu?.[Symbol.asyncDispose]?.();
+});

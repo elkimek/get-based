@@ -249,6 +249,8 @@ function dailySupplementVitaminDIU() {
     today.latest,
   );
   let total = 0;
+  let unknownPotency = false;
+  const factors: Record<string, number> = { iu: 1, mcg: 40, mg: 40000, g: 40000000 };
   for (const supp of supps) {
     if (!isSupplementExpectedOnDate(supp, today.latest)) continue;
     for (const ing of (supp.ingredients || [])) {
@@ -256,22 +258,23 @@ function dailySupplementVitaminDIU() {
       if (!/vit(?:amin)?[\s-]*d[23]?\b|cholecalciferol|ergocalciferol/.test(name)) continue;
       if (/cream|topical|serum/.test(name)) continue;
       const total24h = ingredientDailyTotal(ing, supp);
-      if (!total24h) continue;
-      const u = (total24h.unit || '').toLowerCase();
-      let iu = total24h.value;
-      if (/mcg|µg|μg/.test(u)) iu *= 40;
-      total += iu;
+      const factor = total24h && factors[total24h.unit.toLowerCase()];
+      if (!total24h || !factor || total24h.value < 0) {
+        unknownPotency = true;
+        continue;
+      }
+      total += total24h.value * factor;
     }
   }
-  return total;
+  return { supplementIU: total, unknownPotency };
 }
 
 export function vitaminDBudgetStatus() {
-  const supplementIU = dailySupplementVitaminDIU();
+  const { supplementIU, unknownPotency } = dailySupplementVitaminDIU();
   const sunIU = cumulativeVitaminDIUToday();
   const supplementUL = 4000;
   return {
-    supplementIU,
+    supplementIU, unknownPotency,
     // This optical model's sunlight IU-equivalent is a comparison aid, not
     // ingested vitamin D. It must never be added to oral intake or tested
     // against a dietary tolerable upper intake level.

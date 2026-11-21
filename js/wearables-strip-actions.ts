@@ -7,7 +7,7 @@ import { getErrorMessage } from './caught-error.js';
 import { showNotification } from './utils.js';
 import { state } from './state.js';
 import { commitHistoryViewPreferences, writeHistoryViewPreferencesNow } from './history-view-preferences.js';
-import { weightToKilograms } from './wearables-formatters.js';
+import { sameBloodPressureObservation, weightToKilograms } from './wearables-formatters.js';
 import {isBodyMeasurementId} from './body-measurement-model.js';
 import {openBodyMeasurement} from './body-measurement-loader.js';
 import {
@@ -260,11 +260,11 @@ export async function moveWearableCard(metricId: string, delta: number) {
   const MANUAL_EMPTY_METRICS_LOCAL = ['weight', 'bp_systolic', 'rhr'];
   // Mirror the strip-render BP merge: dia folds into the sys card and never
   // gets its own reorder slot when both are present.
-  const hasSysLocal = !!summary.metrics?.bp_systolic;
+  const pairedBP = sameBloodPressureObservation(summary.metrics?.bp_systolic, summary.metrics?.bp_diastolic);
   const display: string[] = [];
   const seen = new Set<string>();
   for (const id of baseOrder) {
-    if (id === 'bp_diastolic' && hasSysLocal) continue;
+    if (id === 'bp_diastolic' && pairedBP) continue;
     if (summary.metrics?.[id]) { display.push(id); seen.add(id); }
   }
   for (const id of MANUAL_EMPTY_METRICS_LOCAL) {

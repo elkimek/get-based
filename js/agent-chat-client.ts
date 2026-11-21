@@ -96,6 +96,7 @@ export function agentHostUpgradeRequiredError(capability: string) {
 
 export async function checkAgentHost(options: AgentHostConnection) {
   const response = await fetch(endpointUrl(options.endpoint, '/v1/status'), {
+    redirect: 'error',
     signal: options.signal,
     cache: 'no-store',
     headers: { Authorization: `Bearer ${options.token}` },
@@ -113,6 +114,7 @@ export async function checkAgentHost(options: AgentHostConnection) {
 
 export async function controlAgentHost(options: AgentHostConnection & {action: 'pause' | 'resume' | 'install' | 'restart' | 'restart-companion' | 'update' | 'uninstall'}): Promise<Record<string, unknown>> {
   const response = await fetch(endpointUrl(options.endpoint, '/v1/control'), {
+    redirect: 'error',
     method: 'POST',
     signal: options.signal,
     cache: 'no-store',
@@ -137,6 +139,7 @@ export async function listAgentModels(options: AgentHostConnection & {target?: s
   if (options.refresh) query.set('refresh', 'true');
   const suffix = query.size ? `?${query}` : '';
   const response = await fetch(endpointUrl(options.endpoint, `/v1/models${suffix}`), {
+    redirect: 'error',
     signal: options.signal,
     cache: 'no-store',
     headers: { Authorization: `Bearer ${options.token}` },
@@ -151,6 +154,7 @@ export async function listAgentExecutionTargets(options: AgentHostConnection): P
   const query = new URLSearchParams();
   if (options.agent) query.set('agent', options.agent);
   const response = await fetch(endpointUrl(options.endpoint, `/v1/targets?${query}`), {
+    redirect: 'error',
     signal: options.signal,
     cache: 'no-store',
     headers: { Authorization: `Bearer ${options.token}` },
@@ -167,6 +171,7 @@ export async function listAgentExecutionTargets(options: AgentHostConnection): P
  */
 export async function uploadAgentImage(options: AgentHostConnection & {file: Blob}) {
   const response = await fetch(endpointUrl(options.endpoint, '/v1/uploads'), {
+    redirect: 'error',
     method: 'POST',
     signal: options.signal,
     cache: 'no-store',
@@ -187,6 +192,7 @@ export async function uploadAgentImage(options: AgentHostConnection & {file: Blo
 export async function streamAgentTurn(options: AgentTurnOptions) {
   const headers = { Authorization: `Bearer ${options.token}`, 'Content-Type': 'application/json' };
   const response = await fetch(endpointUrl(options.endpoint, '/v1/turns'), {
+    redirect: 'error',
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -255,6 +261,7 @@ export async function streamAgentTurn(options: AgentTurnOptions) {
       });
       recordedCall.success = result?.success === true;
       const toolResponse = await fetch(endpointUrl(options.endpoint, `/v1/responses/${encodeURIComponent(event.responseId as string)}`), {
+        redirect: 'error',
         method: 'POST', headers, body: JSON.stringify(result), signal: options.signal,
       } as RequestInit);
       if (!toolResponse.ok) throw new Error(await responseError(toolResponse));

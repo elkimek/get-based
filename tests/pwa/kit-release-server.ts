@@ -8,9 +8,16 @@ import type { AddressInfo, Socket } from 'node:net';
 
 /** Serve only the assembled public artifact, with the deployed CSP and isolated releases. */
 export type KitServerRoute = (request: IncomingMessage, response: ServerResponse) => Promise<boolean>;
-export async function startKitServer(artifact: string, routes: KitServerRoute[] = []) {
+export function startIsolatedChatKitServer(artifact: string) {
+  return startKitServer(artifact, [], { isolated: true });
+}
+
+export async function startKitServer(artifact: string, routes: KitServerRoute[] = [], { isolated = false, sameOriginOnly = false } = {}) {
   const deployment = JSON.parse(await fs.readFile('vercel.json', 'utf8')) as { routes: { headers?: Record<string, string> }[] };
-  const csp = deployment.routes.map(route => route.headers?.['Content-Security-Policy']).find(Boolean)!;
+  const deploymentCsp = deployment.routes.map(route => route.headers?.['Content-Security-Policy']).find(Boolean)!;
+  // A second policy intersects the deployed CSP without intercepting asset or worker requests.
+  const csp = sameOriginOnly ? [deploymentCsp, "connect-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; frame-src 'self'; form-action 'self'"]
+    : isolated ? deploymentCsp.replace(/connect-src[^;]*/, "connect-src 'self'") : deploymentCsp;
   const state = { buildId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', offline: false, failPath: '' };
   const sockets = new Set<Socket>();
   const types: Record<string, string> = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.html': 'text/html',

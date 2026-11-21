@@ -465,16 +465,22 @@ export function createLensKnowledgeBaseUi(deps: LensUiDeps) {
       // behind PDF/DOCX extraction instead of making the user wait twice.
       const localModulePromise = import('./lens-local.js');
       const lensPromise = localModulePromise.then((mod) => mod.openLocalLens());
-      const { extractFromFile } = await import('./lens-local-parsers.js');
+      void lensPromise.catch(() => {});
+      const { createLensExtractionScope, extractFromFile, isLensExtractionStop } = await import('./lens-local-parsers.js');
+      const extraction = createLensExtractionScope(() => lensWindow._lensIngestStopRequested === true);
       const files: LensInputFile[] = [];
       for (let i = 0; i < incoming.length; i++) {
         const f = incoming[i]!;
         updateProgressUi(`Reading ${i + 1}/${incoming.length} · ${f.name}`);
         try {
-          const extracted = await extractFromFile(f);
+          const extracted = await extractFromFile(f, extraction);
           for (const e of extracted) files.push(e);
         } catch (err) {
-          console.warn('[lens-local] extract failed:', f.name, err);
+          if (isLensExtractionStop(err)) {
+            if (!lensWindow._lensIngestStopRequested) throw err;
+          } else {
+            console.warn('[lens-local] extract failed:', f.name, err);
+          }
         }
         if (lensWindow._lensIngestStopRequested) {
           const stopped = 'Stopped before indexing — no library changes were saved.';

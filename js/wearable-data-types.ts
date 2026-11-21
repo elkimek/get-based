@@ -2,7 +2,7 @@ import type { CanonicalWearableMetricId } from './wearable-adapters.js';
 
 /** Provider rows retain absent metrics as well as explicitly missing measurements. */
 export type WearableDailyRow<Source extends string, Metric extends CanonicalWearableMetricId> =
-  { source: Source; date: string } & Record<Metric, number | null>;
+  { source: Source; date: string; bpPaired?: boolean } & Record<Metric, number | null>;
 
 /** Error payload fields remain opaque until the native Error constructor coerces them. */
 export interface WearableErrorBody {

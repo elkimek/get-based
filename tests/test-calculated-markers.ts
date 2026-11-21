@@ -652,11 +652,11 @@ const { MARKER_SCHEMA, OPTIMAL_RANGES, UNIT_CONVERSIONS } = await import('../js/
   dataModule.invalidateActiveDataCache();
   const usFt3Ft4 = dataModule.getActiveData().categories.calculatedRatios?.markers?.ft3ft4Ratio;
   assert('FT3/FT4 US value and ranges are converted consistently',
-    usFt3Ft4?.values?.[0] === 2.515
-      && usFt3Ft4.refMin === 2.196
-      && usFt3Ft4.refMax === 2.901
-      && usFt3Ft4.optimalMin === 2.398
-      && usFt3Ft4.optimalMax === 2.699,
+    usFt3Ft4?.values?.[0] === 0.3 * 8.3833
+      && usFt3Ft4.refMin === 0.262 * 8.3833
+      && usFt3Ft4.refMax === 0.346 * 8.3833
+      && usFt3Ft4.optimalMin === 0.286 * 8.3833
+      && usFt3Ft4.optimalMax === 0.322 * 8.3833,
     JSON.stringify(usFt3Ft4));
   state.unitSystem = 'EU';
   dataModule.invalidateActiveDataCache();

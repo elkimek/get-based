@@ -217,9 +217,11 @@ export function getCardFingerprint(key: string, ctx?: ContextFingerprintInput) {
 
 // Stored JSON is read through the fields this module consumes; malformed truthy fields
 // retain the original property-access and assignment behavior.
-function readHealthCache(cacheKey: string) {
+function readHealthCache(raw: string | null) {
   let cached: HealthCache | null;
-  try { cached = JSON.parse(localStorage.getItem(cacheKey) || 'null') as HealthCache | null; } catch(e) { cached = null; }
+  try {
+    cached = JSON.parse(raw || 'null') as HealthCache | null;
+  } catch { cached = null; }
   if (!cached || !cached.dots) cached = { dots: {}, fingerprints: {} } as HealthCache;
   if (!cached.summaries) cached.summaries = {};
   if (!cached.cardSummaries) cached.cardSummaries = {};
@@ -227,8 +229,16 @@ function readHealthCache(cacheKey: string) {
   return cached;
 }
 
-function writeHealthCache(cacheKey: string, cached: HealthCache) {
-  try { localStorage.setItem(cacheKey, JSON.stringify(cached)); } catch(e) {}
+async function writeHealthCache(cacheKey: string, cached: HealthCache) {
+  try {
+    const raw = JSON.stringify(cached);
+    if (localStorage.getItem('labcharts-encryption-enabled') === 'true') {
+      const { encryptedSetItem } = await import('./crypto.js');
+      await encryptedSetItem(cacheKey, raw);
+    } else {
+      localStorage.setItem(cacheKey, raw);
+    }
+  } catch { /* Derived cache writes can be skipped. */ }
 }
 
 function findStaleKeys(keys: string[], cached: HealthCache, fallbackSource = 'ai') {
@@ -402,7 +412,11 @@ function isHealthRequestCurrent(request: HealthRequest): boolean {
 async function loadContextHealthDotsOnce(request: HealthRequest) {
   const keys = CONTEXT_CARD_KEYS;
   const cacheKey = profileStorageKey(request.profileId, 'contextHealth');
-  const cached = readHealthCache(cacheKey);
+  const raw = localStorage.getItem('labcharts-encryption-enabled') === 'true'
+    ? await import('./crypto.js').then(({ encryptedGetItem }) => encryptedGetItem(cacheKey)).catch(() => null)
+    : localStorage.getItem(cacheKey);
+  const cached = readHealthCache(raw);
+  if (!healthRequestOwnerCurrent(request)) return;
   const demoMode = getDemoContextAIMode();
   const staleKeys = findStaleKeys(keys, cached, demoMode.demo ? 'demo' : 'ai');
   if (staleKeys.length === 0) return;
@@ -453,6 +467,7 @@ async function loadContextHealthDotsOnce(request: HealthRequest) {
       messages: [{ role: 'user', content: ctx }],
       maxTokens: 2048,
       consentKind: 'automatic-insight',
+      requestCurrent: () => isHealthRequestCurrent(request),
     }) as HealthDotAIResponse | string | null | undefined;
     const text = (result && typeof result === 'object')
       ? (result.text || '')
@@ -466,7 +481,7 @@ async function loadContextHealthDotsOnce(request: HealthRequest) {
     const parsed = parseHealthDotsResponse(text as string);
     if (!parsed) {
       applyGrayDots(staleKeys);
-      writeHealthCache(cacheKey, cached);
+      await writeHealthCache(cacheKey, cached);
       return;
     }
 
@@ -483,7 +498,7 @@ async function loadContextHealthDotsOnce(request: HealthRequest) {
       cached.fingerprints[k] = request.fingerprints[k];
       cached.sources[k] = 'ai';
     }
-    writeHealthCache(cacheKey, cached);
+    await writeHealthCache(cacheKey, cached);
   } catch(e) {
     if (isHealthRequestCurrent(request)) applyGrayDots(staleKeys);
   }

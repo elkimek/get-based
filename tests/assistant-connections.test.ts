@@ -96,7 +96,7 @@ it.each(['cli:hermes:local', 'cli:hermes:gateway-home'])('switches to %s without
   const snapshot = await captureAssistantConnection(connectionId), receipt = await commitAssistantConnection(snapshot.leaseId, { connectionId, model: 'cli-model', effort: 'low' });
   expect(readAssistantSelection()).toMatchObject({ backend: 'cli', provider: 'hermes', model: 'cli-model', effort: 'low' });
   expect(getCachedAgentModelCatalog('hermes', connectionId.split(':')[2])).toHaveLength(1);
-  expect(control.attempts[0]).toEqual([connectionId.endsWith(':local') ? 'codex-agent' : 'personal-agent-gateway', { kind: 'connection-selection', modelId: 'cli-model', agentId: 'hermes' }]);
+  expect(control.attempts[0]).toEqual([connectionId.endsWith(':local') ? 'codex-agent' : 'personal-agent-gateway', { kind: 'connection-selection', modelId: 'cli-model', agentId: 'hermes', targetId: connectionId.split(':')[2] }]);
   await commitAssistantConnection(receipt.leaseId, { connectionId: 'direct:custom', model: 'model-a', effort: '' }); expect(readAssistantSelection().provider).toBe('custom');
 });
 it('preserves agent-target model preferences and supports Undo between two CLI owners with the same model name', async () => {

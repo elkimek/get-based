@@ -2,6 +2,22 @@ import { isoDay } from './wearable-adapters.js';
 
 const LB_PER_KG = 2.2046226218;
 
+export function sameBloodPressureObservation(
+  systolic?: {latestDate?: unknown; primarySource?: unknown; latestBpPaired?: boolean} | null,
+  diastolic?: {latestDate?: unknown; primarySource?: unknown; latestBpPaired?: boolean} | null,
+) {
+  return systolic?.latestBpPaired === true && diastolic?.latestBpPaired === true && !!systolic.latestDate && !!systolic.primarySource
+    && systolic.latestDate === diastolic?.latestDate && systolic.primarySource === diastolic.primarySource;
+}
+
+export function hasPairedBloodPressure(row: Record<string, unknown>) {
+  if (row.source === 'manual' && row._manualSyncAt && typeof row._manualSyncAt === 'object') {
+    const clocks = row._manualSyncAt as Record<string, unknown>;
+    if (clocks.bp_systolic || clocks.bp_diastolic) return !!clocks.bp_systolic && clocks.bp_systolic === clocks.bp_diastolic;
+  }
+  return row.bpPaired === true;
+}
+
 export function weightToKilograms(value: number, unit = 'kg') {
   return /^lbs?$/i.test(unit) ? value / LB_PER_KG : value;
 }

@@ -1,3 +1,4 @@
+import {authorizeMockCompanion} from '../helpers/companion-pairing-browser.js';
 import { expect, test } from './coverage-fixture.js';
 import { AGENT_HOST_CAPABILITY_LIST, AGENT_HOST_PROTOCOL_VERSION } from '../../shared/agent-host-protocol.js';
 import { AGENT_TOOL_CONTRACT_VERSION } from '../../shared/agent-tool-contract.js';
@@ -36,6 +37,7 @@ test('a fresh OpenCode repair retains the user request and produces a real revie
     else await route.fulfill({ json: descriptor });
   });
   await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
+  await authorizeMockCompanion(page, descriptor.endpoint, token);
   const before = await page.evaluate(async () => {
     const [{ state }, profile, settings] = await Promise.all([import('/js/state.js'), import('/js/profile.js'), import('/js/agent-chat-settings.js')]);
     const id = await profile.createProfile('OpenCode repair fixture', { sex: 'male', skipInitialSync: true });
@@ -101,6 +103,7 @@ test('chat sends through the companion, executes a real marker tool, and persist
     else await route.fulfill({ json: companion });
   });
   await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
+  await authorizeMockCompanion(page, companion.endpoint, token);
   await page.evaluate(async () => {
     await (await import('/js/chat-loader.js')).loadChatModule();
     const { state } = await import('/js/state.js');
@@ -178,6 +181,7 @@ test('native model selection starts a fresh CLI session with retained transcript
     else await route.fulfill({ json: companion });
   });
   await page.goto('/app'); await page.locator('html[data-app-ready]').waitFor();
+  await authorizeMockCompanion(page, companion.endpoint, companion.token);
   await page.evaluate(async models => {
     const profiles = await import('/js/profile.js'), id = await profiles.createProfile('Synthetic CLI model session', { sex: 'female', skipInitialSync: true });
     for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(profiles.profileStorageKey(id, suffix), 'completed');

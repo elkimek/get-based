@@ -110,6 +110,12 @@ async function openSyncInitPage(page:import("@playwright/test").Page, path:strin
   });
   const separator = path.includes('?') ? '&' : '?';
   await page.goto(`${path}${separator}evolu-client=v7`, { waitUntil: 'load' });
+  // Exercise startup of an existing v7 store. First-time owner creation must
+  // finish before the runtime becomes available to query and subscribe.
+  await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    await root.getDirectoryHandle('.getbased4', { create: true });
+  });
 }
 
 test('sync init browser coverage handles disabled blocker and import failure paths', async ({ page }) => {

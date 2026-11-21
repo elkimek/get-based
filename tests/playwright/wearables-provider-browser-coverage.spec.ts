@@ -174,12 +174,12 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
               { type: 11, value: 64, unit: 0 },
               { type: 54, value: 975, unit: -1 },
               { type: 73, value: 334, unit: -1 },
-              { type: 169, value: 45, unit: 0 },
+              { type: 123, value: 45, unit: 0 },
               { type: 999, value: 1, unit: 0 },
             ],
           }] } } };
         }
-        if (action === 'getsleepsummary') {
+        if (action === 'getsummary') {
           return { body: { status: 0, body: { series: [{
             date: expectedMeasureDay,
             data: {

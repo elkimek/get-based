@@ -50,7 +50,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
         markerLabels: {},
         refOverrides: {},
       };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
       (window as unknown as {navigate?:((...args:unknown[])=>unknown)|undefined}).navigate = (route: unknown) => calls.push(['navigate', route]);
       markerModal.configureMarkerDetailModal({
         navigate: (route: unknown) => calls.push(['dep-navigate', route]),
@@ -83,7 +83,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
         && iconEl?.dataset.custom === '1'
         && calls.some(call => (call as unknown[])[0] === 'emoji-picker' && (call as unknown[])[1] === 'cm-new-cat-icon');
 
-      markerModal.saveCustomMarker();
+      await markerModal.saveCustomMarker();
       outcomes.emptyMarkerNameIsRejected = !Object.keys(state.importedData.customMarkers || {}).length
         && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast')).some(el => el.textContent.includes('Please enter a marker name'));
 
@@ -94,11 +94,12 @@ test('marker detail modal covers custom marker create delete and focus restore p
       (document.getElementById('cm-ref-max') as HTMLInputElement).value = '5';
       (document.getElementById('cm-opt-min') as HTMLInputElement).value = '0';
       (document.getElementById('cm-opt-max') as HTMLInputElement).value = '2';
-      markerModal.saveCustomMarker();
+      await markerModal.saveCustomMarker();
       await delay(180);
       data.invalidateActiveDataCache();
 
-      const createdKey = 'custom7ToxicMetals.leadBurden';
+      const [createdKey, ...otherKeys] = Object.keys(state.importedData.customMarkers);
+      if (!createdKey || otherKeys.length || !/^custom7ToxicMetals\.leadBurden_[a-zA-Z0-9_-]+$/.test(createdKey)) throw new Error('Expected one generated Lead Burden key');
       const created = state.importedData.customMarkers?.[createdKey];
       outcomes.createStoresCustomMarkerDefinition = created?.name === 'Lead Burden'
         && /^custom:[A-Za-z0-9_-]+$/.test(created?.markerId || '')
@@ -119,7 +120,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
       (state.importedData as unknown as {entries: unknown}).entries = [{
         date: '2026-06-07',
         markers: {
-          custom7ToxicMetals: { leadBurden: 4, mercuryBurden: 1 },
+          [createdKey]: 4, 'custom7ToxicMetals.mercuryBurden': 1,
         },
       }];
       (state.importedData as unknown as {markerNotes: unknown}).markerNotes = {
@@ -130,13 +131,22 @@ test('marker detail modal covers custom marker create delete and focus restore p
         [createdKey]: 'Lead renamed',
       };
       state.importedData.refOverrides[createdKey] = { refMin: 0, refMax: 4 };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
 
-      const deleteLead = markerModal.deleteCustomMarker('custom7ToxicMetals_leadBurden');
-      await Promise.resolve();
-      document.getElementById('confirm-ok')?.click();
+      const confirmRemoval = async () => {
+        for (let i = 0; i < 100; i++) {
+          const button = document.querySelector<HTMLElement>('.confirm-overlay.show #confirm-ok');
+          if (button) { button.click(); return; }
+          await delay(20);
+        }
+        throw new Error('Deletion confirmation never opened: ' + [...document.querySelectorAll('.notification-toast')].map(node => node.textContent).join(' | '));
+      };
+      const deleteLead = markerModal.deleteCustomMarker(createdKey.replace('.', '_'));
+      await confirmRemoval();
       await deleteLead;
       outcomes.deleteOneCustomMarkerLeavesSibling = !state.importedData.customMarkers?.[createdKey]
+        && !Object.hasOwn(state.importedData.entries[0]!.markers, createdKey)
+        && state.importedData.entries[0]!.markers['custom7ToxicMetals.mercuryBurden'] === 1
         && !!state.importedData.customMarkers?.['custom7ToxicMetals.mercuryBurden']
         && !state.importedData.markerNotes?.[createdKey]
         && !state.importedData.markerLabels?.[createdKey]
@@ -144,8 +154,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
         && calls.some(call => (call as unknown[])[0] === 'dep-navigate' && (call as unknown[])[1] === 'dashboard');
 
       const deleteMercury = markerModal.deleteCustomMarker('custom7ToxicMetals_mercuryBurden');
-      await Promise.resolve();
-      document.getElementById('confirm-ok')?.click();
+      await confirmRemoval();
       await deleteMercury;
       outcomes.deleteLastCustomMarkerClearsCategory = !Object.keys(state.importedData.customMarkers || {})
         .some(key => key.startsWith('custom7ToxicMetals.'));

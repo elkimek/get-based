@@ -83499,6 +83499,16 @@
                               "rising",
                               true
                             ]
+                          ],
+                          [
+                            "latestBpPaired",
+                            true,
+                            true,
+                            [
+                              "value",
+                              true,
+                              true
+                            ]
                           ]
                         ],
                         true
@@ -83619,6 +83629,16 @@
                             [
                               "value",
                               "rising",
+                              true
+                            ]
+                          ],
+                          [
+                            "latestBpPaired",
+                            true,
+                            true,
+                            [
+                              "value",
+                              true,
                               true
                             ]
                           ]
@@ -84117,6 +84137,16 @@
                               "rising",
                               true
                             ]
+                          ],
+                          [
+                            "latestBpPaired",
+                            true,
+                            true,
+                            [
+                              "value",
+                              true,
+                              true
+                            ]
                           ]
                         ],
                         true
@@ -84237,6 +84267,16 @@
                             [
                               "value",
                               "rising",
+                              true
+                            ]
+                          ],
+                          [
+                            "latestBpPaired",
+                            true,
+                            true,
+                            [
+                              "value",
+                              true,
                               true
                             ]
                           ]
@@ -124731,6 +124771,16 @@
                               "rising",
                               true
                             ]
+                          ],
+                          [
+                            "latestBpPaired",
+                            true,
+                            true,
+                            [
+                              "value",
+                              true,
+                              true
+                            ]
                           ]
                         ],
                         true
@@ -124851,6 +124901,16 @@
                             [
                               "value",
                               "rising",
+                              true
+                            ]
+                          ],
+                          [
+                            "latestBpPaired",
+                            true,
+                            true,
+                            [
+                              "value",
+                              true,
                               true
                             ]
                           ]
@@ -125105,6 +125165,16 @@
                               "rising",
                               true
                             ]
+                          ],
+                          [
+                            "latestBpPaired",
+                            true,
+                            true,
+                            [
+                              "value",
+                              true,
+                              true
+                            ]
                           ]
                         ],
                         true
@@ -125225,6 +125295,16 @@
                             [
                               "value",
                               "rising",
+                              true
+                            ]
+                          ],
+                          [
+                            "latestBpPaired",
+                            true,
+                            true,
+                            [
+                              "value",
+                              true,
                               true
                             ]
                           ]

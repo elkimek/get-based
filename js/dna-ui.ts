@@ -61,7 +61,8 @@ export function renderGeneticsSection() {
   const genetics = state.importedData.genetics as GeneticsData | null | undefined;
   const hasSnps = genetics && genetics.snps && Object.keys(genetics.snps!).length > 0;
   const hasMtdna = genetics && genetics.mtdna;
-  if (!hasSnps && !hasMtdna) {
+  const withheld = Object.keys(genetics?.unverifiedReportCalls || {});
+  if (!genetics || !hasSnps && !hasMtdna && !withheld.length) {
     return renderGeneticsSectionView({kind:'empty', actions:[
       captureGeneticsAction('import-file'), captureGeneticsAction('import-file'),
       captureGeneticsAction('import-snp-report'), captureGeneticsAction('add-manual-snp'),
@@ -130,6 +131,7 @@ export function renderGeneticsSection() {
   if (genetics.source) metaParts.push(captureGeneticsText(genetics.source));
   if (hasSnps) metaParts.push(`${snpCount} SNPs`);
   if (hasMtdna) metaParts.push(`mtDNA ${captureGeneticsText(genetics.mtdna!.haplogroup)}`);
+  if (withheld.length) metaParts.push(`Re-import the original report to verify ${withheld.length} withheld SNP result${withheld.length === 1 ? '' : 's'}`);
   if (totalFindings > 0) metaParts.push(`${totalFindings} findings`);
   const latestDate = [genetics.importDate, genetics.mtdna?.importDate].filter(Boolean).sort().pop();
   if (latestDate) metaParts.push(latestDate);

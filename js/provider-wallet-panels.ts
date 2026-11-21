@@ -523,6 +523,11 @@ const seed = createWalletSeedController({
   view: getWalletSeedView, isActive: isRoutstrActive,
   hasSeed: () => (walletRuntime as WalletOperations).cashuHasWalletSeed(),
   generate: () => (walletRuntime as WalletOperations).cashuGenerateWalletSeed(),
+  markAcknowledged: () => {
+    const mark = walletRuntime.acknowledgeWalletSeedBackup;
+    if (typeof mark !== 'function') throw new Error('Wallet backup confirmation is unavailable.');
+    return mark();
+  },
   mnemonic: () => (walletRuntime as WalletOperations).cashuGetWalletMnemonic(),
   restore: words => (walletRuntime as WalletOperations).cashuRestoreWalletFromSeed(words),
   refresh: () => { refreshWalletSeedStatus(); void _refreshRoutstrWalletBalance(); }, notify: showNotification,

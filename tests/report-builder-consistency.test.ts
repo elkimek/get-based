@@ -6,6 +6,9 @@ import * as dataModule from '../js/data.js';
 import { invalidateActiveDataCache } from '../js/data.js';
 import { getReportPreset, normalizeReportOptions, buildPreparedReportPayload } from '../js/export-report.js';
 import { openReportBuilder, closeReportBuilder } from '../js/export-report-builder.js';
+import { sameBloodPressureObservation } from '../js/wearables-formatters.js';
+import { parseAppleHealthXml } from '../js/wearables-apple-health-parser.js';
+import { computeWearableSummary } from '../js/wearables-summary-model.js';
 type BuilderOptionsFixture = Omit<ReturnType<typeof normalizeReportOptions>, 'aiSummary'> & {aiSummary?: {text: string} | null};
 type PreviewWindowFixture = {document: Document;closed: boolean;close: Mock<() => void>};
 const { generate, preview, available, openPreview } = vi.hoisted(() => ({ generate: vi.fn<(options: BuilderOptionsFixture, lifecycle: {payload: ReturnType<typeof buildPreparedReportPayload>; signal?: AbortSignal}) => Promise<unknown>>(), preview: vi.fn<(options: BuilderOptionsFixture, window: PreviewWindowFixture | null, payload: ReturnType<typeof buildPreparedReportPayload>) => unknown>(), available: vi.fn<() => boolean>(), openPreview: vi.fn<() => PreviewWindowFixture | null>() }));
@@ -28,6 +31,39 @@ beforeEach(() => {
 afterEach(() => { closeReportBuilder(); vi.restoreAllMocks(); });
 
 describe('report builder selection', () => {
+  it.each([['08:00', true], ['19:00', false]] as const)('preserves BP pairing only for values from the same collection at %s', (diastolicTime, paired) => {
+    const record = (kind: string, value: number, time: string) => `<Record type="HKQuantityTypeIdentifierBloodPressure${kind}" unit="mmHg" value="${value}" startDate="2026-11-05 ${time}:00 +0100" sourceName="Synthetic cuff"/>`;
+    const daily = parseAppleHealthXml(record('Systolic', 122, '08:00') + record('Diastolic', 76, diastolicTime));
+    const {metrics} = computeWearableSummary({apple_health: daily}, {}, {}, '2026-11-06');
+    expect(metrics.bp_systolic?.latest).toBe(122);
+    expect(metrics.bp_diastolic?.latest).toBe(76);
+    expect(sameBloodPressureObservation(metrics.bp_systolic, metrics.bp_diastolic)).toBe(paired);
+  });
+  it('keeps each draw, date window and measurement source together', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-11-20T12:00:00Z'));
+      const day='2026-11-05', key='biochemistry.glucose';
+      Object.assign(state.importedData, {
+        entries:[
+          {date:day,panelId:'evening',markers:{[key]:8.9},context:{sampleTime:'18:00',fasting:false},sourceFile:'evening.pdf'},
+          {date:day,panelId:'morning',markers:{[key]:4.3},context:{sampleTime:'08:00',fasting:true},sourceFile:'morning.pdf'},
+          {date:'2026-12-01',markers:{[key]:99}},
+        ],
+        notes:[{date:day,text:'In range'},{date:'2026-12-01',text:'Future'}],
+        wearableSummary:{metrics:{
+          bp_systolic:{latest:147,latestDate:day,primarySource:'manual',latestBpPaired:true},
+          bp_diastolic:{latest:66,latestDate:day,primarySource:'withings',latestBpPaired:true},
+        }},
+      });
+      invalidateActiveDataCache();
+      const prepared=buildPreparedReportPayload({preset:'full',dateRange:'3m'});
+      const glucose=prepared.reportData.labs!.categories.flatMap(cat=>cat.markers).find(marker=>marker.storageDotKey===key)!;
+      expect(glucose.results.map(r=>[r.value,r.collectionContext?.fasting,r.source?.file,r.panelId])).toEqual([[4.3,true,'morning.pdf','morning'],[8.9,false,'evening.pdf','evening']]);
+      expect(prepared.reportData.notes).toEqual([{date:day,text:'In range'}]);
+      expect(JSON.stringify(prepared.reportData.context)).not.toContain('147/66');
+    } finally {vi.useRealTimers();}
+  });
   it.each([true, false])('retains action text nodes through purpose input and blur changes with AI available %s', aiAvailable => {
     available.mockReturnValue(aiAvailable);
     openReportBuilder('full');

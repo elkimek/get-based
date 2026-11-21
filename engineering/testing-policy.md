@@ -128,13 +128,13 @@ reuses those full gates and adds separate real-model and container runtime check
 
 The [native Knowledge Base acceptance](../tests/pwa/sveltekit-knowledge-base.spec.ts)
 requires real Worker transport and OPFS persistence on Chromium, Firefox, desktop
-WebKit and mobile WebKit. Its WebKit cases run on macOS Cocoa because the pinned
-Linux WPE engine does not implement the required synchronous file-handle backend.
-The Cocoa cases use isolated persistent profiles because the pinned private data
-store exposes OPFS but cannot initialize its filesystem. A required native Worker
-control verifies exact write, flush and read bytes across a complete browser
-restart before the unchanged application acceptance runs; private-store behavior
-is recorded only as a diagnostic. Standard UI shards for both shipping WebKit
+WebKit and mobile WebKit. Its shipping WebKit cases run on macOS Cocoa. Local
+Linux WebKit diagnostics use isolated persistent profiles because the pinned
+private stores can expose OPFS and fail to initialize the filesystem. A native
+Worker must write, flush and recover the exact bytes across a complete browser
+restart before the application acceptance runs. The Linux WPE diagnostic also
+restarts the browser from that profile after closing the last tab, while the
+application server stays stopped. Standard UI shards for both shipping WebKit
 projects also run on Cocoa; Chromium and Firefox shipping acceptance and all native
 suites retain their Linux placement. The planner preserves the same global case
 inventory and disjoint standard/OPFS partitions; the full aggregate rejects
@@ -291,7 +291,10 @@ queued work across profile/root/epoch changes and shared daily deduplication.
 checks original geometry, six themes, two widths, foreground contrast, focus and
 coarse targets. [`sveltekit-light-review-ai.spec.ts`](../tests/pwa/sveltekit-light-review-ai.spec.ts)
 opens actual cached reviews offline and checks full canonical profile equality
-over two cold launches. These focused checks do not establish whole-app acceptance.
+over two cold launches. [`sveltekit-light-chat-editing.spec.ts`](../tests/pwa/sveltekit-light-chat-editing.spec.ts)
+verifies that a background daily verdict updates its own surface during a native
+pointer gesture and the same click opens the assessment after offline relaunch.
+These focused checks do not establish whole-app acceptance.
 [`views-router-refresh.test.ts`](../tests/views-router-refresh.test.ts) checks
 that background same-route refreshes preserve an open mobile menu while explicit
 navigation and route changes still close it. The static persistence check also
@@ -613,7 +616,7 @@ Preserve independently failing assertions for these workflows:
 | Feedback draft | Preserve literal form markup, native defaults and validation, public header/mobile entry, type routing, complete long-report fallback and clipboard-denial selection; keep drafts in the current document, clear them on profile switch and cold launch, submit before SvelteKit navigation, and preserve unrelated stored profiles through offline first use and two cold launches | [Frozen presentation contracts](../tests/feedback-presentation.test.ts), [Notice rule restoration](../tests/feedback-native-rule.test.ts), [Native submit ownership](../tests/feedback-submit-delegation.test.ts), [Public browser workflows](../tests/playwright/feedback-flow.spec.ts), [Static offline Feedback](../tests/pwa/sveltekit-feedback.spec.ts) |
 | Agent chat and proposals | Exercise the actual application and tools; keep retries bounded; retain uploads and journals; do not replay an uncertain mutation | [Agent workflow](../tests/playwright/agent-chat-workflow.spec.ts), [backend recovery](../tests/agent-chat-backend.test.ts), [draft persistence](../tests/agent-draft-persistence.test.ts) |
 | Conversation navigation | Preserve pinned/project/date grouping, sorting, rename/delete/move semantics, encrypted message search, result limits and shifted-prefix jumps; reject late profile/view/query/read/frame replies; keep keyboard menus, pointer cancellation, mobile return-to-chat, scoped theme contrast and cached cold-launch records | [Owned navigation](../tests/chat-thread-navigation.test.ts), [search ownership](../tests/chat-thread-search-owned.test.ts), [original thread workflows](../tests/playwright/chat-threads-dom.spec.ts), [themes/layout/accessibility](../tests/playwright/chat-thread-navigation-owned.spec.ts), [static PWA persistence](../tests/pwa/sveltekit-chat-navigation.spec.ts) |
-| Chat shell and composer | Keep one shared shell, hydrate without replacing focused controls or live hosts, retire replaced input owners and decrypted draft replies, preserve growing input, IME, encrypted local drafts, resize/keyboard/mobile geometry, drag cancellation at capture/blur/closure/fullscreen/rail/mobile boundaries, inert closed rails with focus return on dismissal, and reopen during generation | [Owned shell](../tests/chat-shell-owned.test.ts), [owned layout](../tests/chat-layout-owned.test.ts), [composer](../tests/playwright/chat-composer.spec.ts), [resize](../tests/playwright/chat-layout-resize.spec.ts), [live reopen](../tests/playwright/chat-reopen-streaming.spec.ts), [static composer](../tests/pwa/sveltekit-chat-shell.spec.ts), [static rail keyboard and persisted layout](../tests/pwa/sveltekit-chat-layout.spec.ts) |
+| Chat shell and composer | Keep one shared shell, hydrate without replacing focused controls or live hosts, enable editing after the conversation and its draft are ready, retire replaced input owners and decrypted draft replies, preserve growing input, IME, encrypted local drafts, resize/keyboard/mobile geometry, drag cancellation at capture/blur/closure/fullscreen/rail/mobile boundaries, inert closed rails with focus return on dismissal, and reopen during generation | [Owned shell](../tests/chat-shell-owned.test.ts), [owned layout](../tests/chat-layout-owned.test.ts), [composer](../tests/playwright/chat-composer.spec.ts), [resize](../tests/playwright/chat-layout-resize.spec.ts), [live reopen](../tests/playwright/chat-reopen-streaming.spec.ts), [static composer](../tests/pwa/sveltekit-chat-shell.spec.ts), [static rail keyboard and persisted layout](../tests/pwa/sveltekit-chat-layout.spec.ts) |
 | Chat profile onboarding | Preserve basic/optional fields, units, same-day weight replacement, latitude and connected/disconnected/paused continuation; capture accepted fields before writes, retain per-module callback isolation, serialize profile saves and reject retired profile/thread/history/data/root controls; retain draft/focus/disclosure and recover failed saves; verify themes, keyboard, touch targets, no narrow overflow and static offline first use/cold launch with IndexedDB-backed export | [Save ownership](../tests/chat-profile-onboarding-controller.test.ts), [existing helpers](../tests/playwright/chat-onboarding-browser-coverage.spec.ts), [headless form](../tests/playwright/chat-onboarding-profile-owned.spec.ts), [original funnels](../tests/playwright/chat-empty-state.spec.ts), [static offline profile](../tests/pwa/sveltekit-chat-onboarding-profile.spec.ts) |
 | Light page presentation | Preserve session/action availability, live target IDs, rolling-week counts, UV notices, separate vitamin D quantities, methods/source disclosure, literal fields and delegate contracts; check themes, narrow widths, keyboard, touch targets, offline actual-route session commits, cold launches, unrelated profile equality and backup | [Presentation contracts](../tests/light-page-presentation.test.ts), [Delayed Chat cancellation](../tests/dashboard-onboarding-route.test.ts), [Existing browser contracts](../tests/playwright/light-page-view.spec.ts), [Authored acceptance](../tests/playwright/light-page-owned.spec.ts), [Static offline route](../tests/pwa/sveltekit-light-page.spec.ts) |
 | Light current conditions | Preserve full/compact provider classifications, UV consistency warnings, ozone distinction, attribution, source/freshness and chronological sun events; retain coordinate-keyed fetch/cache bypass and raw inspection; check escaped payloads, six themes, narrow/wide layouts, AA foregrounds, named keyboard scroll regions, tooltip focus, coarse targets and reduced motion; verify real static offline first use, refresh/inspection, two cold launches and complete stored-profile equality | [Projection and escaped markup](../tests/light-conditions-presentation.test.ts), [Existing provider/cache contracts](../tests/playwright/light-conditions-now-browser-coverage.spec.ts), [Authored keyboard/themes](../tests/playwright/light-conditions-owned.spec.ts), [Static offline conditions](../tests/pwa/sveltekit-light-conditions.spec.ts) |
@@ -941,10 +944,13 @@ shipping SvelteKit acceptance, and isolated performance measurement. Every
 consumer restores the producer's exact catalog before its one dependency-install
 compilation, then verifies the complete artifact inventory and current authored
 source fingerprint. Lifecycle suites remain serial within each runner; independent
-Chromium tests use a bounded CPU-aware worker count. Four native Chromium shards
-feed the unchanged combined-coverage collector. Four SvelteKit projects use up to
-two file shards each, with complete selected-case identity and finite capability
-skip checks at the final gate. Partial coverage inputs or missing selected jobs
+Chromium tests use a bounded CPU-aware worker count. Broad scoped runs can use
+up to eight native Chromium shards to fit the existing job limit. Eight full
+native Chromium shards feed the combined-coverage collector. Full shipping runs
+use four Firefox file shards and two Chromium file shards. Desktop and mobile WebKit each use two
+standard shards and a dedicated Worker/OPFS shard. The final gate verifies the
+complete set of selected case identities and permitted capability skips.
+Partial coverage inputs or missing selected jobs
 fail the gate. PR runs cancel superseded scoped runs; full release evidence stays
 separate. The required merge-check context remains `test`. Immutable Kit receipt artifacts keep each GitHub run attempt
 in a separate directory. A failed-job rerun may reuse successful receipts from the

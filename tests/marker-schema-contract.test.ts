@@ -95,9 +95,9 @@ describe('marker schema compatibility contract', () => {
       .digest('hex');
 
     expect(Object.keys(facadeMarkerSchema)).toEqual(EXPECTED_CATEGORIES);
-    expect(dotKeys).toHaveLength(210);
+    expect(dotKeys).toHaveLength(211);
     expect(new Set(dotKeys).size).toBe(dotKeys.length);
-    expect(checksum).toBe('6333248b431d35381c1a0af9c7349ed3a0dbdee063c449459c6ac09e5722579a');
+    expect(checksum).toBe('f7abd4105928f82d7fafc5a1ff991cde9b843ca4d0ba94e939efa6b5401fac81');
   });
 
   it('accounts for reference-range coverage across every built-in marker', () => {

@@ -90,7 +90,7 @@ it('requires confirmed complete erasure before clearing the session or reloading
 it('preserves change validation, current-key failures, success arguments and secret cleanup',async()=>{
   await changePassphrase();click('passphrase-change-btn');expect(error('passphrase-change-error')).toBe('Enter current passphrase');
   fill('passphrase-old-input','OldStrong1!');fill('passphrase-new1-input',phrase);fill('passphrase-new2-input','Mismatch1!');click('passphrase-change-btn');expect(error('passphrase-change-error')).toBe('New passphrases do not match');
-  ports.change.mockRejectedValueOnce(new Error('Wrong original key'));fill('passphrase-new2-input',phrase);click('passphrase-change-btn');
+  ports.change.mockRejectedValueOnce(new DOMException('Wrong original key', 'OperationError'));fill('passphrase-new2-input',phrase);click('passphrase-change-btn');
   await vi.waitFor(()=>expect(error('passphrase-change-error')).toBe('Current passphrase is incorrect'));
   click('passphrase-change-btn');await vi.waitFor(()=>expect(document.getElementById('passphrase-overlay')!.style.display).toBe('none'));
   expect(ports.change).toHaveBeenLastCalledWith('OldStrong1!',phrase);expect(document.querySelector('.passphrase-input')).toBeNull();

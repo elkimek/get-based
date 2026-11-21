@@ -176,6 +176,7 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
     if (requestCurrent && !requestCurrent()) throw new Error('The AI request recipient or owner changed.');
     const requestInit = {
       method: 'POST',
+      redirect: 'error',
       headers: {
         'Content-Type': 'application/json',
         ...(key ? { 'Authorization': `Bearer ${key}` } : {}),

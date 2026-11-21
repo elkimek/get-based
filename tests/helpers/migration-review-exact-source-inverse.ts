@@ -1,3 +1,4 @@
+import sampleAuthority from '../fixtures/marker-detail-sample-authority-inverse.json' with { type: 'json' };
 import sampleButtonEdits from '../fixtures/marker-history-no-sample-button-inverse.json' with { type: 'json' };
 import labCalculationEdits from '../fixtures/marker-detail-lab-calculations-inverse.json' with { type: 'json' };
 import customMarkerEdits from '../fixtures/custom-marker-lifecycle-controller-inverse.json' with { type: 'json' };
@@ -471,6 +472,14 @@ const records = [
 ] as const;
 const sha = (source: string) => createHash('sha256').update(source).digest('hex');
 export function restoreReviewedMigrationSource(file: string, source: string): string {
+  if (file === sampleAuthority.file) {
+    assert.equal(sha(source), sampleAuthority.currentSHA256, 'Exact source with reviewed sample authority checks');
+    for (const edit of [...sampleAuthority.edits].reverse()) {
+      assert.equal(source.slice(edit.start, edit.start + edit.before.length), edit.before, 'Exact sample authority control');
+      source = source.slice(0, edit.start) + edit.after + source.slice(edit.start + edit.before.length);
+    }
+    assert.equal(sha(source), sampleAuthority.restoredSHA256, 'Complete earlier manual editing controller');
+  }
   // Qualify the clock and TyG presentation changes before checking the earlier controller.
   if (file === labCalculationEdits.file) {
     assert.equal(sha(source), labCalculationEdits.currentSHA256, 'Complete marker controller with lab calculation fixes: ' + file);

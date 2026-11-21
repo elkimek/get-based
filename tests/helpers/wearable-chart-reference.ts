@@ -1,3 +1,4 @@
+import {calendarView} from './wearable-manual-sync-expectations.js';
 import {nativeTabKey} from './native-tab-key.js';
 import assert from 'node:assert/strict';
 import {deepStrictEqual} from 'node:assert';
@@ -80,6 +81,41 @@ export function assertWearableReferenceInventory(frames:readonly WearableChartFr
  assert.deepEqual(frames.map(frame=>frame.key),wearableReferenceKeys,'Unique chronological 8+5+5 chart states');
  let total=0;for(const frame of frames){assertWearableChartFrame(frame,frame);total+=frame.rgba.length;assert(total<=64*1024*1024,'Unchanged 64MiB native journey cap');}
 }
+// The historical capture fixes the browser clock at animation start. Every
+// point has the same y coordinate; its pixels and renderer geometry remain
+// an exact historical gate. Change only the summary-derived configuration
+// and displayed values in the independent original, then restore them.
+async function applyWindowPresentation(page:Page, binding:Artifact['state'], expected:Omit<ReturnType<typeof calendarView>,'baselines'> & {baselines:number[]}) {
+ return await page.evaluate(async ({binding,expected})=>{
+  const ns=await import(binding.chunk) as Record<string,unknown>;
+  type NativeChart={data:{datasets:{_kind?:string;data:{x:string;y:number}[]}[]};
+   getDatasetMeta:(index:number)=>{data:{y:number}[]}};
+  const chart=(ns[binding.exportName] as {chartInstances:{modal:NativeChart}}).chartInstances.modal;
+  const nativeYs=new Set(chart.data.datasets.flatMap((_,index)=>chart.getDatasetMeta(index).data.map(point=>point.y)));
+  if(nativeYs.size!==1)throw Error('Expected the authenticated initial animation frame');
+  const lines=chart.data.datasets.filter(ds=>ds._kind==='baseline');
+  if(lines.length!==expected.baselines.length)throw Error('Unexpected number of native baselines');
+  const previous=lines.map((ds,i)=>{
+   if(ds.data.length!==2 || ds.data[0]!.y!==ds.data[1]!.y)throw Error('Expected native two-endpoint baseline');
+   const old=ds.data[0]!.y;
+   for(const point of ds.data)point.y=expected.baselines[i]!;
+   return old;
+  });
+  const modal=document.getElementById('detail-modal')!, heading=modal.querySelector('.modal-unit')!;
+  const oldHeading=heading.textContent!.trim();
+  if(!/^Manual · [↑↓→] \d+% vs baseline · [a-z ]+ 30d$/.test(oldHeading))throw Error('Unexpected native unit/trend heading');
+  const headingNode=heading.firstChild!;
+  headingNode.textContent=headingNode.textContent!.replace(oldHeading,expected.heading);
+  const oldStats={...expected.stats};
+  for(const [label,text] of Object.entries(expected.stats)) {
+   const observed=[...modal.querySelectorAll('.wearable-detail-stat')].filter(el=>el.querySelector('.wearable-detail-stat-label')?.textContent===label);
+   if(observed.length!==1)throw Error('Expected one native stat: '+label);
+   const node=observed[0]!.querySelector('.wearable-detail-stat-val')!;
+   oldStats[label as keyof typeof oldStats]=node.textContent!;node.textContent=text;
+  }
+  return {heading:oldHeading,stats:oldStats,baselines:previous};
+ },{binding,expected});
+}
 async function rawFrame(page:Page,key:string,chart:ChartReceipt,binding:Artifact['state'],observer:typeof OriginalObserver.wearableActualChartReceipt):Promise<WearableChartFrame> {
  const frame=await page.evaluate(()=>{
   const canvas=document.querySelector<HTMLCanvasElement>('#chart-modal'),context=canvas?.getContext('2d');
@@ -119,6 +155,7 @@ async function otherStorage(page:Page){return page.evaluate(()=>Object.fromEntri
 export async function captureWearableChartReference(browser:Browser,candidatePage:Page,info:TestInfo,historyInput:unknown,warmInput:unknown) {
  const history=historyInput as ReferenceHistory,warm=warmInput as WarmHistory;
  assert(history&&warm);assert.deepEqual(Object.keys(history.rawStates),wearableReferenceKeys);
+ const correctedStates:Record<string,Pick<NativeState,'raw'|'body'|'chart'>>={};
  const frames:WearableChartFrame[]=[],historicalPaintMismatches:Array<{key:string;expected:ChartReceipt['paint'];actual:ChartReceipt['paint']}>=[];
  const historicalDatasetCoordinateMismatches:Array<{key:string;expected:ChartReceipt['datasetMetadata'];actual:ChartReceipt['datasetMetadata']}>=[];
  const expectedEventChronology=wearableExpectedEventChronology(history.oracle.eventChronology,process.platform,browser.browserType().name());
@@ -171,7 +208,16 @@ export async function captureWearableChartReference(browser:Browser,candidatePag
    const {chart,...nonChart}=receipt,{chart:oldChart,...oldNonChart}=expected;assert.deepEqual(nonChart,oldNonChart,'Exact complete historical original non-chart receipt');
    const {paint,...metadata}=chart,{paint:oldPaint,...oldMetadata}=oldChart;assert.deepEqual({...metadata,datasetMetadata:historicalWearableDatasetMetadata(chart.datasetMetadata)},{...oldMetadata,datasetMetadata:historicalWearableDatasetMetadata(oldChart.datasetMetadata)},'Exact historical original nonpaint Chart except same-browser point coordinates');
    assert.deepEqual(chart.rawNativeConfiguration,history.oracle.chartStates[receipt.profileState+'/'+receipt.name]);assert.deepEqual({cases:chart.nativeCallbackCases,outputs:chart.nativeCallbackOutputs},history.chartCallbacks[receipt.profileState+'/'+receipt.name]);
-   const frame=await rawFrame(target,key,chart,actualArtifact.state,wearableActualChartReceipt);totalBytes+=frame.rgba.length;assert(totalBytes<=64*1024*1024,'Unchanged 64MiB native journey cap');frames.push(frame);
+   const frame=await rawFrame(target,key,chart,actualArtifact.state,wearableActualChartReceipt);totalBytes+=frame.rgba.length;assert(totalBytes<=64*1024*1024,'Unchanged 64MiB native journey cap');const restore=await applyWindowPresentation(target,actualArtifact.state,calendarView(receipt.profileState,receipt.name));
+   try {
+    const correctedChart=await target.evaluate(wearableActualChartReceipt,actualArtifact.state);
+    const modal=target.locator('#detail-modal');
+    correctedStates[key]={chart:correctedChart,body:await modal.evaluate(wearableDetailBodyReceipt),raw:await modal.evaluate(el=>el.innerHTML)};
+    frames.push(await rawFrame(target,key,correctedChart,actualArtifact.state,wearableActualChartReceipt));
+   } finally { await applyWindowPresentation(target,actualArtifact.state,restore); }
+   const restored=await target.evaluate(wearableActualChartReceipt,actualArtifact.state);
+   assert.deepEqual(restored,chart,'Complete same-browser historic chart restored');
+   assert.equal(await target.locator('#detail-modal').evaluate(el=>el.innerHTML),receipt.raw,'Complete historic modal restored');
    if(!isDeepStrictEqual(paint,oldPaint))historicalPaintMismatches.push({key,expected:oldPaint,actual:paint});
    if(!isDeepStrictEqual(chart.datasetMetadata,oldChart.datasetMetadata))historicalDatasetCoordinateMismatches.push({key,expected:oldChart.datasetMetadata,actual:chart.datasetMetadata});
   };
@@ -210,7 +256,7 @@ const oracle:NativeOracle={profileStates:{},detailBodies:{},dailyStates:{},chart
  let consumed=0,candidateBytes=0;
  const comparedStates:Array<{key:string;width:number;height:number;bytes:number;sha256:string;rawBytesEqual:true;completePaintEqual:true;datasetMetadataEqual:true}>=[];
  return {
-  frames,historicalPaintMismatches,eventChronology:structuredClone(originalEventChronology),expectedEventChronology:structuredClone(expectedEventChronology),
+  frames,correctedStates,historicalPaintMismatches,eventChronology:structuredClone(originalEventChronology),expectedEventChronology:structuredClone(expectedEventChronology),
   async compare(page:Page,key:string,chart:ChartReceipt,binding:Artifact['state'],observer:typeof OriginalObserver.wearableActualChartReceipt) {
    assert.equal(key,wearableReferenceKeys[consumed],'Every candidate state once in chronological order');const expected=frames[consumed];assert(expected);
    const actual=await rawFrame(page,key,chart,binding,observer);candidateBytes+=actual.rgba.length;assert(candidateBytes<=64*1024*1024,'Unchanged 64MiB candidate journey cap');assertWearableChartFrame(expected,actual);comparedStates.push({key,width:actual.width,height:actual.height,bytes:actual.rgba.length,sha256:actual.paint.sha256,rawBytesEqual:true,completePaintEqual:true,datasetMetadataEqual:true});consumed++;return expected.paint;

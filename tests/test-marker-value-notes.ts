@@ -143,7 +143,7 @@ const state = (await import('../js/state.js')).state;
   console.log('%c 6. Orphan cleanup ', 'font-weight:bold;color:#f59e0b');
 
   assert('deleteMarkerValue drops the per-value note for the same (date, marker)',
-    markerDetailEditingSrc.includes('await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });') && markerDetailStoreSrc.includes("return commitMarkerValue({ ...options, dotKey, date, kind: 'remove' });") && mutationSrc.includes("if (kind === 'remove')") && mutationSrc.includes('return deleteLabEntryMarkerFromImportedData(data, entry, dotKey, { now });') && /function deleteLabEntryMarkerMetadata\(importedData, dotKey, date\)[\s\S]{0,500}importedData\.markerValueNotes\[key\] = null/.test(labEntryMutationsSrc));
+    markerDetailEditingSrc.includes('await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) }, review.current);') && markerDetailStoreSrc.includes("return commitMarkerValue({ ...options, dotKey, date, kind: 'remove' }, authorized);") && mutationSrc.includes("if (kind === 'remove')") && mutationSrc.includes('return deleteLabEntryMarkerFromImportedData(data, entry, dotKey, { now });') && /function deleteLabEntryMarkerMetadata\(importedData, dotKey, date\)[\s\S]{0,500}importedData\.markerValueNotes\[key\] = null/.test(labEntryMutationsSrc));
   assert('deleteMarkerValue uses one canonical metadata key',
     mutationSrc.includes('return deleteLabEntryMarkerFromImportedData(data, entry, dotKey, { now });') && !/insulinMirrorMapKey/.test(markerDetailStoreSrc) && /function deleteLabEntryMarkerMetadata\(importedData, dotKey, date\)[\s\S]{0,250}importedData\.manualValues\[key\] = null/.test(labEntryMutationsSrc));
 
@@ -165,7 +165,7 @@ const state = (await import('../js/state.js')).state;
     /saveManualEntry[\s\S]{0,6200}saveManualMarkerValue\(\{[\s\S]{0,250}dotKey,[\s\S]{0,250}noteText,[\s\S]{0,250}collectionContext:/.test(markerDetailEditingSrc)
       && /writeMarkerValueNote[\s\S]{0,500}mapKey\(dotKey, date\)/.test(markerDetailStoreSrc));
   assert('deleteMarkerValue uses the canonical marker store boundary',
-    markerDetailEditingSrc.includes('await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });') && markerDetailStoreSrc.includes('return await commitLabMarkerCommand(state.currentProfile, state.importedData, command);') && mutationSrc.includes('return deleteLabEntryMarkerFromImportedData(data, entry, dotKey, { now });'));
+    markerDetailEditingSrc.includes('await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) }, review.current);') && markerDetailStoreSrc.includes('return await commitLabMarkerCommand(state.currentProfile, state.importedData, command, authorized);') && mutationSrc.includes('return deleteLabEntryMarkerFromImportedData(data, entry, dotKey, { now });'));
   assert('editValueNote writes one canonical note',
     /editValueNote[\s\S]{0,1500}saveMarkerValueNote\(dotKey, date, capped\)/.test(markerDetailEditingSrc)
       && /saveMarkerValueNote[\s\S]{0,500}writeMarkerValueNote\(dotKey, date, noteText\)/.test(markerDetailStoreSrc)

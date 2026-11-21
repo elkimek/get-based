@@ -23,6 +23,19 @@ beforeEach(async () => {
   expect(await saveImportedData()).toBe(true);
 });
 afterEach(async () => {vi.restoreAllMocks(); await deleteWearablesDB(profile); localStorage.clear();});
+it('recovers only proven, untouched legacy cuff observations after a previous migration', async () => {
+  const {migrateBiometricsToManual}=await import('../js/wearables-manual.js');
+  const days=['2026-09-10','2026-09-11','2026-09-12','2026-09-13'] as const;
+  for(const day of days)await upsertDaily(profile,{source:'manual',date:day,bp_systolic:120,bp_diastolic:80,
+    ...(day===days[2]?{_manualSyncAt:{bp_diastolic:10}}:{})});
+  await manualStore.setMeta(profile,'biometrics-migrated-v1',{at:123});
+  const biometrics={bp:[...days.map(day=>({date:day,systolic:day===days[3]?119:120,diastolic:80})),
+    {date:days[1],systolic:120,diastolic:80}]};
+  await migrateBiometricsToManual(profile,biometrics);
+  expect((await getDaily(profile,'manual',days[0]))?.bpPaired).toBe(true);
+  for(const day of days.slice(1))expect((await getDaily(profile,'manual',day))?.bpPaired).toBeUndefined();
+  expect(await getMeta(profile,'biometrics-migrated-v1')).toEqual({at:123,bpPairEvidence:1});
+});
 it('syncs distinct same-day weight, BP and pulse fields with manual context through the actual row codec', async () => {
   await logManualMetric(profile, 'weight', {date, value: 80, tags: ['resting'], note: 'Synthetic note'});
   await logManualBP(profile, {date, systolic: 120, diastolic: 80, pulse: 60});
@@ -241,6 +254,25 @@ it('imports the actual manual-only share payload without a nutrition archive', a
   } finally { if (restored !== profile) await deleteWearablesDB(restored); }
 });
 
+it('projects only portable manual fields in shares and discards unknown fields from incoming shares', async () => {
+  const mixed = {
+    [key('weight')]: {value:80,updatedAt:123,futureMetadata:'Synthetic local annotation'},
+    [key('vendorRaw')]: {value:42,updatedAt:123},
+    'weight.2026-02-30': {value:80,updatedAt:123},
+  };
+  state.importedData.manualBodyReadings=mixed;await saveImportedData();
+  const exported=await buildClientExportObject(profile,false,false);
+  const expected={[key('weight')]:{value:80,updatedAt:123}};
+  expect(exported.manualBodyReadings).toEqual(expected);
+  const {importDataJSON}=await import('../js/export-import.js');
+  await importDataJSON(new File([JSON.stringify({...exported,manualBodyReadings:mixed})],'mixed-manual.json'));
+  const restored=state.currentProfile;
+  try {
+    expect(restored).not.toBe(profile);
+    expect(JSON.parse((await encryptedGetItem(`labcharts-${restored}-imported`))!).manualBodyReadings).toEqual(expected);
+    expect(await getDaily(restored,'manual',date)).toMatchObject({weight:80});
+  }finally{if(restored!==profile)await deleteWearablesDB(restored);}
+});
 it('materializes post-save restored manual history even after the initial profile refresh finished empty', async () => {
   await logManualMetric(profile, 'weight', {date, value: 80});
   const exported = await buildClientExportObject(profile, false, false);

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from 'vitest';
+import * as profileModule from '../js/profile.js';
+import { completeOnboardingProfile } from '../js/onboarding-view.js';
 import { createDefaultProfileData } from '../js/profile.js';
 import { state } from '../js/state.js';
 import { createNavigate } from '../js/views-router.js';
@@ -88,4 +90,27 @@ it.each(['profile', 'data'] as const)('does not let a retired %s Dashboard timer
     configureDashboardPageRuntimeDeps(previousRuntime); Object.assign(state, previous);
     document.body.replaceChildren(); document.body.className = ''; localStorage.clear(); vi.unstubAllGlobals(); vi.useRealTimers();
   }
+});
+
+
+it('saves both onboarding fields to one reviewed profile and withholds completion after a switch', async () => {
+  const previous = {currentProfile:state.currentProfile, importedData:state.importedData, profileSex:state.profileSex, profileDob:state.profileDob};
+  const profile = {...profileModule.getProfiles()[0]!, id:'synthetic-owner', name:'Synthetic owner'};
+  vi.spyOn(profileModule, 'getProfiles').mockReturnValue([profile]);
+  const publish = vi.spyOn(profileModule, 'updateProfileMeta').mockImplementation(async (id, changes, options) => {
+    expect(id).toBe(profile.id);
+    expect(changes).toEqual({sex:'female',dob:'1985-02-10'});
+    expect(options?.expected).toBe(profile);
+    expect(options?.canCommit?.()).toBe(true);
+    state.currentProfile='synthetic-replacement';
+    expect(options?.canCommit?.()).toBe(false);
+    return true;
+  });
+  try {
+    state.currentProfile=profile.id;state.profileSex=null;state.profileDob=null;
+    document.body.innerHTML='<button class="onboarding-sex-btn active">Female</button><input id="onboarding-dob" value="1985-02-10">';
+    await completeOnboardingProfile();
+    expect(publish).toHaveBeenCalledOnce();expect(state.profileSex).toBeNull();expect(state.profileDob).toBeNull();
+    expect(localStorage.getItem(profileModule.profileStorageKey('synthetic-replacement','onboarded'))).toBeNull();
+  } finally {Object.assign(state,previous);vi.restoreAllMocks();document.body.innerHTML='';}
 });

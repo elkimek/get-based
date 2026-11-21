@@ -3,14 +3,14 @@ import { configureRuntimeFunctions } from './runtime-callbacks.js';
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { showNotification, showConfirmDialog } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
-import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
+import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 import { LENS_CONFIG_STORAGE_KEY, replaceLensConfigRaw } from './lens-config-store.js';
 import { collectRawChatBackup, collectRawPersonaBackup } from './backup-chat-storage.js';
 import { personaJournalFence, recoverAllPersonaStorage } from './persona-storage-transaction.js';
 import { prepareRestoredProfilesForSync } from './sync-backup-restore-state.js';
-import { getDailyRangeRaw, upsertDailyBatchRaw } from './wearables-store.js';
-import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
+import { getDailyRangeRaw, replaceWearableBackupRows } from './wearables-store.js';
+import { BACKUP_WEARABLE_SOURCES, GLOBAL_SETTINGS_KEYS, PER_PROFILE_PREF_SUFFIXES, prepareBackupRestore, isEncryptedValue } from './backup-restore-plan.js';
 import { getFolderBackupSnapshot } from './settings-protection-view.js';
 import { refreshFolderBackupPresentation } from './backup-folder-presentation.js';
 export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
@@ -37,7 +37,7 @@ interface BackupWindow { showDirectoryPicker?: (options?: PermissionOptions) => 
 interface ClosestActionTarget { closest?: (selector: string) => Element | null }
 type BackupActionRoot = Node & { [BACKUP_ACTION_DELEGATE_KEY]?: unknown };
 interface ProfileListEntry { id: string; name?: unknown }
-interface BackupProfile extends RawChatBackup { name: unknown }
+interface BackupProfile extends RawChatBackup { name?: unknown }
 type WearableBackup = Record<string, Record<string, StoredWearableRow[]>>;
 type BackupRestoreView = Record<string, unknown>;
 export interface BackupSnapshot extends BackupRestoreView {
@@ -83,7 +83,6 @@ export function configureBackupRuntimeDeps(deps: Partial<BackupRuntimeDeps> = {}
   return configureRuntimeFunctions(runtimeDeps, deps, ["encryptedGetItem","encryptedSetItem","getEncryptionEnabled","isCredentialKey","importClientBundle"]);
 }
 const getEncryptionEnabled = () => Boolean(getBackupRuntimeDeps().getEncryptionEnabled());
-const isEncryptedValue = (v: unknown) => typeof v === 'string' && v.startsWith('v1:');
 const backupActionDelegateRoots = new WeakSet();
 const BACKUP_ACTION_DELEGATE_KEY = Symbol.for('getbased.backupActionDelegatesInstalled');
 const BACKUP_ACTION_ATTR = 'data-backup-action';
@@ -144,28 +143,6 @@ async function writeRawStoredItem(key: string, value: unknown) {
 // ═══════════════════════════════════════════════
 // BACKUP / RESTORE
 // ═══════════════════════════════════════════════
-const GLOBAL_SETTINGS_KEYS = [
-  'labcharts-api-key', 'labcharts-lens-key',
-  'labcharts-venice-key', 'labcharts-openrouter-key', 'labcharts-routstr-key', 'labcharts-routstr-sessions', 'labcharts-ppq-key',
-  'labcharts-custom-key', 'labcharts-custom-url', 'labcharts-custom-model', 'labcharts-custom-models',
-  'labcharts-ai-provider',
-  'labcharts-ppq-credit-id',
-  'labcharts-venice-model', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model',
-  'labcharts-ollama', 'labcharts-ollama-model',
-  'labcharts-ollama-pii-url', 'labcharts-ollama-pii-key', 'labcharts-ollama-pii-model',
-  'labcharts-nutrition-ai-route',
-  ...VOICE_BACKUP_KEYS,
-  'labcharts-routstr-node',
-  'labcharts-time-format', 'labcharts-theme', 'labcharts-sunset-mode', 'labcharts-crt-effects', 'labcharts-debug',
-  'labcharts-pii-review', 'labcharts-ollama-pii-enabled', 'labcharts-chat-sources',
-  'labcharts-active-profile'
-];
-
-const PER_PROFILE_PREF_SUFFIXES = [
-  'units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay',
-  'correlation-workspace', 'chatPersonality', 'chatPersonalityCustom', 'chatPersonalityDeleted', 'chatRailOpen'
-];
-
 function collectLocalProfileKeys(p: Pick<ProfileListEntry, 'id'>) {
   if (localStorage.getItem(personaJournalFence(p.id)) !== null) throw new Error('Finish persona storage recovery before creating a backup.');
   const keys: Record<string, string> = {};
@@ -202,17 +179,6 @@ function restoreBackupEncryptionSettings(backup: BackupRestoreView) {
   }
 }
 
-async function restoreBackupSettings(backup: BackupRestoreView) {
-  if (!backup.settings || typeof backup.settings !== 'object') return;
-  const deps = getBackupRuntimeDeps();
-  for (const [key, value] of Object.entries(backup.settings)) {
-    // Re-wrap credentials from legacy unencrypted backups before local storage.
-    if (key === LENS_CONFIG_STORAGE_KEY) await replaceLensConfigRaw(String(value));
-    else if (!backup.encrypted && deps.isCredentialKey(key)) await deps.encryptedSetItem(key, String(value));
-    else localStorage.setItem(key, String(value));
-  }
-}
-
 // Wearable L1 IndexedDB lives outside localStorage (per-profile DB
 // `labcharts-wearables-${profileId}`) — read raw daily rows for every
 // connected source so backups can round-trip the full 90 days of HRV/sleep/
@@ -227,10 +193,9 @@ async function collectWearableIDB(profileIds: Iterable<string>) {
     // WHOOP and Google Health raw rows use an always-on device key.
     // These keys are non-exportable, so omit those rows rather than creating
     // undecryptable or downgraded backups; reconnecting can fetch them again.
-    const KNOWN_SOURCES = ['oura', 'fitbit', 'withings', 'ultrahuman', 'polar', 'apple_health', 'manual'];
     const perProfile: Record<string, StoredWearableRow[]> = {};
-    for (const src of KNOWN_SOURCES) {
-      const srcRows = await getDailyRangeRaw(pid, src, '2000-01-01', '2099-12-31');
+    for (const src of BACKUP_WEARABLE_SOURCES) {
+      const srcRows = await getDailyRangeRaw(pid, src, '', '\uffff');
       if (Array.isArray(srcRows) && srcRows.length > 0) perProfile[src] = srcRows;
     }
     if (Object.keys(perProfile).length > 0) out[pid] = perProfile;
@@ -238,41 +203,93 @@ async function collectWearableIDB(profileIds: Iterable<string>) {
   return out;
 }
 
-async function restoreWearableIDB(payload: unknown) {
-  if (!payload || typeof payload !== 'object') return;
-  let failures = 0;
-  for (const [pid, sources] of Object.entries(payload)) {
-    for (const [, rows] of Object.entries(sources as Record<string, unknown>)) {
-      if (!Array.isArray(rows) || rows.length === 0) continue;
-      // RAW write — preserve wrappers from an encrypted backup. If the
-      // destination has encryption disabled, the wrappers stay unreadable
-      // until the user enables encryption with the matching passphrase, OR
-      // they get rewritten in plaintext on next mutation (write-on-touch
-      // via the normal upsertDaily path). NOT decrypting at restore time
-      // keeps the encryption guarantee end-to-end.
-      try { await upsertDailyBatchRaw(pid, rows); } catch { failures += 1; }
-    }
-  }
-  if (failures) throw new Error(`${failures} wearable source(s) could not be restored.`);
+type SideStoreSnapshot = Pick<BackupSnapshot, 'wearableIDB' | 'cycleIDB' | 'cycleImportMeta'>;
+
+async function restoreBackupSideStores(backup: SideStoreSnapshot, profileIds: string[]) {
+  const { replaceCycleBackup } = await loadBackupCycleModule();
+  const operations = profileIds.flatMap(id => {
+    const writes: Promise<void>[] = [];
+    if (backup.wearableIDB) writes.push(replaceWearableBackupRows(id, BACKUP_WEARABLE_SOURCES, Object.values(backup.wearableIDB[id] || {}).flat()));
+    if (backup.cycleIDB || backup.cycleImportMeta) writes.push(replaceCycleBackup(id,
+      backup.cycleIDB ? backup.cycleIDB[id] || {} : null,
+      backup.cycleImportMeta ? backup.cycleImportMeta[id] || [] : null));
+    return writes;
+  });
+  const results = await Promise.allSettled(operations);
+  const failed = results.find(result => result.status === 'rejected');
+  if (failed?.status === 'rejected') throw new Error('Backup restore incomplete.', { cause: failed.reason });
 }
 
-async function restoreBackupSideStores(backup: BackupRestoreView) {
-  // Wait for every dependent restore to settle. A partial restore must never
-  // trigger a success notification or an automatic reload.
-  const results = await Promise.allSettled([
-    restoreWearableIDB(backup.wearableIDB),
-    loadBackupCycleModule()
-      .then(({ restoreCycleBackup }) => restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta)),
-  ]);
-  const failures = results.filter(result => result.status === 'rejected');
-  if (failures.length) {
-    throw new Error('Backup restore incomplete. Some data may already be restored. Keep the backup and retry after resolving the storage problem.');
+const RESTORE_FENCE = 'labcharts-backup-restore-pending';
+const RESTORE_JOURNAL = 'labcharts-backup-restore-journal-v1';
+interface RestoreRollback extends SideStoreSnapshot { profileIds: string[]; values: Record<string, string | null> }
+async function writeRollbackValue(key: string, value: string | null) {
+  if (value !== null) return writeRawStoredItem(key, value);
+  if (key === LENS_CONFIG_STORAGE_KEY) await replaceLensConfigRaw(null);
+  else {
+    if (shouldUseBlob(key)) await deleteBlob(key, { throwOnError: true });
+    localStorage.removeItem(key);
   }
+}
+
+async function rollbackPendingRestore() {
+  if (localStorage.getItem(RESTORE_FENCE) === null) return;
+  const protectedJournal = await getBlob<string>(RESTORE_JOURNAL);
+  const { decryptDeviceCredential } = await import('./wearables-credential-vault.js');
+  const raw = protectedJournal && await decryptDeviceCredential(RESTORE_JOURNAL, protectedJournal);
+  if (!raw) throw new Error('Backup recovery could not open its journal. Reopen getbased to retry.');
+  const before = parseBackupSnapshot(raw) as RestoreRollback;
+  await restoreBackupSideStores(before, before.profileIds);
+  for (const [key, value] of Object.entries(before.values)) await writeRollbackValue(key, value);
+  localStorage.removeItem(RESTORE_FENCE);
+  await deleteBlob(RESTORE_JOURNAL);
+}
+
+let restoreOperation: Promise<unknown> = Promise.resolve();
+function withRestoreLock<T>(run: () => Promise<T>) {
+  const task = restoreOperation.then(() => typeof navigator !== 'undefined' && navigator.locks?.request
+    ? navigator.locks.request(RESTORE_FENCE, run) : run());
+  restoreOperation = task.catch(() => {});
+  return task;
+}
+export function recoverPendingBackupRestore() { return withRestoreLock(rollbackPendingRestore); }
+
+async function applyFullBackup(backup: BackupRestoreView) {
+  return withRestoreLock(async () => {
+    await rollbackPendingRestore();
+    const { values, profileIds } = prepareBackupRestore(backup, getBackupRuntimeDeps().isCredentialKey);
+    const before: RestoreRollback = { profileIds, values: {}, wearableIDB: null, cycleIDB: null, cycleImportMeta: null };
+    for (const key of [...Object.keys(values), 'labcharts-profiles','labcharts-encryption-enabled','labcharts-encryption-salt']) before.values[key] = await readRawStoredItem(key);
+    if (backup.wearableIDB) before.wearableIDB = await collectWearableIDB(profileIds);
+    if (backup.cycleIDB || backup.cycleImportMeta) {
+      const cycle = await (await loadBackupCycleModule()).collectCycleBackup(profileIds);
+      if (backup.cycleIDB) before.cycleIDB = cycle.observations;
+      if (backup.cycleImportMeta) before.cycleImportMeta = cycle.importMeta;
+    }
+    const { encryptDeviceCredential } = await import('./wearables-credential-vault.js');
+    const journal = await encryptDeviceCredential(RESTORE_JOURNAL, serializeBackupSnapshot(before));
+    await setBlob(RESTORE_JOURNAL, journal);
+    localStorage.setItem(RESTORE_FENCE, 'rollback');
+    try {
+      await restoreBackupSideStores(backup as BackupSnapshot, profileIds);
+      for (const [key, value] of Object.entries(values)) await writeRollbackValue(key, value);
+      restoreBackupEncryptionSettings(backup);
+      localStorage.setItem('labcharts-profiles', backup.profileList as string);
+      prepareRestoredProfilesForSync(backup);
+      localStorage.removeItem(RESTORE_FENCE);
+    } catch (error) {
+      try { await rollbackPendingRestore(); }
+      catch { throw new Error('Backup recovery is pending. Reopen getbased to retry before editing.'); }
+      throw error;
+    }
+    await deleteBlob(RESTORE_JOURNAL);
+  });
 }
 
 export function buildBackupSnapshot(): BackupSnapshot | null {
   const profiles = localStorage.getItem('labcharts-profiles');
   if (!profiles) return null;
+  if (getEncryptionEnabled() && !isEncryptedValue(profiles)) throw new Error('Finish encrypting the profile list before creating a backup.');
 
   let profileList: ProfileListEntry[];
   try {
@@ -285,18 +302,18 @@ export function buildBackupSnapshot(): BackupSnapshot | null {
   if (profileList.length > 0) {
     for (const p of profileList) {
       const keys = collectLocalProfileKeys(p);
-      backupProfiles.push({ profileId: p.id, name: p.name, keys });
+      backupProfiles.push({ profileId: p.id, ...(getEncryptionEnabled() ? {} : { name: p.name }), keys });
     }
   } else {
     const profileIds = new Set<string>();
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      const match = key && key.match(/^labcharts-(.+)-imported$/);
+      const match = key && key.match(/^labcharts-(.+)-(?:imported|persona-transaction-pending)$/);
       if (match) profileIds.add(match[1]!);
     }
     for (const pid of profileIds) {
       const keys = collectLocalProfileKeys({ id: pid });
-      backupProfiles.push({ profileId: pid, name: pid, keys });
+      backupProfiles.push({ profileId: pid, keys });
     }
   }
 
@@ -351,7 +368,7 @@ export async function buildFullBackupSnapshot() {
     snap.profiles = [];
     for (const p of profileList) {
       const keys = collectLocalProfileKeys(p);
-      snap.profiles.push({ profileId: p.id, name: p.name, keys });
+      snap.profiles.push({ profileId: p.id, keys });
     }
   }
   for (const p of snap.profiles || []) {
@@ -431,28 +448,7 @@ export function importEncryptedBackup(file: Blob): Promise<void> {
         if (await showConfirmDialog(
           `Restore backup from ${new Date((backup.createdAt as string | number)).toLocaleDateString()}? This will overwrite ${profileCount} profile(s).${encMsg}`
         )) {
-          restoreBackupEncryptionSettings(backup);
-
-          await restoreBackupSettings(backup);
-
-          localStorage.setItem('labcharts-profiles', (backup.profileList as string));
-
-          // Restore each profile's keys. Big-blob keys (`-imported`)
-          // route to IndexedDB; everything else stays in localStorage.
-          // writeRawStoredItem is async because of the IDB path \u2014 await
-          // each so the wearable restore + reload only fires after all
-          // profile keys are actually written.
-          if (backup.profiles) {
-            for (const p of (backup.profiles as Array<{ profileId: unknown; keys: Record<string, unknown> }>)) {
-              for (const [suffix, value] of Object.entries(p.keys)) {
-                const key = `labcharts-${p.profileId}-${suffix}`;
-                await writeRawStoredItem(key, value);
-              }
-            }
-          }
-          prepareRestoredProfilesForSync(backup);
-
-          await restoreBackupSideStores(backup);
+          await applyFullBackup(backup);
           showNotification('Backup restored \u2014 reloading...', 'success');
           setTimeout(() => location.reload(), 1000);
         }
@@ -587,21 +583,7 @@ export async function restoreAutoBackup(id: IDBValidKey) {
   if (await showConfirmDialog(
     `Restore auto-backup from ${new Date((backup.createdAt as string | number)).toLocaleString()}? This will overwrite all current data.`
   )) {
-    restoreBackupEncryptionSettings(backup);
-    await restoreBackupSettings(backup);
-    localStorage.setItem('labcharts-profiles', (backup.profileList as string));
-    if (backup.profiles) {
-      for (const p of (backup.profiles as Array<{ profileId: unknown; keys: Record<string, unknown> }>)) {
-        for (const [suffix, value] of Object.entries(p.keys)) {
-          await writeRawStoredItem(`labcharts-${p.profileId}-${suffix}`, value);
-        }
-      }
-    }
-    prepareRestoredProfilesForSync(backup);
-    // Wearable L1 IDB rows live outside localStorage \u2014 restore them
-    // separately so the strip's detail-modal chart history is preserved
-    // along with everything else.
-    await restoreBackupSideStores(backup);
+    await applyFullBackup(backup);
     showNotification('Backup restored \u2014 reloading...', 'success');
     setTimeout(() => location.reload(), 1000);
   }

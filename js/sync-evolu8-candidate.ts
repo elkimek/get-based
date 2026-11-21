@@ -59,7 +59,7 @@ interface LegacyEvoluModule {
   NonEmptyString: unknown;
   evoluWebDeps: unknown;
   SimpleName: { orThrow(value: string): string };
-  createEvolu(deps: unknown): (schema: SyncSchema, options: { name: string; reloadUrl: string; enableLogging: boolean; transports: { type: 'WebSocket'; url: string }[] }) => LegacyEvoluClient;
+  createEvolu(deps: unknown): (schema: SyncSchema, options: { name: string; reloadUrl: string; enableLogging: boolean; externalAppOwner?: BridgeOwner; transports: { type: 'WebSocket'; url: string }[] }) => LegacyEvoluClient;
 }
 interface OpfsDirectory {
   entries(): AsyncIterable<[string, { kind: string }]>;
@@ -102,6 +102,24 @@ export const EVOLU8_GENERATION_KEY = 'labcharts-sync-evolu8-generation';
 const EVOLU_BUNDLE_URL = new URL('../vendor/evolu/evolu-bundle.js', import.meta.url).href;
 const EVOLU8_VENDOR_DIRECTORY = '../vendor/evolu8/v8.24.1-web3.6.5/';
 const EVOLU8_BUNDLE_URL = new URL(`${EVOLU8_VENDOR_DIRECTORY}evolu-bundle.js`, import.meta.url).href;
+
+const OWNER_INIT_LOCK = 'getbased-sync-owner-initialization';
+
+// The v7 OPFS SAH pool defaults to `.` + the configured VFS name. Only
+// a confirmed absence permits a fresh owner. Unavailable storage takes the
+// ordinary offline legacy migration path, which never replaces an unknown owner.
+async function readOwnerStoreState(): Promise<'legacy' | 'modern' | 'empty' | 'unknown'> {
+  try {
+    const root = await navigator.storage.getDirectory() as unknown as OpfsDirectory;
+    let modern = false;
+    for await (const [name, handle] of root.entries()) {
+      if (handle.kind !== 'directory') continue;
+      if (name === '.getbased4') return 'legacy';
+      if (isEvolu8DatabaseDirectory(name)) modern = true;
+    }
+    return modern ? 'modern' : 'empty';
+  } catch { return 'unknown'; }
+}
 
 export function shouldUseEvolu8Client(locationLike: { href?: string; search?: string } | null | undefined = globalThis.location) {
   try {
@@ -208,21 +226,45 @@ export async function createSyncEvoluClient({
     });
     return evolu;
   }
-  const legacyEvolu = await createLegacyEvoluClient({
-    createSyncSchema,
-    reloadUrl,
-    enableLogging,
-    transports: [{ type: 'WebSocket', url: relay }],
-  });
-  return guardLegacyIdentityChanges(legacyEvolu, identityVault);
+  const openRollback = async () => {
+    let externalAppOwner: BridgeOwner | undefined;
+    const stores = await readOwnerStoreState();
+    if (stores === 'empty' || stores === 'modern') {
+      const identity = await identityVault.read();
+      if (!identity && stores === 'modern') throw new Error('Restore the Sync recovery phrase to reopen the existing database.');
+      if (identity) {
+        const modern = await import(EVOLU8_BUNDLE_URL) as ModernEvoluModule;
+        externalAppOwner = createModernOwner(modern, identity.mnemonic);
+        if (externalAppOwner.id !== identity.ownerId) throw new Error('The stored Sync identity could not be verified.');
+      }
+    }
+    const legacyEvolu = await createLegacyEvoluClient({
+      createSyncSchema, reloadUrl, enableLogging, transports: [{ type: 'WebSocket', url: relay }],
+      ...(externalAppOwner ? { externalAppOwner } : {}),
+    });
+    // A newly initialized v7 owner must exist on disk before a competing v8
+    // tab decides whether its store is empty. Existing stores use normal startup.
+    if (stores === 'empty' && !externalAppOwner) await waitForLegacyOwner(legacyEvolu);
+    return guardLegacyIdentityChanges(legacyEvolu, identityVault);
+  };
+  return navigator.locks ? navigator.locks.request(OWNER_INIT_LOCK, openRollback) : openRollback();
+}
+
+async function waitForLegacyOwner(legacy: Pick<LegacyEvoluClient, 'appOwner'>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([legacy.appOwner, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Evolu 7 identity bridge timed out')), 30_000);
+    })]);
+  } finally { clearTimeout(timer); }
 }
 
 async function createLegacyEvoluClient({
   createSyncSchema,
   reloadUrl,
   enableLogging,
-  transports,
-}: Omit<SyncClientOptions, 'relay'> & { transports: { type: 'WebSocket'; url: string }[] }) {
+  transports, externalAppOwner,
+}: Omit<SyncClientOptions, 'relay'> & { transports: { type: 'WebSocket'; url: string }[]; externalAppOwner?: BridgeOwner }) {
   const legacy = await import(EVOLU_BUNDLE_URL) as LegacyEvoluModule;
   const schema = createSyncSchema({
     id: legacy.id,
@@ -234,6 +276,7 @@ async function createLegacyEvoluClient({
     reloadUrl,
     enableLogging,
     transports,
+    ...(externalAppOwner ? { externalAppOwner } : {}),
   });
 }
 
@@ -292,6 +335,26 @@ export async function createEvolu8SyncClient({
       await identityVault.invalidate();
       initialIdentity = null;
     }
+  }
+  if (!initialIdentity && navigator.locks) {
+    initialIdentity = await navigator.locks.request(OWNER_INIT_LOCK, async () => {
+      const committed = await identityVault.read();
+      if (committed) {
+        if (createModernOwner(modern, committed.mnemonic).id !== committed.ownerId) throw new Error('The stored Sync identity could not be verified.');
+        return committed;
+      }
+      const stores = await readOwnerStoreState();
+      if (stores === 'modern') throw new Error('Restore the Sync recovery phrase to reopen the existing database.');
+      if (stores !== 'empty') return null;
+      // A clean installation needs only the maintained SQLite runtime. Persist
+      // the owner before starting its database so a retry always opens the same one.
+      const owner = modern.createAppOwner(crypto.getRandomValues(new Uint8Array(32)));
+      if (!owner.mnemonic) throw new Error('Could not create a recoverable Sync identity.');
+      const next = { ownerId: owner.id, mnemonic: owner.mnemonic };
+      await identityVault.write(next);
+      if ((await identityVault.read())?.ownerId !== next.ownerId) throw new Error('Could not persist the new Sync identity.');
+      return next;
+    });
   }
   let legacyEvoluPromise: Promise<LegacyEvoluClient> | null = null;
   const getLegacyEvolu = () => {
@@ -376,16 +439,7 @@ export async function createEvolu8Candidate({
 
   if (!initialIdentity) {
     const legacy = await resolveLegacyEvolu();
-    let ownerTimeoutId: ReturnType<typeof setTimeout> | undefined;
-    const ownerTimeout = new Promise<never>((_, reject) => {
-      ownerTimeoutId = setTimeout(() => reject(new Error('Evolu 7 identity bridge timed out')), 30_000);
-    });
-    let legacyOwner: BridgeOwner;
-    try {
-      legacyOwner = await Promise.race([legacy.appOwner, ownerTimeout]);
-    } finally {
-      clearTimeout(ownerTimeoutId);
-    }
+    const legacyOwner = await waitForLegacyOwner(legacy);
     if (!legacyOwner?.mnemonic) throw new Error('Evolu 7 identity has no recovery mnemonic');
     const modernOwner = createModernOwner(modern, legacyOwner.mnemonic);
     if (legacyOwner.id && modernOwner.id !== legacyOwner.id) {

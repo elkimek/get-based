@@ -1,3 +1,4 @@
+import accessibilityChanges from './fixtures/audit-ui-accessibility-inverse.json' with {type:'json'};
 import {restoreReviewedMigrationSource} from './helpers/migration-review-exact-source-inverse.js';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -37,6 +38,16 @@ const lightAssessmentHandoffFixed = `  } else if (action === 'open-light-assessm
     if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     navActionDeps.openLightEnvironmentAssessment();`;
 function restoreReviewedComponentSource(file:string,source:string){
+ const accessibility = accessibilityChanges.find(record => record.file === file);
+ if (accessibility) {
+  const digest = (value:string) => crypto.createHash('sha256').update(value).digest('hex');
+  expect(digest(source)).toBe(accessibility.currentSha256);
+  for (const edit of accessibility.edits.toReversed()) {
+   expect(source.slice(edit.start, edit.start + edit.current.length)).toBe(edit.current);
+   source = source.slice(0, edit.start) + edit.previous + source.slice(edit.start + edit.current.length);
+  }
+  expect(digest(source)).toBe(accessibility.previousSha256);
+ }
  if(file==='js/components/MarkerDetailHistory.svelte'){
   for(const [current,previous,count] of [
    ['data-marker-detail-date={node.actions.date??undefined} data-marker-detail-panel-id={node.actions.panelId??undefined}','data-marker-detail-date={node.actions.date??undefined}',4],

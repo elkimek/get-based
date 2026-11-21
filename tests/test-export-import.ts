@@ -181,7 +181,7 @@ return (async function() {
       reportSrc.indexOf('// Flagged Results') < reportSrc.indexOf('// Category tables'));
   assert('PDF report date windows do not fall back to all lab dates',
     reportSrc.includes('getReportCutoffDate(range)') &&
-      reportSrc.includes('return filterDataByDateIndices(rawData, indices, cutoffStr);') &&
+      reportSrc.includes('return filterDataByDateIndices(rawData, indices, cutoffStr, endDate);') &&
       !reportSrc.includes('if (indices.length === 0) return rawData;'));
   assert('PDF report notes filter by selected window, not lab draw dates',
     reportSrc.includes('getReportCutoffDate(options.dateRange)') &&
@@ -515,15 +515,18 @@ return (async function() {
   console.log('%c 10. Database bundle import (source) ', 'font-weight:bold;color:#f59e0b');
 
   // _importDatabaseBundle merge logic
-  assert('Bundle import matches by id first', exportImportSrc.includes('profiles.find(p => p.id === bp.id)'));
-  assert('Bundle import falls back to name match', exportImportSrc.includes('profiles.find(p => p.name === bp.name)'));
+  assert('Bundle import matches by id first', exportImportSrc.includes('bp.id ? profiles.find(profile => profile.id === bp.id)'));
+  assert('Legacy bundle name matching requires an absent ID and one local namesake',
+    exportImportSrc.includes('!bp.id && bp.name ? profiles.filter(profile => profile.name === bp.name)') &&
+      exportImportSrc.includes('names.length === 1 ? names[0] : undefined'));
   assert('Bundle import revives sync identity only after its guarded save succeeds',
     /expectedData: raw, skipSync: true,[\s\S]{0,80}if \(!persisted\) throw[\s\S]{0,220}_reviveImportedProfileSyncIdentity\(existing\.id\)/.test(exportImportSrc));
   assert('Bundle import republishes the complete post-write profile state',
     exportImportSrc.includes('saveImportedDataForProfile(existing.id, current, {') &&
     exportImportSrc.includes('forceProfileScope: true'));
-  assert('Bundle import merges markers within a matching date',
-    /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*mergeRestoredLabEntry\(entries\[idx\], entry, markerRestore\.at\)\)/.test(exportImportSrc));
+  assert('Bundle import restores observations within the matching collection',
+    exportImportSrc.includes('restorePortableLabEntry(current, entry, markerRestore.at)') &&
+      exportImportSrc.includes('labPanelPeerIndex(entries, entry)') && exportImportSrc.includes('mergeRestoredLabEntry(entries[index], entry, at)'));
   assert('Bundle import deduplicates notes', exportImportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));
   assert('Bundle import deduplicates supplements', exportImportSrc.includes('supplements.some(x => x.name === s.name && x.startDate === s.startDate)'));
   assert('Bundle import merges health goals', exportImportSrc.includes('healthGoals.some(x => x.text === g.text)'));
@@ -538,7 +541,9 @@ return (async function() {
   assert('Bundle import replaces context fields', exportImportSrc.includes("for (const field of ['diagnoses', 'diet', 'exercise'"));
   assert('Bundle import caps changeHistory at 200', exportImportSrc.includes("trimImportedArray(current, 'changeHistory', 200)"));
   assert('Bundle import merges chat summaries', exportImportSrc.includes('chatSummaries.findIndex'));
-  assert('Bundle import creates new profiles', exportImportSrc.includes("createProfile(bp.name || 'Imported'"));
+  const newProfileSrc = await fetch('/js/portable-profile-import.js').then(r => r.text());
+  assert('Bundle import creates new profiles', exportImportSrc.includes('await saveNewPortableProfile(bp, importData')
+    && newProfileSrc.includes("createProfile(bp.name || 'Imported'"));
   assert('Bundle import loads first imported profile', exportImportSrc.includes('loadProfile(targetId)'));
   assert('Bundle import handles non-secret wallet settings restore', exportImportSrc.includes('json.wallet'));
 
@@ -576,7 +581,7 @@ return (async function() {
   assert('_importChatData writes thread messages through encryption storage', exportImportSrc.includes('await encryptedSetItem(')
     && exportImportSrc.includes('`labcharts-${profileId}-chat-t_${t.id}`'));
   assert('_importChatData deduplicates by thread id', exportImportSrc.includes('existingIds.has(t.id)'));
-  assert('Client export optionally includes chat', exportSrc.includes('if (includeChat)'));
+  assert('Client export optionally includes chat', exportSrc.includes('includeChat ? await _exportChatData(profileId) : null') && exportSrc.includes('exportObj.chat = chat'));
   assert('Bundle export always includes chat', exportSrc.includes('if (chat) entry.chat = chat'));
 
   // ═══════════════════════════════════════
@@ -584,7 +589,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 13b. Backup includes Custom API settings (#116) ', 'font-weight:bold;color:#f59e0b');
 
-  const backupSrc = await fetch('/js/backup.js').then(r => r.text());
+  const backupSrc = await fetch('/js/backup-restore-plan.js').then(r => r.text());
   assert('GLOBAL_SETTINGS_KEYS includes labcharts-custom-key', backupSrc.includes("'labcharts-custom-key'"));
   assert('GLOBAL_SETTINGS_KEYS includes labcharts-custom-url', backupSrc.includes("'labcharts-custom-url'"));
   assert('GLOBAL_SETTINGS_KEYS includes labcharts-custom-model', backupSrc.includes("'labcharts-custom-model'"));
@@ -932,6 +937,7 @@ return (async function() {
       sunCorrelations: null, lifelightProfile: null, sunDefaults: null };
     try {
       const demo = await fetch('data/demo-female.json').then(r => r.json());
+      demo.biologyScoreContextAI = { status: 'complete', review: 'Fictional legacy review' };
       const expectedSun       = demo.sunSessions?.length || 0;
       const expectedDevSess   = demo.deviceSessions?.length || 0;
       const expectedDevices   = demo.lightDevices?.length || 0;
@@ -1139,7 +1145,13 @@ return (async function() {
       const beforeRepeat = (S.importedData?.sunSessions || []).length;
       const file2 = new File([new Blob([JSON.stringify(demo)], { type: 'application/json' })],
         'demo-female.json', { type: 'application/json' });
-      await exportModule.importDataJSON(file2);
+      const repeat = exportModule.importDataJSON(file2);
+      const keepSaved = new MutationObserver(() => {
+        const button = document.querySelector<HTMLButtonElement>('#confirm-cancel');
+        if (button?.textContent?.trim() === 'Keep saved') button.click();
+      });
+      keepSaved.observe(document.body, { subtree: true, childList: true });
+      try { await repeat; } finally { keepSaved.disconnect(); }
       assert('re-importing same demo does NOT duplicate sunSessions',
         (S.importedData?.sunSessions || []).length === beforeRepeat,
         `before=${beforeRepeat}, after=${(S.importedData?.sunSessions || []).length}`);

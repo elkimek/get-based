@@ -35,21 +35,23 @@ test('owned CLI panel preserves companion states, themes, layouts and accessible
     expect(await panel.innerHTML()).not.toContain('SYNTHETIC-PRIVATE-TOKEN');
   };
   await setState('installed');
+  await panel.getByText('Pair this browser with Companion',{exact:true}).click();
+  await expect(panel.getByLabel('Chat pairing code')).toBeVisible();
   for (const theme of ['dark','light','cyberterm','glass','synth-sunrise','neuromancer']) {
     await page.evaluate(async theme => { const themes=await import('/js/theme.js'); await themes.loadExtraThemesStylesheet(); themes.setTheme(theme); },theme);
     for (const width of [1280,700,390,320]) { await page.setViewportSize({ width,height:900 }); await check(`${theme}/${width}`); }
     await setState('setup');await check(`${theme}/setup`);await setState('installed');
   }
-  const header=panel.locator('[data-settings-action="toggle-cli-agent-options"]'); await header.focus(); await header.press('Enter'); await expect(panel.locator('#cli-agent-options')).toBeHidden(); await header.press('Space'); await expect(panel.locator('#cli-agent-options')).toBeVisible(); await expect(panel.locator('input')).toBeChecked();
+  const header=panel.locator('[data-settings-action="toggle-cli-agent-options"]'); await header.focus(); await header.press('Enter'); await expect(panel.locator('#cli-agent-options')).toBeHidden(); await header.press('Space'); await expect(panel.locator('#cli-agent-options')).toBeVisible(); await expect(panel.locator('input[data-settings-action="toggle-cli-codex"]')).toBeChecked();
   for (const mode of ['setup','temporary','paused','outdated','linked','login','stopped']) {
     await setState(mode); await check(mode);
-    if (mode === 'setup') { await expect(panel.getByRole('group',{ name:'Operating system' }).getByRole('button')).toHaveCount(3); await expect(panel).toContainText('No port or pairing token is needed'); }
+    if (mode === 'setup') { await expect(panel.getByRole('group',{ name:'Operating system' }).getByRole('button')).toHaveCount(3); await expect(panel).toContainText('Use the pair command in a second terminal to authorize this browser.'); }
     if (mode === 'temporary') { await expect(panel.locator('[data-value="install"]')).toBeVisible(); await expect(panel.locator('[data-value="restart-companion"]')).toHaveCount(0); }
-    if (mode === 'paused') { await expect(panel.locator('[data-value="resume"]')).toBeVisible(); await expect(panel.locator('[data-value="restart"]')).toBeDisabled(); await expect(panel.locator('input')).toBeDisabled(); }
+    if (mode === 'paused') { await expect(panel.locator('[data-value="resume"]')).toBeVisible(); await expect(panel.locator('[data-value="restart"]')).toBeDisabled(); await expect(panel.locator('input[data-settings-action="toggle-cli-codex"]')).toBeDisabled(); }
     if (mode === 'outdated') { await expect(panel).toContainText('Update required'); await expect(panel.locator('[data-settings-action="control-cli-companion"]')).toHaveCount(0); }
     if (mode === 'linked') await expect(panel.getByRole('link',{ name:'Manage Companion' })).toHaveAttribute('href','http://127.0.0.1:8325/manage');
     if (mode === 'login') await expect(panel.locator('[data-settings-action="copy-cli-agent-login"]')).toBeVisible();
-    if (mode === 'stopped') { await expect(panel).toContainText('Installed · companion not running'); await expect(panel.locator('input')).toBeDisabled(); }
+    if (mode === 'stopped') { await expect(panel).toContainText('Installed · companion not running'); await expect(panel.locator('input[data-settings-action="toggle-cli-codex"]')).toBeDisabled(); }
   }
   await page.evaluate(async () => (await import('/js/theme.js')).setTheme('dark')); await page.setViewportSize({ width:390,height:900 }); await setState('installed'); await panel.scrollIntoViewIfNeeded(); await page.screenshot({ path:test.info().outputPath('cli-settings-mobile.png'),fullPage:true });
   await page.setViewportSize({ width:1280,height:900 }); await page.screenshot({ path:test.info().outputPath('cli-settings-desktop.png'),fullPage:true });

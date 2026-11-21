@@ -124,7 +124,7 @@ assert('labcharts-ai-provider is NOT sensitive', !cryptoModule.isSensitiveKey('l
 assert('labcharts-default-units is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-default-units'));
 assert('labcharts-encryption-enabled is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-encryption-enabled'));
 assert('labcharts-time-format is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-time-format'));
-assert('labcharts-default-focusCard is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-default-focusCard'));
+assert('labcharts-default-focusCard is sensitive', cryptoModule.isSensitiveKey('labcharts-default-focusCard'));
 
 // ═══════════════════════════════════════════════
 // 3. Web Crypto API key derivation round-trip
@@ -432,11 +432,12 @@ try {
 console.log('14. crypto.js source inspection');
 try {
   const src = await fetchWithRetry('js/crypto.js');
+  const keySrc = await fetchWithRetry('js/crypto-passphrase-key.js');
   const uiSrc = await fetchWithRetry('js/crypto-ui.js');
   const surfaceSrc = `${src}\n${uiSrc}\n${passphraseControllerSrc}\n${passphraseViewSrc}`;
-  assert('crypto.js uses PBKDF2', src.includes('PBKDF2'));
+  assert('crypto.js uses PBKDF2', keySrc.includes('PBKDF2'));
   assert('crypto.js uses AES-GCM', src.includes('AES-GCM'));
-  assert('crypto.js has 600000 iterations', src.includes('600000'));
+  assert('crypto.js has 600000 iterations', keySrc.includes('600000'));
   assert('crypto.js uses 12-byte IV', src.includes('Uint8Array(12)'));
   assert('crypto.js uses 16-byte salt', src.includes('Uint8Array(16)'));
   assert('crypto.js has BroadcastChannel', src.includes('BroadcastChannel'));
@@ -451,14 +452,18 @@ try {
     /catch \(error\)[\s\S]{0,700}return;\s*\}\s*services\.clearEncryptionSession/.test(passphraseControllerSrc)
     && !/catch \(error\)[\s\S]{0,700}localStorage\.removeItem/.test(passphraseControllerSrc));
   const bkSrc0 = await fetchWithRetry('js/backup.js');
+  const restorePlan = await fetchWithRetry('js/backup-restore-plan.js');
   assert('Backup includes encryptionSalt field', bkSrc0.includes('encryptionSalt'));
   assert('Restore sets labcharts-encryption-enabled', bkSrc0.includes("localStorage.setItem('labcharts-encryption-enabled'"));
   assert('Restore sets labcharts-encryption-salt', bkSrc0.includes("localStorage.setItem('labcharts-encryption-salt'"));
   assert('Backup includes labcharts-api-key', src.includes("'labcharts-api-key'") || bkSrc0.includes("'labcharts-api-key'"));
   assert('Backup includes labcharts-venice-key', src.includes("'labcharts-venice-key'") || bkSrc0.includes("'labcharts-venice-key'"));
-  assert('Backup includes labcharts-ai-provider', bkSrc0.includes("'labcharts-ai-provider'"));
+  assert('Backup includes labcharts-ai-provider through the settings allowlist',
+    bkSrc0.includes('GLOBAL_SETTINGS_KEYS') && restorePlan.includes("'labcharts-ai-provider'"));
   assert('Backup includes settings field', bkSrc0.includes('settings,') || bkSrc0.includes('settings:'));
-  assert('Restore writes global settings', bkSrc0.includes('backup.settings'));
+  assert('Restore writes settings only after applying the restore allowlist',
+    restorePlan.includes('backup.settings') && restorePlan.includes('GLOBAL_SETTINGS_KEYS.includes(key)')
+    && bkSrc0.includes('prepareBackupRestore(backup,') && bkSrc0.includes('Object.entries(values)'));
 } catch (e) {
   assert('crypto.js source inspection', false, (e as {message?: unknown}).message);
 }
@@ -702,7 +707,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('22. buildBackupSnapshot per-profile prefs');
 try {
-  const bkSrc = await fetchWithRetry('js/backup.js');
+  const bkSrc = await fetchWithRetry('js/backup.js') + await fetchWithRetry('js/backup-restore-plan.js');
   assert('backup.js has PER_PROFILE_PREF_SUFFIXES', bkSrc.includes('PER_PROFILE_PREF_SUFFIXES'));
   assert('backup.js includes units in prefs', bkSrc.includes("'units'"));
   assert('backup.js includes rangeMode in prefs', bkSrc.includes("'rangeMode'"));

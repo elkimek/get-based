@@ -3,6 +3,7 @@
 import type { DevAgentHostOptions, DevAgentSpawner } from '../lib/dev-agent-host.js';
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { GETBASED_COMPANION_VERSION } from '../shared/agent-host-protocol.js';
 import { startDevAgentHost } from '../lib/dev-agent-host.js';
 
 type DevChildFixture = Omit<ReturnType<DevAgentSpawner>, 'stdout' | 'stderr' | 'exitCode' | 'signalCode'> & { stdout: EventEmitter; stderr: EventEmitter; exitCode: number | null; signalCode: NodeJS.Signals | null };
@@ -50,7 +51,7 @@ describe('development agent discovery', () => {
       status: 'available', version: 'codex-cli 0.150.1', protocolVersion: 5,
       toolContractVersion: 61,
       capabilities: expect.arrayContaining(['companion-control', 'execution-targets']),
-      companionVersion: '1.3.2', runtimeMode: 'temporary',
+      companionVersion: GETBASED_COMPANION_VERSION, runtimeMode: 'temporary',
     });
     expect(spawnImpl).toHaveBeenCalledWith(process.execPath, [
       '--watch-preserve-output', '--watch', '/workspace/server/agent-host-server.js',

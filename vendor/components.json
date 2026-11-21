@@ -26,8 +26,8 @@
     },
     {
       "name": "mammoth",
-      "version": "1.8.0",
-      "purl": "pkg:npm/mammoth@1.8.0",
+      "version": "1.13.0",
+      "purl": "pkg:npm/mammoth@1.13.0",
       "license": "BSD-2-Clause",
       "source": "https://github.com/mwilliamson/mammoth.js",
       "monitoring": "github-advisory",

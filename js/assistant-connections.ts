@@ -148,7 +148,8 @@ export async function commitAssistantConnection(leaseId: string, patch: Assistan
   // Do not change the selected recipient in order to obtain its consent.
   const approval = await import('./cloud-ai-consent.js'); assertLease(lease, options.canCommit);
   const accepted = await approval.requestAIProcessingApproval(after.backend === 'cli' ? after.target === 'local' ? 'codex-agent' : 'personal-agent-gateway' : after.provider,
-    { kind: 'connection-selection', modelId: after.model, agentId: after.backend === 'cli' ? after.provider : undefined });
+    { kind: 'connection-selection', modelId: after.model, agentId: after.backend === 'cli' ? after.provider : undefined,
+      targetId: after.backend === 'cli' ? after.target : undefined });
   assertLease(lease, options.canCommit);
   if (!accepted) return conflict('Destination activation was not approved. Nothing was changed.');
   // Recheck reachability/catalog after any native approval wait, before the lock.

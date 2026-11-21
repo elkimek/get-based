@@ -7,7 +7,7 @@ import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';
-import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
+import {readyControlledKitArtifact as ready} from './kit-native-receipts.js';
 async function openLens(page:Page,route:string){
  const menu=page.getByRole('button',{name:'Menu',exact:true});if(await menu.isVisible())await menu.click();
  await page.locator(`[data-nav-action="navigate"][data-nav-route="${route}"]`).click();

@@ -42,6 +42,7 @@ jobs:
       performance: ${{ steps.plan.outputs.performance }}
       native_matrix: ${{ steps.plan.outputs.native_matrix }}
       kit_matrix: ${{ steps.plan.outputs.kit_matrix }}
+      native_coverage_shards: ${{ steps.plan.outputs.native_coverage_shards }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -131,7 +132,8 @@ jobs:
   unit:
     needs: prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Allow the full runner to qualify its coverage receipts after executing every file.
+    timeout-minutes: ${{ needs.prepare.outputs.full == 'true' && 35 || 25 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -169,7 +171,7 @@ jobs:
         if: needs.prepare.outputs.full == 'true'
         run: |
           # Leave room for native TypeScript and nested producer subprocesses.
-          # Keep the complete suite, coverage denominator and deadlines intact.
+          # Preserve the complete suite, coverage denominator and case deadlines.
           node node_modules/vitest/vitest.mjs run --coverage --maxWorkers=2
           node node_modules/vitest/vitest.mjs run --config vitest.critical.config.js
       - name: Affected unit tests and mandatory changed-source checks
@@ -193,8 +195,7 @@ jobs:
     timeout-minutes: 35
     strategy:
       fail-fast: false
-      # Admit all four Chromium shards plus Firefox, PWA and Display together.
-      # Account concurrency and runner availability still bound actual starts.
+      # Bound simultaneous native jobs across Chromium, Firefox, PWA and Display.
       max-parallel: 7
       matrix: ${{ fromJSON(needs.prepare.outputs.native_matrix) }}
     steps:
@@ -270,9 +271,8 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      # Admit Cocoa alongside the four Linux shards without opening all ten lanes.
-      # The short OPFS partition releases capacity for the remaining Cocoa shard;
-      # account concurrency and runner availability still bound actual starts.
+      # The first wave includes both Linux engines and both Cocoa projects.
+      # Remaining shards start as capacity becomes available.
       max-parallel: 8
       matrix: ${{ fromJSON(needs.prepare.outputs.kit_matrix) }}
     steps:
@@ -494,7 +494,9 @@ jobs:
           path: .local-notes/ci/coverage-inventories
           merge-multiple: true
       - name: Reject missing, extra, corrupt or incomplete source-coverage inputs
-        run: node scripts/ci-results.mjs coverage-verify --inventories .local-notes/ci/coverage-inventories --directory tests/.playwright-coverage --shards 4 --unit tests/.vitest-coverage/coverage-functions.json --unit-format native-functions --output .local-notes/ci/coverage-inputs.json
+        env:
+          EXPECTED_COVERAGE_SHARDS: ${{ needs.prepare.outputs.native_coverage_shards }}
+        run: node scripts/ci-results.mjs coverage-verify --inventories .local-notes/ci/coverage-inventories --directory tests/.playwright-coverage --shards "$EXPECTED_COVERAGE_SHARDS" --unit tests/.vitest-coverage/coverage-functions.json --unit-format native-functions --output .local-notes/ci/coverage-inputs.json
       - name: Enforce unchanged combined source coverage denominator and floors
         env:
           INCLUDE_VITEST_COVERAGE: '1'

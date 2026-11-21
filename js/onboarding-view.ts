@@ -4,7 +4,7 @@ import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
 import { state } from './state.js';
 import { projectDashboardOnboardingBannerView, renderDashboardOnboardingHTML } from './dashboard-welcome-presentation.js';
 import { getActiveData, updateHeaderDates } from './data.js';
-import { profileStorageKey, setProfileSex, setProfileDob } from './profile.js';
+import { getProfiles, profileStorageKey, updateProfileMeta } from './profile.js';
 import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { showNotification } from './utils.js';
 import type {DashboardOnboardingBannerView, DashboardOnboardingReminderView} from './dashboard-welcome-presentation.js';
@@ -108,13 +108,18 @@ export async function completeOnboardingProfile() {
   const sex = activeSexBtn ? (activeSexBtn.textContent!.trim().toLowerCase()) : null;
   const dobInput = document.getElementById('onboarding-dob') as HTMLInputElement | null;
   const dob = dobInput ? dobInput.value : null;
+  const profileId = state.currentProfile;
+  const dataOwner = state.importedData;
+  const expected = getProfiles().find(profile => profile.id === profileId);
+  const ownsView = () => state.currentProfile === profileId && state.importedData === dataOwner;
+  if (!expected) return;
   try {
-    if (sex && !await setProfileSex(state.currentProfile, sex)) return;
-    if (dob && !await setProfileDob(state.currentProfile, dob)) return;
+    if ((sex || dob) && !await updateProfileMeta(profileId, { ...(sex && {sex}), ...(dob && {dob}) }, {expected, canCommit: ownsView})) return;
   } catch {
     return;
   }
-  localStorage.setItem(profileStorageKey(state.currentProfile, 'onboarded'), 'profile-set');
+  if (!ownsView()) return;
+  localStorage.setItem(profileStorageKey(profileId, 'onboarded'), 'profile-set');
   if (sex) state.profileSex = sex;
   if (dob) state.profileDob = dob;
   const data = getActiveData();

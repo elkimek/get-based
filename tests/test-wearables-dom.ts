@@ -155,14 +155,14 @@ return (async function() {
   state.importedData.wearableSummary = {
     sources: { manual: { connectedSince: testDay2, lastSyncAt: Date.now(), coverageDays: 3 } },
     metrics: {
-      bp_systolic: { primarySource: 'manual', latest: 120, latestDate: testToday, baseline: 121, baselineP25: 118, baselineP75: 123, rolling: { d7: 120, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [121, 120] },
-      bp_diastolic: { primarySource: 'manual', latest: 80, latestDate: testToday, baseline: 79, baselineP25: 76, baselineP75: 82, rolling: { d7: 80, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [79, 80] },
+      bp_systolic: { primarySource: 'manual', latestBpPaired:true, latest: 120, latestDate: testToday, baseline: 121, baselineP25: 118, baselineP75: 123, rolling: { d7: 120, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [121, 120] },
+      bp_diastolic: { primarySource: 'manual', latestBpPaired:true, latest: 80, latestDate: testToday, baseline: 79, baselineP25: 76, baselineP75: 82, rolling: { d7: 80, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [79, 80] },
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'manual', date: testDay2, bp_systolic: 122, bp_diastolic: 81 },
-    { source: 'manual', date: testDay1, bp_systolic: 121, bp_diastolic: 79 },
-    { source: 'manual', date: testToday, bp_systolic: 120, bp_diastolic: 80, note: 'after walk', tags: ['rested'] },
+    { source: 'manual', bpPaired:true, date: testDay2, bp_systolic: 122, bp_diastolic: 81 },
+    { source: 'manual', bpPaired:true, date: testDay1, bp_systolic: 121, bp_diastolic: 79 },
+    { source: 'manual', bpPaired:true, date: testToday, bp_systolic: 120, bp_diastolic: 80, note: 'after walk', tags: ['rested'] },
   ]);
   await wearables.openWearableDetail('bp_systolic');
   await waitFor(() => (state?.chartInstances as ChartInstancesReader | undefined)?.modal?.data?.datasets?.some(d => /Diastolic/.test(d?.label || '')));
@@ -204,23 +204,17 @@ return (async function() {
     { source: 'manual', date: testDay2, bp_diastolic: 78 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => (state?.chartInstances as ChartInstancesReader | undefined)?.modal?.data?.datasets?.some(d => /^Diastolic/.test(d?.label || '')));
+  await waitFor(() => !!(state.chartInstances as ChartInstancesReader)?.modal);
   const mixedModalText = document.getElementById('detail-modal')?.textContent || '';
   const mixedChartLabels = (state.chartInstances as ChartInstancesReader)?.modal?.data?.datasets?.map(d => d.label) || [];
-  assert('BP modal fetches diastolic rows from paired metric primary source',
-    mixedChartLabels.some(l => /^Diastolic \(Manual/.test(l!)), mixedChartLabels.join('|'));
-  assert('BP mixed-source chart does not duplicate manual-primary diastolic as manual scatter',
-    !mixedChartLabels.some(l => /^Manual diastolic$/.test(l!)), mixedChartLabels.join('|'));
-  assert('BP latest row uses an actual same-date pair instead of mismatched latest halves',
-    /Latest\s+124\/80 mmHg/.test(mixedModalText) && !/Latest\s+130\/80 mmHg/.test(mixedModalText), mixedModalText);
-  assert('BP latest row never leaks split-date debug text into visible value',
-    !/split dates/.test(mixedModalText), mixedModalText);
-  assert('BP chart sample count uses unique rendered dates across paired sources',
-    /Chart samples\s+3d/.test(mixedModalText), mixedModalText);
-  const bpSwapTargets = Array.from(document.querySelectorAll<HTMLElement>('#detail-modal .wearable-modal-source-swap'))
+  assert('Systolic chart excludes a diastolic reading from a different source', mixedChartLabels.length > 0 &&
+    !mixedChartLabels.some(label=>/diastolic/i.test(label || '')), mixedChartLabels.join('|'));
+  assert('Latest reflects the selected systolic source and rejects both cross-device pairs',
+    /Latest\s+130 mmHg/.test(mixedModalText) && !/124\/80|130\/80/.test(mixedModalText), mixedModalText);
+  assert('Chart sample count includes only the two dates from the selected source', /Chart samples\s+2d/.test(mixedModalText), mixedModalText);
+  const swapTargets = Array.from(document.querySelectorAll('#detail-modal .wearable-modal-source-swap'))
     .map(btn => btn.getAttribute('data-wearable-metric'));
-  assert('BP modal exposes separate systolic and diastolic source swap targets',
-    bpSwapTargets.includes('bp_systolic') && bpSwapTargets.includes('bp_diastolic'), bpSwapTargets.join('|'));
+  assert('Unpaired systolic detail swaps only its own source', swapTargets.includes('bp_systolic') && !swapTargets.includes('bp_diastolic'), swapTargets.join('|'));
   views.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');
@@ -242,19 +236,18 @@ return (async function() {
     { source: 'manual', date: testDay2, bp_systolic: 121, bp_diastolic: 79 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => (state?.chartInstances as ChartInstancesReader | undefined)?.modal?.data?.datasets?.some(d => /^Diastolic \(Manual/.test(d?.label || '')));
+  await waitFor(() => !!(state.chartInstances as ChartInstancesReader)?.modal);
   const mixedManualPrimaryText = document.getElementById('detail-modal')?.textContent || '';
-  assert('BP mixed manual-diastolic fallback chooses the newest same-date pair across chart and manual candidates',
-    /Latest\s+121\/79 mmHg/.test(mixedManualPrimaryText)
-      && !/Latest\s+124\/80 mmHg/.test(mixedManualPrimaryText)
-      && !/Latest\s+125\/79 mmHg/.test(mixedManualPrimaryText), mixedManualPrimaryText);
+  assert('The primary systolic value remains distinct from historical manual cuff pairs',
+    /Latest\s+125 mmHg/.test(mixedManualPrimaryText) && !/Latest\s+\d+\/\d+/.test(mixedManualPrimaryText), mixedManualPrimaryText);
   views.closeModal();
 
   await wearables.openWearableDetail('bp_diastolic');
-  await waitFor(() => (state?.chartInstances as ChartInstancesReader | undefined)?.modal?.data?.datasets?.some(d => /systolic/i.test(d?.label || '')));
-  assert('Opening bp_diastolic normalizes to the paired BP detail view',
-    ((state.chartInstances as ChartInstancesReader)?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /systolic/i.test(l!)) &&
-    /121\/79/.test(document.getElementById('detail-modal')?.textContent || ''));
+  await waitFor(() => !!(state.chartInstances as ChartInstancesReader)?.modal);
+  const diastolicText = document.getElementById('detail-modal')?.textContent || '';
+  assert('Unpaired diastolic opens its own record, source and chart',
+    /Latest\s+79 mmHg/.test(diastolicText) && !/Latest\s+\d+\/\d+/.test(diastolicText) &&
+    !((state.chartInstances as ChartInstancesReader)?.modal?.data?.datasets || []).some(d=>/systolic/i.test(d.label || '')), diastolicText);
   views.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');
@@ -274,18 +267,18 @@ return (async function() {
     { source: 'manual', date: testDay2, bp_diastolic: 78 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
+  await waitFor(() => /130 mmHg/.test(document.getElementById('detail-modal')?.textContent || ''));
   const splitDateText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP latest row does not synthesize a split-date summary pair when no same-date candidate exists',
-    /Latest\s+—\s+No same-date pair/.test(splitDateText) && !/Latest\s+130\/78 mmHg/.test(splitDateText), splitDateText);
+    /Latest\s+130 mmHg/.test(splitDateText) && !/Latest\s+130\/78 mmHg/.test(splitDateText), splitDateText);
   views.closeModal();
 
   state.importedData.wearableSummary.metrics.bp_diastolic.latestDate = undefined;
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
+  await waitFor(() => /130 mmHg/.test(document.getElementById('detail-modal')?.textContent || ''));
   const missingDateText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP latest row does not synthesize a summary pair when one latest date is missing',
-    /Latest\s+—\s+No same-date pair/.test(missingDateText) && !/Latest\s+130\/78 mmHg/.test(missingDateText), missingDateText);
+    /Latest\s+130 mmHg/.test(missingDateText) && !/Latest\s+130\/78 mmHg/.test(missingDateText), missingDateText);
   views.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');
@@ -305,14 +298,15 @@ return (async function() {
     { source: 'manual', date: testDay2, bp_systolic: 121, bp_diastolic: 79 },
   ]);
   await wearables.openWearableDetail('bp_systolic');
-  await waitFor(() => (state?.chartInstances as ChartInstancesReader | undefined)?.modal?.data?.datasets?.some(d => /^Manual systolic$/.test(d?.label || '')));
+  await waitFor(() => !!(state.chartInstances as ChartInstancesReader)?.modal);
   const manualOnlyText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP modal hides empty chart hint when manual readings are charted',
     !/No chart samples for this metric/.test(manualOnlyText), manualOnlyText);
-  assert('BP manual-only latest row prefers latest same-date manual pair over mismatched summary halves',
-    /Latest\s+121\/79 mmHg/.test(manualOnlyText) && !/Latest\s+125\/79 mmHg/.test(manualOnlyText), manualOnlyText);
-  assert('BP manual-only fallback chart renders manual sys/dia points',
-    ((state.chartInstances as ChartInstancesReader)?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /^Manual diastolic$/.test(l!)));
+  assert('Manual history leaves the latest selected systolic value intact', /Latest\s+125 mmHg/.test(manualOnlyText) &&
+    !/Latest\s+125\/79 mmHg/.test(manualOnlyText), manualOnlyText);
+  const datasets=(state.chartInstances as ChartInstancesReader)?.modal?.data?.datasets || [];
+  assert('Manual systolic observations remain chartable when the primary sources disagree', datasets.some(dataset=>
+    /^Manual/.test(dataset.label || '') && dataset.data?.length===2), datasets.map(data=>data.label).join('|'));
   views.closeModal();
   delete state.importedData.wearableSummary;
 

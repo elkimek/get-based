@@ -355,12 +355,12 @@ function isHostedWithingsBody(url: URL, body: string) {
   if (url.search || url.hash) return false;
   const expectedAction = new Map([
     ['/measure', 'getmeas'],
-    ['/v2/sleep', 'getsleepsummary'],
+    ['/v2/sleep', 'getsummary'],
   ]).get(url.pathname);
   if (!expectedAction) return false;
   const allowed = new Set([
     'action', 'startdate', 'enddate', 'lastupdate', 'category',
-    'startdateymd', 'enddateymd', 'data_fields',
+    'startdateymd', 'enddateymd', 'data_fields', 'offset',
   ]);
   const params = new URLSearchParams(body);
   if (params.get('action') !== expectedAction || !hasOnlyQueryKeys({ searchParams: params }, allowed)) return false;

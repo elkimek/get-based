@@ -6,6 +6,7 @@ interface DensityRole { id: number; workflow: string; selector: string; expected
 const fixture = JSON.parse(await fs.readFile(new URL('../fixtures/nutrition-desktop-density-native.json', import.meta.url), 'utf8')) as { originalCommit: string; roles: DensityRole[] };
 const workflows = ['nutrition-open-targets', 'nutrition-open', 'nutrition-open-history'] as const;
 test.beforeEach(async ({ context, page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-14T18:00:00Z'));
   await installDiscussionFixture(context, { paused: true });
   await context.addInitScript(() => {
     if (localStorage.getItem('nutrition-density-seeded')) return;

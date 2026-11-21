@@ -145,7 +145,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         lightDevices: [],
         deviceSessions: [],
       };
-      data.invalidateActiveDataCache();
+      if (!await data.saveImportedData()) throw new Error('Could not persist the fixture profile');
 
       const presetDevice = await store.addDeviceFromPresetRecord(preset, { notes: 'desk panel' }, { now: 1000 });
       const customDevice = await (store.addCustomDevice as (spec:Omit<NonNullable<Parameters<typeof store.addCustomDevice>[0]>,"channelGroups"> & {channelGroups?:unknown})=>ReturnType<typeof store.addCustomDevice>)({

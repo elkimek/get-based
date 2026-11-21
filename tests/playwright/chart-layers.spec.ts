@@ -95,7 +95,7 @@ for (const scenario of scenarios) {
         if (scenario.touch) await checkbox.tap(); else await checkbox.click();
         await expect(checkbox).toBeChecked();
         await expect(menu).toBeVisible();
-        expect(await page.evaluate(key => localStorage.getItem(`labcharts-synthetic-chart-layers-${key}`), key)).toBe('on');
+        await expect.poll(() => page.evaluate(key => localStorage.getItem(`labcharts-synthetic-chart-layers-${key}`), key)).toBe('on');
       }
       expect(await page.evaluate(() => (window as unknown as ObservedWindow).chartLayerCalls.map(call => call[0])))
         .toEqual(['metabolic', 'metabolic', 'metabolic']);
@@ -109,7 +109,7 @@ for (const scenario of scenarios) {
       await expect(page.locator('[data-lab-data-change="set-note-overlay"]')).toBeFocused();
       await page.keyboard.press('Space');
       await expect(page.locator('[data-lab-data-change="set-note-overlay"]')).not.toBeChecked();
-      expect(await page.evaluate(() => localStorage.getItem('labcharts-synthetic-chart-layers-noteOverlay'))).toBe('off');
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('labcharts-synthetic-chart-layers-noteOverlay'))).toBe('off');
       await capture('keyboard-note-off');
       await page.keyboard.press('Escape');
       await expect(trigger).toBeFocused();

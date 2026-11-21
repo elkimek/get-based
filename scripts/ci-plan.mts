@@ -11,6 +11,9 @@ import {runtimePath} from './source-files.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const projects = ['kit-chromium', 'kit-firefox', 'kit-webkit', 'kit-mobile-webkit'] as const;
+const fullBrowserShards = 8;
+// The full native suite has about 500 specs across eight shards.
+const browserFilesPerShard = 64;
 type NativeSuite = 'browser' | 'firefox' | 'pwa' | 'display';
 export interface NativeLane {id: string; suite: NativeSuite; engine: 'chromium' | 'firefox' | 'all'; shard: string; coverage: boolean}
 export const KIT_OPFS_FILE = 'tests/pwa/sveltekit-knowledge-base.spec.ts';
@@ -44,27 +47,40 @@ export function createCiPlan(full: boolean, affected: TestPlan | null): CiPlan {
   const add = (suite: NativeSuite, engine: NativeLane['engine'], shards = 1) => {
     for (let shard = 1; shard <= shards; shard++) native.push({id: `${suite}-${shard}-of-${shards}`, suite, engine, shard: `${shard}/${shards}`, coverage: full && suite === 'browser'});
   };
-  if (full || selectedNative!.browser.length) add('browser', 'chromium', full ? 4 : Math.min(4, selectedNative!.browser.length));
+  const selectedBrowserFiles = selectedNative?.browser.length ?? 0;
+  if (selectedBrowserFiles) {
+    const sizedShards = Math.max(4, Math.ceil(selectedBrowserFiles / browserFilesPerShard));
+    add('browser', 'chromium', Math.min(selectedBrowserFiles, sizedShards, fullBrowserShards));
+  }
   if (full || selectedNative!.firefox.length) add('firefox', 'firefox');
   if (full || selectedNative!.pwa.length) add('pwa', 'all');
   if (full || selectedNative!.browser.some(file => /(?:^|\/)settings-display-pilot\.spec\.[jt]s$/.test(file)) || selectedNative!.pwa.some(file => /(?:^|\/)settings-display-pilot\.spec\.[jt]s$/.test(file))) add('display', 'all');
+  // Admit compatibility jobs in the first wave alongside a subset of full Chromium coverage.
+  if (full) add('browser', 'chromium', fullBrowserShards);
   const kit: KitLane[] = [];
+  const additionalFirefox: KitLane[] = [];
   for (const project of full ? projects : ['kit-chromium'] as const) {
     const webkit = project === 'kit-webkit' || project === 'kit-mobile-webkit';
     const selected = affected?.kit || [];
     const standardCount = webkit ? selected.filter(file => file !== KIT_OPFS_FILE).length : selected.length;
-    const shards = full ? 2 : Math.min(4, standardCount);
-    for (let shard = 1; shard <= shards; shard++) kit.push({
-      id: `${project}-${shard}-of-${shards}`, project,
-      engine: project === 'kit-chromium' ? 'chromium' : project === 'kit-firefox' ? 'firefox' : 'webkit',
-      shard: `${shard}/${shards}`, runner: webkit ? 'macos-15' : 'ubuntu-latest', caseScope: webkit ? 'webkit-standard' : 'all',
-    });
+    const fullShards = project === 'kit-firefox' ? 4 : 2;
+    const shards = full ? fullShards : Math.min(4, standardCount);
+    for (let shard = 1; shard <= shards; shard++) {
+      // Admit desktop and mobile Cocoa in the first wave alongside both Linux engines.
+      const lanes = project === 'kit-firefox' && shard > 2 ? additionalFirefox : kit;
+      lanes.push({
+        id: `${project}-${shard}-of-${shards}`, project,
+        engine: project === 'kit-chromium' ? 'chromium' : project === 'kit-firefox' ? 'firefox' : 'webkit',
+        shard: `${shard}/${shards}`, runner: webkit ? 'macos-15' : 'ubuntu-latest', caseScope: webkit ? 'webkit-standard' : 'all',
+      });
+    }
     // Both WebKit shipping projects use Cocoa. Keep the unchanged Worker/OPFS
     // partition separate from standard UI shards, with exact union completeness.
     if (webkit && (full || selected.includes(KIT_OPFS_FILE))) kit.push({
       id: `${project}-opfs-1-of-1`, project, engine: 'webkit', shard: '1/1', runner: 'macos-15', caseScope: 'webkit-opfs',
     });
   }
+  kit.push(...additionalFirefox);
   return {
     schemaVersion: 2, full, affected,
     deferred: {
@@ -82,6 +98,7 @@ export function ciPlanOutputs(plan: CiPlan): Record<string, string> {
   return {
     full: String(plan.full), unit: String(plan.unit), performance: String(plan.performance), native: String(plan.native), kit: String(plan.kit),
     native_matrix: JSON.stringify(plan.nativeMatrix), kit_matrix: JSON.stringify(plan.kitMatrix),
+    native_coverage_shards: String(plan.nativeMatrix.include.filter(lane => lane.coverage).length),
   };
 }
 export function qualifiedPlan(value: unknown): CiPlan {

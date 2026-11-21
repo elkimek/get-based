@@ -141,14 +141,14 @@ export function resolveMarkerUnitProfile(dotKey: string, unitProfile: unknown, c
   };
 }
 
-function convertCanonicalWithDefinition<T extends ProjectionValue>(value: T, conversion: ProfileConversion | null) {
+function convertCanonicalWithDefinition<T extends ProjectionValue>(value: T, conversion: ProfileConversion | null, preservePrecision = false) {
   if (value == null || !Number.isFinite(value) || !conversion) return value;
   if (conversion.type === 'multiply') {
     if (conversion.factor === 1) return value;
-    return parseFloat((value * conversion.factor).toPrecision(6));
+    return preservePrecision ? value * conversion.factor : parseFloat((value * conversion.factor).toPrecision(6));
   }
   if (conversion.type === 'hba1c') {
-    return parseFloat(((value / 10.929) + 2.15).toFixed(1));
+    return preservePrecision ? value / 10.929 + 2.15 : parseFloat(((value / 10.929) + 2.15).toFixed(1));
   }
   return value;
 }
@@ -165,9 +165,9 @@ function convertDisplayWithDefinition<T extends ProjectionValue>(value: T, conve
   return value;
 }
 
-export function convertCanonicalToDisplay<T extends ProjectionValue>(dotKey: string, value: T, unitProfile: unknown, canonicalUnit: string | null = null) {
+export function convertCanonicalToDisplay<T extends ProjectionValue>(dotKey: string, value: T, unitProfile: unknown, canonicalUnit: string | null = null, preservePrecision = false) {
   const resolved = resolveMarkerUnitProfile(dotKey, unitProfile, canonicalUnit);
-  return convertCanonicalWithDefinition(value, resolved.conversion);
+  return convertCanonicalWithDefinition(value, resolved.conversion, preservePrecision);
 }
 
 export function convertDisplayToCanonical<T extends ProjectionValue>(dotKey: string, value: T, unitProfile: unknown, canonicalUnit: string | null = null) {

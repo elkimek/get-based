@@ -13,7 +13,7 @@ export interface AppleHealthProgress {
 export type AppleHealthProgressCallback = (event: AppleHealthProgress) => void;
 export type AppleHealthDailyRow = WearableDailyRow<'apple_health', BasicWearableMetric
   | 'body_fat_pct' | 'lean_mass_kg' | 'fat_mass_kg' | 'vo2max'>;
-interface AppleHealthSample { v: number; h: number | null; src: string }
+interface AppleHealthSample { v: number; h: number | null; src: string; timestamp?: string }
 type AppleHealthBuckets = Partial<Record<CanonicalWearableMetricId, AppleHealthSample[]>>;
 type AppleHealthDays = Map<string, AppleHealthBuckets>;
 type AppleHealthTypeMap = Record<string, CanonicalWearableMetricId>;
@@ -82,13 +82,11 @@ function _processRecordAttrs(attrsRaw: string, typeToCanonical: AppleHealthTypeM
   if (!byDayByMetric.has(day)) byDayByMetric.set(day, {});
   const bucket = byDayByMetric.get(day)!;
   if (!bucket[metricId]) bucket[metricId] = [];
-  bucket[metricId]!.push({ v: normalised, h: hour, src: attrs.sourceName || '' });
+  const bpTimestamp = (metricId === 'bp_systolic' || metricId === 'bp_diastolic') && hour != null ? attrs.startDate : undefined;
+  bucket[metricId]!.push({ v: normalised, h: hour, src: attrs.sourceName || '', ...(bpTimestamp ? {timestamp: bpTimestamp} : {}) });
 }
 
-// Streaming parser — reads `blob` via TextDecoderStream, splits on '\n', and
-// processes each `<Record …>` line as it arrives. Apple's export writes each
-// Record on its own line, so line-buffering is both safe and O(n). Memory
-// stays flat (one chunk + one line at a time) regardless of file size.
+// Read complete tags across arbitrary chunk and line boundaries.
 export async function parseAppleHealthBlob(blob: Blob, onProgress?: AppleHealthProgressCallback | null) {
   const typeToCanonical = _buildTypeToCanonical();
   const byDayByMetric: AppleHealthDays = new Map();
@@ -99,29 +97,25 @@ export async function parseAppleHealthBlob(blob: Blob, onProgress?: AppleHealthP
   let bytesRead = 0;
   const totalSize = blob.size || 0;
 
-  const flushLine = (line: string) => {
-    if (line.indexOf('<Record') === -1) return;
-    _RECORD_RE.lastIndex = 0;
-    const m = _RECORD_RE.exec(line);
-    if (m) _processRecordAttrs(m[1]!, typeToCanonical, byDayByMetric);
-  };
-
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
     buffer += value;
     bytesRead += value.length;
-    let nlIdx;
-    while ((nlIdx = buffer.indexOf('\n')) !== -1) {
-      flushLine(buffer.slice(0, nlIdx));
-      buffer = buffer.slice(nlIdx + 1);
+    _RECORD_RE.lastIndex = 0;
+    let match;
+    let consumed = 0;
+    while ((match = _RECORD_RE.exec(buffer)) !== null) {
+      _processRecordAttrs(match[1]!, typeToCanonical, byDayByMetric);
+      consumed = _RECORD_RE.lastIndex;
     }
+    const open = buffer.lastIndexOf('<');
+    buffer = open >= consumed && buffer.indexOf('>', open) < 0 ? buffer.slice(open) : '';
     if (totalSize && onProgress) {
       // Parse phase claims 40-80% of the progress bar.
       onProgress({ stage: 'parsing', pct: Math.round((bytesRead / totalSize) * 40 + 40) });
     }
   }
-  if (buffer.length) flushLine(buffer);
 
   return _aggregateByDayByMetric(byDayByMetric);
 }
@@ -246,6 +240,8 @@ function _aggregateByDayByMetric(byDayByMetric: AppleHealthDays) {
         row[metricId] = roundedMean(bucket[metricId].map(s => s.v));
       }
     }
+    const sys = bucket.bp_systolic, dia = bucket.bp_diastolic;
+    if (sys?.length === 1 && dia?.length === 1 && sys[0]!.src && sys[0]!.src === dia[0]!.src && sys[0]!.timestamp && sys[0]!.timestamp === dia[0]!.timestamp) row.bpPaired = true;
     if (row.weight != null && row.body_fat_pct != null) {
       row.fat_mass_kg = Math.round(row.weight * row.body_fat_pct) / 100;
     }

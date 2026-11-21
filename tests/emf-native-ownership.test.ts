@@ -112,7 +112,10 @@ it('close waits for a pending native creation and does not lose its accepted rec
 });
 const parsed = () => ({ date: '2026-10-24', rooms: [{ name: 'Bedroom', measurements: { acElectric: { value: 2, unit: 'V/m' } }, sources: [], mitigations: [] }], note: 'Chosen report' });
 it('import approval freezes the reviewed parser data and preserves it privately', async () => {
-  const candidate = parsed(), before = await stored(); await editor.showEMFImportPreview(candidate); candidate.rooms[0]!.measurements.acElectric.value = 999;
+  const candidate = parsed(), before = await stored(); await editor.showEMFImportPreview(candidate);
+  expect(document.querySelector('.emf-measurement-unit')!.textContent).toBe('V/m');
+  expect(document.querySelector('.emf-severity-dot')).not.toBeNull();
+  candidate.rooms[0]!.measurements.acElectric.value = 999;
   document.querySelector<HTMLButtonElement>('#emf-confirm-btn')!.click(); await (await import('../js/emf-native-records.js')).waitForEMFNativeWrites(profile);
   const saved = await stored(), added = saved.emfAssessment!.assessments[1]; expect(added.rooms[0].measurements.acElectric.value).toBe(2); expect(added.source.parserOutput.rooms[0].measurements.acElectric.value).toBe(2); expect(saved.emfAssessment!.assessments[0]).toEqual(before.emfAssessment!.assessments[0]);
 });
@@ -227,8 +230,12 @@ it.each([null, undefined])('does not assign severity to an unknown reported read
   const before = await stored(); await editor.showEMFImportPreview({ ...parsed(), rooms: [{ name: 'Bedroom', measurements: { acElectric: { value, unit: 'V/m', meter: 'Reported instrument' } } }] });
   expect(document.querySelector('.emf-measurements')!.textContent).toContain('Unknown'); expect(document.querySelector('.emf-severity-dot')).toBeNull(); expect(await stored()).toEqual(before);
 });
-it('displays the actual incompatible report unit without a severity badge', async () => {
-  const before = await stored(); await editor.showEMFImportPreview({ ...parsed(), rooms: [{ name: 'Bedroom', measurements: { acElectric: { value: 2, unit: 'mV/m' } } }] });
-  expect(document.querySelector('.emf-measurement-unit')!.textContent).toBe('mV/m'); expect(document.querySelector('.emf-severity-dot')).toBeNull();
+it.each([
+  ['mV/m', 'mV/m'], [undefined, 'Unit missing'], [null, 'Unit missing'], ['', 'Unit missing'], [' ', 'Unit missing'],
+])('withholds severity and rejects a reading with an unconfirmed unit %s', async (unit, displayed) => {
+  const before = await stored();
+  await editor.showEMFImportPreview({ ...parsed(), rooms: [{ name: 'Bedroom', measurements: { acElectric: { value: 2, unit } } }] });
+  expect(document.querySelector('.emf-measurement-unit')!.textContent).toBe(displayed);
+  expect(document.querySelector('.emf-severity-dot')).toBeNull();
   document.querySelector<HTMLButtonElement>('#emf-confirm-btn')!.click(); await (await import('../js/emf-native-records.js')).waitForEMFNativeWrites(profile); expect(await stored()).toEqual(before); expect(state.importedData).toEqual(before);
 });

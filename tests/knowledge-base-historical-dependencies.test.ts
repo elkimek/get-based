@@ -20,7 +20,7 @@ it('keeps current modal behavior in the public Knowledge Base capture rather tha
   expect(() => qualifyHistoricalModalDependency('js/modal-lifecycle.ts', Buffer.from(current))).toThrow('Historical modal dependency changed');
 });
 
-const reviewedNative = ['lens-local', 'lens-local-protocol', 'lens-local-worker', 'lens-local-library-registry', 'lens-local-store', 'lens-local-ingest', 'lens-local-utils'];
+const reviewedNative = ['lens-local', 'lens-local-protocol', 'lens-local-worker', 'lens-local-library-registry', 'lens-local-store', 'lens-local-ingest', 'lens-local-parsers', 'lens-local-utils'];
 it.each(reviewedNative.flatMap(name => ['ts', 'js'].map(extension => `js/${name}.${extension}`)))(
   'pins reviewed native dependency %s and rejects any further source change', file => {
     const bytes = readFileSync(file);
@@ -29,7 +29,7 @@ it.each(reviewedNative.flatMap(name => ['ts', 'js'].map(extension => `js/${name}
   },
 );
 it('retains unmodified original domain pins and rejects unregistered dependencies', () => {
-  for (const name of ['lens-local-parsers', 'lens-local-embedder-config', 'lens-actions']) {
+  for (const name of ['lens-local-embedder-config', 'lens-actions']) {
     for (const extension of ['ts', 'js']) {
       const file = `js/${name}.${extension}`, bytes = readFileSync(file);
       expect(qualifyCurrentDomainDependency(file, bytes)).toMatch(/^[0-9a-f]{64}$/);

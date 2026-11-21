@@ -1,5 +1,6 @@
 // Monotonic per-call remove/restore state survives independent profile and row merges.
 import type { GeneticsData } from './dna-runtime.js';
+import { parseClinicalSnpGenotypeTail } from './dna-genotype.js';
 import { recalculateGenetics } from './genetics-summary.js';
 import { reconcileGeneticsLifecycle, geneticsRecordAllowed, geneticsMetadataNeedsRebroadcast, mergeGeneticsLifecycle } from './genetics-lifecycle.js';
 
@@ -57,9 +58,22 @@ export function reconcileGeneticsSnpState(data: GeneticsSnpData) {
   const calls = genetics.snps;
   if (!object(calls)) return;
   for (const id of Object.keys(calls)) if (!geneticsSnpAllowed(states, id, calls[id])) delete calls[id];
+  let withheld = false;
+  for (const [id, call] of Object.entries(calls)) {
+    if (!validGeneticsSnpId(id) || call?.source?.type !== 'report-text' || !call.source.rawText) continue;
+    const anchors = [...call.source.rawText.matchAll(/\b(rs\d+)\b/gi)];
+    const index = anchors.findIndex(anchor => anchor[1]!.toLowerCase() === id);
+    if (index < 0) continue;
+    const anchor = anchors[index]!;
+    const tail = call.source.rawText.slice(anchor.index + anchor[0].length, anchors[index + 1]?.index);
+    if (parseClinicalSnpGenotypeTail(tail) === call.genotype) continue;
+    (genetics.unverifiedReportCalls ||= {})[id] = call;
+    delete calls[id];
+    withheld = true;
+  }
   // Legacy summary-only imports can lack call evidence. Recompute when actual
   // call ownership or explicit removal history establishes the inputs.
-  if (Object.keys(states).length || Object.values(calls).some(call => geneticsCallTime(call) > 0) || calls.rs429358 && calls.rs7412) recalculateGenetics(genetics);
+  if (withheld || Object.keys(states).length || Object.values(calls).some(call => geneticsCallTime(call) > 0) || calls.rs429358 && calls.rs7412) recalculateGenetics(genetics);
 }
 const canonical = (value: unknown): string => JSON.stringify(value, (_key, item: unknown) => object(item) ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
 export function fresherGeneticsCall(a: unknown, b: unknown) {

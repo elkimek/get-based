@@ -127,6 +127,8 @@ test('api provider storage browser coverage handles provider gates and model cac
       await storage.saveCustomApiKey('custom-secret');
       const customNeedsUrl = storage.hasAIProvider() === false;
       storage.setCustomApiUrl('https://api.example.test/v1');
+      const customNeedsMatchingKey = storage.hasAIProvider() === false && !storage.hasCustomApiKey();
+      await storage.saveCustomApiKey('custom-secret');
       const customAvailable = storage.hasAIProvider() === true && storage.hasCustomApiKey() === true;
       storage.setAIProvider('ollama');
       const optimisticLocalProvider = storage.hasAIProvider() === true;
@@ -140,6 +142,7 @@ test('api provider storage browser coverage handles provider gates and model cac
         && ppqMissingKey
         && ppqAvailable
         && customNeedsUrl
+        && customNeedsMatchingKey
         && customAvailable
         && optimisticLocalProvider;
 

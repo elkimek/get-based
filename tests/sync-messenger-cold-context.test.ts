@@ -299,7 +299,7 @@ describe('default Agent Access context preparation', () => {
     });
     messenger.pushContextToGateway();
     await vi.advanceTimersByTimeAsync(5000);
-    expect(trace).toEqual(['build', 'days', 'wearables']);
+    expect(trace).toEqual(['days', 'build', 'days', 'wearables']);
     expect(prepare).not.toHaveBeenCalled();
     held.resolve('Injected series');
     await sent.promise;

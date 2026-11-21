@@ -16,6 +16,7 @@ export function mountCliAgentSettings(host: HTMLElement, initial: CliAgentSettin
   let owned: CliAgentSettingsView | null = null;
   const guard = (callback: () => unknown) => owned?.isCurrent() ? callback() : undefined;
   const owner = mount(CliAgentSettings,{ target:host,props:{ initial,actions:{
+    pair:code => guard(() => actions.pair?.(code)),
     scan:() => guard(actions.scan),platform:value => guard(() => actions.platform(value)),copy:value => guard(() => actions.copy(value)),
     login:agent => guard(() => actions.login(agent)),test:agent => guard(() => actions.test(agent)),toggle:(enabled,agent) => guard(() => actions.toggle(enabled,agent)),
     disclose:agent => guard(() => actions.disclose(agent)),control:value => guard(() => actions.control(value)),

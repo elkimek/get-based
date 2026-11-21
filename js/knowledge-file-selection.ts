@@ -19,8 +19,8 @@ const extractNative: Extractor = async (file, signal) => {
   // Archive review needs bounded entry extraction and explicit per-document
   // collision choices. Do not inherit the native legacy ZIP partial-success path.
   if (/\.zip$/i.test(file.name)) throw failure('Choose individual documents for this review. Archive review is not available yet.');
-  const { extractFromFile } = await import('./lens-local-parsers.js');
-  const documents = await extractFromFile(file); signal.throwIfAborted(); return documents;
+  const { createLensExtractionScope, extractFromFile } = await import('./lens-local-parsers.js');
+  const documents = await extractFromFile(file, createLensExtractionScope(() => signal.aborted)); signal.throwIfAborted(); return documents;
 };
 export function createKnowledgeFileSelections(extract: Extractor = extractNative) {
   const selections = new Map<string, Selection>();

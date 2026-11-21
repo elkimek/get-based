@@ -20,7 +20,10 @@ vi.mock('../js/api.js', () => ({
 }));
 vi.mock('../js/agent-feature-inference.js', () => ({ callCodexFeature: mocks.callCodexFeature }));
 vi.mock('../js/ai-execution-routing.js', () => ({ getAssistantExecutionRoute: mocks.getAssistantExecutionRoute }));
-vi.mock('../js/agent-chat-settings.js', () => ({ getAgentHostEffort: () => 'high' }));
+vi.mock('../js/agent-chat-settings.js', () => ({
+  getAgentHostEffort: () => 'high',
+  getAgentHostEndpoint: () => 'http://127.0.0.1:8324',
+}));
 
 import {
   assistantFeatureSupports, callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider,

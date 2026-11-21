@@ -38,8 +38,8 @@ import { weightToKilograms } from './wearables-formatters.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { queueManualRowWrite } from './wearables-manual-lock.js';
 import { queueManualOperation } from './manual-operation-lock.js';
-import { MANUAL_METRICS, MANUAL_TAGS, MANUAL_HISTORY_START, MANUAL_HISTORY_END, MANUAL_MIRROR_FIELDS, manualReadingDeletionClock } from './manual-reading-fields.js';
-export { MANUAL_METRICS, MANUAL_TAGS, MANUAL_HISTORY_START, MANUAL_HISTORY_END, MANUAL_MIRROR_FIELDS } from './manual-reading-fields.js';
+import { parseManualMirrorEntry, MANUAL_METRICS, MANUAL_TAGS, MANUAL_HISTORY_START, MANUAL_HISTORY_END, MANUAL_MIRROR_FIELDS, manualReadingDeletionClock } from './manual-reading-fields.js';
+export { parseManualMirrorEntry, hasManualBodyReadings, MANUAL_METRICS, MANUAL_TAGS, MANUAL_HISTORY_START, MANUAL_HISTORY_END, MANUAL_MIRROR_FIELDS } from './manual-reading-fields.js';
 import { BODY_MEASUREMENT_FIELDS, bodyMeasurementRecords, measurementPatch, validMeasurementDate, type BodyMeasurementDraft } from './body-measurement-model.js';
 
 // Merge helper — read the existing manual row for `date` (if any), shallow-merge
@@ -90,28 +90,6 @@ export const manualMirrorKey = (field: string, date: string) => `${field}.${date
 export function manualMirror(imported: ManualProfile): Record<string, ManualBodyReading> {
   const mirror = imported.manualBodyReadings;
   return mirror && typeof mirror === 'object' && !Array.isArray(mirror) ? mirror : (imported.manualBodyReadings = {});
-}
-/** Accept only the explicit manual surface, never vendor/imported row fields. */
-export function parseManualMirrorEntry(key: string, raw: unknown) {
-  const dot = key.indexOf('.'), field = key.slice(0, dot), date = key.slice(dot + 1);
-  if (dot < 1 || !MANUAL_MIRROR_FIELDS.includes(field) || !ISO_DAY_RE.test(date)
-      || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date
-      || !raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const entry = raw as ManualBodyReading;
-  if (!Number.isFinite(entry.updatedAt) || entry.updatedAt < 0) return null;
-  const value = entry.value;
-  if (value !== null && (MANUAL_METRICS.includes(field) ? typeof value !== 'number' || !Number.isFinite(value)
-    : field === 'note' ? typeof value !== 'string' || value.length > 500
-    : !Array.isArray(value) || value.length > MANUAL_TAGS.length || value.some(tag => !MANUAL_TAGS.includes(tag)))) return null;
-  return {field, date, value, updatedAt: entry.updatedAt};
-}
-/** A portable manual surface must contain a valid explicit measurement or deletion. */
-export function hasManualBodyReadings(value: unknown): boolean {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
-    && Object.entries(value).some(([key, raw]) => {
-      const entry = parseManualMirrorEntry(key, raw);
-      return !!entry && MANUAL_METRICS.includes(entry.field);
-    });
 }
 export function mirrorManualPatch(imported: ManualProfile, date: string, patch: Record<string, unknown>, updatedAt: number) {
   const mirror = manualMirror(imported);
@@ -464,8 +442,30 @@ export async function migrateBiometricsToManual(profileId: string, biometrics: B
   const imported = structuredClone(baseData);
   // Retain reconciliation's legacy cleanup, then detach from mutable UI data.
   biometrics = structuredClone(biometrics);
-  const alreadyRan = await getMeta(profileId, MIGRATION_FLAG);
-  if (alreadyRan) return { skipped: 'already-migrated' as const };
+  const alreadyRan = await getMeta<Record<string, unknown>>(profileId, MIGRATION_FLAG);
+  if (alreadyRan) {
+    if (alreadyRan.bpPairEvidence !== 1 && biometrics) {
+      const pairs = new Map<string, BloodPressureValue | null>();
+      for (const observation of biometrics.bp || []) {
+        if (!observation?.date) continue;
+        // Ambiguous dates and single-component records cannot prove a cuff pair.
+        pairs.set(observation.date, !pairs.has(observation.date) &&
+          Number.isFinite(observation.systolic) && Number.isFinite(observation.diastolic) ? observation : null);
+      }
+      await queueManualRowWrite(profileId, async () => {
+        for (const [date, pair] of pairs) {
+          if (!pair) continue;
+          const existing = await getDaily(profileId, 'manual', date);
+          const clocks = existing?._manualSyncAt as Record<string, unknown> | undefined;
+          if (existing && existing.bpPaired === undefined && !clocks?.bp_systolic && !clocks?.bp_diastolic &&
+              existing.bp_systolic === pair.systolic && existing.bp_diastolic === pair.diastolic)
+            await upsertDaily(profileId, { ...existing, bpPaired: true });
+        }
+      });
+      await setMeta(profileId, MIGRATION_FLAG, {...alreadyRan, bpPairEvidence: 1});
+    }
+    return { skipped: 'already-migrated' as const };
+  }
   if (!biometrics) {
     await setMeta(profileId, MIGRATION_FLAG, { at: Date.now(), counts: {} });
     return { skipped: 'no-biometrics' as const };
@@ -496,7 +496,10 @@ export async function migrateBiometricsToManual(profileId: string, biometrics: B
     const patch: Record<string, unknown> = {};
     if (typeof e.systolic  === 'number' && isFinite(e.systolic))  patch.bp_systolic  = e.systolic;
     if (typeof e.diastolic === 'number' && isFinite(e.diastolic)) patch.bp_diastolic = e.diastolic;
-    if (Object.keys(patch).length) pushInto(e.date, patch);
+    if (Object.keys(patch).length) {
+      patch.bpPaired = patch.bp_systolic !== undefined && patch.bp_diastolic !== undefined;
+      pushInto(e.date, patch);
+    }
   }
   for (const e of pulse) {
     if (e?.date && typeof e.value === 'number' && isFinite(e.value)) {
@@ -512,7 +515,12 @@ export async function migrateBiometricsToManual(profileId: string, biometrics: B
         // A previous attempt may have committed rows before metadata failed.
         // Migration fills missing fields; newer manual readings win on retry.
         const existing = await getDaily(profileId, 'manual', row.date);
-        merged.push({ ...row, ...existing, source: 'manual', date: row.date });
+        const next: StoredWearableRow = { ...row, ...existing, source: 'manual', date: row.date };
+        if (next.bpPaired && existing && (existing.bp_systolic !== undefined || existing.bp_diastolic !== undefined) &&
+            existing.bpPaired === undefined && (row.bp_systolic !== next.bp_systolic || row.bp_diastolic !== next.bp_diastolic)) {
+          delete next.bpPaired;
+        }
+        merged.push(next);
       }
       await upsertDailyBatch(profileId, merged);
     });
@@ -523,7 +531,7 @@ export async function migrateBiometricsToManual(profileId: string, biometrics: B
   }
 
   const counts = { weight: weight.length, bp: bp.length, pulse: pulse.length, rows: rows.length };
-  await setMeta(profileId, MIGRATION_FLAG, { at: Date.now(), counts });
+  await setMeta(profileId, MIGRATION_FLAG, { at: Date.now(), counts, bpPairEvidence: 1 });
   return { migrated: true as const, counts };
 }
 

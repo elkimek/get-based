@@ -1,8 +1,10 @@
+import {attachSyntheticSyncOwner, readPersistedAgentAccess} from './agent-access-fixture.js';
 import {nativeTabKey} from '../helpers/native-tab-key.js';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page, BrowserContext } from '@playwright/test';
-import { startKitServer } from './kit-release-server.js';
+import { startIsolatedChatKitServer, startKitServer } from './kit-release-server.js';
+import {expectControlledKitArtifact, readyControlledKitArtifact} from './kit-native-receipts.js';
 import {openStaticSettings} from './settings-entry.js';
 
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
@@ -285,7 +287,7 @@ test('Privacy provider discovery filters cloud models, persists configuration an
     };
   });
   try {
-    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(page); await display(page);
+    await readyControlledKitArtifact(page, server.origin); await display(page);
     await page.locator('#settings-nav-privacy').click();
     const panel = page.locator('#settings-tab-privacy');
     await panel.locator('[data-settings-action="toggle-privacy-configure"]').click();
@@ -298,7 +300,7 @@ test('Privacy provider discovery filters cloud models, persists configuration an
     await panel.locator('#pii-local-toggle').locator('..').click();
     await expect(panel.locator('#privacy-status-title')).toHaveText('Enhanced protection');
     await expect(panel.locator('#privacy-status-detail')).toContainText('qwen2.5:14b');
-    await page.reload({ waitUntil: 'load' }); await ready(page); await display(page); await page.locator('#settings-nav-privacy').click();
+    await page.reload({ waitUntil: 'load' }); await expectControlledKitArtifact(page); await display(page); await page.locator('#settings-nav-privacy').click();
     await expect(panel.locator('#pii-local-toggle')).toBeChecked();
     await expect(panel.locator('#privacy-status-title')).toHaveText('Enhanced protection');
     await panel.locator('[data-settings-action="toggle-privacy-configure"]').click();
@@ -402,7 +404,7 @@ test('Voice first use, themes, keyboard controls and preferences survive an offl
 });
 
 test('Agent Access hydrates offline with masked persisted credentials, keyboard controls and all setup targets', async ({ page, context }) => {
-  const server = await startKitServer(artifact);
+  const server = await startIsolatedChatKitServer(artifact);
   const errors = await prepare(context, page);
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
   await context.addInitScript(() => {
@@ -413,6 +415,7 @@ test('Agent Access hydrates offline with masked persisted credentials, keyboard 
       localStorage.setItem('labcharts-messenger-token', 'a'.repeat(64));
       localStorage.setItem('labcharts-agent-context-key', 'b'.repeat(48));
     }
+    localStorage.setItem('labcharts-sync-relay',location.origin.replace(/^http/,'ws'));
     const target = window as Window & { kitAgentClipboard?: string[] };
     target.kitAgentClipboard = [];
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
@@ -515,13 +518,25 @@ test('Agent Access hydrates offline with masked persisted credentials, keyboard 
     if (await cold.locator('.settings-content').evaluate(element => element === document.activeElement)) await cold.keyboard.press(nativeTabKey(cold));
     await expect(coldToggle).toBeFocused();
     await expect(coldToggle.locator('..').locator('span')).toHaveCSS('outline-width', '2px');
+    // Published credentials survive a refused disable while no signing owner is present.
+    const before = await readPersistedAgentAccess(cold);
+    expect(before).toMatchObject({enabled: true, token: 'a'.repeat(64), contextKey: 'b'.repeat(48)});
+    await coldToggle.press('Space');
+    await expect(cold.locator('#notification-container')).toContainText('Could not save Agent Access disable');
+    await expect(coldToggle).toBeChecked(); expect(await readPersistedAgentAccess(cold)).toEqual(before);
+    await attachSyntheticSyncOwner(cold,artifact);
     await coldToggle.press('Space');
     await expect(coldToggle).not.toBeChecked(); await expect(coldToggle).toBeDisabled();
     await expect(cold.locator('#messenger-token')).toHaveCount(0);
     await expect(cold.locator('[data-agent-access-view]')).toHaveAttribute('aria-busy', 'false');
+    await expect.poll(()=>readPersistedAgentAccess(cold)).toMatchObject({enabled:false,token:null,contextKey:null,revokedAt:expect.any(Number)});
+    const queued = await cold.evaluate(()=>Object.entries(localStorage).filter(([key])=>key.startsWith('labcharts-agent-access-revocation-')));
+    expect(queued).toHaveLength(1);expect(queued[0]![1]).toMatch(/^d1:/);expect(queued[0]![1]).not.toContain('a'.repeat(64));
     await cold.reload({ waitUntil: 'load' }); await ready(cold); await display(cold); await cold.locator('#settings-nav-agent').click();
     await expect(cold.locator('[data-sync-action="toggle-messenger"]')).not.toBeChecked();
     await expect(cold.locator('[data-sync-action="toggle-messenger"]')).toBeDisabled();
+    expect(await readPersistedAgentAccess(cold)).toMatchObject({enabled:false,token:null,contextKey:null,revokedAt:expect.any(Number)});
+    expect(await cold.evaluate(key=>localStorage.getItem(key),queued[0]![0])).toBe(queued[0]![1]);
     await noCspErrors(cold, errors);
   } finally { await server.close(); }
 });

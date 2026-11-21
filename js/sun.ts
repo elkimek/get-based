@@ -527,7 +527,7 @@ export function cumulativeMEDToday(): unknown {
 export function cumulativeMEDYesterday(): unknown {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const yStart = todayStart - 86400000;
+  const yStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime();
   let total = 0;
   for (const sess of getSessions()) {
     // In-progress session that started yesterday and is still running today

@@ -1,4 +1,3 @@
-import { createWearableFetchScope } from './wearable-fetch-scope.js';
 import { createBasicWearableRow } from './wearable-daily-row.js';
 import type { BasicWearableMetric, WearableDailyRow, WearableErrorBody, WearableRequestError, WearableQuery, WearableQueryConstructor } from './wearable-data-types.js';
 
@@ -7,11 +6,13 @@ type WithingsMetric = BasicWearableMetric | 'body_fat_pct' | 'fat_mass_kg' | 'mu
   | 'nerve_health_score' | 'body_temp' | 'skin_temp' | 'sleep_total_min' | 'sleep_deep_min'
   | 'sleep_light_min' | 'sleep_rem_min' | 'sleep_awake_min' | 'sleep_hr_avg' | 'sleep_breathing_rate'
   | 'sleep_snoring_min' | 'sleep_breath_disturb';
-type WithingsDailyRow = WearableDailyRow<'withings', WithingsMetric>;
+type WithingsDailyRow = WearableDailyRow<'withings', WithingsMetric> & { withingsMeasurementVersion: number };
+export interface WithingsCursors { measures: number; sleep: number }
+type WithingsRows = WithingsDailyRow[] & { withingsCursors: WithingsCursors };
 interface WithingsBody {
-  userid?: unknown; updatetime?: number;
-  measuregrps?: { date?: number; measures?: { type: number; value: number; unit: number }[] }[];
-  series?: { date?: string; data?: Record<string, unknown> }[];
+  userid?: unknown; updatetime?: number; more?: boolean | number; offset?: number;
+  measuregrps?: { date?: number; modified?: number; measures?: { type: number; value: number; unit: number }[] }[];
+  series?: { date?: string; modified?: number; data?: Record<string, unknown> }[];
 }
 interface WithingsPayload { status?: unknown; error?: unknown; body?: WithingsBody | null }
 type WithingsRequestError = WearableRequestError & { withingsCode?: unknown };
@@ -29,7 +30,7 @@ type WithingsRequestError = WearableRequestError & { withingsCode?: unknown };
 //     10=bp systolic, 11=pulse bpm, 76=muscle mass, 77=hydration,
 //     71=body temp, 73=skin temp, etc.) — we unpack into canonical fields.
 //
-// Pagination: /measure returns arrays per call, no nextToken. /v2/sleep and
+// /measure uses more/offset pagination. /v2/sleep and
 // /v2/heart use `startdateymd`/`enddateymd`. Everything is day-granular on
 // our side — we reduce intra-day samples before writing to L1.
 
@@ -39,7 +40,8 @@ export { withingsErrorMessage } from './wearables-withings-errors.js';
 import { getErrorMessage, getErrorStatus } from './caught-error.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 import { isDebugMode } from './utils.js';
-import { isoDay } from './wearables-oura.js';
+import { adapterById, isoDay } from './wearable-adapters.js';
+import { WITHINGS_MEASUREMENT_VERSION } from './withings-measurement-version.js';
 
 const WITHINGS_API = 'https://wbsapi.withings.net';
 const PROXY_URL    = getProxyApiUrl();
@@ -50,34 +52,19 @@ const PROXY_URL    = getProxyApiUrl();
 // no rows). Scale pulse (type 11) is a daytime spot reading at the moment
 // of standing — NOT resting heart rate — so it routes to hr_day; rhr
 // comes from sleep summary's hr_min below.
-const MEAS_TYPES: Record<number, WithingsMetric> = {
-  1:   'weight',             // kg
-  5:   'lean_mass_kg',       // kg (fat-free mass)
-  6:   'body_fat_pct',       // %
-  8:   'fat_mass_kg',        // kg (absolute fat tissue)
-  9:   'bp_diastolic',       // mmHg
-  10:  'bp_systolic',        // mmHg
-  11:  'hr_day',             // bpm (scale pulse — taken while standing on the scale)
-  54:  'spo2_avg',           // % (ScanWatch overnight)
-  71:  'body_temp',          // °C (Body Scan IR sensor — absolute, NOT delta)
-  73:  'skin_temp',          // °C (ScanWatch wrist sensor — absolute)
-  76:  'muscle_mass_kg',     // kg
-  77:  'water_mass_kg',      // kg (hydration)
-  88:  'bone_mass_kg',       // kg
-  91:  'pwv',                // m/s (pulse wave velocity)
-  130: 'vascular_age',       // years (Withings PWV-derived)
-  167: 'visceral_fat',       // 1-30 score
-  168: 'nerve_health_score', // score
-  169: 'cardio_fitness',     // VO2 estimate
-};
+const MEAS_TYPES = new Map<number, WithingsMetric>();
+for (const [key, mapping] of Object.entries(adapterById('withings')!.metrics)) {
+  if (mapping.measType !== undefined) MEAS_TYPES.set(mapping.measType, key as WithingsMetric);
+}
 
-// /v2/sleep getsleepsummary fields → canonical. Some need unit conversion
+// /v2/sleep getsummary fields → canonical. Some need unit conversion
 // from seconds to minutes (Withings' default for *duration fields).
 const SLEEP_FIELDS: Record<string, { key?: WithingsMetric; canonical?: WithingsMetric; secToMin?: boolean }> = {
   sleep_score:          { key: 'sleep_score' },
   hr_min:               { canonical: 'rhr' },
   hr_average:           { canonical: 'sleep_hr_avg' },
   rr_average:           { canonical: 'sleep_breathing_rate' },
+  total_sleep_time:     { canonical: 'sleep_total_min', secToMin: true },
   asleepduration:       { canonical: 'sleep_total_min', secToMin: true },
   deepsleepduration:    { canonical: 'sleep_deep_min', secToMin: true },
   lightsleepduration:   { canonical: 'sleep_light_min', secToMin: true },
@@ -88,7 +75,7 @@ const SLEEP_FIELDS: Record<string, { key?: WithingsMetric; canonical?: WithingsM
 };
 // Withings caps `data_fields` at one comma-delimited list per request.
 const SLEEP_DATA_FIELDS = [
-  'asleepduration', 'wakeupduration', 'durationtosleep',
+  'total_sleep_time', 'asleepduration', 'wakeupduration', 'durationtosleep',
   'deepsleepduration', 'lightsleepduration', 'remsleepduration',
   'hr_average', 'hr_min', 'hr_max', 'rr_average',
   'sleep_score', 'snoring', 'breathing_disturbances_intensity',
@@ -138,7 +125,7 @@ async function withingsPOST(action: string, accessToken: string, params: Wearabl
 // resource to hit. The path prefix is the group.
 function normalisePath(action: string) {
   if (action === 'getmeas' || action === 'getsubscription') return 'measure';
-  if (action === 'getsleep' || action === 'getsleepsummary') return 'v2/sleep';
+  if (action === 'getsleep' || action === 'getsummary') return 'v2/sleep';
   if (action === 'getheartlist' || action === 'get') return 'v2/heart';
   if (action === 'getactivity') return 'v2/measure';
   return 'measure';
@@ -162,41 +149,57 @@ export async function fetchWithingsPersonalInfo(accessToken: string) {
   }
 }
 
-export async function fetchWithingsDailyRange(accessToken: string, startDate: string, endDate: string, lastSyncUnix: number | null = null) {
-  const requests = createWearableFetchScope();
-  const startUnix = Math.floor(new Date(startDate + 'T00:00:00Z').getTime() / 1000);
-  const endUnix   = Math.floor(new Date(endDate + 'T23:59:59Z').getTime() / 1000);
+async function withingsPages(action: string, accessToken: string, params: WearableQuery) {
+  const result: WithingsBody = { measuregrps: [], series: [] };
+  let offset = 0;
+  while (true) {
+    const page = await withingsPOST(action, accessToken, offset ? { ...params, offset } : params);
+    for (const group of page.measuregrps || []) result.measuregrps!.push(group);
+    for (const session of page.series || []) result.series!.push(session);
+    if (!page.more) return result;
+    if (!Number.isSafeInteger(page.offset) || page.offset! <= offset) throw new Error('Withings pagination did not advance.');
+    offset = page.offset!;
+  }
+}
 
-  // /measure params:
-  //   - lastupdate: anything modified since this epoch (incremental; catches
-  //     retroactive manual entries — Withings stamps `date` = when the
-  //     reading happened, but bumps the modify-time when typed). Withings's
-  //     own integration guide flags this as the recommended approach.
-  //   - startdate/enddate: fixed window, used for first-sync backfill only.
-  // We drop `meastypes` deliberately: the MEAS_TYPES lookup below already
-  // filters client-side, and omitting the param makes us forward-compatible
-  // with new Withings measTypes (instead of silently dropping them until
-  // the constant is updated).
-  const measParams: WearableQuery = lastSyncUnix
-    ? { lastupdate: String(Math.floor(lastSyncUnix / 1000)), category: '1' }
-    : { startdate: String(startUnix), enddate: String(endUnix), category: '1' };
-
-  // Fetch in parallel: body measures (weight, BP, pulse), sleep summary.
-  // Heartrate list is per-device and noisy; deferring to a follow-up.
-  const [meas, sleep] = await Promise.all([
-    requests.run(withingsPOST('getmeas', accessToken, measParams), {}, e => { logDebug('getmeas', e); }),
-    requests.run(withingsPOST('getsleepsummary', accessToken, {
-      startdateymd: startDate, enddateymd: endDate,
-      data_fields: SLEEP_DATA_FIELDS,
-    }), {}, e => { logDebug('getsleepsummary', e); }),
+export async function fetchWithingsDailyRange(accessToken: string, startDate: string, endDate: string, previous: number | WithingsCursors | null = null) {
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T23:59:59');
+  const startUnix = Math.floor(start.getTime() / 1000);
+  const endUnix = Math.floor(end.getTime() / 1000);
+  // Cursors are provider modification times in seconds. Legacy numeric callers pass milliseconds.
+  const cursors: WithingsCursors = typeof previous === 'number' ? { measures: Math.floor(previous / 1000), sleep: 0 }
+    : { measures: previous?.measures || 0, sleep: previous?.sleep || 0 };
+  const measureParams = cursors.measures ? { lastupdate: cursors.measures } : { startdate: startUnix, enddate: endUnix };
+  const sleepParams = cursors.sleep ? { lastupdate: cursors.sleep } : { startdateymd: startDate, enddateymd: endDate };
+  const [measureResult, sleepResult] = await Promise.allSettled([
+    withingsPages('getmeas', accessToken, { ...measureParams, category: '1' }),
+    withingsPages('getsummary', accessToken, { ...sleepParams, data_fields: SLEEP_DATA_FIELDS }),
   ]);
-  requests.assertSuccessful();
+  if (measureResult.status === 'rejected' && sleepResult.status === 'rejected') {
+    // A verified expired token must reach the caller's refresh path even when the other stream is unavailable.
+    throw getErrorStatus(sleepResult.reason) === 401 ? sleepResult.reason : measureResult.reason;
+  }
+  if (measureResult.status === 'rejected') logDebug('getmeas', measureResult.reason);
+  if (sleepResult.status === 'rejected') logDebug('getsummary', sleepResult.reason);
+  const meas = measureResult.status === 'fulfilled' ? measureResult.value : null;
+  const sleep = sleepResult.status === 'fulfilled' ? sleepResult.value : null;
+  // A first partial backfill retains the beginning of that range for retry. Re-read
+  // the last modified second to capture tied writes; daily upserts are idempotent.
+  function nextCursor(previousCursor: number, records: readonly { modified?: number }[] | undefined) {
+    let latest = previousCursor || startUnix - 1;
+    for (const record of records || []) {
+      if (Number.isSafeInteger(record.modified)) latest = Math.max(latest, record.modified! - 1);
+    }
+    return latest;
+  }
+  const next = { measures: nextCursor(cursors.measures, meas?.measuregrps), sleep: nextCursor(cursors.sleep, sleep?.series) };
 
   const byDate = new Map<string, WithingsDailyRow>();
   function ensureRow(day: string): WithingsDailyRow {
     if (!byDate.has(day)) {
       byDate.set(day, {
-        ...createBasicWearableRow('withings', day),
+        ...createBasicWearableRow('withings', day), withingsMeasurementVersion: WITHINGS_MEASUREMENT_VERSION,
         // Withings full-coverage canonicals (one slot per registered metric).
         body_fat_pct: null, fat_mass_kg: null,
         muscle_mass_kg: null, lean_mass_kg: null,
@@ -223,14 +226,16 @@ export async function fetchWithingsDailyRange(accessToken: string, startDate: st
     // not "tomorrow UTC" for users in positive offsets.
     const day = isoDay(new Date(epoch * 1000));
     const row = ensureRow(day);
+    const freshBP = row.bp_systolic == null && row.bp_diastolic == null;
     for (const m of (group.measures || [])) {
-      const field = MEAS_TYPES[m.type];
+      const field = MEAS_TYPES.get(m.type);
       if (!field) continue;
       const real = m.value * Math.pow(10, m.unit);
       // When multiple samples exist per day we take the first; Withings orders
       // by `date` desc so first = most recent. Callers may want avg/min later.
       if (row[field] == null) row[field] = Math.round(real * 100) / 100;
     }
+    if (freshBP && row.bp_systolic != null && row.bp_diastolic != null) row.bpPaired = true;
   }
 
   // Sleep summary — Withings gives nightly aggregates. Walk SLEEP_FIELDS
@@ -254,7 +259,8 @@ export async function fetchWithingsDailyRange(accessToken: string, startDate: st
     }
   }
 
-  return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+  const rows = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+  return Object.assign(rows, { withingsCursors: next }) satisfies WithingsRows;
 }
 
 function logDebug(where: string, err: unknown) {

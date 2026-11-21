@@ -23,7 +23,7 @@ it('clears connection, model and vision metadata only after durable credential r
 it('serializes connection writes and rolls back credential persistence if endpoint publication fails', async () => {
   const writes = vi.fn(async (_name: string, _value: unknown) => {}); const previous = configureApiProviderStorageRuntimeDeps({ encryptedSetItem: writes });
   const savedSet = localStorage.setItem.bind(localStorage); vi.spyOn(localStorage,'setItem').mockImplementation((name, value) => { if (name === 'labcharts-custom-url') throw new Error('quota'); savedSet(name,value); });
-  try { await expect(saveCustomApiConnection('https://new.test','NEW')).rejects.toThrow('quota'); expect(writes.mock.calls.map(call => call[1])).toEqual(['NEW','OLD']); expect(getCustomApiKey()).toBe('OLD'); expect(getCustomApiUrl()).toBe('https://old.test'); }
+  try { await expect(saveCustomApiConnection('https://new.test','NEW')).rejects.toThrow('quota'); expect(writes.mock.calls.map(call => call[1])).toEqual(['getbased-custom-credential-v1:' + JSON.stringify(['https://new.test', 'NEW']), 'OLD']); expect(getCustomApiKey()).toBe('OLD'); expect(getCustomApiUrl()).toBe('https://old.test'); }
   finally { configureApiProviderStorageRuntimeDeps(previous); }
 });
 
@@ -32,4 +32,15 @@ it('invalidates old endpoint capabilities while preserving the user selected mod
   for (const key of ['model','models','vision-models']) localStorage.setItem('labcharts-custom-'+key,'KEEP');
   try { await saveCustomApiConnection('https://new.test','NEW'); expect(localStorage.getItem('labcharts-custom-model')).toBe('KEEP'); expect(localStorage.getItem('labcharts-custom-models')).toBeNull(); expect(localStorage.getItem('labcharts-custom-vision-models')).toBeNull(); }
   finally { configureApiProviderStorageRuntimeDeps(previous); }
+});
+
+it('uses a saved bearer only for its original endpoint', async () => {
+  const previous = configureApiProviderStorageRuntimeDeps({ encryptedSetItem: vi.fn(async () => {}) });
+  try {
+    await saveCustomApiConnection('https://recipient.test', 'SYNTHETIC');
+    localStorage.setItem('labcharts-custom-url','https://other.test');
+    expect(getCustomApiKey()).toBe('');
+    localStorage.setItem('labcharts-custom-url','https://recipient.test');
+    expect(getCustomApiKey()).toBe('SYNTHETIC');
+  } finally { configureApiProviderStorageRuntimeDeps(previous); }
 });

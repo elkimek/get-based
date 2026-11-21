@@ -174,7 +174,7 @@ export async function confirmImport() {
     for (const m of matched) {
       setLabEntryMarker(entry, m.mappedKey!, normalizeToSI(m.mappedKey!, m.value as number, m.unit, m), {
         now: importTs,
-        source: { file: result.fileName || null, at: importTs, snapshotId },
+        source: { file: result.fileName || null, at: importTs, snapshotId, ...(m.mappedKey === 'diabetes.homaIR' ? { reported: true } : {}) },
       });
     }
     // For non-blood imports, testType is the authoritative sidebar group for all markers
@@ -245,6 +245,7 @@ export async function confirmImport() {
     for (const marker of matched) rangeAffectedKeys.add(marker.mappedKey!);
     // Persist import snapshot for later re-review without AI
     const snapshotPayload = (m: ImportReviewMarker) => ({
+      unitConversionVersion: 2,
       rawName: m.rawName,
       value: m.value,
       unit: m.unit || null,

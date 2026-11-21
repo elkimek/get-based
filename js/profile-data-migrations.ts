@@ -1,3 +1,4 @@
+import { WITHINGS_MEASUREMENT_VERSION, WITHINGS_RECLASSIFIED_METRICS } from './withings-measurement-version.js';
 import { reconcileCustomMarkerLifecycle } from './custom-marker-lifecycle.js';
 // profile-data-migrations.js — Deterministic imported profile-data upgrades.
 
@@ -27,7 +28,13 @@ import { reconcileGeneticsSnpState } from './genetics-snp-lifecycle.js';
 export function migrateProfileData(data: ProfileData): NormalizedProfileData;
 export function migrateProfileData(data: Partial<ProfileData>): Partial<NormalizedProfileData>;
 export function migrateProfileData(data: Partial<ProfileData>): NormalizedProfileData {
-  if (data.geneticsSnpTombstones != null || data.geneticsLifecycle != null) reconcileGeneticsSnpState(data);
+  for (const metric of WITHINGS_RECLASSIFIED_METRICS) {
+    const reading = data.wearableSummary?.metrics?.[metric];
+    if (reading?.primarySource === 'withings' && reading.withingsMeasurementVersion !== WITHINGS_MEASUREMENT_VERSION) {
+      delete data.wearableSummary.metrics[metric];
+    }
+  }
+  if (data.genetics || data.geneticsSnpTombstones != null || data.geneticsLifecycle != null) reconcileGeneticsSnpState(data);
   migrateLabPanelIdentities(data);
   if (Array.isArray(data.entries) && data.labPanelTombstones != null) data.entries = filterRemovedLabPanels(data.entries, data.labPanelTombstones) as typeof data.entries;
   // Migrate sleepCircadian → sleepRest (sleep fields go to sleepRest, circadian items to lightCircadian)

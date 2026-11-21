@@ -6,6 +6,7 @@ import { hasCardContent, getStatus } from './utils.js';
 import { getActiveData, getFocusCardFingerprint } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { profileStorageKey } from './profile.js';
+import { encryptedGetItem, encryptedRemoveItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
 import { getAIProvider, getActiveModelId } from './api.js';
 import { callAssistantFeatureAI, getAssistantFeatureIdentity, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { injectLensChunks } from './lab-context-output.js';
@@ -60,6 +61,7 @@ function getFocusFlaggedMarkers(data: FocusData) {
 }
 
 export function projectFocusCard(): FocusCardView {
+  if (getEncryptionEnabled()) return { body: { kind: 'shimmer' } };
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
   const cached: FocusCacheReader | null = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
   const fp = getFocusCardFingerprint();
@@ -83,7 +85,8 @@ export function buildFocusContext() {
   const lastDate = data.dates[data.dates.length - 1];
   const includeInsightCards = isInsightContextCardsEnabled();
   const includeSupplementsMeds = isSupplementsMedsContextEnabled();
-  let ctx = `Profile: ${sexLabel}${age !== null ? ', age ' + age : ''}, today ${today}, last labs ${lastDate}\n`;
+  let ctx = includeInsightCards ? `Profile: ${sexLabel}${age !== null ? ', age ' + age : ''}, today ${today}, last labs ${lastDate}\n`
+    : `Today ${today}, last labs ${lastDate}\n`;
   const samples = disclosure.entries(state.importedData.entries || []);
   ctx += buildLabCollectionContextSection(samples);
   if (samples.length > 1) ctx += buildLabSampleResultsSection(samples, data, state.unitSystem);
@@ -100,7 +103,7 @@ export function buildFocusContext() {
   }
 
   const interpretiveLens = state.importedData.interpretiveLens || '';
-  if (interpretiveLens.trim()) {
+  if (includeInsightCards && interpretiveLens.trim()) {
     ctx += `Lens: ${interpretiveLens.trim()}\n`;
   }
 
@@ -184,20 +187,31 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
   const el = document.getElementById('focus-card-body');
   if (!el) return;
   const refreshStale = opts.refreshStale !== false;
-  const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
-  const cached: FocusCacheReader | null = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
+  const profileId = state.currentProfile;
+  const profileData = state.importedData;
+  const cacheKey = profileStorageKey(profileId, 'focusCard');
   const fp = getFocusCardFingerprint();
-  if (cached && cached.text) {
+  const current = () => state.currentProfile === profileId && state.importedData === profileData
+    && document.getElementById('focus-card-body') === el && getFocusCardFingerprint() === fp;
+  let cached: FocusCacheReader | null = null;
+  try {
+    cached = JSON.parse(await encryptedGetItem(cacheKey) || 'null') as FocusCacheReader | null;
+  } catch { /* Regenerate unavailable cache entries. */ }
+  if (!current()) return;
+  if (cached?.text && (!cached.fingerprint || cached.fingerprint === fp)) {
     replaceFocusCardBody(el, projectFocusCardMarkdown(cached.text));
     // Hand-authored prefill (demo profiles only) ships without a
     // fingerprint; never auto-refresh. The manual refresh button still
     // works because refreshFocusCard clears the cache entirely.
     if (!cached.fingerprint) return;
-    if (cached.fingerprint === fp || !hasAssistantFeatureProvider()) return;
-    if (!refreshStale) return;
+    return;
+  }
+  if (cached?.text && !refreshStale) {
+    replaceFocusCardBody(el, {kind: 'message', text: 'Your data changed since this insight was generated. Refresh to update it.'});
+    return;
   }
   if (!hasAssistantFeatureProvider()) {
-    if (!cached?.text) replaceFocusCardBody(el, {kind: 'message', text: 'Enable AI to generate insights'});
+    replaceFocusCardBody(el, {kind: 'message', text: 'Enable AI to generate insights'});
     return;
   }
   replaceFocusCardBody(el, {kind: 'message', text: '\uD83D\uDD0D Looking into your results\u2026'});
@@ -227,9 +241,11 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
 - Never attribute changes to supplements started after the last lab date
 - CRITICAL: Output ONLY the insight text. No thinking, no reasoning, no "Let me analyze", no numbered analysis steps, no preamble. Start directly with your finding.`;
 
+    if (!current()) return;
     const stream = createFocusCardStream(el);
     let target = '', displayed = 0, timer: ReturnType<typeof setTimeout> | null = null;
     function tick() {
+      if (!current()) { timer = null; return; }
       if (displayed >= target.length) { timer = null; return; }
       const batch = Math.max(1, Math.ceil((target.length - displayed) * 0.3));
       displayed = Math.min(displayed + batch, target.length);
@@ -242,10 +258,12 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
       messages: [{ role: 'user', content: ctx }],
       maxTokens: 500,
       consentKind: opts.userInitiated ? 'text' : 'automatic-insight',
+      requestCurrent: current,
       // A thinking model spends this 500-token cap on reasoning and finishes
       // with `length` before writing any content, leaving the card empty.
       reasoningEffort: 'none',
       onStream(text) {
+        if (!current()) return;
         if (text.length < target.length) displayed = 0;
         target = text;
         stream.attach();
@@ -253,6 +271,7 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
       }
     }) as FocusResponseReader;
     if (timer) { clearTimeout(timer); timer = null; }
+    if (!current()) return;
 
     if (usage && !getAssistantFeatureIdentity().subscription) {
       (trackUsage as (provider: Parameters<typeof trackUsage>[0], modelId: Parameters<typeof trackUsage>[1], inputTokens: unknown, outputTokens: unknown) => ReturnType<typeof trackUsage>)(getAIProvider(), getActiveModelId(), (usage as { inputTokens?: unknown }).inputTokens || 0, (usage as { outputTokens?: unknown }).outputTokens || 0);
@@ -267,12 +286,14 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
     if (startIdx > 0 && startIdx < lines.length) trimmed = lines.slice(startIdx).join('\n').trim();
     if (trimmed.length > 1500) { const cut = trimmed.slice(0, 1500).lastIndexOf('.'); if (cut > 100) trimmed = trimmed.slice(0, cut + 1); }
     if (trimmed) {
-      localStorage.setItem(cacheKey, JSON.stringify({ fingerprint: fp, text: trimmed }));
+      await encryptedSetItem(cacheKey, JSON.stringify({ fingerprint: fp, text: trimmed }));
+      if (!current()) return;
       replaceFocusCardBody(el, projectFocusCardMarkdown(trimmed));
     } else {
       replaceFocusCardBody(el, {kind: 'message', text: 'No insight available'});
     }
   } catch(e) {
+    if (!current()) return;
     // Show why. The transport raises actionable messages here (e.g. a local
     // model spending its output budget on reasoning); collapsing them all to
     // "Could not load insight" sends people debugging the network instead.
@@ -282,8 +303,8 @@ export async function loadFocusCard(opts: FocusCardOptions = {}) {
   }
 }
 
-export function refreshFocusCard() {
+export async function refreshFocusCard() {
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
-  localStorage.removeItem(cacheKey);
-  loadFocusCard({ userInitiated: true });
+  await encryptedRemoveItem(cacheKey);
+  if (cacheKey === profileStorageKey(state.currentProfile, 'focusCard')) await loadFocusCard({ userInitiated: true });
 }

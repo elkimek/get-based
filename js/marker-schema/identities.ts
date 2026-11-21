@@ -79,6 +79,7 @@ const IDENTITY_ROWS: MarkerIdentityRow[] = [
   ['nonHdl', 'lipids.nonHdl'],
   ['apoAI', 'lipids.apoAI'],
   ['apoB', 'lipids.apoB'],
+  ['lpAMass', 'lipids.lpAMass'],
   ['lpA', 'lipids.lpA', [
     'lipids.lpa',
     'lipids.lp_a',

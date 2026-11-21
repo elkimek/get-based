@@ -187,7 +187,7 @@ export function startDevAgentHost(options: DevAgentHostOptions): DevAgentHostCon
     ...agent,
     ...hostInfo,
     status: agent.status === 'login_required' ? agent.status : status,
-    endpoint, token: status === 'available' ? storage.token : '',
+    endpoint, token: '', controlAuthorized: false,
     ...(agent.message ? { message: agent.message } : message ? { message } : {}),
   })) });
   return {

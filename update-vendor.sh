@@ -8,7 +8,7 @@ CHARTJS_VERSION="4.4.7"
 # dynamic `import()` that exposes the module as `window.pdfjsLib` for the
 # existing call sites. ≥4.2.67 closes CVE-2024-4367 (FontMatrix injection).
 PDFJS_VERSION="4.10.38"
-MAMMOTH_VERSION="1.8.0"
+MAMMOTH_VERSION="1.13.0"
 JSZIP_VERSION="3.10.1"
 # @huggingface/transformers is intentionally NOT vendored — its npm-dist
 # bundles have bare module specifiers (onnxruntime-web/webgpu etc.) that

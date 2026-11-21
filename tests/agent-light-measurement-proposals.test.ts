@@ -145,4 +145,6 @@ it('keeps saved checkpoint history visible after the final live room is removed'
 });
 
 import { retiredRecordActions } from './helpers/retired-health-record-actions.js';
-retiredRecordActions('lightAudits',['add','update','remove']);
+retiredRecordActions('lightAudits', (title, verify) => {
+  it.each(['add', 'update', 'remove'])(title, verify);
+});

@@ -130,5 +130,22 @@ function restoreInlineRemove(input: string, authored: boolean): string {
 }
 export function restoreInlineBiometricRemoveSource(input: string): string { return restoreInlineRemove(input, true); }
 export function restoreInlineBiometricRemoveCss(input: string): string { return restoreInlineRemove(input, false); }
-export function restoreReviewedBiometricSource(input: string): string { return restoreReadableBiometricCtaSource(restoreManualBiometricRemoveSource(restoreInlineBiometricRemoveSource(input))); }
-export function restoreReviewedBiometricCss(input: string): string { return restoreReadableBiometricCtaCss(restoreManualBiometricRemoveCss(restoreInlineBiometricRemoveCss(input))); }
+// Qualify the two exact responsive changes separately from the frozen styles.
+function restoreBioAgeSizing(input: string, authored: boolean) {
+  const recipes = [
+    ['db-hero-bio', '001', 'display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: center;',
+      'display: grid; grid-template-columns: 1fr auto; align-items: center;'],
+    ['db-hero-bio-right', '008', 'width: min(100%, 220px); display: flex; flex-direction: column; gap: 10px;',
+      'width: 220px; display: flex; flex-direction: column; gap: 10px;'],
+  ];
+  for (const [selector, suffix, current, previous] of recipes) {
+    const name = authored ? '@utility dashboard-native-data-' + selector + '-' + suffix : '.' + selector;
+    const start = name + ' {\n  ';
+    const present = start + current;
+    assert.equal(input.split(present).length, 2, 'Exact responsive Bio Age sizing rule');
+    input = input.replace(present, start + previous);
+  }
+  return input;
+}
+export function restoreReviewedBiometricSource(input: string): string { return restoreReadableBiometricCtaSource(restoreManualBiometricRemoveSource(restoreInlineBiometricRemoveSource(restoreBioAgeSizing(input, true)))); }
+export function restoreReviewedBiometricCss(input: string): string { return restoreReadableBiometricCtaCss(restoreManualBiometricRemoveCss(restoreInlineBiometricRemoveCss(restoreBioAgeSizing(input, false)))); }

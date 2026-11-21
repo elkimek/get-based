@@ -1,7 +1,18 @@
 export interface AmbientLightSensor extends EventTarget { illuminance: number | null; start(): void; stop(): void; }
 export interface AmbientLightSensorConstructor { new(options: { frequency: number }): AmbientLightSensor; }
 export interface MammothTextExtractor { extractRawText(options: { arrayBuffer: ArrayBuffer }): Promise<{ value?: string }> }
-export interface ZipEntry { dir: boolean; name: string; async(type: 'blob'): Promise<Blob>; }
+export interface ZipEntry {
+  dir: boolean;
+  name: string;
+  async(type: 'blob'): Promise<Blob>;
+  internalStream(type: 'uint8array'): {
+    on(event: 'data', listener: (data: Uint8Array<ArrayBuffer>) => void): void;
+    on(event: 'error', listener: (error: Error) => void): void;
+    on(event: 'end', listener: () => void): void;
+    pause(): void;
+    resume(): void;
+  };
+}
 export interface ZipRuntime { loadAsync(buffer: ArrayBuffer): Promise<{ files: Record<string, ZipEntry> }> }
 interface RuntimeValues { AmbientLightSensor: AmbientLightSensorConstructor; mammoth: MammothTextExtractor; JSZip: ZipRuntime; }
 type UtilsWindow = Window & typeof globalThis & Record<string, unknown>;

@@ -19,6 +19,57 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test('the first chat draft stays with its conversation when opening waits for profile storage', async ({ page, baseURL }) => {
+  await page.setViewportSize({width: 1280, height: 800});
+  const origin = new URL(baseURL!).origin;
+  await page.route(url => url.origin !== origin || url.pathname === '/api/proxy', route => route.abort());
+  await page.addInitScript(() => {
+    localStorage.setItem('labcharts-chat-backend', 'direct');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+    localStorage.setItem('labcharts-active-profile', 'default');
+    localStorage.setItem('labcharts-profiles', JSON.stringify([
+      {id: 'default', name: 'Synthetic Composer', sex: 'male', dob: '1987-11-22', createdAt: 1},
+    ]));
+    localStorage.setItem('labcharts-default-imported', JSON.stringify({
+      entries: [{date: '2026-10-20', markers: {'biochemistry.glucose': 5}}],
+    }));
+  });
+  await page.goto('/app');
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  const lockName = await page.evaluate(async () => {
+    const {state} = await import('/js/state.js');
+    const lockName = 'getbased-personas-' + state.currentProfile;
+    await new Promise<void>(acquired => {
+      void navigator.locks.request(lockName, () => new Promise<void>(release => {
+        Reflect.set(window, 'releaseComposerOpeningLock', release);
+        acquired();
+      }));
+    });
+    return lockName;
+  });
+  const input = page.getByRole('textbox', {name: 'Chat message'});
+  const send = page.getByRole('button', {name: 'Send message'});
+  try {
+    await page.locator('#chat-fab').click();
+    await expect(input).toBeVisible();
+    await expect.poll(() => page.evaluate(async name =>
+      (await navigator.locks.query()).pending?.some(lock => lock.name === name), lockName)).toBe(true);
+    await expect(input).toBeDisabled();
+    await expect(send).toBeDisabled();
+  } finally {
+    await page.evaluate(() => Reflect.get(window, 'releaseComposerOpeningLock')());
+  }
+  const prompt = 'Keep this first draft in my conversation.';
+  await expect(input).toBeEnabled();
+  await input.fill(prompt);
+  await expect(send).toBeEnabled();
+  await page.getByRole('button', {name: 'Close chat', exact: true}).click();
+  await page.locator('#chat-fab').click();
+  await expect(input).toBeEnabled();
+  await expect(input).toHaveValue(prompt);
+  await expect(send).toBeEnabled();
+});
+
 test('long prompts grow across the full composer and drafts follow their conversation', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {

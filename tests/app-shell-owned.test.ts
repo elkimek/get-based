@@ -29,6 +29,8 @@ it('preserves every native element, ordered attribute, text, control default and
  const rails=native.querySelectorAll('#chat-thread-rail');expect(rails).toHaveLength(1);
  const rail=rails[0]!;expect([...rail.attributes].map(attr=>[attr.name,attr.value])).toEqual([['class','chat-thread-rail'],['id','chat-thread-rail']]);
  rail.setAttribute('inert','');expect(current.querySelectorAll('#chat-thread-rail[inert]')).toHaveLength(1);
+ const toggle=native.querySelector('#sidebar-toggle')!;expect(toggle.hasAttribute('aria-controls')).toBe(false);expect(toggle.hasAttribute('aria-expanded')).toBe(false);
+ toggle.setAttribute('aria-controls','sidebar-nav');toggle.setAttribute('aria-expanded','false');
  // Components add inert compiler comments; constrain every candidate annotation
  // while retaining complete native elements, ordered attributes and text.
  const comments=document.createTreeWalker(current,NodeFilter.SHOW_COMMENT);while(comments.nextNode())tree(comments.currentNode);

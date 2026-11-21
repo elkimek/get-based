@@ -75,12 +75,12 @@ function protectedReadPath(file: string): string {
 }
 
 const reviewedDomainBytes = fs.readFileSync(path.join(directory, 'reviewed-domain-dependencies.json'));
-assert.equal(createHash('sha256').update(reviewedDomainBytes).digest('hex'), 'd9434581e3331f0bdbec3820874ec2a708f4c233beca420194d6b0df15276fd8', 'Reviewed native dependency receipt changed');
+assert.equal(createHash('sha256').update(reviewedDomainBytes).digest('hex'), '71207cf7453991cd7e0d8401bb7c7cfc10a510f9c7b339a754010621b278553d', 'Reviewed native dependency receipt changed');
 const reviewedDomain = JSON.parse(reviewedDomainBytes.toString('utf8')) as {
   version: number;
   dependencies: Record<string, { reason: string; hashes: Record<string, { original: string; reviewed: string }> }>;
 };
-const reviewedCanonical = protectedCanonical.slice(0, 6).concat('js/lens-local-utils.ts');
+const reviewedCanonical = protectedCanonical.slice(0, 8);
 assert.equal(reviewedDomain.version, 1);
 assert.deepEqual(Object.keys(reviewedDomain.dependencies).sort(), [...reviewedCanonical].sort(), 'Exact reviewed native dependency inventory');
 function currentExpectedHash(file: string): string {
@@ -148,6 +148,10 @@ function adaptDriver(name: string): string {
     source = replaceExactly(source, "const base = '.local-notes/full-ui-migration/knowledge-base';", `const base = ${JSON.stringify(directory)};`);
   }
   if (name === 'candidate-ingest-branches') {
+    source = replaceExactly(source,
+      "assert(result.warnings.length > 0);\n    } else if (name === 'stop-during-reading')",
+      "if (name === 'unsupported-no-usable') assert.deepEqual(result.warnings, []);\n      else assert(result.warnings.length > 0);\n    } else if (name === 'stop-during-reading')",
+    );
     source = replaceExactly(source, "const root = path.resolve(notes, '../../..');", `const root = ${JSON.stringify(project)};`);
   }
   if (name === 'candidate-capture' || name === 'candidate-status-edit') {

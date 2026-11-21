@@ -18,7 +18,7 @@ import { ensureChartJs, formatChartTickValue, isChartDateAdapterReady } from './
 import {
   formatWearableMetricValue,
   shortDate,
-  wearableDisplayUnit,
+  wearableDisplayUnit, sameBloodPressureObservation, hasPairedBloodPressure,
 } from './wearables-formatters.js';
 import { renderBloodPressureChart } from './wearables-bp-detail-chart.js';
 import { openModalOverlay } from './modal-lifecycle.js';
@@ -119,7 +119,7 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
     && document.getElementById('detail-modal') === modalBefore && modalBefore?.firstElementChild === contentBefore && document.getElementById('modal-overlay') === overlayBefore && overlayBefore?.classList.contains('show') === shownBefore;
   if (!pending()) return;
   const summary = state.importedData?.wearableSummary;
-  const normalizedMetricId = metricId === 'bp_diastolic' && summary?.metrics?.bp_systolic
+  const normalizedMetricId = metricId === 'bp_diastolic' && sameBloodPressureObservation(summary?.metrics?.bp_systolic, summary?.metrics?.bp_diastolic)
     ? 'bp_systolic'
     : metricId;
   const canon = canonicalMetric(normalizedMetricId);
@@ -148,15 +148,12 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
   let pairedRows: Awaited<ReturnType<typeof getDailyRange>> = [];
   const isBloodPressureDetail = normalizedMetricId === 'bp_systolic';
   const pairedMetricId = isBloodPressureDetail ? 'bp_diastolic' : null;
-  const pairedMetric = pairedMetricId ? summary?.metrics?.[pairedMetricId] : null;
+  const otherMetric = pairedMetricId ? summary?.metrics?.[pairedMetricId] : null;
+  const pairedMetric = sameBloodPressureObservation(m, otherMetric) ? otherMetric : null;
   try {
     rows = await getDailyRange(profileId, m.primarySource, startDate, endDate);
     if (!pending()) return;
-    if (pairedMetricId && pairedMetric?.primarySource && pairedMetric.primarySource !== m.primarySource) {
-      pairedRows = await getDailyRange(profileId, pairedMetric.primarySource, startDate, endDate);
-    } else {
-      pairedRows = rows;
-    }
+    pairedRows = pairedMetric ? rows.filter(hasPairedBloodPressure) : [];
   } catch (e) {
     showNotification?.(`Couldn't read local history: ${getErrorMessage(e)}`, 'error', 4000);
     return;
@@ -190,7 +187,7 @@ export async function openWearableDetail(metricId: string, opts: WearableDetailO
     .map(r => ({
       date: r.date,
       v: r[normalizedMetricId],
-      pairedV: pairedMetricId ? r[pairedMetricId] : undefined,
+      pairedV: pairedMetricId && hasPairedBloodPressure(r) ? r[pairedMetricId] : undefined,
       tags: r.tags,
       note: r.note,
     }))
@@ -334,13 +331,13 @@ function buildWearableDetailHtml(canon: CanonicalWearableMetric, m: DetailMetric
   const trendWord = m.trend30d === 'declining' ? 'declining'
                    : m.trend30d === 'rising' ? 'rising'
                    : m.trend30d === 'improving' ? 'improving'
-                   : 'flat';
+                   : m.trend30d === 'insufficient' ? 'insufficient data' : 'flat';
 
   const suppressDelta = !m.baseline || !isFinite(m.baseline)
                      || metricId === 'steps'
                      || (m.latest === 0 && Math.abs(m.baseline) > 0.5);
   let deltaStr: string | null = null;
-  if (!suppressDelta && m.latest != null && isFinite(m.latest)) {
+  if (!suppressDelta && m.baseline != null && m.latest != null && isFinite(m.latest)) {
     if (canon?.sub === 'Δ') {
       const diff = m.latest - m.baseline;
       const arrow = diff > 0.005 ? '↑' : diff < -0.005 ? '↓' : '→';
@@ -376,7 +373,7 @@ function buildWearableDetailHtml(canon: CanonicalWearableMetric, m: DetailMetric
   };
   const latestPairedReading = (() => {
     if (!pairedMetric) return null;
-    const diastolicByDate = new Map(pairedSeries.map(p => [p.date, p.v]));
+    const diastolicByDate = new Map((pairedMetric.primarySource === m.primarySource ? pairedSeries : []).map(p => [p.date, p.v]));
     const candidates: Array<{date: string; sys: unknown; dia: unknown}> = [];
     for (const point of series) {
       const dia = diastolicByDate.get(point.date);
@@ -393,7 +390,7 @@ function buildWearableDetailHtml(canon: CanonicalWearableMetric, m: DetailMetric
     }
     return candidates.sort((a, b) => b.date.localeCompare(a.date))[0] || null;
   })();
-  const latestSummaryDatesMatch = !!(m.latestDate && pairedMetric?.latestDate && m.latestDate === pairedMetric.latestDate);
+  const latestSummaryDatesMatch = sameBloodPressureObservation(m, pairedMetric);
   const latestSummaryDatesIncomplete = !m.latestDate || !pairedMetric?.latestDate;
   const latestSummaryDatesSplit = !!(m.latestDate && pairedMetric?.latestDate && m.latestDate !== pairedMetric.latestDate);
   const latestBpValue = latestPairedReading

@@ -105,8 +105,10 @@ const EMOJI_CATEGORIES = [
   { id: 'symbols', icon: '\uD83D\uDD36', label: 'Symbols & Colors', emojis: ['\uD83D\uDD36','\uD83D\uDD35','\uD83D\uDFE2','\uD83D\uDFE1','\uD83D\uDFE3','\uD83D\uDD34','\u26AA','\u26AB','\uD83D\uDFE0','\uD83D\uDFE4','\u2728','\uD83D\uDCAB','\u267B\uFE0F','\u269B\uFE0F','\u2699\uFE0F','\u267E\uFE0F','\u2B55','\uD83D\uDD16'] },
 ];
 
+let closeCurrentEmojiPicker: (() => void) | undefined;
 export function showEmojiPicker(anchorEl: Element, callback: (emoji: string | null | undefined) => unknown, opts: { showReset?: boolean } = {}) {
   // Remove existing picker
+  closeCurrentEmojiPicker?.();
   document.querySelector('.emoji-picker')?.remove();
   const picker = document.createElement('div');
   picker.className = 'emoji-picker';
@@ -114,8 +116,10 @@ export function showEmojiPicker(anchorEl: Element, callback: (emoji: string | nu
   // Position near anchor
   const rect = anchorEl.getBoundingClientRect();
   const viewport = getCategoryCustomizationViewportSize();
-  picker.style.left = Math.min(rect.left, viewport.width - 340) + 'px';
-  picker.style.top = Math.min(rect.bottom + 4, viewport.height - 420) + 'px';
+  picker.style.maxWidth = Math.max(0, viewport.width - 16) + 'px';
+  picker.style.maxHeight = Math.max(0, viewport.height - 16) + 'px';
+  picker.style.left = Math.max(8, Math.min(rect.left, viewport.width - 340)) + 'px';
+  picker.style.top = Math.max(8, Math.min(rect.bottom + 4, viewport.height - 420)) + 'px';
 
   let activeCat: string | null | undefined = null;
   let searchTerm = '';
@@ -139,16 +143,30 @@ export function showEmojiPicker(anchorEl: Element, callback: (emoji: string | nu
       btn.addEventListener('click', () => {
         if (button.dataset.cat === '__reset') { callback(null); picker.remove(); cleanup(); return; }
         activeCat = activeCat === button.dataset.cat ? null : button.dataset.cat; searchTerm = ''; render();
+        picker.querySelector<HTMLElement>(`[data-cat="${button.dataset.cat}"]`)?.focus();
       });
     });
-    picker.querySelectorAll('.emoji-picker-grid span[data-emoji]').forEach(span => {
+    picker.querySelectorAll('.emoji-picker-grid [data-emoji]').forEach(span => {
       const emojiEl = (span as HTMLElement);
-      span.addEventListener('click', () => { callback(emojiEl.dataset.emoji); picker.remove(); cleanup(); });
+      span.addEventListener('click', () => { callback(emojiEl.dataset.emoji); picker.remove(); cleanup(); if (anchorEl instanceof HTMLElement && anchorEl.isConnected) anchorEl.focus(); });
     });
   }
 
+  picker.addEventListener('keydown', event => {
+    const option = event.target instanceof HTMLElement && event.target.closest<HTMLElement>('[data-emoji]');
+    if (option && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault(); option.click();
+    }
+  });
   render();
-  document.body.appendChild(picker);
+  if (typeof picker.showPopover === 'function') {
+    picker.popover = 'manual';
+    picker.style.margin = '0';
+    picker.style.right = 'auto';
+    picker.style.bottom = 'auto';
+  }
+  (anchorEl.closest('[role="dialog"]') || document.body).appendChild(picker);
+  if (picker.popover) picker.showPopover();
   setTimeout(() => picker.querySelector('input')?.focus(), 50);
 
   // Close on outside click
@@ -156,9 +174,15 @@ export function showEmojiPicker(anchorEl: Element, callback: (emoji: string | nu
     if (!(e.target instanceof Node)) return;
     if (!picker.contains(e.target) && e.target !== anchorEl) { picker.remove(); cleanup(); }
   }
-  function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') { picker.remove(); cleanup(); } }
-  function cleanup() { document.removeEventListener('mousedown', onClickOutside); document.removeEventListener('keydown', onEsc); }
-  setTimeout(() => { document.addEventListener('mousedown', onClickOutside); document.addEventListener('keydown', onEsc); }, 10);
+  function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); picker.remove(); cleanup(); if (anchorEl instanceof HTMLElement) anchorEl.focus(); } }
+  function cleanup() {
+    document.removeEventListener('mousedown', onClickOutside);
+    document.defaultView?.removeEventListener('keydown', onEsc, true);
+    closeCurrentEmojiPicker = undefined;
+  }
+  closeCurrentEmojiPicker = () => { picker.remove(); cleanup(); };
+  document.addEventListener('mousedown', onClickOutside);
+  document.defaultView?.addEventListener('keydown', onEsc, true);
 }
 
 export function changeCategoryIcon(categoryKey: string) {

@@ -186,7 +186,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       getEncryptionEnabled: cryptoStore.getEncryptionEnabled,
       isEncryptedObject: cryptoStore.isEncryptedObject,
     });
-    const wallet = (await import(`/js/cashu-wallet.js?cashuWalletCoverage=${Date.now()}`) as unknown) as Pick<typeof import('../../js/cashu-wallet.js'), "getMintUrl" | "setMintUrl" | "hasWalletSeed" | "generateWalletSeed" | "getWalletMnemonic" | "createFundingInvoice" | "checkFundingStatus" | "receiveToken" | "exportWallet" | "sendAsToken" | "recoverPendingWithdraw" | "clearPendingWithdraw" | "depositToNode" | "recoverPendingDeposit" | "clearPendingDeposit" | "importWallet" | "checkProofStates" | "getMaxWithdrawable" | "withdrawToAddress" | "createWithdrawQuote" | "executeWithdraw" | "getWalletBalance" | "restoreWalletFromSeed" | "getFeePct" | "getFeeBalance" | "retryFeeAutoMelt" | "redeemFees" | "clearWallet" | "destroyWalletDB">;
+    const wallet = (await import(`/js/cashu-wallet.js?cashuWalletCoverage=${Date.now()}`) as unknown) as Pick<typeof import('../../js/cashu-wallet.js'), "getMintUrl" | "setMintUrl" | "hasWalletSeed" | "acknowledgeWalletSeedBackup" | "generateWalletSeed" | "getWalletMnemonic" | "createFundingInvoice" | "checkFundingStatus" | "receiveToken" | "exportWallet" | "sendAsToken" | "recoverPendingWithdraw" | "clearPendingWithdraw" | "depositToNode" | "recoverPendingDeposit" | "clearPendingDeposit" | "importWallet" | "checkProofStates" | "getMaxWithdrawable" | "withdrawToAddress" | "createWithdrawQuote" | "executeWithdraw" | "getWalletBalance" | "restoreWalletFromSeed" | "getFeePct" | "getFeeBalance" | "retryFeeAutoMelt" | "redeemFees" | "clearWallet" | "destroyWalletDB">;
     const { configureApiProviderStorageRuntimeDeps } = await import('/js/api-provider-storage-runtime.js');
     configureApiProviderStorageRuntimeDeps({ encryptedSetItem: cryptoStore.encryptedSetCredentialItem });
     const { saveRoutstrSessionKey } = await import('/js/routstr-session.js');
@@ -206,6 +206,8 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         && localStorage.getItem('labcharts-cashu-wallet-mint') === 'https://mint.browser-wallet.test/Bitcoin';
       outcomes.seedStartsEmpty = await wallet.hasWalletSeed() === false;
       const generated = await wallet.generateWalletSeed();
+      outcomes.unacknowledgedSeedNeedsBackup = !await wallet.hasWalletSeed();
+      wallet.acknowledgeWalletSeedBackup();
       outcomes.seedRoundTrips = generated.mnemonic.includes('abandon ability')
         && await wallet.hasWalletSeed() === true
         && await wallet.getWalletMnemonic() === generated.mnemonic;

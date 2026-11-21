@@ -409,9 +409,9 @@ describe('cycle import phase 1 primitives', () => {
     const previousTestFlag = (globalThis as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
     (globalThis as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
     localStorage.setItem('labcharts-encryption-enabled', 'true');
-    localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Encrypted Backup' }]));
     try {
       await cryptoModule._setTestSessionKey('backup-roundtrip-passphrase');
+      await cryptoModule.encryptedSetItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Encrypted Backup' }]));
       await upsertCycleObservationBatch(profileId, [{
         source: 'clue', importId: 'encrypted-backup-import', date: '2026-07-01', note: 'private note', bleeding: { flow: 'heavy' },
       }]);

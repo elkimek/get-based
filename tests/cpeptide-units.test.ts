@@ -43,7 +43,7 @@ describe('C-peptide report and display units', () => {
       expect(marker.values).toEqual([value]);
       const factor = value / 2;
       expect(marker.refMin).toBeCloseTo(0.8 * factor, 2);
-      expect(marker.refMax).toBe(profile === 'EU' ? 1026 : profile === 'ANZ' ? 1.026 : 3.1);
+      expect(marker.refMax).toBeCloseTo(3.1 * factor, 9);
       if (profile !== 'US') expect(marker.canonicalScoring).toMatchObject({ unit: 'µg/l', values: [2], refMin: 0.8, refMax: 3.1 });
       expect(state.importedData.entries[0]!.markers).toEqual({ [key]: 2, 'biochemistry.glucose': 5 });
     });

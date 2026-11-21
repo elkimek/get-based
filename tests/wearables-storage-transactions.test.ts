@@ -51,3 +51,19 @@ describe('wearable storage transaction durability', () => {
     }
   });
 });
+
+it('withholds obsolete Withings classifications through partial resync while retaining the raw backup row', async () => {
+  const profile = `withings-classification-${crypto.randomUUID()}`, source = 'withings', date = '2026-05-01';
+  const { getDaily } = await import('../js/wearables-store.js');
+  try {
+    await upsertDailyBatchRaw(profile, [{ source, date, weight: 72, vascular_age: 1, nerve_health_score: 18 }]);
+    const raw = await getAllDailyRaw(profile);
+    expect(raw[0]).toMatchObject({ vascular_age: 1 });
+    const previous = await getDaily(profile, source, date);
+    expect(previous).toMatchObject({ weight: 72 });
+    expect(previous).not.toHaveProperty('vascular_age');
+    await upsertDailyBatch(profile, [{ source, date, withingsMeasurementVersion: 2, vascular_age: 55, nerve_health_score: null }]);
+    expect(await getDaily(profile, source, date)).toMatchObject({ weight: 72, vascular_age: 55 });
+    expect((await getDaily(profile, source, date))?.nerve_health_score).toBeFalsy();
+  } finally { await deleteWearablesDB(profile); }
+});

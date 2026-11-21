@@ -10,9 +10,9 @@ import { renderSupplementImpactView } from '../js/supplement-impact-presentation
 const fixture: { source: string; sha256: string } = JSON.parse(fs.readFileSync(new URL('./fixtures/supplement-impact-original.json', import.meta.url), 'utf8'));
 expect(createHash('sha256').update(fixture.source).digest('hex')).toBe('a8bfce23de59ba9db0cd00e6fc4ee7dd1a8d3086631c03434689f0d56f35f960');
 const current = fs.readFileSync(new URL('../js/supplement-impact.js', import.meta.url), 'utf8');
-const currentProcedure = current.slice(current.indexOf('export function renderSupplementImpact('), current.indexOf('function scheduleAnalyze(')).replace(/^export /gm, '');
+const currentProcedure = current.slice(current.indexOf('export function renderSupplementImpact('), current.indexOf('async function restoreSavedImpact(')).replace(/^export /gm, '');
 const originalProcedure = stripTypeScriptTypes(fixture.source).replace(/^export /gm, '');
-interface Case { ai: boolean; data: 'none' | 'empty' | 'one' | 'before' | 'after' | 'mixed'; impacts: boolean; cached: boolean; stale?: boolean; dot?: string; summary?: unknown; index?: unknown }
+interface Case { ai: boolean; data: 'none' | 'empty' | 'one' | 'before' | 'after' | 'mixed'; impacts: boolean; cached: boolean; stale?: boolean; dot?: string; summary?: unknown; index?: unknown; excluded?: 'labs' | 'supplements' }
 function tree(node: Node): unknown {
   if (node.nodeType === 8) return ['', '[', ']', '[0', '[1', '[-1', '[!'].includes(node.nodeValue ?? '') ? undefined : { comment: node.nodeValue };
   if (node.nodeType === 3 && !node.textContent) return undefined;
@@ -43,13 +43,21 @@ function run(source: string, input: Case, failAt = Infinity) {
   let html: string | null = null, error: string | null = null;
   try { html = vm.runInNewContext(source + '\nrenderSupplementImpact(supplement, editIndex);', {
     supplement, editIndex: input.index ?? 2, escapeHTML, renderSupplementImpactView,
+    isSupplementsMedsContextEnabled: () => input.excluded !== 'supplements',
+    isLabMarkersContextEnabled: () => input.excluded !== 'labs',
+    createLabContextDisclosure: () => ({ project: (value: unknown) => value }),
     hasAssistantFeatureProvider() { read('provider'); return input.ai; },
     getActiveData() { read('data'); return data; },
     computeAllImpacts() { read('impacts'); return input.impacts ? [{ pctChange: 2 }] : []; },
     getSuppFingerprint() { read('fingerprint'); return 'same'; },
     getImpactCache() { read('cache'); return input.cached ? { record: entry } : {}; },
     getSupplementRecordId() { read('record-id'); return 'record'; },
-    scheduleAnalyze(s: unknown, index: unknown, d: unknown) { read('schedule'); expect(s).toBe(supplement); expect(index).toBe(input.index ?? 2); expect(d).toBe(data); },
+    restoreSavedImpact() {},
+    scheduleAnalyze(s: unknown, index: unknown, ...args: unknown[]) {
+      read('schedule'); expect(s).toBe(supplement); expect(index).toBe(input.index ?? 2);
+      if (source === originalProcedure) expect(args).toEqual([data]);
+      else expect(args).toEqual([]);
+    },
   }) as string; } catch (failure) { error = String(failure); }
   const dom = new JSDOM(html ?? ''); const nodes = [...dom.window.document.body.childNodes].map(tree).filter(x => x !== undefined); dom.window.close();
   return { trace, error, nodes };
@@ -75,4 +83,10 @@ it('renders cached class metadata as literal attributes instead of admitting mar
   expect(JSON.stringify(before.nodes)).toContain('"tag":"IMG"');
   expect(JSON.stringify(after.nodes)).not.toContain('"tag":"IMG"');
   expect(JSON.stringify(after.nodes)).toContain('onerror=boom');
+});
+it.each(['labs', 'supplements'] as const)('keeps cached and queued AI summaries off when %s disclosure is excluded', excluded => {
+  const result = run(currentProcedure, { ai: true, data: 'mixed', impacts: true, cached: true, excluded });
+  expect(result.error).toBeNull();
+  expect(result.trace).toEqual(['data', 'impacts', 'fingerprint', 'record-id']);
+  expect(JSON.stringify(result.nodes)).not.toContain('Literal <img>');
 });
