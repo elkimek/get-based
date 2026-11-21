@@ -58,9 +58,15 @@ test('static screen editor creates, edits, reassigns and saves first offline wit
     await expect(dialog.locator('.light-env-room-disclosure[data-id="screen-office"] [data-light-environment-screen]')).toHaveCount(1);
     await disclosure.focus();await page.keyboard.press('Space');await expect(disclosure).toHaveAttribute('aria-expanded','true');
     await screen.getByRole('combobox',{name:'Device type'}).selectOption('tablet');
-    await screen.locator('[data-light-env-action="set-screen-hours-bucket"][data-light-env-key="lots"]').click();
-    await screen.locator('[data-light-env-action="set-screen-evening-bucket"][data-light-env-key="gt3"]').click();
+    await expect(screen.locator('.light-env-screen-card-name')).toHaveText('Tablet');
+    const hours=screen.locator('[data-light-env-action="set-screen-hours-bucket"][data-light-env-key="lots"]');
+    await hours.click();
+    await expect(hours).toHaveAttribute('aria-pressed','true');
+    const evening=screen.locator('[data-light-env-action="set-screen-evening-bucket"][data-light-env-key="gt3"]');
+    await evening.click();
+    await expect(evening).toHaveAttribute('aria-pressed','true');
     await screen.getByRole('checkbox',{name:'Blue reduction active'}).check();
+    await expect(screen.locator('.screen-blue-slider')).toHaveClass(/screen-blue-on/);
     await screen.locator('[data-light-environment-today]').click();
     await expect(screen.locator('[data-light-environment-today]')).toHaveAttribute('aria-pressed','false');
     await expect(disclosure).toHaveAttribute('aria-expanded','true');
