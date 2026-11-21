@@ -32,6 +32,8 @@ const wallet = vi.fn<() => Promise<number>>();
 const savedWallet = vi.fn<() => Promise<number>>();
 const proofs = vi.fn<(mint: string) => Promise<number>>();
 const seed = vi.fn<() => Promise<boolean>>();
+const inventory = vi.fn<() => Promise<{mint: string; balance: number}[]>>();
+const pendingDeposit = vi.fn<() => Promise<string | null>>();
 const transfer = vi.fn(async () => { throw new Error('Unexpected transfer'); });
 const network = vi.fn(async () => { throw new Error('Unexpected network'); });
 const status = (id: string) => document.getElementById(id)?.textContent?.trim();
@@ -53,6 +55,8 @@ beforeEach(() => {
   savedWallet.mockResolvedValue(80);
   proofs.mockResolvedValue(350);
   seed.mockResolvedValue(true);
+  inventory.mockResolvedValue([{mint: mintA, balance: 340}, {mint: mintB, balance: 80}]);
+  pendingDeposit.mockResolvedValue(null);
   transfer.mockImplementation(async () => { throw new Error('Unexpected transfer'); });
   network.mockImplementation(async () => { throw new Error('Unexpected network'); });
   vi.stubGlobal('fetch', network);
@@ -62,7 +66,8 @@ beforeEach(() => {
   const runtime = configureRoutstrWalletRuntime({
     cashuGetMintUrl: mint, cashuGetBalance: wallet, cashuGetLocalBalance: savedWallet,
     cashuCheckProofStates: proofs, cashuHasWalletSeed: seed, cashuGetPendingNodeRefund: async () => null,
-    cashuRecoverPendingDeposit: async () => null, cashuRecoverPendingWithdraw: async () => null,
+    cashuRecoverPendingDeposit: pendingDeposit, cashuRecoverPendingWithdraw: async () => null,
+    cashuGetWalletMints: inventory, nostrGetSelectedNode: () => null,
     cashuReceiveToken: transfer, cashuDepositToNode: transfer, cashuExecuteWithdraw: transfer,
   });
   reset = () => {
@@ -174,4 +179,67 @@ it('keeps failed verification and seed readiness localized to the current form',
   await refreshWalletSeedStatus();
   expect(status('routstr-wallet-device-status')).toBe('Local wallet setup unavailable');
   expect(document.body.textContent).not.toContain('private storage details');
+});
+
+it('keeps the native balance buttons and mint chooser scoped to the current account', async () => {
+  hydrateRoutstrSettings();
+  await vi.waitFor(() => expect(status('routstr-wallet-balance')).toBe('⚡ 340 sats'));
+  const button = (action: string) => document.querySelector<HTMLButtonElement>('[data-provider-panel-action="' + action + '"]')!;
+  owner.balance.mockResolvedValueOnce({sats: 220});
+  button('refresh-routstr-balance').click();
+  await vi.waitFor(() => expect(status('routstr-node-balance')).toBe('Balance: ⚡ 220 sats'));
+  button('refresh-cashu-wallet-balance').click();
+  await vi.waitFor(() => expect(status('routstr-wallet-balance')).toBe('⚡ 350 sats'));
+
+  button('show-routstr-mint-edit').click();
+  const picker = document.querySelector<HTMLElement>('[data-wallet-mint-view]')!;
+  await vi.waitFor(() => expect(picker.getAttribute('aria-busy')).toBe('false'));
+  expect(picker.textContent).toContain('80 sats');
+  const reload = [...picker.querySelectorAll('button')].find(candidate => candidate.textContent === 'Reload balances')!;
+  inventory.mockResolvedValueOnce([{mint: mintB, balance: 120}]);
+  reload.click();
+  await vi.waitFor(() => expect(picker.textContent).toContain('120 sats'));
+  const url = picker.querySelector<HTMLInputElement>('#routstr-mint-input')!;
+  url.value = 'not a public mint';
+  url.dispatchEvent(new Event('input', {bubbles: true}));
+  picker.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="save-mint"]')!.click();
+  await vi.waitFor(() => expect(status('routstr-mint-status')).toBe('Enter a valid public mint URL (https://...)'));
+  expect(status('routstr-mint-label')).toBe('mint-a.example.invalid');
+
+  picker.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="cancel-mint"]')!.click();
+  expect(picker.isConnected).toBe(false);
+  owner.key = 'synthetic-replacement-account';
+  button('show-routstr-mint-edit').click();
+  expect(document.querySelector('[data-wallet-mint-view]')).toBeNull();
+});
+
+it('copies only the selected synthetic recovery and refuses its replacement before receiving funds', async () => {
+  const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  const privateValue = 'synthetic-saved-recovery';
+  const writeText = vi.fn(async (_value: string) => {});
+  Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {writeText}});
+  try {
+    pendingDeposit.mockResolvedValueOnce(privateValue);
+    hydrateRoutstrSettings();
+    const recovery = () => document.querySelector<HTMLElement>('[aria-label="Pending deposit recovery"]')!;
+    await vi.waitFor(() => expect(recovery()?.querySelector('textarea')?.value).toBe(privateValue));
+    const send = (label: string) => [...recovery().querySelectorAll('button')].find(candidate => candidate.textContent === label)!.click();
+    vi.useFakeTimers();
+    send('Copy Token');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(privateValue);
+    expect(recovery().textContent).toContain('Copied');
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(writeText.mock.calls).toEqual([[privateValue], ['']]);
+    pendingDeposit.mockResolvedValueOnce('synthetic-replacement-recovery');
+    send('Recover to Wallet');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(recovery().textContent).toContain('The saved recovery changed');
+    expect(recovery().querySelector('textarea')?.value).toBe(privateValue);
+    expect(recovery().textContent).not.toContain('synthetic-replacement-recovery');
+  } finally {
+    vi.useRealTimers();
+    if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard);
+    else Reflect.deleteProperty(navigator, 'clipboard');
+  }
 });
