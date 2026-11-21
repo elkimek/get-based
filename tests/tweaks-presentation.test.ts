@@ -1,12 +1,26 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { projectTweaksTheme, projectTweaksAccent } from '../js/tweaks-presentation.js';
+import { projectTweaksTheme, projectTweaksAccent, type TweaksPanelView } from '../js/tweaks-presentation.js';
 import { renderTweaksPanel } from '../js/tweaks-rendering.js';
 import { THEMES, TWEAK_ACCENTS, accentSwatchSpec } from '../js/theme.js';
 import * as theme from '../js/theme.js';
 import { openTweaksPanel, closeTweaksPanel, updateTweaksUI } from '../js/settings-tweaks.js';
+
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+const presentation = vi.hoisted(() => ({last: null as {view: TweaksPanelView; html: string} | null}));
+vi.mock('../js/components/TweaksPresentation.svelte.html.js', async original => {
+  const actual = await original<typeof import('../js/components/TweaksPresentation.svelte.html.js')>();
+  return {...actual, renderHTML: ({view}: {view: TweaksPanelView}) => {
+    const html = actual.renderHTML({view});
+    presentation.last = {view, html};
+    return html;
+  }};
+});
 
 interface Sample {
   key: string;
@@ -47,6 +61,7 @@ const originalHead = document.head.innerHTML;
 const originalRootAttrs = [...document.documentElement.attributes].map(a => [a.name, a.value] as const);
 
 beforeEach(() => {
+  presentation.last = null;
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   localStorage.clear();
   document.body.innerHTML = '<button id="tweaks-test-launcher">Open Tweaks</button>';
@@ -161,8 +176,26 @@ it('uses the sealed native originals and independent exact receiver policy', () 
   expect(receivers.uniqueTokenCount).toBe(40);
   expect(createHash('sha256').update(fixtureBytes).digest('hex')).toBe('fd7278a4bc9b93a45c3875139160c06c3c983dd844090f0b6c40c7a2b11e04c5');
 });
-it.each(fixture.samples)('preserves $key full literal DOM/native defaults via the real public controller', sample => {
-  parity(sample);
+it.each(fixture.samples)('preserves $key full literal DOM/native defaults via the real public controller', async sample => {
+  const original = parity(sample);
+  const selectedTheme = original.querySelector('.tweaks-theme-btn.active')?.getAttribute('data-theme');
+  const statusIds = ['tweaks-sunset-mode', 'tweaks-crt-effects'];
+  expect(presentation.last).not.toBeNull();
+  const {view, html} = presentation.last!;
+  const component = load('../js/components/TweaksPresentation.svelte.native.js') as typeof import('../js/components/TweaksPresentation.svelte.native.js');
+  await expectNativeReview(html, root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('.tweaks-theme-btn.active')?.getAttribute('data-theme')).toBe(selectedTheme);
+    const read = (parent: HTMLElement) => statusIds.map(id => {
+      const input = parent.querySelector<HTMLInputElement>('#' + id)!;
+      return [input.checked, input.disabled];
+    });
+    expect(read(root)).toEqual(read(original));
+    expect(root.querySelector('.modal-close')).toBe(document.activeElement);
+  }, '.modal-close');
 });
 it('keeps dirty checkedness separate from original defaults and preserves input identities during update', () => {
   const live = parity(fixture.samples.find(s => s.key === 'dark')!);
