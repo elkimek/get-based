@@ -197,7 +197,7 @@ describe('context notes origin and persistence', () => {
     expect(mocks.save.mock.calls[3]![2].expectedContextNotes).toBe('Local third input');
     expect(stored).toBe('Normal subsequent edit'); expect(status(host)).toBe('Saved');
   });
-  it.each(['mounted', 'unhydrated'] as const)('a %s generic Retry cannot accept a peer saved after an I/O failure', async kind => {
+  it.each(['mounted', 'unhydrated', 'unhydrated with another mounted view'] as const)('a %s generic Retry cannot accept a peer saved after an I/O failure', async kind => {
     state.importedData.contextNotes = 'Original saved'; rememberProfileData(state.importedData);
     let stored = 'Original saved';
     mocks.save.mockResolvedValueOnce(false).mockImplementation((_profile: string, draft: ProfileData, options: ProfileSaveOptions) => {
@@ -206,6 +206,7 @@ describe('context notes origin and persistence', () => {
     });
     let host = render(); edit(host, 'Retained local draft'); await vi.advanceTimersByTimeAsync(500);
     if (kind === 'unhydrated') { host.remove(); host = render(); }
+    if (kind === 'unhydrated with another mounted view') host = render();
     const retry = host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!;
     expect(retry.textContent).toBe('Retry save'); expect(retry.hasAttribute('data-context-notes-reviewed-saved')).toBe(false);
     stored = 'Unseen peer after failure'; state.importedData.contextNotes = stored; rememberProfileData(state.importedData);

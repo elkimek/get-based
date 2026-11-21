@@ -195,7 +195,9 @@ static-PWA coverage in
 [`sveltekit-chat-onboarding-optional.spec.ts`](../tests/pwa/sveltekit-chat-onboarding-optional.spec.ts).
 [`context-notes-ownership.test.ts`](../tests/context-notes-ownership.test.ts)
 checks captured-profile writes, commit confirmation, ordered revisions, retry drafts,
-retired controls, missing baselines and failed reads. The actual-storage headless
+retired controls, missing baselines and failed reads. A retry binds to the
+button state the user received, even when the click itself hydrates the view.
+The actual-storage headless
 [`context-notes-owned.spec.ts`](../tests/playwright/context-notes-owned.spec.ts)
 checks profile changes, simultaneous authored catalogs, unique labels, textarea
 identity/focus preservation during hydration and updates, rebuilds, actual IndexedDB write

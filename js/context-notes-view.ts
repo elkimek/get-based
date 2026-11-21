@@ -61,6 +61,8 @@ if (typeof document !== 'undefined') {
     if (!button || !root || mounted.has(root) || retired.has(root) || contextChildIsOwned(root) || !current(root)) return;
     // Capture the rendered conflict before hydration can refresh its presentation.
     const reviewedSaved = button.getAttribute('data-context-notes-reviewed-saved');
+    // Hydration may install a shared Svelte handler during this same dispatch.
+    event.stopImmediatePropagation();
     if (button.matches('.ctx-notes-use-saved')) {
       ensureContextNotes();
       useSavedContextNotes(root.dataset.contextNotesTicket || '');
