@@ -239,12 +239,20 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
       await waitUntil(() => !!document.getElementById('emf-confirm-btn'), 'reopened EMF import preview');
       (document.getElementById('emf-confirm-btn'))!.click();
       await waitUntil(() => assessments().some(a => a.consultant === 'Edge Consultant'), 'EMF import confirmed');
-      const imported = assessments().find(a => a.consultant === 'Edge Consultant');
+      const imported = assessments().find(a => a.consultant === 'Edge Consultant')!;
+      const importedOwner = `[data-emf-assessment-id="${CSS.escape(String(imported.id))}"]`;
+      const importedCard = `#detail-modal .emf-assessment-card.expanded:has([data-emf-action="toggle-assessment"]${importedOwner})`;
+      const importedConsultant = `${importedCard} [data-emf-field="consultant"]${importedOwner}`;
+      await waitUntil(() => Boolean(document.querySelector(importedConsultant)), 'confirmed import editor controls');
+      const readings = imported.rooms[0]!.measurements;
       outcomes.confirmImportPersistsUnitsAndRendersEditor =
-        imported?.date === '2026-06-20'
-        && (((imported!.rooms[0])!.measurements)!.acElectric)!.unit === 'V/m'
-        && (((imported!.rooms[0])!.measurements)!.rfMicrowave)!.unit === '\u00b5W/m\u00b2'
-        && document.querySelector<HTMLElement>('.emf-assessment-card.expanded')?.textContent.includes('Edge Consultant') === true;
+        imported.date === '2026-06-20'
+        && readings?.acElectric?.unit === 'V/m'
+        && readings?.acElectric?.value === 35
+        && readings?.rfMicrowave?.unit === '\u00b5W/m\u00b2'
+        && readings?.rfMicrowave?.value === 12
+        && document.querySelector<HTMLInputElement>(importedConsultant)?.value === 'Edge Consultant'
+        && document.querySelector<HTMLElement>(importedCard)?.textContent.includes('Edge Consultant') === true;
 
       const files = [
         new File(['one'], 'one.jpg', { type: 'image/jpeg' }),
