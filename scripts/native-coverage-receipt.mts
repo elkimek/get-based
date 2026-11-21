@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {isMappedSvelteOutput} from './svelte-compatibility-outputs.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -60,7 +61,7 @@ export function validateNativeFunctionCoverage(value: unknown, {root = process.c
     const bytes = readNativeRegular(path.join(root, file['file'])), source = bytes.toString('utf8');
     assert.equal(nativeDigest(bytes), file['sourceHash'], `Stale native source: ${file['file']}`);
     assert.equal(source.length, file['sourceLength'], 'Native coverage source length mismatch');
-    if (/\.svelte\.(?:native|html)\.js$/.test(file['file'])) {
+    if (isMappedSvelteOutput(file['file'])) {
       hash(file['mapHash']);
       const map = readNativeRegular(path.join(root, `${file['file']}.map`));
       assert.equal(nativeDigest(map), file['mapHash'], 'Stale native component ownership map');
@@ -93,7 +94,7 @@ export function nativeCoverageSummary(config: NativeContext, mapped: readonly Na
   }
   return config.sources.map(file => {
     const bytes = readNativeRegular(path.join(config.root, file)), result: NativeCoverageFile = {file, sourceHash: nativeDigest(bytes), sourceLength: bytes.toString('utf8').length, called: [...(called.get(file)?.values() ?? [])].sort((a, b) => a.start - b.start || a.end - b.end), unmapped: [...(unmapped.get(file)?.values() ?? [])].sort((a, b) => a.start - b.start || a.end - b.end || a.runtimeLength - b.runtimeLength || a.reason.localeCompare(b.reason))};
-    if (/\.svelte\.(?:native|html)\.js$/.test(file)) result.mapHash = nativeDigest(readNativeRegular(path.join(config.root, file + '.map'))); return result;
+    if (isMappedSvelteOutput(file)) result.mapHash = nativeDigest(readNativeRegular(path.join(config.root, file + '.map'))); return result;
   });
 }
 /** Hash all transport, replay whole public transforms, rederive exact scalar keys/counts, and bind actual test membership. */

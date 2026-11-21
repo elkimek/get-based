@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {isMappedSvelteOutput} from './svelte-compatibility-outputs.mjs';
 import path from 'node:path';
 import fs from 'node:fs';
 import {findPackageJSON} from 'node:module';
@@ -111,7 +112,7 @@ export async function replayNativeTransform(root: string, relative: string, cano
   assert.equal(ordering.filter(plugin => plugin.name === 'vite:import-analysis').length, 1);
   assert.equal(ownIndex, analysisIndex + 1); assert.equal(ownIndex, ordering.length - 1); assert.equal(ordering[ownIndex]?.name, 'getbased-native-coverage-observer'); assert.equal(ordering[ownIndex]?.order, 'post'); assert.equal(ordering[analysisIndex]?.name, 'vite:import-analysis');
   const edited = new MagicString(canonical); let projection = canonical;
-  if (/\.svelte\.(?:native|html)\.js$/.test(relative)) {
+  if (isMappedSvelteOutput(relative)) {
     const matches = [...canonical.matchAll(/\/\/# sourceMappingURL=[^\r\n]*/g)]; assert.equal(matches.length, 1); const trailer = matches[0]!;
     assert.equal(trailer[0], '//# sourceMappingURL=' + path.basename(relative) + '.map'); assert.equal(canonical.slice(trailer.index + trailer[0].length).trim(), ''); assert(canonical.slice(0, trailer.index).endsWith('\n'));
     projection = canonical.slice(0, trailer.index) + canonical.slice(trailer.index + trailer[0].length); edited.remove(trailer.index, trailer.index + trailer[0].length);

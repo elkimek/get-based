@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {isMappedSvelteOutput} from './svelte-compatibility-outputs.mjs';
 import path from 'node:path';
 import fs from 'node:fs';
 import {encode} from '@jridgewell/sourcemap-codec';
@@ -37,7 +38,7 @@ export function nativeCoveragePlugins(): Plugin[] {
   }, transform(code, id) {
     const selected = selectedContext(id); if (!selected) return null; const {config, file} = selected;
     const original = readNativeRegular(path.join(config.root, file)).toString('utf8'); let expected = original;
-    if (/\.svelte\.(?:native|html)\.js$/.test(file)) {const trailers = [...original.matchAll(/^\/\/# sourceMappingURL=[^\r\n]*/gm)]; assert.equal(trailers.length, 1); const trailer = trailers[0]!; assert.equal(original.slice(trailer.index + trailer[0].length).trim(), ''); expected = original.slice(0, trailer.index) + original.slice(trailer.index + trailer[0].length);}
+    if (isMappedSvelteOutput(file)) {const trailers = [...original.matchAll(/^\/\/# sourceMappingURL=[^\r\n]*/gm)]; assert.equal(trailers.length, 1); const trailer = trailers[0]!; assert.equal(original.slice(trailer.index + trailer[0].length).trim(), ''); expected = original.slice(0, trailer.index) + original.slice(trailer.index + trailer[0].length);}
     assert.equal(code, expected, 'Unqualified transform before native source geometry'); const environment = this.environment.name, consumer = this.environment.config.consumer;
     assert((environment === 'ssr' && consumer === 'server') || (environment === 'client' && consumer === 'client'));
     const record: NativeGeometry = {file, environment, consumer, originalHash: nativeDigest(original), code}; writeNativeJSON(config.directory, `geometry-${nativeDigest(JSON.stringify(record))}.json`, record);

@@ -5,6 +5,23 @@ import { collectRawModuleAssets } from '../scripts/raw-module-assets.mjs';
 import { productionRawModuleAssets, pruneSourceModuleAppShell } from '../scripts/build-production.mjs';
 import { inlineServiceWorkerAssets } from '../scripts/service-worker-source.js';
 import { parseAppShellEntries } from '../scripts/app-shell-budget.mjs';
+import {MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK, MOBILE_DASHBOARD_SHARED} from '../scripts/svelte-compatibility-outputs.mjs';
+
+it('precaches the native dashboard graph and prunes its compatibility entries from the optimized shell', async () => {
+  const entries = new Set([MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK].map(file => '/' + file + '.native.js'));
+  const shared = '/' + MOBILE_DASHBOARD_SHARED;
+  const graph = await collectRawModuleAssets(entries, url => fs.readFile(url.slice(1), 'utf8'));
+  const worker = inlineServiceWorkerAssets(await fs.readFile('service-worker.js', 'utf8'), await fs.readFile('service-worker-assets.js', 'utf8'));
+  const native = new Set(parseAppShellEntries(worker));
+  expect(graph.has(shared)).toBe(true);
+  expect([...graph].filter(url => !native.has(url))).toEqual([]);
+  const raw = await productionRawModuleAssets();
+  const optimized = new Set(parseAppShellEntries(pruneSourceModuleAppShell(worker, raw)));
+  for (const url of [...entries, shared]) {
+    expect(raw.has(url)).toBe(false);
+    expect(optimized.has(url)).toBe(false);
+  }
+});
 
 it('retains recursive runtime imports, exports and literal lazy imports through cycles', async () => {
   const modules = new Map([

@@ -14,6 +14,8 @@ import type {withLegalConsentSnapshot as WithLegal} from './legal-consent-snapsh
 const {withAppShellSnapshot}: {withAppShellSnapshot: typeof WithShell} = await import(new URL('./app-shell-snapshot.mts', import.meta.url).href);
 const {withInlineThemeStyleSnapshot}: {withInlineThemeStyleSnapshot: typeof WithThemes} = await import(new URL('./inline-theme-style-snapshot.mts', import.meta.url).href);
 const {withLegalConsentSnapshot}: {withLegalConsentSnapshot: typeof WithLegal} = await import(new URL('./legal-consent-snapshot.mts', import.meta.url).href);
+const {MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK, MOBILE_DASHBOARD_SHARED}: typeof import('./svelte-compatibility-outputs.mjs')
+  = await import(new URL('./svelte-compatibility-outputs.mts', import.meta.url).href);
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TRANSPORT = '.local-notes/ci/compiled';
@@ -69,6 +71,7 @@ function outputAllowed(file: string, inputs: ReadonlySet<string>): boolean {
   if (file === 'index.html') return inputs.has(file);
   if (inputs.has(file)) return false;
   const runtime = file.replace(/\.map$/, '');
+  if (runtime === MOBILE_DASHBOARD_SHARED) return inputs.has(MOBILE_DASHBOARD_PAGE) && inputs.has(MOBILE_DASHBOARD_STACK);
   if (/\.(?:js|mjs)$/.test(runtime) && inputs.has(runtime.replace(/\.mjs$/, '.mts').replace(/\.js$/, '.ts'))) return true;
   if (/\.svelte\.(?:native|html)\.js$/.test(runtime) && inputs.has(runtime.replace(/\.(?:native|html)\.js$/, ''))) return true;
   return /^(?:css\/[^/]+\.css|styles\.css|themes-extra\.css|js\/[^/]+\.generated\.(?:js|d\.ts))$/.test(file);
@@ -91,11 +94,21 @@ function validate(value: unknown): CompiledManifest {
   assert(Number.isSafeInteger(bytes) && bytes > 0 && bytes <= 1024 ** 3, 'Bounded portable compiler payload');
   const inputs = new Set(manifest.inputs.map(row => row.file));
   for (const row of manifest.outputs) assert(outputAllowed(row.file, inputs), 'Only compiler-owned outputs, never other authored/dependency files');
+  if (inputs.has(MOBILE_DASHBOARD_PAGE) && inputs.has(MOBILE_DASHBOARD_STACK)) {
+    const outputs = new Set(manifest.outputs.map(row => row.file));
+    for (const file of [MOBILE_DASHBOARD_SHARED, MOBILE_DASHBOARD_PAGE + '.native.js', MOBILE_DASHBOARD_STACK + '.native.js']) {
+      assert(outputs.has(file) && outputs.has(file + '.map'), 'Missing shared mobile dashboard output or map: ' + file);
+    }
+  }
   return manifest;
 }
 export async function sealCompiledInputs(root = ROOT): Promise<CompiledManifest> {
   const transport = path.join(root, TRANSPORT), inputs = await authoredInputs(root), known = new Set(inputs.map(row => row.file));
   const candidates = new Set<string>();
+  if (known.has(MOBILE_DASHBOARD_PAGE) && known.has(MOBILE_DASHBOARD_STACK)) {
+    candidates.add(MOBILE_DASHBOARD_SHARED);
+    candidates.add(MOBILE_DASHBOARD_SHARED + '.map');
+  }
   for (const file of known) {
     if (/\.(?:ts|mts)$/.test(file) && !/\.d\.[cm]?ts$/.test(file)) {
       const runtime = file.replace(/\.mts$/, '.mjs').replace(/\.ts$/, '.js'); candidates.add(runtime); candidates.add(runtime + '.map');

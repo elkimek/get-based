@@ -7,6 +7,7 @@ import * as ts from 'typescript/unstable/ast';
 import { withParsedSource, withParsedSources } from './native-typescript-ast.js';
 import { isSourceFile, sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 import { ownedVendorSources } from './project-owned-vendor.mjs';
+import {isMappedSvelteOutput, MOBILE_DASHBOARD_STACK, MOBILE_DASHBOARD_SHARED} from './svelte-compatibility-outputs.mjs';
 
 export interface CoverageSourceFunction { start: number; end: number; bodyStart: number; bodyEnd: number; nameStart: number | undefined; nameEnd: number | undefined; collectorEnds: number[]; name: string; }
 export interface CoverageFunctionIndex { owned: CoverageSourceFunction[]; thirdParty: CoverageSourceFunction[]; }
@@ -39,8 +40,13 @@ export function productionSources(root: string, { runtime = false }: { runtime?:
     ...COVERAGE_FILES.map(file => sourcePath(path.join(root, file))).filter(file => fs.existsSync(file)),
     ...COVERAGE_ROOTS.flatMap(directory => walkSourceFiles(path.join(root, directory))),
     ...ownedVendorSources(root).map(file => path.join(root, file)),
-  ])].flatMap(file => runtime && file.endsWith('.svelte') && fs.existsSync(`${file}.html.js`)
-    ? [runtimePath(file), `${file}.html.js`] : [runtime ? runtimePath(file) : file]).map(target => {
+  ])].flatMap(file => {
+    if (!runtime) return [file];
+    const outputs = [runtimePath(file)];
+    if (file.endsWith('.svelte') && fs.existsSync(`${file}.html.js`)) outputs.push(`${file}.html.js`);
+    if (file === path.join(root, MOBILE_DASHBOARD_STACK)) outputs.push(path.join(root, MOBILE_DASHBOARD_SHARED));
+    return outputs;
+  }).map(target => {
     if (!fs.existsSync(target)) throw new Error(`Missing emitted runtime ${target}; run npm run typescript:build`);
     return path.relative(root, target).replaceAll(path.sep, '/');
   }).sort();
@@ -110,7 +116,7 @@ export function partitionComponentFunctions(source: string, payload: SourceMapPa
 function indexProductionFunctions(
   source: string, file: string, root: string, functions: CoverageSourceFunction[], sourceMaps?: ReadonlyMap<string, string>,
 ): CoverageFunctionIndex {
-  if (!/\.svelte\.(?:native|html)\.js$/.test(file)) return { owned: functions, thirdParty: [] };
+  if (!isMappedSvelteOutput(file)) return { owned: functions, thirdParty: [] };
   const mapText = sourceMaps ? sourceMaps.get(file) : fs.readFileSync(path.join(root, `${file}.map`), 'utf8');
   if (mapText === undefined) throw new Error(`Missing verified component source map: ${file}`);
   const payload: SourceMapPayload = JSON.parse(mapText);

@@ -9,6 +9,7 @@ import {withAppShellSnapshot} from '../scripts/app-shell-snapshot.mjs';
 import {withInlineThemeStyleSnapshot} from '../scripts/inline-theme-style-snapshot.mjs';
 import {withLegalConsentSnapshot} from '../scripts/legal-consent-snapshot.mjs';
 import {sealCompiledInputs, restoreCompiledInputs, verifyCompiledInputs} from '../scripts/ci-compiled.mjs';
+import {MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK, MOBILE_DASHBOARD_SHARED} from '../scripts/svelte-compatibility-outputs.mjs';
 
 const cleanup: string[] = [];
 afterEach(async () => {vi.restoreAllMocks(); for (const root of cleanup.splice(0)) await fs.rm(root, {recursive: true, force: true});});
@@ -25,6 +26,24 @@ async function fixture() {
   return {root, write, transport: path.join(root, '.local-notes/ci/compiled')};
 }
 describe('portable exact compiler output reuse', () => {
+  it('requires the public mobile entries and the shared chunk with each exact map', async () => {
+    const sample = await fixture();
+    for (const file of [MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK]) {
+      await sample.write(file, '<p>Dashboard</p>');
+      await sample.write(file + '.native.js', 'export default function render(){}');
+      await sample.write(file + '.native.js.map', '{}');
+    }
+    await sample.write(MOBILE_DASHBOARD_SHARED, 'export const dashboard = 1;');
+    await expect(sealCompiledInputs(sample.root)).rejects.toThrow('Missing shared mobile dashboard output or map');
+    await sample.write(MOBILE_DASHBOARD_SHARED + '.map', '{}');
+    const manifest = await sealCompiledInputs(sample.root);
+    expect(manifest.outputs.map(row => row.file)).toContain(MOBILE_DASHBOARD_SHARED + '.map');
+    await fs.unlink(path.join(sample.root, MOBILE_DASHBOARD_SHARED));
+    await restoreCompiledInputs(sample.root);
+    expect(await verifyCompiledInputs(sample.root)).toEqual(manifest);
+    await sample.write(MOBILE_DASHBOARD_SHARED + '.map', '{"changed":true}');
+    await expect(verifyCompiledInputs(sample.root)).rejects.toThrow();
+  });
   it('restores into a different checkout without shipping native dependencies or changing any authored input', async () => {
     const sample = await fixture(), manifest = await sealCompiledInputs(sample.root);
     expect(manifest.outputs.map(row => row.file)).toEqual(['css/feature.css', 'js/Panel.svelte.native.js', 'js/feature.js', 'js/feature.js.map']);

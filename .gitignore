@@ -1567,6 +1567,10 @@ deploy/profile-share/data/
 # Generated native-browser Svelte pilot
 /js/components/*.svelte.native.js
 /js/components/*.svelte.native.js.map
+/js/components/MobileDashboardWidgetStack.svelte.shared.js
+/js/components/MobileDashboardWidgetStack.svelte.shared.js.map
+/scripts/svelte-compatibility-outputs.mjs
+/scripts/svelte-compatibility-outputs.mjs.map
 /scripts/build-svelte.mjs
 
 /scripts/svelte-source.mjs

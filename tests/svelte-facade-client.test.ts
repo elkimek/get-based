@@ -8,8 +8,30 @@ import {JSDOM} from 'jsdom';
 import {build} from 'rolldown';
 import {buildSvelte} from '../scripts/build-svelte.mjs';
 import {createSvelteFacadePlugin} from '../scripts/svelte-facade-plugin.mjs';
+import {productionSources, productionFunctionIndex} from '../scripts/coverage-source.mjs';
+import {MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK, MOBILE_DASHBOARD_SHARED} from '../scripts/svelte-compatibility-outputs.mjs';
 import type {HeaderRangeView} from '../js/header-date-range.js';
 type Runtime={default:import('svelte').Component<{view:HeaderRangeView}>; mount:typeof import('svelte').mount; unmount:typeof import('svelte').unmount; flushSync:typeof import('svelte').flushSync};
+
+it('authenticates the separate dashboard entry points and the child implementation at its emitted coordinates', async () => {
+  const root = process.cwd(), runtime = productionSources(root, {runtime: true});
+  const page = MOBILE_DASHBOARD_PAGE + '.native.js', stack = MOBILE_DASHBOARD_STACK + '.native.js';
+  for (const file of [page, stack, MOBILE_DASHBOARD_SHARED]) expect(runtime.filter(owner => owner === file)).toHaveLength(1);
+  for (const [file, component] of [[page, MOBILE_DASHBOARD_PAGE], [MOBILE_DASHBOARD_SHARED, MOBILE_DASHBOARD_STACK]] as const) {
+    const source = await fs.readFile(file, 'utf8');
+    const map = JSON.parse(await fs.readFile(file + '.map', 'utf8')) as {sources: string[]; sourcesContent: string[]};
+    const origin = map.sources.findIndex(value => path.resolve(path.dirname(file), value) === path.resolve(component));
+    expect(origin).toBeGreaterThanOrEqual(0);
+    for (const [i, name] of map.sources.entries()) {
+      if (name.endsWith('.svelte')) expect(map.sourcesContent[i]).toBe(await fs.readFile(path.resolve(path.dirname(file), name), 'utf8'));
+    }
+    expect(productionFunctionIndex(source, file, root).owned.length).toBeGreaterThan(0);
+  }
+  const code = await fs.readFile(stack, 'utf8');
+  expect(code).toContain(path.basename(MOBILE_DASHBOARD_SHARED));
+  expect(productionFunctionIndex(code, stack, root)).toEqual({owned: [], thirdParty: []});
+  await buildSvelte({component: path.join(root, MOBILE_DASHBOARD_STACK), check: true});
+});
 
 it('retains native facade exports and actual mounted defaults/attributes/disposal with a shared client runtime',async()=>{
   const root=process.cwd(),directory=await fs.mkdtemp(path.join(os.tmpdir(),'getbased-shared-client-'));
