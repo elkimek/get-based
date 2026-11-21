@@ -312,12 +312,10 @@ export async function stopPageCoverage(page: Page, testInfo: CoverageTestInfo, l
   if (coverageError) throw coverageError;
 }
 
-export const test = base.extend<{ seedLegalAcceptance: boolean }>({
-  seedLegalAcceptance: [true, { option: true }],
-  page: async ({ page, seedLegalAcceptance }, use, testInfo) => {
-    if (seedLegalAcceptance) await seedCurrentLegalAcceptance(page);
-    installAppReadinessAwareNavigation(page);
-
+// Component and lifecycle fixtures own their initial browser state. Collect
+// their real execution without adding acceptance data or readiness waits.
+export const coverageOnlyTest = base.extend({
+  page: async ({ page }, use, testInfo) => {
     if (!isCoverageEnabled()) {
       await use(page);
       return;
@@ -329,6 +327,15 @@ export const test = base.extend<{ seedLegalAcceptance: boolean }>({
     } finally {
       await stopPageCoverage(page, testInfo);
     }
+  },
+});
+
+export const test = coverageOnlyTest.extend<{ seedLegalAcceptance: boolean }>({
+  seedLegalAcceptance: [true, { option: true }],
+  page: async ({ page, seedLegalAcceptance }, use) => {
+    if (seedLegalAcceptance) await seedCurrentLegalAcceptance(page);
+    installAppReadinessAwareNavigation(page);
+    await use(page);
   },
 });
 

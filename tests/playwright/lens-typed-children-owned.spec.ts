@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 test('genuine Lens children retain keyboard actions ordering and responsive empty states',async({page})=>{
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto('/app',{waitUntil:'load'});

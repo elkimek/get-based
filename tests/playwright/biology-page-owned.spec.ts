@@ -65,3 +65,66 @@ for(const theme of themes)test(`owned Biology page preserves frozen geometry, co
  expect(pairs).toBe(widths.length*frozen.samples.length*2);
  expect(errors).toEqual([]);fs.writeFileSync(info.outputPath('biology-page-parity.json'),JSON.stringify({pairs,controls,widths,theme,themes:1,pageErrors:errors}));
 });
+
+test('native Biology page renders the same score groups as the server and expands missing inputs by keyboard', async ({page}) => {
+  await page.route('**/biology-compatibility-entry', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><head><link rel="stylesheet" href="/styles.css"></head><body><main></main></body>',
+  }));
+  await page.goto('/biology-compatibility-entry');
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+
+  const samples = frozen.samples.map(({html: _html, ...input}) => input);
+  const results = await page.evaluate(async inputs => {
+    const [native, server, model] = await Promise.all([
+      import('/js/components/BiologyScoresPage.svelte.native.js'),
+      import('/js/components/BiologyScoresPage.svelte.html.js'),
+      import('/js/biology-page-presentation.js'),
+    ]);
+    const root = document.querySelector('main')!;
+    const structure = (target: HTMLElement) => Array.from(target.querySelectorAll('*'), node => ({
+      tag: node.tagName,
+      attributes: Array.from(node.attributes, attribute => [attribute.name, attribute.value]).sort(),
+      text: Array.from(node.childNodes).filter(child => child.nodeType === Node.TEXT_NODE)
+        .map(child => child.textContent!.trim()).filter(Boolean),
+    }));
+    return inputs.map(input => {
+      const view = model.projectBiologyPage(input);
+      const target = document.createElement('article');
+      target.dataset.sample = input.name;
+      root.append(target);
+      native.mount(native.default, {target, props: {view}});
+      native.flushSync();
+      const expected = document.createElement('article');
+      expected.innerHTML = server.renderHTML({view});
+      return {
+        sample: input.name,
+        equal: JSON.stringify(structure(target)) === JSON.stringify(structure(expected)),
+        groups: Array.from(target.querySelectorAll('[data-biology-group]'), group => ({
+          key: group.getAttribute('data-biology-group'),
+          ids: Array.from(group.querySelectorAll('[data-widget-id]'), card => card.getAttribute('data-widget-id')),
+        })),
+      };
+    });
+  }, samples);
+
+  expect(results).toEqual(samples.map(sample => ({
+    sample: sample.name,
+    equal: true,
+    groups: Object.entries(sample.order).map(([key, ids]) => ({key, ids})),
+  })));
+  const sparse = page.locator('[data-sample="sparse"]');
+  await expect(sparse.locator('[data-biology-group="baseline"]')).toContainText('No baseline scores available yet.');
+  const waiting = sparse.locator('details[data-biology-group="waiting"]');
+  const summary = waiting.locator(':scope > summary');
+  await expect(summary).toContainText('Needs inputs');
+  const firstCard = waiting.locator('[data-widget-id]').first();
+  await expect(firstCard).toBeHidden();
+  await summary.press('Enter');
+  await expect(firstCard).toBeVisible();
+  await expect(summary).toBeFocused();
+  await summary.press('Space');
+  await expect(firstCard).toBeHidden();
+  expect(errors).toEqual([]);
+});

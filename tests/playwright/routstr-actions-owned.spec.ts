@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 test('published synchronous Routstr controls hydrate once, retain identity and reject retired owners in the browser', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
