@@ -27,8 +27,12 @@ type WorkerState = Awaited<ReturnType<typeof startWorkerCoverage>>;
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const coverageDir = process.env.PLAYWRIGHT_COVERAGE_DIR ||
   path.join(repoRoot, 'tests', '.playwright-coverage');
-const startedPages = new WeakSet<Page>();
-const coverageStates = new WeakMap<Page, { workerState: WorkerState | null }>();
+interface PageCoverageState {
+  workerState: WorkerState | null;
+  entries: ReturnType<typeof shrinkEntry>[];
+}
+const coverageStates = new WeakMap<Page, PageCoverageState>();
+const coverageNavigationInstalled = new WeakSet<Page>();
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
 const TEST_LEGAL_ACCEPTANCE = {
   accepted: true,
@@ -264,20 +268,43 @@ async function stopWorkerCoverage(workerState: WorkerState | null | undefined) {
   return entries;
 }
 
+async function beginPageRecording(page: Page) {
+  await page.coverage.startJSCoverage({ resetOnNavigation: false, reportAnonymousScripts: false });
+}
+
+async function appendPageRecording(page: Page, state: PageCoverageState) {
+  for (const entry of await page.coverage.stopJSCoverage()) state.entries.push(shrinkEntry(entry));
+}
+
+function installCoverageNavigation(page: Page) {
+  if (coverageNavigationInstalled.has(page)) return;
+  coverageNavigationInstalled.add(page);
+  for (const method of ['goto', 'reload', 'goBack', 'goForward'] as const) {
+    const original = (page[method] as (...args: unknown[]) => Promise<Response | null>).bind(page);
+    page[method] = async (...args) => {
+      const state = coverageStates.get(page);
+      if (state && page.url() !== 'about:blank') {
+        // V8 may collect the old document before the test ends even with
+        // resetOnNavigation disabled. Capture its evidence before leaving it.
+        await appendPageRecording(page, state);
+        await beginPageRecording(page);
+      }
+      return original(...args);
+    };
+  }
+}
+
 export async function startPageCoverage(page: Page) {
-  if (!isCoverageEnabled() || startedPages.has(page)) return;
+  if (!isCoverageEnabled() || coverageStates.has(page)) return;
   let workerState: WorkerState | null = null;
   try {
     workerState = await startWorkerCoverage(page);
   } catch {
     workerState = null;
   }
-  await page.coverage.startJSCoverage({
-    resetOnNavigation: false,
-    reportAnonymousScripts: false,
-  });
-  startedPages.add(page);
-  coverageStates.set(page, { workerState });
+  await beginPageRecording(page);
+  coverageStates.set(page, { workerState, entries: [] });
+  installCoverageNavigation(page);
 }
 
 /** Playwright also resumes new workers; await profiler setup before measured work. */
@@ -287,19 +314,17 @@ export async function waitForWorkerCoverage(page: Page) {
 }
 
 export async function stopPageCoverage(page: Page, testInfo: CoverageTestInfo, label = 'page') {
-  if (!isCoverageEnabled() || !startedPages.has(page)) return;
-  const state: { workerState?: WorkerState | null } = coverageStates.get(page) || {};
-  let entries: BrowserCoverageEntry[] = [];
+  const state = coverageStates.get(page);
+  if (!state) return;
   let coverageError: unknown = null;
   try {
-    entries = await page.coverage.stopJSCoverage();
+    await appendPageRecording(page, state);
   } catch (error) {
     coverageError = error;
   } finally {
-    startedPages.delete(page);
     coverageStates.delete(page);
   }
-  entries.push(...await stopWorkerCoverage(state.workerState));
+  for (const entry of await stopWorkerCoverage(state.workerState)) state.entries.push(shrinkEntry(entry));
   fs.mkdirSync(coverageDir, { recursive: true });
   fs.writeFileSync(coverageFile(testInfo, label), JSON.stringify({
     title: testInfo.title,
@@ -307,7 +332,7 @@ export async function stopPageCoverage(page: Page, testInfo: CoverageTestInfo, l
     file: path.relative(repoRoot, testInfo.file).split(path.sep).join('/'),
     label,
     generatedAt: new Date().toISOString(),
-    entries: entries.map(shrinkEntry),
+    entries: state.entries,
   }));
   if (coverageError) throw coverageError;
 }

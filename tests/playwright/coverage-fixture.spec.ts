@@ -50,3 +50,46 @@ test('native collector retains page source fingerprints and live worker function
     else process.env.PLAYWRIGHT_SUITE_COVERAGE = previous;
   }
 });
+
+test('native collector retains exact execution from both sides of a reload', async ({page}, testInfo) => {
+  const previous = process.env.PLAYWRIGHT_SUITE_COVERAGE;
+  process.env.PLAYWRIGHT_SUITE_COVERAGE = '1';
+  const label = `native-reload-${process.pid}-${Date.now()}`;
+  const script = `
+    function fixtureBeforeReload() { document.documentElement.dataset.phase = 'before'; }
+    function fixtureAfterReload() { document.documentElement.dataset.phase = 'after'; }
+    if (sessionStorage.getItem('reload-fixture')) fixtureAfterReload();
+    else { sessionStorage.setItem('reload-fixture', 'yes'); fixtureBeforeReload(); }
+  `;
+  await routeHtml(page, '**/fixture-coverage-reload', '<!doctype html><script type="module" src="/tests/fixture-coverage-reload.js"></script>');
+  await routeJavaScript(page, '**/tests/fixture-coverage-reload.js', script);
+  try {
+    await startPageCoverage(page);
+    await page.goto('/fixture-coverage-reload');
+    await expect(page.locator('html')).toHaveAttribute('data-phase', 'before');
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-phase', 'after');
+
+    const client = await page.context().newCDPSession(page);
+    try { await client.send('HeapProfiler.collectGarbage'); }
+    finally { await client.detach(); }
+    await stopPageCoverage(page, testInfo, label);
+
+    const dir = process.env.PLAYWRIGHT_COVERAGE_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.playwright-coverage');
+    const files = fs.readdirSync(dir).filter(file => file.includes(label));
+    expect(files).toHaveLength(1);
+    const shard = JSON.parse(fs.readFileSync(path.join(dir, files[0]!), 'utf8')) as {
+      entries: Array<{url: string; functions: Array<{functionName: string; ranges: Array<{count: number}>}>}>;
+    };
+    const entries = shard.entries.filter(entry => entry.url.endsWith('/tests/fixture-coverage-reload.js'));
+    expect(entries).toHaveLength(2);
+    for (const entry of entries) expect(entry).toMatchObject(sourceFingerprint(script));
+    const called = entries.flatMap(entry => entry.functions.filter(fn => fn.ranges[0]!.count > 0).map(fn => fn.functionName));
+    expect(called).toContain('fixtureBeforeReload');
+    expect(called).toContain('fixtureAfterReload');
+  } finally {
+    await stopPageCoverage(page, testInfo, label);
+    if (previous === undefined) delete process.env.PLAYWRIGHT_SUITE_COVERAGE;
+    else process.env.PLAYWRIGHT_SUITE_COVERAGE = previous;
+  }
+});

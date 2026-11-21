@@ -688,6 +688,10 @@ entry receives an empty map only when its program consists of imports and
 exports within the emitted graph. The native dashboard test mounts the widget
 stack and hydrates the page, preserving existing DOM nodes through hydration
 and removing them on disposal.
+The native Chromium collector records the current document before Playwright
+navigates or reloads. V8 may release an earlier document before the final
+capture. Retain each document's emitted source fingerprint and function ranges
+in the same case receipt.
 Generated source maps identify bundled third-party framework functions;
 only positively mapped library functions are separated from the first-party
 function denominator. Unit collection uses a public native V8 provider and keeps these artifacts in
