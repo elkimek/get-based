@@ -159,16 +159,12 @@ export async function cacheReceipt(page: Page, artifact: Awaited<ReturnType<type
   const observed = await page.evaluate(async paths => {
     if (!navigator.serviceWorker.controller) throw new Error('Native controlling worker required');
     const entries = [];
-    const batchSize = 8;
-    for (let offset = 0; offset < paths.length; offset += batchSize) {
-      const batch = await Promise.all(paths.slice(offset, offset + batchSize).map(async path => {
-        const response = await caches.match(new URL(path, location.origin).href);
-        if (!response?.ok) throw new Error('Missing actual cached feature dependency: ' + path);
-        const bytes = await response.arrayBuffer();
-        const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
-        return {path, bytes: bytes.byteLength, sha256};
-      }));
-      entries.push(...batch);
+    for (const path of paths) {
+      const response = await caches.match(new URL(path, location.origin).href);
+      if (!response?.ok) throw new Error('Missing actual cached feature dependency: ' + path);
+      const bytes = await response.arrayBuffer();
+      const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
+      entries.push({path, bytes: bytes.byteLength, sha256});
     }
     return {controller: navigator.serviceWorker.controller.scriptURL, keys: await caches.keys(), entries,
       registrations: (await navigator.serviceWorker.getRegistrations()).map(registration => registration.active?.scriptURL ?? null)};
