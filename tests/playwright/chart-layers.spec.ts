@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {expect, test, type Page} from '@playwright/test';
 import {createBlankPage} from '../helpers/browser-blank-page.js';
+import {startPageCoverage, stopPageCoverage} from './coverage-fixture.js';
 
 interface ChartLayerEvent {
   type: string;
@@ -56,6 +57,7 @@ for (const scenario of scenarios) {
     const page = await context.newPage(), errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
     try {
+      await startPageCoverage(page);
       await open(page);
       await page.evaluate(async theme => {
         document.documentElement.dataset.theme = theme;
@@ -132,6 +134,9 @@ for (const scenario of scenarios) {
       // Optional local parity output; ordinary maintained tests need no temporary directory.
       const output = process.env.CHART_LAYERS_RECEIPTS;
       if (output) {await fs.mkdir(output, {recursive: true}); await fs.writeFile(path.join(output, scenario.name + '.json'), receipt);}
-    } finally {await context.close();}
+    } finally {
+      try { await stopPageCoverage(page, info); }
+      finally { await context.close(); }
+    }
   });
 }
