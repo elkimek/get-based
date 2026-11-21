@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import {expect, it} from 'vitest';
 import {projectDashboardPickerPresentation, type DashboardPickerInput} from '../js/dashboard-picker-presentation.js';
 import {dashboardPickerClasses} from '../js/dashboard-picker-classes.js';
 import {renderHTML} from '../js/components/DashboardPickerPresentation.svelte.html.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 
 function render(input: DashboardPickerInput) {
   const root = document.createElement('div');
@@ -104,4 +106,50 @@ it('uses typed authored presentation with scoped unconditional hover and explici
   expect(dashboardPickerClasses('dashboard-widget-picker-card')).toContain('gb:picker-ui:[font-size:inherit]');
   expect(dashboardPickerClasses('dashboard-widget-picker-card')).toContain('gb:picker-ui:[font-weight:inherit]');
   expect(dashboardPickerClasses('dashboard-widget-picker-card')).toContain('gb:picker-ui:picker-hover:');
+});
+
+const load = createRequire(import.meta.url);
+
+it.each([
+  {
+    label: 'empty dashboard',
+    input: {kind: 'dashboard', hidden: [], biometrics: [], markers: []},
+    actions: ['customize-layout', 'reset-layout'], cards: [],
+  },
+  {
+    label: 'dashboard with three independent source actions',
+    input: {
+      kind: 'dashboard', hidden: [{id: 'labs', title: 'Labs', source: 'Labs'}],
+      biometrics: [{id: 'manual-weight', label: 'Weight', sub: 'Saved <em>source</em>', value: 70, unit: 'kg', change: '+1'}],
+      markers: [{id: 'synthetic-marker', name: 'Synthetic marker', category: 'Laboratory', value: 5, unit: 'mmol/L', status: 'normal'}],
+    },
+    actions: ['customize-layout', 'reset-layout'], cards: ['labs', 'manual-weight', 'synthetic-marker'],
+  },
+  {
+    label: 'focused biometric picker',
+    input: {kind: 'biometric', biometrics: [{id: 'manual-weight', label: 'Weight', sub: '', value: 0, unit: 'kg', change: ''}]},
+    actions: ['connect-source'], cards: ['manual-weight'],
+  },
+] satisfies Array<{label: string; input: DashboardPickerInput; actions: string[]; cards: string[]}>)
+('mounts the native $label with its own command targets', async ({input, actions, cards}) => {
+  const view = projectDashboardPickerPresentation(input);
+  const component = load('../js/components/DashboardPickerPresentation.svelte.native.js') as typeof import('../js/components/DashboardPickerPresentation.svelte.native.js');
+  await expectNativeReview(renderHTML({view}), root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('[role="dialog"]')?.getAttribute('aria-modal')).toBe('true');
+    expect(root.querySelector('h3')?.textContent).toBe(input.kind === 'dashboard' ? 'Add dashboard widget' : 'Add biometric metrics');
+    expect([...root.querySelectorAll('.dashboard-widget-picker-actions button')].map(button =>
+      button.getAttribute('data-dashboard-widget-action'),
+    )).toEqual(actions);
+    expect([...root.querySelectorAll('button[data-dashboard-widget-id]')].map(button =>
+      button.getAttribute('data-dashboard-widget-id'),
+    )).toEqual(cards);
+    expect(root.querySelector<HTMLInputElement>('#dashboard-marker-widget-search') !== null).toBe(input.kind === 'dashboard');
+    expect(root.querySelector<HTMLElement>('#dashboard-biometric-widget-empty')?.hidden).toBe(input.biometrics.length > 0);
+    expect(document.activeElement?.id).toBe('dashboard-biometric-widget-search');
+    expect(root.querySelector('em')).toBeNull();
+  }, '#dashboard-biometric-widget-search');
 });

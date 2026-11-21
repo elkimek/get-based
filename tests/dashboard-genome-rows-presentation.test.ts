@@ -1,14 +1,33 @@
+// @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {afterEach,describe,it,expect,vi} from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import {JSDOM} from 'jsdom';
 import {parse} from 'svelte/compiler';
-import {renderDashboardGenomeWidgetView} from '../js/dashboard-genome-rows-presentation.js';
+import {renderDashboardGenomeWidgetView, type DashboardGenomeWidgetView} from '../js/dashboard-genome-rows-presentation.js';
 import {projectDashboardMtdnaPanel} from '../js/dashboard-mtdna-panel-presentation.js';
 import {actionAttributes} from '../js/action-attributes.js';
 import {historicalGenomeController,historicalGenomeRows,qualifyCurrentGenomeSources,restoreReviewedGenomeQuickMarkerBoundary,expectedCurrentGenomeTrace} from './helpers/dashboard-genome-review-history.js';
 import {expectedGenomeWidgetHTML} from './helpers/dashboard-genome-review-expected.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+const mountedView = vi.hoisted(() => ({view: null as DashboardGenomeWidgetView | null}));
+async function checkNativeGenome(html: string) {
+  const view = mountedView.view;
+  expect(view).not.toBeNull();
+  const component = load('../js/components/DashboardGenomeWidget.svelte.native.js') as typeof import('../js/components/DashboardGenomeWidget.svelte.native.js');
+  await expectNativeReview(html, root => {
+    const mounted = component.mount(component.default, {target: root, props: {view: view!}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('script, [onclick]')).toBeNull();
+    expect([...root.querySelectorAll<HTMLDetailsElement>('details')].every(details => !details.open)).toBe(true);
+  });
+}
 const ports=vi.hoisted(()=>({change:(html:string)=>html}));
 const currentPorts=vi.hoisted(()=>({change:(html:string)=>html}));
 let serial=0;
@@ -28,14 +47,14 @@ function native(html:string):unknown {
 function capture(kind:string,html:string,props:unknown=null):void{const dir=process.env['GETBASED_DASHBOARD_GENOME_RAW'];if(dir)fs.writeFileSync(path.join(dir,`${serial++}-${kind}.json`),JSON.stringify({kind,html,props,tree:native(html)},null,2),{flag:'wx'});}
 vi.mock('../js/components/DashboardGenomeWidget.svelte.html.js',async load=>{
  const actual=await load<typeof import('../js/components/DashboardGenomeWidget.svelte.html.js')>();
- return {renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>{const raw=actual.renderHTML(props);capture('genuine-compiled',raw,props);return currentPorts.change(raw);}};
+ return {renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>{mountedView.view=props.view;const raw=actual.renderHTML(props);capture('genuine-compiled',raw,props);return currentPorts.change(raw);}};
 });
-const original=fs.readFileSync(new URL('./fixtures/dashboard-genome-original-controller.js.txt',import.meta.url),'utf8');
+const original=fs.readFileSync('tests/fixtures/dashboard-genome-original-controller.js.txt','utf8');
 const proposed=historicalGenomeController();
-const currentSource=fs.readFileSync(new URL('../js/dashboard-widget-renderers.js',import.meta.url),'utf8');
-const panelSource=fs.readFileSync(new URL('./fixtures/dashboard-mtdna-panel-original.txt',import.meta.url),'utf8');
-const studySource=fs.readFileSync(new URL('./fixtures/dashboard-mtdna-study-original.txt',import.meta.url),'utf8');
-const loadingSource=fs.readFileSync(new URL('./fixtures/dashboard-genome-loading-original.txt',import.meta.url),'utf8');
+const currentSource=fs.readFileSync('js/dashboard-widget-renderers.js','utf8');
+const panelSource=fs.readFileSync('tests/fixtures/dashboard-mtdna-panel-original.txt','utf8');
+const studySource=fs.readFileSync('tests/fixtures/dashboard-mtdna-study-original.txt','utf8');
+const loadingSource=fs.readFileSync('tests/fixtures/dashboard-genome-loading-original.txt','utf8');
 const escape=(value:unknown)=>value==null?'':String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 interface Owner {renderDashboardGenomeWidget():string}
 const profile={evidenceShortLabel:'Strong',relevanceShortLabel:'Direct',scope:'Scope <safe>',context:'Context & safe'};
@@ -82,7 +101,7 @@ const cases:Array<[string,unknown,Options]>=[
  ['hostile',{source:'getbased-dashboard-genome-slot-0-end <!--[-->',snps:{rs1:{...risk,gene:'" data-dashboard-genome-action="getbased-dashboard-genome-slot-0-end',note:'<!--foreign--> & <safe>'}},mtdna:{haplogroup:'H'}},{panel:'<section><!--foreign--><span>getbased-dashboard-genome-slot-0-end</span></section>'}],
  ['falsy',{source:0,importDate:false,snps:{rs2:{genotype:0,gene:'Present',note:0,effect:'none'}}},{}],
 ];
-afterEach(()=>{ports.change=html=>html;currentPorts.change=html=>html;});
+afterEach(()=>{ports.change=html=>html;currentPorts.change=html=>html;mountedView.view=null;});
 describe('independently recovered historical Genome exact contracts (all original witnesses)',()=>{
  for(const [name,genetics,options]of cases)it('keeps complete native tree/defaults and callback order '+name,()=>{
   const oldTrace:string[]=[],newTrace:string[]=[];
@@ -111,7 +130,7 @@ describe('independently recovered historical Genome exact contracts (all origina
   const traces:string[][]=[];for(const source of [original,proposed]){const trace:string[]=[];expect(()=>owner(source,{snps:{rs1:risk}},{trace,failAt:callback}).renderDashboardGenomeWidget()).toThrow(callback);traces.push(trace);}expect(traces[1]).toEqual(traces[0]);
  });
  it('has no authored raw injection/event handlers',()=>{
-  const ast=parse(fs.readFileSync(new URL('../js/components/DashboardGenomeRows.svelte',import.meta.url),'utf8'),{modern:true});
+  const ast=parse(fs.readFileSync('js/components/DashboardGenomeRows.svelte','utf8'),{modern:true});
   function visit(v:unknown):void{if(!v||typeof v!=='object')return;const n=v as Record<string,unknown>;expect(n.type).not.toBe('HtmlTag');expect(n.type).not.toBe('EventDirective');if(n.type==='Attribute')expect(String(n.name)).not.toMatch(/^on(?::|[a-z])/i);for(const c of Object.values(n))if(Array.isArray(c))c.forEach(visit);else visit(c);}visit(ast);
  });
  for(const [name,mutate]of [
@@ -140,9 +159,10 @@ function compareCurrent(genetics:unknown,options:Options={}):{expected:string;ac
 }
 describe('genuine current Genome Widget/Rows/mtDNA composition against complete immutable native contracts',()=>{
  it('pins all original inputs/recovered bytes and the exact authored/compiled current SDK composition',()=>{qualifyCurrentGenomeSources();});
- for(const [name,genetics,options]of cases)it('executes the genuine current composition with full raw HTML/default/attribute/action and operation parity: '+name,()=>{
+ for(const [name,genetics,options]of cases)it('executes the genuine current composition with full raw HTML/default/attribute/action and operation parity: '+name,async ()=>{
   const input=name==='hostile'?{...(genetics as Record<string,unknown>),mtdna:{haplogroup:'H " <safe> & getbased-dashboard-genome-slot-0-end',origin:'<!--foreign--> & <script>literal</script>',source:'getbased-dashboard-genome-slot-0-end',details:'<section>literal</section>',coupling:{shortLabel:'<safe>',label:'" &',climate:'<!--foreign-->'}}}:genetics;
   const result=compareCurrent(input,options);
+  await checkNativeGenome(result.actual);
   if(name==='hostile'){
    expect(result.actual).not.toContain('<script>');expect(result.actual).not.toContain('<!--foreign-->');
    const dom=new JSDOM(result.actual);try{expect(dom.window.document.querySelector('.db-mtdna-panel')!.getAttribute('data-mtdna-haplogroup')).toBe('H " <safe> & getbased-dashboard-genome-slot-0-end');}finally{dom.window.close();}
@@ -172,6 +192,7 @@ describe('genuine current Genome Widget/Rows/mtDNA composition against complete 
   const before=await run(original),actual=await run(currentSource);
   expect(actual.html).toBe(expectedGenomeWidgetHTML(before.html));expect(native(actual.html)).toEqual(native(expectedGenomeWidgetHTML(before.html)));
   expect(actual.trace).toEqual(expectedTrace(before.trace,before.html));expect(actual.trace).toContain('load-snps');expect(actual.trace).toContain('load-evidence');expect(actual.trace).toContain('refresh-target');
+  await checkNativeGenome(actual.html);
  });
  for(const callback of ['resolveSnpEvidenceProfile','snpFindingPresentation','snpFindingRank','snpEvidenceIssueUrl','dnaStudyReferenceLabel','newSnpSuggestionIssueUrl'])it('retains genuine current callback throw boundary/chronology: '+callback,()=>{
   const run=(source:string)=>{const trace:string[]=[];expect(()=>owner(source,{snps:{rs1:risk}},{trace,nativeChildren:true,failAt:callback}).renderDashboardGenomeWidget()).toThrow(callback);return trace;};
