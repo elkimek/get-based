@@ -1,7 +1,24 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import {expect,it} from 'vitest';
 import {renderSyncPopoverView,renderSyncIndicatorView,type SyncPopoverView} from '../js/sync-status-rendering.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+async function checkNativePopover(view: SyncPopoverView) {
+ const component = load('../js/components/SyncPopoverPresentation.svelte.native.js') as typeof import('../js/components/SyncPopoverPresentation.svelte.native.js');
+ await expectNativeReview(renderSyncPopoverView(view), root => {
+  const mounted = component.mount(component.default, {target: root, props: {view}});
+  component.flushSync();
+  return () => component.unmount(mounted);
+ }, root => {
+  expect(root.querySelectorAll('[data-sync-ui-action="sync-now"]')).toHaveLength(1);
+  expect(root.querySelectorAll('[data-sync-ui-action="reload"]')).toHaveLength(view.stuckPush || view.reloadRequired ? 1 : 0);
+  expect(root.querySelector('script, img, textarea, style, [data-probe]')).toBeNull();
+ });
+}
+
 interface LegacyView extends Omit<SyncPopoverView,'relay'|'error'|'events'> {
  relayHTML:string|null;error:{typeHTML:string;age:string}|null;
  events:{color:string;kindHTML:string;age:string;textHTML:string}[];
@@ -29,14 +46,17 @@ function dom(html:string):unknown {
  return children;
 }
 const rows=fixture.popovers.filter((row):row is Row&{capturedViewWitness:LegacyView}=>row.capturedViewWitness!==null);
-it.each(rows.filter(row=>!row.original.name.startsWith('raw-kind-')))('retains complete native Sync DOM/styles/actions/defaults/whitespace: $original.name',row=>{
- expect(dom(renderSyncPopoverView(view(row.capturedViewWitness)))).toEqual(dom(row.original.rawAssignedHTML!));
+it.each(rows.filter(row=>!row.original.name.startsWith('raw-kind-')))('retains complete native Sync DOM/styles/actions/defaults/whitespace: $original.name',async row=>{
+ const projected = view(row.capturedViewWitness);
+ expect(dom(renderSyncPopoverView(projected))).toEqual(dom(row.original.rawAssignedHTML!));
+ await checkNativePopover(projected);
 });
-it.each(rows.filter(row=>row.original.name.startsWith('raw-kind-')))('retains hostile event labels as literal text with all actions intact: $original.name',row=>{
+it.each(rows.filter(row=>row.original.name.startsWith('raw-kind-')))('retains hostile event labels as literal text with all actions intact: $original.name',async row=>{
  const model=view(row.capturedViewWitness),host=document.createElement('div');host.innerHTML=renderSyncPopoverView(model);
  expect([...host.querySelectorAll('div[style="margin-bottom:3px"] > span:first-child')].map(node=>node.textContent)).toEqual(model.events.map(event=>event.kind));
  expect(host.querySelectorAll('[data-sync-ui-action="sync-now"]')).toHaveLength(1);expect(host.querySelectorAll('[data-sync-ui-action="open-settings"]')).toHaveLength(1);
  expect(host.querySelectorAll('script,textarea,style,[data-probe]')).toHaveLength(0);
+ await checkNativePopover(model);
 });
 it('retains native indicator title, action and button defaults',()=>{
  for(const state of ['disabled','error','offline','syncing','synced'] as const){
@@ -45,13 +65,14 @@ it('retains native indicator title, action and button defaults',()=>{
   expect(dom(renderSyncIndicatorView({state,title}))).toEqual(dom(row.original.html));
  }
 });
-it('shows temporary-storage guidance as literal status text with an explicit reload action',()=>{
+it('shows temporary-storage guidance as literal status text with an explicit reload action',async ()=>{
  const model=view(rows[0]!.capturedViewWitness);
  model.stuckPush=false;model.reloadRequired=true;model.notice='Temporary Sync storage <img data-probe src=x> & keep this tab open.';
  const host=document.createElement('div');host.innerHTML=renderSyncPopoverView(model);
  expect(host.querySelector('[role="status"]')?.textContent?.trim()).toBe(model.notice);
  expect(host.querySelectorAll('[data-sync-ui-action="reload"]')).toHaveLength(1);
  expect(host.querySelectorAll('img,[data-probe]')).toHaveLength(0);
+ await checkNativePopover(model);
 });
 it('preserves native comparisons that expose every altered style, action, default, node and comment',()=>{
  const model=view(rows.find(row=>row.original.name==='debug-events')!.capturedViewWitness),html=renderSyncPopoverView(model),baseline=dom(html);

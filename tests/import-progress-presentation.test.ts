@@ -1,10 +1,33 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
-import { projectImportProgress, projectImportBatchCounter } from '../js/import-progress-presentation.js';
+import { projectImportProgress, projectImportBatchCounter, type ImportProgressView } from '../js/import-progress-presentation.js';
 import { renderImportProgress, renderImportBatchCounter, renderDropZoneReset } from '../js/import-progress-rendering.js';
 import { importProgressClasses, type ImportProgressReceiver } from '../js/import-progress-classes.js';
+
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+async function checkNativeProgress(view: ImportProgressView, referenceHtml: string) {
+  const component = load('../js/components/ImportProgressPresentation.svelte.native.js') as typeof import('../js/components/ImportProgressPresentation.svelte.native.js');
+  await expectNativeReview(referenceHtml, root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('script, img, iframe')).toBeNull();
+    if (view.kind === 'batch-counter') {
+      expect(root.querySelector('.batch-progress-counter')?.textContent).toBe(view.text);
+      expect(root.querySelector('[role="progressbar"]')).toBeNull();
+    } else {
+      expect(root.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe(String(view.pct));
+      expect(root.querySelector('.import-progress-filename')?.textContent ?? null).toBe(view.fileName);
+      expect(root.querySelectorAll('.progress-step')).toHaveLength(view.steps.length);
+    }
+  });
+}
 
 interface Sample { key: string; step: number; pct: number; fileName: string; html: string; authority: string }
 interface Fixture {
@@ -105,10 +128,11 @@ it('pins small accepted ORIGINAL contracts and the literal reviewed 60-token/61-
   }
 });
 
-it.each(fixture.samples)('keeps native step $step semantics, ARIA, filename and adjacent DOM exactly', sample => {
+it.each(fixture.samples)('keeps native step $step semantics, ARIA, filename and adjacent DOM exactly', async sample => {
   const view = projectImportProgress(sample.step, sample.pct, sample.fileName);
   expect(view.pct).toBe(sample.pct); expect(view.kind).toBe('progress'); expect(view.steps).toHaveLength(5);
-  const actual = parity(renderImportProgress(sample.step, sample.pct, sample.fileName), sample.html,
+  const html = renderImportProgress(sample.step, sample.pct, sample.fileName);
+  const actual = parity(html, sample.html,
     progressKey(sample.step, Boolean(sample.fileName)));
   const bar = actual.querySelector('.import-progress-bar')!, fill = actual.querySelector<HTMLElement>('.import-progress-bar-fill')!;
   expect(Object.fromEntries([...bar.attributes].map(a => [a.name, a.value]))).toEqual({
@@ -119,15 +143,18 @@ it.each(fixture.samples)('keeps native step $step semantics, ARIA, filename and 
   expect(actual.querySelector('.import-progress-pct')!.textContent).toBe(sample.pct + '%');
   expect(actual.querySelector('.import-progress-stage')!.childNodes).toHaveLength(0);
   expect([...actual.children].map(element => element.className)).toEqual(['import-progress-bar','import-progress-pct','import-progress-stage','import-progress']);
+  await checkNativeProgress(view, html);
 });
 
-it('keeps batch prefix as the first sibling and the exact literal count before the body', () => {
+it('keeps batch prefix as the first sibling and the exact literal count before the body', async () => {
   const sample = fixture.batch;
   expect(projectImportBatchCounter(sample.current, sample.total)).toEqual({ kind: 'batch-counter', text: 'Processing file 2 of 5' });
-  const html = renderImportBatchCounter(sample.current, sample.total) + renderImportProgress(sample.step, 15, sample.fileName);
+  const counter = renderImportBatchCounter(sample.current, sample.total);
+  const html = counter + renderImportProgress(sample.step, 15, sample.fileName);
   const actual = parity(html, sample.html, 'batch3:filename');
   expect(actual.children[0]!.className).toBe('batch-progress-counter');
   expect(actual.children[0]!.textContent).toBe('Processing file 2 of 5'); expect(actual.children[1]!.className).toBe('import-progress-bar');
+  await checkNativeProgress(projectImportBatchCounter(sample.current, sample.total), counter);
 });
 
 it('preserves exact reset sibling whitespace/copy and shared native class ownership', () => {
