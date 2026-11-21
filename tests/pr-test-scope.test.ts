@@ -59,6 +59,16 @@ describe('affected PR test planning', () => {
     for (const suite of ['unit', 'browser', 'firefox', 'pwa', 'kit']) expect(testCommands(plan, suite)).toEqual([]);
   });
 
+  it('runs the exact compiler command contract when the main test workflow changes', () => {
+    const sources = fixture({
+      '.github/workflows/test.yml': '',
+      'tests/pr-test-scope.test.ts': '',
+      'tests/quality-guardrails.test.ts': '',
+    });
+    expect(createTestPlan(sources, ['.github/workflows/test.yml']).unit)
+      .toEqual(['tests/pr-test-scope.test.ts', 'tests/quality-guardrails.test.ts']);
+  });
+
   it('scopes catalog changes to provider and model UI contracts rather than the app-startup barrel', () => {
     const plan = createTestPlan(fixture({
       'js/api-models.js': '',
