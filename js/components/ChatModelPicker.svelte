@@ -24,7 +24,9 @@
     if(open) { open=false;wasOpen=false;return; }
     wasOpen=true;query='';open=true;chatModelPickerActions(menu)?.open();
   }
-  function opened() {
+  function opened(event: Event & {currentTarget: HTMLDetailsElement}) {
+    // A queued native toggle can still reach a details node after disposal.
+    if(event.currentTarget !== menu || !menu.isConnected) return;
     if(menu.open && !wasOpen) { wasOpen=true;query='';chatModelPickerActions(menu)?.open(); }
     if(!menu.open) wasOpen=false;
   }

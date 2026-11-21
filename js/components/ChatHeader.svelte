@@ -46,7 +46,7 @@
         <path d="M4 4h16M4 9h10M4 14h16M4 19h10"/>
       </svg>
     </button>
-    <details class="chat-more-menu gb:header:relative" bind:this={menu} ontoggle={()=>{open=menu.open;}}>
+    <details class="chat-more-menu gb:header:relative" bind:this={menu} ontoggle={event=>{if(event.currentTarget===menu && menu.isConnected) open=menu.open;}}>
       <summary bind:this={trigger} class="{HEADER_BUTTON} gb:header:list-none gb:header:[&::-webkit-details-marker]:hidden" aria-label="More chat actions" title="More chat actions" aria-expanded={open} onclick={toggleMenu}>
         <span aria-hidden="true">•••</span>
       </summary>
