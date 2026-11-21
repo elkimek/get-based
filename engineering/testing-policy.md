@@ -677,8 +677,18 @@ TypeScript sources, without counting both as separate modules. Function identity
 uses source ranges rather than names. Unmapped collector ranges remain visible;
 do not assign them through broad overlap to improve a result.
 
-Svelte components are inventoried once at their emitted native-browser URL.
-Their generated source maps identify bundled third-party framework functions;
+Coverage inventories Svelte compatibility entries and their emitted implementations.
+The compiler shares compatibility code within each directory and render mode.
+Existing client and HTML entry URLs retain their exports. The native startup
+entries and raw worker renderers retain their standalone request boundaries.
+The native precache follows the actual shared dependencies of its existing
+entries. The compiler transport seals the generated inventory, chunk bytes and
+maps, and the coverage reader includes every registered chunk. A forwarding
+entry receives an empty map only when its program consists of imports and
+exports within the emitted graph. The native dashboard test mounts the widget
+stack and hydrates the page, preserving existing DOM nodes through hydration
+and removing them on disposal.
+Generated source maps identify bundled third-party framework functions;
 only positively mapped library functions are separated from the first-party
 function denominator. Unit collection uses a public native V8 provider and keeps these artifacts in
 the same compiled coordinate space as browser collection. Its explicit
@@ -686,6 +696,10 @@ the same compiled coordinate space as browser collection. Its explicit
 must retain its own native entry count, exact canonical source mapping, complete
 public transform witness and collected-versus-finished test membership. The
 consumer independently rederives these identities from the retained raw capture.
+The full CI reporter folds each browser receipt after checking its declared
+digest and replays the native unit witness once in the same process. It writes
+the qualification record and enforces the denominator and floors only after
+all expected evidence passes these checks.
 Large inspector source-map URLs are stored once as authenticated, content-addressed
 JSON strings in the versioned capture transport. Readers restore their exact
 logical metadata before validation and replay, accept earlier inline captures,

@@ -7,6 +7,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'rolldown';
 import { walkSourceFiles } from './source-files.js';
 import { compile } from 'svelte/compiler';
+import assert from 'node:assert/strict';
+import * as ts from 'typescript/unstable/ast';
+import {withParsedSource} from './native-typescript-ast.js';
+import {MOBILE_DASHBOARD_STACK, SVELTE_COMPATIBILITY_MANIFEST, parseSvelteCompatibilityManifest} from './svelte-compatibility-outputs.mjs';
+import {parseAppShellEntries} from './app-shell-budget.mjs';
 import { withAppShellSnapshot } from './app-shell-snapshot.mjs';
 import { withLegalConsentSnapshot } from './legal-consent-snapshot.mjs';
 
@@ -115,64 +120,208 @@ export function compileAuthoredComponent(source: string, filename: string, outpu
   return { code: compiled.js.code, map: compiled.js.map };
 }
 
-export async function buildSvelte({ component = COMPONENT, outputDirectory = path.dirname(component), check = false, output = 'client' }: {
-  component?: string; outputDirectory?: string; check?: boolean; output?: 'client' | 'html';
-} = {}): Promise<void> {
+type SvelteOutput = 'client' | 'html';
+type CompiledGroup = {files: Map<string, string | Uint8Array>; dependencies: Map<string, string[]>; shared: string[]};
+
+// These public entries are read during native startup or directly by the
+// optimized worker. A standalone response preserves their request boundary.
+const STANDALONE_CLIENT = new Set(['AppShell', 'DisplaySettings']);
+const STANDALONE_HTML = new Set([
+  'AnalyticsConsentBody', 'ChartLayersDropdown', 'DashboardGreeting', 'DashboardOnboarding', 'DashboardWelcome',
+  'DropZoneResetPresentation', 'EmojiPicker', 'FeedbackPresentation', 'FooterCommitLink', 'HeaderDateSummary',
+  'HeaderRangeButtons', 'ImportProgressPresentation', 'LabDateRange', 'LegalFirstLaunchBody', 'LegalFirstLaunchBoot',
+  'MobileBottomNavigation', 'ProfileButtonPresentation', 'RecommendationPresentation', 'RestoredThreadList',
+  'SidebarNavigation', 'SyncIndicatorPresentation', 'SyncPopoverPresentation', 'TourPresentation',
+  'UtilsConfirmPresentation', 'UtilsPromptPresentation', 'VersionUpdateBody', 'VersionUpdateCopy',
+]);
+
+function standalone(file: string, output: SvelteOutput) {
+  return (output === 'client' ? STANDALONE_CLIENT : STANDALONE_HTML).has(path.basename(file, '.svelte'));
+}
+
+function compatibilityDirectory(directory: string) {
+  const relative = path.relative(ROOT, directory).replaceAll(path.sep, '/');
+  return /^js\/(?:components|kit)(?:\/[a-zA-Z0-9_-]+)*$/.test(relative);
+}
+
+function entryName(file: string, output: SvelteOutput) {
+  return path.basename(file) + (output === 'client' ? '.native.js' : '.html.js');
+}
+
+function exportsFor(file: string, output: SvelteOutput) {
+  if (output === 'html') return ['renderHTML'];
+  return ['default', 'flushSync', ...(HYDRATABLE_COMPONENTS.has(path.basename(file, '.svelte')) ? ['hydrate'] : []), 'mount', 'unmount'];
+}
+
+async function compileGroup(components: readonly string[], outputDirectory: string, output: SvelteOutput): Promise<CompiledGroup> {
+  const directory = path.dirname(components[0]!);
+  assert(components.every(file => path.dirname(file) === directory), 'Svelte compatibility entries share an output directory');
+  const entries = new Map(components.map(file => ['getbased:component-entry:' + path.basename(file), file]));
+  const authored = new Map(components.map(file => ['getbased:authored-component:' + path.basename(file), file]));
   const result = await build({
-    input: 'getbased:component-entry',
+    input: Object.fromEntries([...entries].map(([id, file]) => [entryName(file, output).slice(0, -3), id])),
     write: false,
-    // HTML rendering needs Svelte's server lifecycle exports, even when the
-    // synchronous result is later used by a browser compatibility adapter.
     platform: output === 'html' ? 'neutral' : 'browser',
     plugins: [{
       name: 'getbased-svelte-component',
       resolveId(id, importer) {
-        if (id === 'getbased:component-entry') return id;
-        if (id === 'getbased:authored-component') return path.resolve(component);
-        if (output === 'html' && id === 'node:async_hooks') return { id, external: true }; // Svelte retains its optional async renderer; this entry exposes only synchronous .body.
-        if (importer?.endsWith('.svelte') && id.startsWith('.') && id.endsWith('.js')) return { id, external: true };
+        if (entries.has(id)) return id;
+        const source = authored.get(id);
+        if (source) return source;
+        if (output === 'html' && id === 'node:async_hooks') return {id, external: true};
+        if (importer?.endsWith('.svelte') && id.startsWith('.') && id.endsWith('.js')) {
+          const relative = path.relative(directory, path.resolve(path.dirname(importer), id)).replaceAll(path.sep, '/');
+          return {id: relative.startsWith('.') ? relative : './' + relative, external: true};
+        }
         return null;
       },
       async load(id) {
-        if (id === 'getbased:component-entry') {
-          if (output === 'html') return `import Component from 'getbased:authored-component'; import { render } from 'svelte/server'; export const renderHTML = props => render(Component, { props }).body;`;
-          const hydration = HYDRATABLE_COMPONENTS.has(path.basename(component, '.svelte')) ? ', hydrate' : '';
-          return `export { default } from 'getbased:authored-component'; export { mount, unmount, flushSync${hydration} } from 'svelte';`;
+        const file = entries.get(id);
+        if (file) {
+          const source = JSON.stringify('getbased:authored-component:' + path.basename(file));
+          if (output === 'html') return `import Component from ${source}; import {render} from 'svelte/server'; export const renderHTML = props => render(Component, {props}).body;`;
+          const lifecycle = exportsFor(file, 'client').filter(name => name !== 'default').join(', ');
+          return `export { default } from ${source}; export { ${lifecycle} } from 'svelte';`;
         }
-        if (!id.endsWith('.svelte')) return null;
-        return compileAuthoredComponent(await fs.readFile(id, 'utf8'), id, output);
+        if (id.endsWith('.svelte')) return compileAuthoredComponent(await fs.readFile(id, 'utf8'), id, output);
+        return null;
       },
     }],
-    output: { dir: outputDirectory, format: 'es', minify: true, sourcemap: true, entryFileNames: `${path.basename(component)}.${output === 'html' ? 'html' : 'native'}.js` },
+    output: {dir: outputDirectory, format: 'es', minify: true, sourcemap: true, sanitizeFileName: false,
+      entryFileNames: '[name].js', chunkFileNames: `svelte-compat-${output}-[hash].js`},
   });
-  if (output === 'html' && result.output.some(chunk => chunk.type === 'chunk' && (
-    chunk.imports.some(id => id.startsWith('node:')) ||
-    chunk.dynamicImports.some(id => id.startsWith('node:') && id !== 'node:async_hooks')
-  ))) throw new Error('Browser HTML cannot import Node APIs except Svelte’s unused optional asynchronous renderer');
-  for (const output of result.output) {
-    const file = path.join(outputDirectory, output.fileName);
-    const content = output.type === 'chunk' ? output.code : output.source;
-    if (check) {
-      const existing = await fs.readFile(file);
-      if (!existing.equals(Buffer.from(content))) throw new Error(`Svelte output is stale: ${output.fileName}`);
-    } else {
-      const expected = Buffer.from(content);
-      const existing = await fs.readFile(file).catch((error: NodeJS.ErrnoException) => {
-        if (error.code !== 'ENOENT') throw error;
-        return undefined;
-      });
-      if (!existing?.equals(expected)) {
-        await fs.mkdir(outputDirectory, { recursive: true });
-        await fs.writeFile(file, expected);
+  const files = new Map(result.output.map(item => [item.fileName, item.type === 'chunk' ? item.code : item.source]));
+  const chunks = result.output.filter(item => item.type === 'chunk');
+  const names = new Set(chunks.map(item => item.fileName));
+  const expectedEntries = new Map(components.map(file => [entryName(file, output), exportsFor(file, output)]));
+  assert.deepEqual(chunks.filter(item => item.isEntry).map(item => item.fileName).sort(), [...expectedEntries.keys()].sort());
+  const dependencies = new Map<string, string[]>();
+  const shared: string[] = [];
+  for (const chunk of chunks) {
+    if (output === 'html' && (chunk.imports.some(id => id.startsWith('node:'))
+      || chunk.dynamicImports.some(id => id.startsWith('node:') && id !== 'node:async_hooks'))) {
+      throw new Error('Browser HTML cannot import Node APIs except Svelte’s unused optional asynchronous renderer');
+    }
+    const entryExports = expectedEntries.get(chunk.fileName);
+    if (entryExports) assert.deepEqual(chunk.exports.toSorted(), entryExports);
+    else shared.push(chunk.fileName);
+    dependencies.set(chunk.fileName, [...new Set([...chunk.imports, ...chunk.dynamicImports].filter(id => names.has(id)))]);
+    if (chunk.map) continue;
+    // Pure forwarding modules have no authored positions. Every local import
+    // still resolves to an output from this exact graph.
+    const outputFrom = (specifier: ts.Expression | undefined) => specifier !== undefined
+      && ts.isStringLiteral(specifier) && specifier.text.startsWith('./') && names.has(specifier.text.slice(2));
+    const forwarder = withParsedSource(chunk.code, chunk.fileName, ast => ast.statements.length > 0 && ast.statements.every(statement => {
+      if (ts.isImportDeclaration(statement)) return outputFrom(statement.moduleSpecifier);
+      return ts.isExportDeclaration(statement) && (!statement.moduleSpecifier || outputFrom(statement.moduleSpecifier));
+    }));
+    assert(forwarder, 'Missing authored map for Svelte output: ' + chunk.fileName);
+    const mapName = chunk.fileName + '.map';
+    files.set(mapName, JSON.stringify({version: 3, file: chunk.fileName, sources: [], sourcesContent: [], names: [], mappings: ''}));
+    files.set(chunk.fileName, chunk.code.trimEnd() + '\n//# sourceMappingURL=' + mapName + '\n');
+  }
+  return {files, dependencies, shared};
+}
+
+async function updateGenerated(file: string, content: string | Uint8Array, check: boolean) {
+  const expected = typeof content === 'string' ? Buffer.from(content, 'utf8') : Buffer.from(content);
+  const existing = await fs.readFile(file).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (existing?.equals(expected)) return;
+  if (check) throw new Error(`Svelte output is stale: ${path.basename(file)}`);
+  await fs.writeFile(file, expected);
+}
+
+async function writeGroup(group: CompiledGroup, directory: string, check: boolean) {
+  if (!check) await fs.mkdir(directory, {recursive: true});
+  for (const [file, content] of group.files) {
+    assert.equal(file, path.basename(file), 'Svelte output is a sibling of its public entries');
+    await updateGenerated(path.join(directory, file), content, check);
+  }
+}
+
+function groupEntries(directory: string, output: SvelteOutput) {
+  return walkSourceFiles(directory).filter(file => path.dirname(file) === directory && file.endsWith('.svelte')
+    && (output === 'client' || HTML_COMPONENTS.has(path.basename(file, '.svelte'))));
+}
+
+export async function buildSvelte({component = COMPONENT, outputDirectory = path.dirname(component), check = false, output = 'client'}: {
+  component?: string; outputDirectory?: string; check?: boolean; output?: SvelteOutput;
+} = {}): Promise<void> {
+  const file = path.resolve(component), directory = path.dirname(file);
+  const registered = path.resolve(outputDirectory) === directory && compatibilityDirectory(directory) ? groupEntries(directory, output) : [];
+  const group = await compileGroup(registered.includes(file) && !standalone(file, output)
+    ? registered.filter(entry => !standalone(entry, output)) : [file], outputDirectory, output);
+  await writeGroup(group, outputDirectory, check);
+}
+
+async function buildCompatibility(check: boolean) {
+  const components = [...walkSourceFiles(path.join(ROOT, 'js/components')), ...walkSourceFiles(path.join(ROOT, 'js/kit'))]
+    .filter(file => file.endsWith('.svelte'));
+  const byDirectory = new Map<string, string[]>();
+  for (const component of components) {
+    const directory = path.dirname(component), entries = byDirectory.get(directory) ?? [];
+    entries.push(component);
+    byDirectory.set(directory, entries);
+  }
+  const dependencyGraph = new Map<string, string[]>();
+  const shared: string[] = [];
+  for (const [directory, entries] of byDirectory) {
+    assert(compatibilityDirectory(directory));
+    const relative = path.relative(ROOT, directory).replaceAll(path.sep, '/');
+    for (const output of ['client', 'html'] as const) {
+      const selected = entries.filter(file => output === 'client' || HTML_COMPONENTS.has(path.basename(file, '.svelte')));
+      const isolated = selected.filter(file => standalone(file, output));
+      const groups = [selected.filter(file => !standalone(file, output)), ...isolated.map(file => [file])];
+      for (const files of groups) {
+        if (!files.length) continue;
+        const group = await compileGroup(files, directory, output);
+        await writeGroup(group, directory, check);
+        shared.push(...group.shared.map(file => relative + '/' + file));
+        for (const [file, children] of group.dependencies) {
+          dependencyGraph.set('/' + relative + '/' + file, children.map(child => '/' + relative + '/' + child));
+        }
       }
     }
   }
-}
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  for (const component of [...walkSourceFiles(path.join(ROOT, 'js/components')), ...walkSourceFiles(path.join(ROOT, 'js/kit'))].filter(file => file.endsWith('.svelte'))) {
-    await buildSvelte({ component, check: process.argv.includes('--check') });
-    if (HTML_COMPONENTS.has(path.basename(component, '.svelte'))) await buildSvelte({ component, output: 'html', check: process.argv.includes('--check') });
+  const manifest = path.join(ROOT, SVELTE_COMPATIBILITY_MANIFEST);
+  const previous = await fs.readFile(manifest, 'utf8').catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  const manifestText = JSON.stringify(shared.sort(), null, 2) + '\n';
+  const paths = new Set(parseSvelteCompatibilityManifest(manifestText));
+  const workerAssets = path.join(ROOT, 'service-worker-assets.js');
+  const workerSource = await fs.readFile(workerAssets, 'utf8');
+  const marker = /^([ \t]*\/\/ getbased-svelte-precache:start\r?\n)[\s\S]*?^([ \t]*\/\/ getbased-svelte-precache:end\r?$)/gm;
+  const markers = [...workerSource.matchAll(marker)];
+  assert.equal(markers.length, 1, 'One native Svelte precache boundary');
+  const unexpanded = workerSource.replace(marker, '$1$2');
+  const visited = new Set<string>();
+  const visit = (url: string) => {
+    if (visited.has(url)) return;
+    visited.add(url);
+    for (const child of dependencyGraph.get(url) ?? []) visit(child);
+  };
+  const roots = new Set(parseAppShellEntries(unexpanded));
+  for (const url of roots) visit(url);
+  const dependencies = [...visited].filter(url => paths.has(url.slice(1)) && !roots.has(url)).sort();
+  const literals = dependencies.map(url => '    ' + JSON.stringify(url) + ',\n').join('');
+  await updateGenerated(workerAssets, unexpanded.replace(marker, (_match, start: string, end: string) => start + literals + end), check);
+  await updateGenerated(manifest, manifestText, check);
+  if (!check) {
+    const oldPaths = previous ? parseSvelteCompatibilityManifest(previous) : [MOBILE_DASHBOARD_STACK + '.shared.js'];
+    for (const old of oldPaths) if (!paths.has(old)) {
+      await fs.rm(path.join(ROOT, old), {force: true});
+      await fs.rm(path.join(ROOT, old + '.map'), {force: true});
+    }
   }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await buildCompatibility(process.argv.includes('--check'));
   const { renderHTML } = await import(pathToFileURL(path.join(ROOT, 'js/components/AppShell.svelte.html.js')).href) as { renderHTML: () => string };
   const indexPath = path.join(ROOT, 'index.html');
   const index = await fs.readFile(indexPath, 'utf8');
