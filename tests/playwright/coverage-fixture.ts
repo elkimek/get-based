@@ -7,13 +7,14 @@ import { sourceFingerprint } from '../../scripts/coverage-model-helpers.mjs';
 
 interface BrowserCoverageEntry {
   url: string;
+  scriptId?: string;
   source?: unknown;
   text?: unknown;
   ranges?: unknown;
   functions?: unknown;
   rawScriptCoverage?: { functions?: unknown } | undefined;
 }
-interface WorkerCoverageReply { result?: BrowserCoverageEntry[] | undefined; }
+interface WorkerCoverageReply { result?: BrowserCoverageEntry[]; scriptSource?: string; }
 interface ParsedWorkerReply {
   id?: unknown;
   error?: { message?: unknown } | null;
@@ -204,7 +205,10 @@ async function startWorkerCoverage(page: Page) {
     session.ready = (async () => {
       try {
         if (isWorker) {
-          await sendToTarget(sessionId, 'Profiler.enable');
+          await Promise.all([
+            sendToTarget(sessionId, 'Profiler.enable'),
+            sendToTarget(sessionId, 'Debugger.enable'),
+          ]);
           await sendToTarget(sessionId, 'Profiler.startPreciseCoverage', {
             callCount: true,
             detailed: true,
@@ -244,13 +248,15 @@ async function stopWorkerCoverage(workerState: WorkerState | null | undefined) {
       if (!session.started || session.detached) continue;
       try {
         const coverage = await workerState.sendToTarget(sessionId, 'Profiler.takePreciseCoverage');
-        for (const entry of coverage.result || []) {
-          entries.push({
-            url: entry.url,
-            functions: entry.functions,
-            rawScriptCoverage: { functions: entry.functions },
-          });
-        }
+        const scripts = await Promise.all((coverage.result || []).map(async entry => {
+          if (!entry.url || !entry.scriptId) return null;
+          const source = await workerState.sendToTarget(sessionId, 'Debugger.getScriptSource', {scriptId: entry.scriptId})
+            .catch(() => null);
+          if (!source?.scriptSource) return null;
+          return {url: entry.url, source: source.scriptSource, functions: entry.functions,
+            rawScriptCoverage: {functions: entry.functions}};
+        }));
+        for (const script of scripts) if (script) entries.push(script);
         await workerState.sendToTarget(sessionId, 'Profiler.stopPreciseCoverage').catch(() => {});
         await workerState.sendToTarget(sessionId, 'Profiler.disable').catch(() => {});
       } catch {

@@ -43,6 +43,7 @@ test('native collector retains page source fingerprints and live worker function
     expect(pageEntry).toMatchObject(sourceFingerprint(script));
     expect(pageEntry?.functions.find(fn => fn.functionName === 'fixtureDouble')?.ranges[0]?.count).toBeGreaterThan(0);
     const workerEntry = shard.entries.find(entry => entry.url.endsWith('/tests/fixture-coverage-worker.js'));
+    expect(workerEntry).toMatchObject(sourceFingerprint(worker));
     expect(workerEntry?.functions.find(fn => fn.functionName === 'fixtureWorkerSquare')?.ranges[0]?.count).toBeGreaterThan(0);
   } finally {
     await stopPageCoverage(page, testInfo, label);

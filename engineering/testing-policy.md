@@ -691,7 +691,8 @@ and removing them on disposal.
 The native Chromium collector records the current document before Playwright
 navigates or reloads. V8 may release an earlier document before the final
 capture. Retain each document's emitted source fingerprint and function ranges
-in the same case receipt.
+in the same case receipt. Named worker observations use the exact script bytes
+from the worker's debugger target.
 Generated source maps identify bundled third-party framework functions;
 only positively mapped library functions are separated from the first-party
 function denominator. Unit collection uses a public native V8 provider and keeps these artifacts in
