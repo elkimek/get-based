@@ -1,19 +1,22 @@
+// @vitest-environment jsdom
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { URL as FileURL } from 'node:url';
 import { createHash } from 'node:crypto';
-import { stripTypeScriptTypes } from 'node:module';
+import { createRequire, stripTypeScriptTypes } from 'node:module';
 import { JSDOM } from 'jsdom';
 import { expect, it } from 'vitest';
 import { escapeHTML } from '../js/utils.js';
-import { renderSupplementEditor } from '../js/supplement-editor-presentation.js';
+import { renderSupplementEditor, type SupplementEditorView } from '../js/supplement-editor-presentation.js';
 import { renderSupplementImpactView } from '../js/supplement-impact-presentation.js';
 import { projectSupplementFormView } from '../js/supplement-form-ui.js';
 import { renderSupplementForm } from '../js/supplement-form-presentation.js';
 import type { FormSupplementReader } from '../js/supplement-form-ui.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
 
-const fixture: { source: string; sha256: string } = JSON.parse(fs.readFileSync(new URL('./fixtures/supplement-editor-original.json', import.meta.url), 'utf8'));
+const fixture: { source: string; sha256: string } = JSON.parse(fs.readFileSync(new FileURL('./fixtures/supplement-editor-original.json', import.meta.url), 'utf8'));
 expect(createHash('sha256').update(fixture.source).digest('hex')).toBe('a6f7b8d1e67df03eacd0eb6af41008c296a9d30bd8cf0406351d34f118e95b8a');
-const currentSource = fs.readFileSync(new URL('../js/supplements.js', import.meta.url), 'utf8');
+const currentSource = fs.readFileSync(new FileURL('../js/supplements.js', import.meta.url), 'utf8');
 const currentProcedure = currentSource.slice(currentSource.indexOf('function supplementEditorText('), currentSource.indexOf('export function showAddSuppForm(')).replace(/^export /gm, '');
 const originalProcedure = stripTypeScriptTypes(fixture.source).replace(/^export /gm, '');
 function tree(node: Node): unknown {
@@ -33,7 +36,7 @@ function tree(node: Node): unknown {
     } : null, children };
 }
 interface Case { records: Array<Record<string, unknown>>; edit?: number; quality?: boolean; missing?: boolean }
-function run(source: string, input: Case, failAt = Infinity) {
+function run(source: string, input: Case, failAt = Infinity, captureView?: (view: SupplementEditorView) => void) {
   const trace: string[] = []; const read = (label: string) => { trace.push(label); if (trace.length === failAt) throw new Error('fault:' + label); };
   const records = input.records.map((record, index) => new Proxy(structuredClone(record), {
     get(target, key, receiver) { read(`row${index}:${String(key)}`); return Reflect.get(target, key, receiver); },
@@ -46,7 +49,8 @@ function run(source: string, input: Case, failAt = Infinity) {
   let error: string | null = null;
   try { vm.runInNewContext(source + '\nopenSupplementsEditor(editIndex);', {
     state: { importedData: { supplements: records } }, editIndex: input.edit, escapeHTML,
-    renderSupplementEditor, projectSupplementImpact: impact, projectSupplementFormView: form,
+    renderSupplementEditor(view: SupplementEditorView) { captureView?.(view); return renderSupplementEditor(view); },
+    projectSupplementImpact: impact, projectSupplementFormView: form,
     renderSupplementImpact: (record: unknown, index: number) => renderSupplementImpactView(impact(record,index)),
     suppFormHtml: (index: number, record: FormSupplementReader) => renderSupplementForm(form(index,record)),
     clearPendingSupplementImport() { read('clear-import'); },
@@ -88,4 +92,18 @@ it.each(cases)('preserves native whole editor DOM, field defaults, data reads, t
 it('retains every interrupted source-read boundary without opening or overwriting the modal', () => {
   const input = cases[3]!; const successful = run(originalProcedure,input);
   for (let point=1;point<=successful.trace.length+1;point++)expect(run(currentProcedure,input,point)).toEqual(run(originalProcedure,input,point));
+});
+
+const load = createRequire(import.meta.url);
+it.each(cases.filter(input => !input.missing))('mounts the exact projected native supplement editor for fixture %#', async input => {
+  let view: SupplementEditorView | undefined;
+  const result = run(currentProcedure, input, Infinity, captured => { view = captured; });
+  expect(result.error).toBeNull();
+  expect(view).toBeDefined();
+  const native = load('../js/components/SupplementEditor.svelte.native.js') as typeof import('../js/components/SupplementEditor.svelte.native.js');
+  await expectNativeReview(renderSupplementEditor(view!), root => {
+    const owned = native.mount(native.default, {target: root, props: {view: view!}});
+    native.flushSync();
+    return () => native.unmount(owned);
+  });
 });
