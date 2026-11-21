@@ -83,12 +83,14 @@ test('wallet actions require the current Routstr account before opening a review
   await page.goto('/routstr-wallet-owner-test');
   const firstNode = 'https://original-node.synthetic.test';
   const secondNode = 'https://next-node.synthetic.test';
-  await page.evaluate(async node => {
+  const syntheticMint = 'https://synthetic-mint.test';
+  await page.route(secondNode + '/v1/info', route => route.fulfill({json: {mints: [syntheticMint]}}));
+  await page.evaluate(async ({node, mint}) => {
     const [{ configureProviderPanelRendererRuntime }, panels] = await Promise.all([
       import('/js/provider-panel-renderers-runtime.js'),
       import('/js/provider-wallet-panels.js'),
     ]);
-    const fixture = { selectedNode: node, transfers: [] as string[] };
+    const fixture = { selectedNode: node, transfers: [] as string[], exportReads: [] as string[] };
     Object.assign(window, { walletOwnerFixture: fixture });
     const transfer = (name: string) => async () => {
       fixture.transfers.push(name);
@@ -97,7 +99,14 @@ test('wallet actions require the current Routstr account before opening a review
     localStorage.setItem('labcharts-ai-provider', 'routstr');
     configureProviderPanelRendererRuntime({ getSelectedNodeUrl: () => fixture.selectedNode });
     panels.configureRoutstrWalletRuntime({
-      cashuGetMintUrl: async () => 'https://synthetic-mint.test',
+      nostrGetSelectedNode: () => fixture.selectedNode,
+      cashuGetMintUrl: async () => mint,
+      cashuGetLocalBalance: async () => 12,
+      cashuGetPendingNodeRefunds: async () => [],
+      cashuExportWallet: async (requestedMint: string) => {
+        fixture.exportReads.push(requestedMint);
+        throw new Error('Synthetic private backup error');
+      },
       cashuGetBalance: async () => 12,
       cashuGetMaxWithdrawable: async () => 12,
       cashuHasWalletSeed: async () => true,
@@ -112,7 +121,7 @@ test('wallet actions require the current Routstr account before opening a review
       cashuDepositToNode: transfer('deposit to node'),
     });
     panels.hydrateRoutstrSettings();
-  }, firstNode);
+  }, {node: firstNode, mint: syntheticMint});
 
   const wallet = page.getByRole('region', { name: 'Cashu wallet', exact: true });
   const withdraw = wallet.getByRole('button', { name: 'Withdraw', exact: true });
@@ -137,8 +146,33 @@ test('wallet actions require the current Routstr account before opening a review
   await expect(page.locator('#routstr-node-label')).toHaveText(new URL(secondNode).hostname);
   await deposit.press('Enter');
   await expect(fundingReview).toBeVisible();
-  expect(await page.evaluate(() =>
-    (window as Window & { walletOwnerFixture?: { transfers: string[] } }).walletOwnerFixture!.transfers,
-  )).toEqual([]);
+
+  const more = wallet.getByRole('button', {name: 'More wallet actions'});
+  await more.press('Enter');
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  await wallet.getByRole('button', {name: '📤 Export Token'}).press('Escape');
+  await expect(more).toBeFocused();
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await more.press('Enter');
+  await wallet.getByRole('button', {name: '📤 Export Token'}).press('Enter');
+  const backup = wallet.getByRole('region', {name: 'Export wallet token'});
+  await expect(backup).toContainText('Funds and recovery records are preserved');
+  await expect(backup).not.toContainText('Synthetic private backup error');
+  await expect(fundingReview).toHaveCount(0);
+
+  await more.press('Enter');
+  await wallet.getByRole('button', {name: 'Saved node refunds'}).press('Enter');
+  const node = page.getByRole('region', {name: 'Routstr node', exact: true});
+  const nodeReview = node.getByRole('region', {name: 'Node accounts and recovery'});
+  await expect(nodeReview).toContainText('Saved node refunds');
+  await node.getByRole('button', {name: 'Deposit', exact: true}).press('Enter');
+  await expect(nodeReview.locator('#routstr-deposit-amount')).toBeVisible();
+  await expect(nodeReview).toContainText(new URL(secondNode).hostname);
+  expect(await page.evaluate(() => {
+    const {transfers, exportReads} = (window as Window & {walletOwnerFixture?: {
+      transfers: string[]; exportReads: string[];
+    }}).walletOwnerFixture!;
+    return {transfers, exportReads};
+  })).toEqual({transfers: [], exportReads: [syntheticMint]});
   expect(external).toEqual([]);
 });

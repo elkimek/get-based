@@ -8,7 +8,7 @@ import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
 import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 import { createBrowserAgentToolDependencies, canDiscloseAgentDraftReview } from '../js/agent-tool-bindings.js';
 import { readCurrentLabReport, prepareReviewedLabReport, commitReviewedLabReport } from '../js/lab-report-records.js';
-import { projectLabReport } from '../js/lab-report-proposals.js';
+import { describeLabReport, projectLabReport } from '../js/lab-report-proposals.js';
 import { isAgentDataEnabled } from '../js/agent-data-bindings.js';
 import type { AgentDataProposal } from '../shared/agent-data-contract.js';
 function applyNativeReport(draft: { payload: AgentDataProposal }) { return commitReviewedLabReport(profile, draft.payload, () => state.currentProfile === profile && isAgentDataEnabled('labReports')); }
@@ -96,6 +96,27 @@ it('reports valid exclusions and withholds a report whose excluded row is outsid
   const invalid = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports', recordId: 'invalid-exclusion-report'}});
   expect(invalid.success).toBe(false);
   expect(invalid.contentItems[0].text).not.toMatch(/private|patient[.]pdf/);
+  expect(await stored()).toEqual(before);
+});
+
+it('describes the qualified report without source filenames and labels missing collection fields', async () => {
+  const before = await stored();
+  const receipt = await readCurrentLabReport(profile, 'evening-report');
+  if (!receipt?.record.sample) throw new Error('Missing synthetic report sample');
+  const text = describeLabReport(receipt);
+  expect(text).toContain(`Report collected ${day} · pdf`);
+  expect(text).toContain('Uploaded: 1970-01-01T00:00:00.200Z');
+  expect(text).toContain('2 included rows · 0 excluded rows');
+  expect(text).toContain(`Sample ${day} · plasma · 16:00 · Not fasting`);
+  expect(text).toContain('Cycle day: 12 · Phase: Follicular');
+  expect(text).not.toMatch(/private|patient[.]pdf|extraction/);
+
+  const sample = {...receipt.record.sample, specimen: null, sampleTime: null, fasting: null};
+  const older = {...receipt.record, format: '', importedAt: null, sample};
+  expect(describeLabReport(older)).toContain('Unknown format');
+  expect(describeLabReport(older)).toContain('Specimen unknown · Time unknown · Fasting unknown');
+  expect(describeLabReport({...older, sample: null})).toContain('No active linked sample');
+  expect(describeLabReport(null)).toContain('Diagnostic history is retained');
   expect(await stored()).toEqual(before);
 });
 
