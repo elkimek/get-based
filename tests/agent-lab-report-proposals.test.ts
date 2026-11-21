@@ -61,6 +61,38 @@ it('lists exact report identities without publishing private source metadata or 
   const list = JSON.parse(result.contentItems[0].text); expect(list.operations).toEqual([]); expect(list.records.map((row: { recordId: string }) => row.recordId)).toEqual(['evening-report', 'morning-report', 'older-evening']);
   expect(JSON.stringify(list)).not.toMatch(/\/private\/|patient\.pdf|rawText|extraction-sentinel/); expect(await storage.encryptedGetItem(key)).toBe(before);
 });
+it('orders tied report receipts by identity and withholds unrecognized marker rows', async () => {
+  const morning = state.importedData.importSnapshots[0]!;
+  state.importedData.importSnapshots.push(
+    {...morning, id: 'same-time-z', importedAt: 100},
+    {...morning, id: 'same-time-a', importedAt: 100},
+    {...morning, id: 'unrecognized-report', importedAt: 100, markers: [{mappedKey: 'missing.synthetic', value: 1}]},
+  );
+  expect(await saveImportedData()).toBe(true);
+  const before = await stored(), runtime = tools();
+  const result = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports'}});
+  expect(result.success).toBe(true);
+  expect(JSON.parse(result.contentItems[0].text).records.map((record: {recordId: string}) => record.recordId))
+    .toEqual(['evening-report', 'morning-report', 'same-time-a', 'same-time-z', 'older-evening']);
+  const unknown = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports', recordId: 'unrecognized-report'}});
+  expect(unknown.success).toBe(false);
+  expect(unknown.contentItems[0].text).not.toMatch(/patient[.]pdf|private-extraction/);
+  expect(await stored()).toEqual(before);
+});
+
+it('rejects an exact report read when the active profile changes while hashing its revision', async () => {
+  const before = await stored(), digest = crypto.subtle.digest.bind(crypto.subtle);
+  vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(async (...args) => {
+    const revision = await digest(...args);
+    state.currentProfile = 'another-test-profile';
+    return revision;
+  });
+  const result = await tools().execute({tool: 'getbased_read_data', arguments: {resource: 'labReports', recordId: 'evening-report'}});
+  expect(result.success).toBe(false);
+  expect(result.contentItems[0].text).not.toMatch(/private-extraction|patient[.]pdf|16:00|follicular/);
+  expect(await stored()).toEqual(before);
+});
+
 it('freezes faithful result, calculation, collection and stored-range effects before approval', async () => {
   const before = await stored(), { draft, nativeReview } = await propose(), payload = draft.payload as { baseline: string };
   const snapshot = JSON.parse(payload.baseline); expect(snapshot.plan.results).toEqual(expect.arrayContaining([

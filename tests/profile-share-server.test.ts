@@ -2,11 +2,14 @@ import type { AddressInfo } from 'node:net';
 import type { ServerOptions } from '../server/profile-share-server.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSqliteProfileShareStore } from '../lib/profile-share-sqlite-store.js';
-import { createProfileShareServer } from '../server/profile-share-server.js';
+// Exercise the emitted Node adapter through Node's native module loader.
+const load = createRequire(import.meta.url);
+const { createSqliteProfileShareStore } = load('../lib/profile-share-sqlite-store.js') as typeof import('../lib/profile-share-sqlite-store.js');
+const { createProfileShareServer } = load('../server/profile-share-server.js') as typeof import('../server/profile-share-server.js');
 
 const resources: (() => Promise<void>)[] = [];
 
