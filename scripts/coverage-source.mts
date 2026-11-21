@@ -7,7 +7,7 @@ import * as ts from 'typescript/unstable/ast';
 import { withParsedSource, withParsedSources } from './native-typescript-ast.js';
 import { isSourceFile, sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 import { ownedVendorSources } from './project-owned-vendor.mjs';
-import {isMappedSvelteOutput, MOBILE_DASHBOARD_STACK, MOBILE_DASHBOARD_SHARED} from './svelte-compatibility-outputs.mjs';
+import {isMappedSvelteOutput, isSvelteCompatibilityChunk, readSvelteCompatibilityManifest, SVELTE_COMPATIBILITY_ROOT} from './svelte-compatibility-outputs.mjs';
 
 export interface CoverageSourceFunction { start: number; end: number; bodyStart: number; bodyEnd: number; nameStart: number | undefined; nameEnd: number | undefined; collectorEnds: number[]; name: string; }
 export interface CoverageFunctionIndex { owned: CoverageSourceFunction[]; thirdParty: CoverageSourceFunction[]; }
@@ -28,15 +28,21 @@ export function coverageFilePattern(file: string): string {
   return /\.[cm]?js$/.test(file) && !/[*?\[\]{}]/.test(file) ? file.replace(/s$/, '[s]') : file;
 }
 const OWNED_VENDOR_RUNTIME = new Set(COVERAGE_INCLUDE.filter(file => file.startsWith('vendor/')));
+const compatibilityOutputs = new Map<string, ReadonlySet<string>>();
 
 export function isProductionSource(file: string, root = ROOT) {
+  if (isSvelteCompatibilityChunk(file)) {
+    const outputs = compatibilityOutputs.get(root) ?? new Set(readSvelteCompatibilityManifest(root));
+    compatibilityOutputs.set(root, outputs);
+    return outputs.has(file);
+  }
   return COVERAGE_FILES.includes(file.replace(/\.[cm]?ts$/, '.js'))
     || (COVERAGE_ROOTS.includes(file.split('/')[0]!) && isSourceFile(file))
     || (isSourceFile(file) && (root === ROOT ? OWNED_VENDOR_RUNTIME : new Set(ownedVendorSources(root).map(runtimePath))).has(runtimePath(file)));
 }
 
 export function productionSources(root: string, { runtime = false }: { runtime?: boolean } = {}) {
-  return [...new Set([
+  const authored = [...new Set([
     ...COVERAGE_FILES.map(file => sourcePath(path.join(root, file))).filter(file => fs.existsSync(file)),
     ...COVERAGE_ROOTS.flatMap(directory => walkSourceFiles(path.join(root, directory))),
     ...ownedVendorSources(root).map(file => path.join(root, file)),
@@ -44,9 +50,11 @@ export function productionSources(root: string, { runtime = false }: { runtime?:
     if (!runtime) return [file];
     const outputs = [runtimePath(file)];
     if (file.endsWith('.svelte') && fs.existsSync(`${file}.html.js`)) outputs.push(`${file}.html.js`);
-    if (file === path.join(root, MOBILE_DASHBOARD_STACK)) outputs.push(path.join(root, MOBILE_DASHBOARD_SHARED));
     return outputs;
-  }).map(target => {
+  });
+  const shared = runtime && fs.existsSync(path.join(root, SVELTE_COMPATIBILITY_ROOT))
+    ? readSvelteCompatibilityManifest(root).map(file => path.join(root, file)) : [];
+  return [...authored, ...shared].map(target => {
     if (!fs.existsSync(target)) throw new Error(`Missing emitted runtime ${target}; run npm run typescript:build`);
     return path.relative(root, target).replaceAll(path.sep, '/');
   }).sort();

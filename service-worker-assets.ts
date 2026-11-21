@@ -232,7 +232,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/dashboard-lab-summary-presentation.js', '/js/components/DashboardLabSummary.svelte.html.js', '/js/desktop-dashboard-presentation.js', '/js/mobile-dashboard-presentation.js',
   '/js/dashboard-page-owner.js', '/js/dashboard-page-hydration.js', '/js/desktop-dashboard-hydration.js', '/js/mobile-dashboard-hydration.js', '/js/desktop-dashboard-renderer.js', '/js/mobile-dashboard-renderer.js', '/js/dashboard-renderer-loader.js', '/js/dashboard-render-request.js', '/js/components/DesktopDashboardPage.svelte.html.js', '/js/components/DesktopDashboardPage.svelte.native.js',
   '/js/components/MobileDashboardPage.svelte.html.js', '/js/components/MobileDashboardPage.svelte.native.js', '/js/dashboard-widget-presentation.js', '/js/components/DashboardWidgetFrame.svelte.html.js',
-  '/js/components/MobileDashboardWidgetStack.svelte.native.js', '/js/components/MobileDashboardWidgetStack.svelte.shared.js',
+  '/js/components/MobileDashboardWidgetStack.svelte.native.js',
   '/js/components/DashboardWidgetBody.svelte.html.js', '/js/dashboard-widget-controls.js', '/js/dashboard-widget-copy.js', '/js/dashboard-widget-packing.js',
   '/js/chat-thread-list-view.js', '/js/changelog-current.js', '/js/chat-thread-navigation-presentation.js', '/js/chat-thread-navigation-component.js',
   '/js/chat-thread-navigation-classes.js', '/js/components/ChatThreadNavigation.svelte.native.js', '/js/dashboard-lab-widget-renderers.js', '/js/dashboard-lab-markers-presentation.js',
@@ -494,6 +494,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/shared/conversation-search-contract.js', '/shared/correlation-view-contract.js', '/shared/dashboard-control-contract.js',
   '/shared/history-view-contract.js', '/shared/lab-ordering-control-contract.js', '/shared/lab-overlay-contract.js',
   '/shared/meal-route-control-contract.js',
+  // getbased-svelte-precache:start
+  // getbased-svelte-precache:end
 ];
 const serviceWorkerAssetScope = self as ServiceWorkerGlobalScope & typeof globalThis;
 serviceWorkerAssetScope.GetBasedServiceWorkerAssets = APP_SHELL;

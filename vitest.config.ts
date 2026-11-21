@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import { COVERAGE_INCLUDE, coverageFilePattern } from './scripts/coverage-source.mjs';
 import { nativeCoveragePlugins } from './scripts/native-coverage-plugins.mjs';
 import NativeCoverageReporter from './scripts/native-coverage-reporter.mjs';
+import { isMappedSvelteOutput } from './scripts/svelte-compatibility-outputs.mjs';
 
 export default defineConfig({
   plugins: [{
@@ -22,7 +23,7 @@ export default defineConfig({
     // Keep V8/Istanbul in that coordinate space; the collector separately uses
     // the unchanged external map to identify bundled framework functions.
     load(id) {
-      if (!/\.svelte\.(?:native|html)\.js$/.test(id)) return null;
+      if (!isMappedSvelteOutput(id)) return null;
       return { code: fs.readFileSync(id, 'utf8').replace(/\/\/# sourceMappingURL=[^\r\n]*/g, ''), map: null };
     },
   }, ...nativeCoveragePlugins()],

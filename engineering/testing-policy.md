@@ -678,11 +678,16 @@ uses source ranges rather than names. Unmapped collector ranges remain visible;
 do not assign them through broad overlap to improve a result.
 
 Coverage inventories Svelte compatibility entries and their emitted implementations.
-The mobile dashboard page and widget stack retain separate public native URLs and
-share one precached implementation. Its source map binds each compiled component
-to its authored source. The stack entry forwards exports to that implementation
-and has no function body. The native browser test mounts the stack and hydrates
-the page, preserving existing DOM nodes through hydration and removing them on disposal.
+The compiler shares compatibility code within each directory and render mode.
+Existing client and HTML entry URLs retain their exports. The native startup
+entries and raw worker renderers retain their standalone request boundaries.
+The native precache follows the actual shared dependencies of its existing
+entries. The compiler transport seals the generated inventory, chunk bytes and
+maps, and the coverage reader includes every registered chunk. A forwarding
+entry receives an empty map only when its program consists of imports and
+exports within the emitted graph. The native dashboard test mounts the widget
+stack and hydrates the page, preserving existing DOM nodes through hydration
+and removing them on disposal.
 Generated source maps identify bundled third-party framework functions;
 only positively mapped library functions are separated from the first-party
 function denominator. Unit collection uses a public native V8 provider and keeps these artifacts in

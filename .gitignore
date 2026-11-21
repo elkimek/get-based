@@ -1569,6 +1569,11 @@ deploy/profile-share/data/
 /js/components/*.svelte.native.js.map
 /js/components/MobileDashboardWidgetStack.svelte.shared.js
 /js/components/MobileDashboardWidgetStack.svelte.shared.js.map
+/js/components/**/svelte-compat-*.js
+/js/components/**/svelte-compat-*.js.map
+/js/kit/**/svelte-compat-*.js
+/js/kit/**/svelte-compat-*.js.map
+/js/svelte-compatibility.generated.json
 /scripts/svelte-compatibility-outputs.mjs
 /scripts/svelte-compatibility-outputs.mjs.map
 /scripts/build-svelte.mjs
