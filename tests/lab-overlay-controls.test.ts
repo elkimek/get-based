@@ -8,7 +8,9 @@ import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
 import { commitLabOverlayPreferences, readLabOverlayPreferences } from '../js/lab-overlay-preferences.js';
 import { setNoteOverlay, configureDataRuntimeDeps } from '../js/data-view-controls.js';
 import { setContextSourceEnabled } from '../js/context-source-registry.js';
-import type { LabOverlayPatch } from '../shared/lab-overlay-contract.js';
+import { projectChatMessageActions } from '../js/chat-message-actions-contract.js';
+import type { AppControlRecord } from '../shared/agent-control-contract.js';
+import { labOverlaySignature, type LabOverlayControlIdentity, type LabOverlayPatch } from '../shared/lab-overlay-contract.js';
 const patch: LabOverlayPatch = { notes: true, supplements: true, cycle: true };
 const original = { profile: state.currentProfile, data: state.importedData, history: state.chatHistory, thread: state.currentThreadId, sex: state.profileSex, notes: state.noteOverlayMode, supps: state.suppOverlayMode, cycle: state.phaseOverlayMode }, active = localStorage.getItem('labcharts-active-profile');
 const locks = Object.getOwnPropertyDescriptor(navigator, 'locks'); let profile: string;
@@ -26,6 +28,49 @@ afterEach(async () => {
 });
 import { defineRetiredManagement } from './helpers/chat-management-retirement.js';
 defineRetiredManagement('labs.overlays', (title, run) => it(title, run));
+
+it('canonicalizes historical chart-layer signatures while binding them to their owner and exact settings', () => {
+  const record: LabOverlayControlIdentity = {
+    id: 'historical-layers', action: 'labs.overlays', profileId: profile, threadId: 'layer-thread', leaseId: 'previous-review',
+    parameters: { notes: true, supplements: false }, baseline: { notes: false, supplements: true },
+    reason: 'Update the chart layers', evidence: 'Show my notes.',
+  };
+  const signature = labOverlaySignature(record);
+  expect(labOverlaySignature({
+    ...record, parameters: { supplements: false, notes: true }, baseline: { supplements: true, notes: false },
+    reason: ` ${record.reason} `, evidence: ` ${record.evidence} `,
+  })).toBe(signature);
+  for (const change of [
+    { profileId: 'other-profile' }, { threadId: 'other-thread' }, { leaseId: 'other-review' },
+    { parameters: { notes: true, supplements: true } }, { baseline: { notes: false, supplements: false } },
+  ]) expect(labOverlaySignature({ ...record, ...change })).not.toBe(signature);
+});
+
+it('keeps historical chart-layer reviews native-only and hides them when their profile or sources are unavailable', () => {
+  const history: AppControlRecord = {
+    version: 1, id: 'historical-layers', action: 'labs.overlays', status: 'changed', profileId: profile,
+    threadId: 'layer-thread', leaseId: 'previous-review', reason: 'Update my chart layers', evidence: 'Show my notes and supplements.',
+    parameters: patch, baseline: {notes: false, supplements: false, cycle: false}, undoAvailable: true,
+  };
+  state.chatHistory = [{role: 'assistant', content: 'Saved chart-layer settings', appControls: [history]}];
+  const reviews = () => projectChatMessageActions(state.chatHistory, 0)!.reviews;
+  expect(reviews()).toMatchObject([{kind: 'app', control: {id: history.id}, lifecycle: {canReview: false, label: 'Managed in native UI'}}]);
+
+  for (const source of ['lab-markers', 'insight-cards', 'supplements-meds'] as const) {
+    setContextSourceEnabled(source, false);
+    expect(reviews()).toEqual([]);
+    setContextSourceEnabled(source, true);
+  }
+  state.profileSex = null;
+  expect(reviews()).toEqual([]);
+  state.profileSex = 'female';
+  expect(reviews()).toHaveLength(1);
+
+  state.currentProfile = 'another-profile';
+  expect(reviews()).toEqual([]);
+  state.currentProfile = profile;
+  expect(readLabOverlayPreferences()).toEqual({notes: false, supplements: false, cycle: false});
+});
 
 it('rolls back a partially failed multi-switch save before publishing cached modes', async () => {
   const writer = Storage.prototype.setItem; vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, name, value) { if (name === profileStorageKey(profile, 'suppOverlay')) throw new Error('No space'); return writer.call(this, name, value); });
