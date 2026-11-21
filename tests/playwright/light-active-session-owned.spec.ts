@@ -1,5 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 import { createDefaultProfileData } from '../../js/profile.js';
+import type { LightSessionPresentationProps } from '../../js/light-session-presentation.js';
 import { seedLightPageFixture } from '../helpers/light-page-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 
@@ -21,20 +22,45 @@ test.describe('coarse-pointer touch targets', () => {
     }))).toEqual({ coarse: true, fine: false, touch: true });
   });
 
-  test('authored active session layouts retain themes, safety readability, labels and accessible controls', async ({ page }, info) => {
+  for (const mode of ['server-rendered', 'native client'] as const) test(
+    `authored active session layouts retain themes, safety readability, labels and accessible controls (${mode})`, async ({ page }, info) => {
     test.setTimeout(120000);
     const before = await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData));
-    await page.evaluate(async () => {
-      const [{ renderHTML }, model] = await Promise.all([import('/js/components/LightSessionPresentation.svelte.html.js'), import('/js/light-active-session-presentation.js')]);
+    await page.evaluate(async mode => {
+      const model = await import('/js/light-active-session-presentation.js');
       const chips = ['vitamin_d','pomc','no_cv','violet_eye','circadian','nir_solar'].map(key => model.sessionChannelChip(key, { label: `Signal <${key}>`, icon: '☀' }, key === 'vitamin_d' ? '~1400 IU-eq' : ''));
       const initialSun = model.activeSunSessionView({ id: 'layout-sun', startedAt: 1, paused: true, bodyExposure: { rotatedSides: true, glassBetween: true, sunscreenSPF: 12 }, eyeExposure: { mode: 'direct' } }, 'Wednesday, June 10, 2026', '39:00', 'Upper chest <literal> & arms', 'Eyes open', chips, 13 * 3600000);
       const sun = { ...initialSun, readouts: model.liveSessionReadouts({ doses: { vitamin_d: 2 }, sed: 4, medFraction: 1.1, retinalUV: 35, fitzpatrick: 'II', fitzpatrickAssumed: true, psmTier: 'severe', atm: { temperatureC: 34 } }, { iu: 1400, ratePerMin: 35 }, 39) };
       const device = { ...sun, kind: 'device' as const, id: 'layout-device', date: 'Active · <Brand> Panel & One', body: '25 cm · Upper chest · ~6% skin · eye shielding logged', chips: null, readouts: [], forgotHours: null };
       const host = document.createElement('div'); host.id = 'light-active-acceptance';
       host.style.cssText = 'position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg-primary);padding:16px;box-sizing:border-box;display:grid;align-content:start;gap:24px';
-      host.innerHTML = `<div class="light-active-session-pinned">${renderHTML({ kind: 'active', view: sun })}</div>` + renderHTML({ kind: 'active', view: { ...sun, id: 'layout-running', paused: false, rotated: false, forgotHours: null, readouts: model.initialSessionReadouts({ safety: { medFraction: 0.3 } }) } }) + renderHTML({ kind: 'active', view: device });
+      const pinned = document.createElement('div');
+      pinned.className = 'light-active-session-pinned';
+      host.append(pinned);
+      const parts: {target: HTMLElement; props: LightSessionPresentationProps}[] = [
+        {target: pinned, props: {kind: 'active', view: sun}},
+        {target: host, props: {kind: 'active', view: {...sun, id: 'layout-running', paused: false, rotated: false, forgotHours: null, readouts: model.initialSessionReadouts({safety: {medFraction: 0.3}})}}},
+        {target: host, props: {kind: 'active', view: device}},
+      ];
       document.body.append(host);
-    });
+      if (mode === 'server-rendered') {
+        const {renderHTML} = await import('/js/components/LightSessionPresentation.svelte.html.js');
+        for (const {target, props} of parts) target.insertAdjacentHTML('beforeend', renderHTML(props));
+      } else {
+        const client = await import('/js/components/LightSessionPresentation.svelte.native.js');
+        const originalChildCounts = parts.map(({target}) => target.childElementCount);
+        const instances = parts.map(({target, props}) => client.mount(client.default, {target, props}));
+        client.flushSync();
+        Object.assign(host, {
+          async dispose() {
+            for (const instance of instances) await client.unmount(instance);
+            if (parts.some(({target}, index) => target.childElementCount !== originalChildCounts[index])) {
+              throw new Error('Light session nodes leaked after disposal');
+            }
+          },
+        });
+      }
+    }, mode);
     const root = page.locator('#light-active-acceptance');
     await expect(root.locator('.sun-chip-extra:visible')).toHaveCount(0);
     for (const toggle of await root.locator('.sun-chip-more').all()) await toggle.click();
@@ -54,6 +80,7 @@ test.describe('coarse-pointer touch targets', () => {
     }
     await expect(root.locator('img,script,[onerror]')).toHaveCount(0);
     expect(await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData))).toBe(before);
+    await root.evaluate(element => (element as HTMLElement & {dispose?: () => Promise<void>}).dispose?.());
   });
 });
 
