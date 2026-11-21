@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import type { BiologySummaryProps } from '../../js/biology-summary-presentation.js';
 import {expect, test} from './coverage-fixture.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {scopedFrozenStyles} from '../helpers/frozen-style-scope.js';
@@ -20,13 +21,16 @@ const frozenCSS = original.styleBlocks.map(block => {
   return rule;
 }).join('\n');
 
-test('authored Biology summary and compatibility lens preserve frozen geometry themes and independent keyboard controls', async ({page}, info) => {
+for (const mode of ['server-rendered', 'native client'] as const) test(
+  `authored Biology summary and compatibility lens preserve frozen geometry themes and independent keyboard controls (${mode})`, async ({page}, info) => {
   test.setTimeout(240000); await installDiscussionFixture(page.context()); await prepareDemoProfile(page);
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   await page.emulateMedia({reducedMotion: 'reduce'});
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.evaluate(async ({samples, css}) => {
-    const {renderHTML} = await import('/js/components/BiologySummaryPresentation.svelte.html.js');
+  await page.evaluate(async ({samples, css, mode}) => {
+    const server = mode === 'server-rendered' ? await import('/js/components/BiologySummaryPresentation.svelte.html.js') : null;
+    const client = mode === 'native client' ? await import('/js/components/BiologySummaryPresentation.svelte.native.js') : null;
+    const dispose: (() => Promise<void>)[] = [];
     const {projectBiologySummaryWidget, projectBiologyCompatibilityLens} = await import('/js/biology-summary-presentation.js');
     const {projectBiologyContextLabels} = await import('/js/biology-context-presentation.js');
     const style = document.createElement('style'); style.textContent = css; document.head.append(style);
@@ -34,16 +38,30 @@ test('authored Biology summary and compatibility lens preserve frozen geometry t
     host.style.cssText = 'position:fixed;inset:0;z-index:20000;overflow:auto;background:var(--bg-primary);padding:12px'; document.body.append(host);
     for (const sample of samples) {
       const records = sample.records.map(record => ({...record, score: record.nonFiniteScore ? {...record.score, score: NaN} : record.score}));
-      const current = sample.kind === 'widget' ? renderHTML({kind: 'widget', view: projectBiologySummaryWidget(records.map(record => record.score))})
-        : renderHTML({kind: 'lens', view: projectBiologyCompatibilityLens(records, projectBiologyContextLabels(sample.profileContext))});
+      const props: BiologySummaryProps = sample.kind === 'widget' ? {kind: 'widget', view: projectBiologySummaryWidget(records.map(record => record.score))}
+        : {kind: 'lens', view: projectBiologyCompatibilityLens(records, projectBiologyContextLabels(sample.profileContext))};
       const pair = document.createElement('div'); pair.dataset.pair = `${sample.kind}-${sample.name}`;
-      for (const [key, html] of [['original', sample.html], ['current', current]]) {
-        const side = document.createElement('section'); side.dataset[key!] = '';
-        const body = document.createElement('div'); body.innerHTML = html!; side.append(body); pair.append(side);
+      for (const key of ['original', 'current'] as const) {
+        const side = document.createElement('section'); side.dataset[key] = '';
+        const body = document.createElement('div'); side.append(body); pair.append(side);
+        if (key === 'original') body.innerHTML = sample.html;
+        else if (client) {
+          const instance = client.mount(client.default, {target: body, props});
+          dispose.push(async () => {
+            await client.unmount(instance);
+            if (body.childElementCount) throw new Error(`Mounted Biology summary nodes leaked from ${sample.name}`);
+          });
+        } else if (server) body.innerHTML = server.renderHTML(props);
       }
       host.append(pair);
     }
-  }, {samples, css: frozenCSS});
+    client?.flushSync();
+    Object.assign(host, {
+      dispose: async () => {
+        for (const unmount of dispose) await unmount();
+      },
+    });
+  }, {samples, css: frozenCSS, mode});
   const host = page.locator('#biology-summary-acceptance'); let pairs = 0;
   const widths = [320,560,561,600,601,900,901,1200];
   for (const width of widths) for (const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']) for (const open of [false,true]) {
@@ -80,8 +98,9 @@ test('authored Biology summary and compatibility lens preserve frozen geometry t
     expect(await button.evaluate(node => parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2); controls++;
   }
   await expect(host.locator('.biology-score-card[role="button"],.biology-score-card[tabindex],[role="button"] button')).toHaveCount(0);
+  await host.evaluate(element => (element as HTMLElement & {dispose: () => Promise<void>}).dispose());
   expect(errors).toEqual([]);
-  fs.writeFileSync(info.outputPath('biology-summary-parity.json'), JSON.stringify({pairs, controls, widths, themes: 6, states: ['closed','open'], pageErrors: errors}));
+  fs.writeFileSync(info.outputPath('biology-summary-parity.json'), JSON.stringify({mode, pairs, controls, widths, themes: 6, states: ['closed','open'], pageErrors: errors}));
 });
 
 test('summary marker keyboard actions stay independent from card navigation through the real delegates', async ({page}) => {
