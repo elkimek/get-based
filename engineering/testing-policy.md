@@ -18,6 +18,13 @@ activation and cache protections. The small browser fixture is a protocol regres
 not whole-application release acceptance. Pre-protocol pages still require closing
 all app windows because their old script cannot handle the new worker messages.
 
+On first launch without a usable worker, the application can make one new
+registration attempt after rejection or a failed install. Failed precache
+responses release their bodies before retrying the resource. The deployed
+worker must verify the release and complete precaching before it can control
+the original document. [Static browser cases](../tests/pwa/sveltekit.spec.ts)
+also require a closed-client launch with the server offline after recovery.
+
 Same-build worker reinstall attempts must leave the active build cache intact
 until deployment metadata, required resources and producer proofs pass. Failed
 checks remove only the candidate; invalid existing producer proofs still reject

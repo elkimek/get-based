@@ -109,6 +109,41 @@ test('first launch recovers when the release worker import is briefly unavailabl
   }
 });
 
+test('a failed first precache retries once and controls the original app', async ({page, context}, info) => {
+  const asset = '/css/emf.css';
+  let workerBoots = 0;
+  let assetRequests = 0;
+  const server = await startKitServer(artifact, [async (request, response) => {
+    if (request.url === '/service-worker.js') workerBoots++;
+    if (request.url?.split('?')[0] !== asset || ++assetRequests > 3) return false;
+    response.writeHead(503, {'Cache-Control': 'no-store'});
+    response.end('Transient first install precache fixture');
+    return true;
+  }]);
+  const errors = await prepare(context, page);
+  try {
+    await readyControlledKitArtifact(page, server.origin);
+    expect(workerBoots).toBe(2);
+    expect(assetRequests).toBe(4);
+    expect(await page.evaluate(async url => (await caches.match(url))?.status, asset)).toBe(200);
+    await noCspErrors(page, errors);
+
+    server.state.offline = true;
+    await page.close();
+    const cold = await context.newPage();
+    try {
+      await readyControlledKitArtifact(cold, server.origin);
+      expect(await cold.evaluate(async url => (await fetch(url)).status, asset)).toBe(200);
+      await noCspErrors(cold, errors);
+    } finally {
+      await cold.close();
+    }
+  } finally {
+    await info.attach('worker-precache-attempts', {body: JSON.stringify({workerBoots, assetRequests}), contentType: 'application/json'});
+    await server.close();
+  }
+});
+
 test('first Display open and cold launch work offline while retaining local and IndexedDB data', async ({ page, context }) => {
   const server = await startKitServer(artifact); const errors = await prepare(context, page);
   try {

@@ -201,7 +201,11 @@ function installServiceWorkerRuntime({
     for (let attempt = 1; attempt <= PRECACHE_ATTEMPTS; attempt += 1) {
       try {
         const response = await fetch(url, { cache: 'reload' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          // Release the failed transfer before retrying alongside other shell downloads.
+          void response.body?.cancel().catch(() => {});
+          throw new Error(`HTTP ${response.status}`);
+        }
         await cache.put(url, await networkCacheResponse(url, response));
         return;
       } catch (error) {
