@@ -229,15 +229,16 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
 
       await emfRuntime.openEMFAssessmentEditor();
       await waitFor('#detail-modal .emf-editor-actions', 'EMF editor actions');
-      document.querySelector<HTMLElement>('.emf-editor-actions .import-btn-primary')?.click();
+      document.querySelector<HTMLElement>('#detail-modal [data-emf-action="add-assessment"]')?.click();
       await waitUntil(() => assessments().length === 1, 'new EMF assessment');
       const id = activeAssessment().id;
-      await waitFor(`#detail-modal .emf-assessment-card.expanded [data-emf-assessment-id="${id}"][data-emf-field="date"]`, 'new EMF assessment editor');
+      const dateField = `#detail-modal .emf-assessment-card.expanded [data-emf-field="date"][data-emf-assessment-id="${CSS.escape(String(id))}"]`;
+      await waitFor(dateField, 'new EMF assessment editor');
       outcomes.newAssessmentExpandsWithDefaultBedroom =
         activeAssessment().rooms[0]!.name === 'Bedroom'
         && document.querySelector('.emf-assessment-card.expanded')?.textContent!.includes('Sleeping area') === true;
 
-      setAndChange('[data-emf-field="date"]', '2026-06-01');
+      setAndChange(dateField, '2026-06-01');
       setAndChange('[data-emf-field="label"]', 'Before shielding');
       setAndChange('[data-emf-field="consultant"]', 'Building Bio Lab');
       setAndChange('[data-emf-room-field="location"]', 'Pillow side');
