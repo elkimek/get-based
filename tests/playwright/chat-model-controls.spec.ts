@@ -212,6 +212,15 @@ test('CLI chat keeps dictation enabled through the independent voice service', a
   });
 
   await expect(page.locator('#chat-voice-btn')).toBeEnabled();
+  // The sliding composer can move the Send button under the pointer during
+  // dispatch. Wait for the real panel transition before clicking dictation.
+  await expect.poll(() => page.locator('#chat-panel').evaluate(panel =>
+    panel.getAnimations().some(animation =>
+      animation instanceof CSSTransition
+      && ['transform', 'width'].includes(animation.transitionProperty)
+      && (animation.pending || animation.playState === 'running'),
+    ),
+  ), { message: 'Chat panel movement should settle before clicking dictation' }).toBe(false);
   await page.locator('#chat-voice-btn').click();
   await expect(page.locator('[data-tab-panel="voice"]')).toHaveClass(/\bactive\b/);
   await expect(page.locator('[data-voice-model-kind="stt"]')).toContainText('Not downloaded yet');
