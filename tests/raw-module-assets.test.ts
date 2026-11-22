@@ -31,8 +31,8 @@ it('retains recursive runtime imports, exports and literal lazy imports through 
   ]);
   const reads: string[] = [];
   const result = await collectRawModuleAssets(new Set(['/js/worker.js']), async url => { reads.push(url); if (!modules.has(url)) throw new Error(url); return modules.get(url)!; });
-  expect([...result].sort()).toEqual([...modules.keys()].sort());
-  expect(reads).toHaveLength(modules.size);
+  expect([...result]).toEqual(['/js/worker.js', '/js/lazy.js', '/js/export.js', '/js/shared.js', '/shared/deep.mjs']);
+  expect(reads.sort()).toEqual([...modules.keys()].sort());
 });
 it('rejects missing dependencies and unsupported local import types', async () => {
   await expect(collectRawModuleAssets(new Set(['/js/worker.js']), async url => { if (url.endsWith('missing.js')) throw new Error('Missing emitted module'); return `import './missing.js';`; })).rejects.toThrow('Missing emitted module');
