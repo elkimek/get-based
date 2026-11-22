@@ -1,4 +1,4 @@
-import {expect,test} from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import {createDefaultProfileData,migrateProfileData} from '../../js/profile.js';
 import {categorySeedFields,categoryRegistry,categoryRoutes} from '../helpers/category-pwa-receipt.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';

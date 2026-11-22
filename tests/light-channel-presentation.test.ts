@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { configureLightChannelView, renderChannelPills, _toggleChannelDetail, installLightChannelActionDelegates } from '../js/light-channel-view.js';
 import { projectChannelChart, projectChannelDetail, type ChannelDay } from '../js/light-channel-presentation.js';
 import { renderHTML } from '../js/components/LightChannelDetail.svelte.html.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+type Props = Parameters<typeof renderHTML>[0];
+const capture = vi.hoisted(() => ({props: null as Props | null}));
+vi.mock('../js/components/LightChannelDetail.svelte.html.js', async original => {
+  const actual = await original<typeof import('../js/components/LightChannelDetail.svelte.html.js')>();
+  return {...actual, renderHTML: (props: Props) => {
+    capture.props = props;
+    return actual.renderHTML(props);
+  }};
+});
+
 interface Sample { channel: string; pattern: string; meta: { icon?: string; label?: string; what?: string }; sun: number; device: number; breakdown: boolean; matchingDevice: boolean; html: string }
 const original = JSON.parse(readFileSync('tests/fixtures/light-channel-original.json','utf8')) as { now: number; cases: Sample[] };
 function semantic(html: string) {
@@ -22,9 +36,9 @@ function days(sample: Sample, count: number): ChannelDay[] {
   });
 }
 let previous: Record<string, unknown>;
-beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(original.now);vi.stubGlobal('requestAnimationFrame',()=>0);previous=configureLightChannelView();});
+beforeEach(()=>{capture.props = null;vi.useFakeTimers();vi.setSystemTime(original.now);vi.stubGlobal('requestAnimationFrame',()=>0);previous=configureLightChannelView();});
 afterEach(()=>{configureLightChannelView(previous);vi.useRealTimers();vi.unstubAllGlobals();document.body.innerHTML='';});
-for(const [index,sample] of original.cases.entries())it(`preserves original channel ${index}: ${sample.channel}/${sample.pattern}/breakdown=${sample.breakdown}`,()=>{
+for(const [index,sample] of original.cases.entries())it(`preserves original channel ${index}: ${sample.channel}/${sample.pattern}/breakdown=${sample.breakdown}`,async ()=>{
   configureLightChannelView({channelDisplay:{[sample.channel]:sample.meta},dailyChannelBreakdown:sample.breakdown?(_channel:unknown,n:number)=>days(sample,n):null,
     dailyVitaminDIUBreakdown:(n:number)=>days(sample,n),rollingChannelTotals:()=>({[sample.channel]:sample.sun}),rollingDeviceTotals:()=>({[sample.channel]:sample.device}),
     pbmJoulesPerCm2:(n:number)=>n/100,getDevices:()=>sample.matchingDevice?[{channels:[sample.channel]}]:[]});
@@ -32,7 +46,24 @@ for(const [index,sample] of original.cases.entries())it(`preserves original chan
   _toggleChannelDetail(sample.channel);
   const slot=document.querySelector('[data-channel-detail-slot]')!;
   expect(semantic(slot.innerHTML)).toEqual(semantic(sample.html));
-  expect(slot.querySelector('[data-light-channel-presentation]')).not.toBeNull();
+  const panel = slot.querySelector('[data-light-channel-presentation]');
+  const trigger = [...document.querySelectorAll<HTMLButtonElement>('.light-pill')]
+    .find(pill => pill.dataset.channel === sample.channel);
+  expect(panel).not.toBeNull();
+  expect(panel?.getAttribute('tabindex')).toBe(trigger ? '-1' : null);
+  if (trigger) expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  const props = capture.props;
+  expect(props).not.toBeNull();
+  const native = load('../js/components/LightChannelDetail.svelte.native.js') as typeof import('../js/components/LightChannelDetail.svelte.native.js');
+  // Actual delegation adds the region's temporary focus target after rendering.
+  await expectNativeReview(renderHTML(props!), root => {
+    const mounted = native.mount(native.default, {target: root, props: props!});
+    native.flushSync();
+    return () => native.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('[data-light-channel-presentation]')?.getAttribute('data-channel')).toBe(sample.channel);
+    expect(root.querySelector('.light-channel-detail-close')).toBe(document.activeElement);
+  }, '.light-channel-detail-close');
 });
 it('retains chart boundaries and independent real-unit labels without adding source doses',()=>{
   const date=new Date();

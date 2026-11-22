@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
+import { startPageCoverage, stopPageCoverage } from './coverage-fixture.js';
 
 const fixtureBytes = fs.readFileSync('tests/fixtures/display-prepilot-native.json');
 const native = JSON.parse(fixtureBytes.toString('utf8')) as { revision: string; styles: { path: string; source: string }[] };
@@ -86,7 +87,7 @@ async function receipt(page: Page, reference: boolean) {
   }), { cases, properties, reference });
 }
 
-test('actual Settings and wallet controls preserve native desktop typography and contextual padding across six themes', async ({ browser }) => {
+test('actual Settings and wallet controls preserve native desktop typography and contextual padding across six themes', async ({ browser }, info) => {
   test.setTimeout(90_000);
   expect(crypto.createHash('sha256').update(fixtureBytes).digest('hex')).toBe('c988381710d932dcba7c3470ade761ac1712423b84717dcd629ea94d51be9cdb');
   expect(native.revision).toBe('f0d4eb8f');
@@ -96,6 +97,7 @@ test('actual Settings and wallet controls preserve native desktop typography and
   const context = await browser.newContext({ hasTouch: false, viewport: { width: 1280, height: 900 } });
   const reference = await context.newPage(), current = await context.newPage();
   try {
+    await startPageCoverage(current);
     await mountProbe(reference, true); await mountProbe(current, false);
     for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
       for (const page of [reference, current]) await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, theme);
@@ -114,13 +116,17 @@ test('actual Settings and wallet controls preserve native desktop typography and
     await expect(current.locator('.local-agent-toggle')).toHaveCSS('width', '32px');
     await expect(current.locator('.local-agent-toggle')).toHaveCSS('height', '28px');
     expect(await current.locator('#mint [data-routstr-wallet-action="set-mint-input"]').evaluate(button => button.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
-  } finally { await context.close(); }
+  } finally {
+    try { await stopPageCoverage(current, info); }
+    finally { await context.close(); }
+  }
 });
 
-test('the same corrected controls retain44px coarse targets and private state ownership', async ({ browser }) => {
+test('the same corrected controls retain44px coarse targets and private state ownership', async ({ browser }, info) => {
   const context = await browser.newContext({ hasTouch: true, viewport: { width: 390, height: 900 } });
   const page = await context.newPage();
   try {
+    await startPageCoverage(page);
     await mountProbe(page, false);
     expect(await page.evaluate(() => matchMedia('(pointer:coarse)').matches)).toBe(true);
     for (const [, selector] of cases) {
@@ -132,5 +138,8 @@ test('the same corrected controls retain44px coarse targets and private state ow
     await page.evaluate(async () => { (await import('/js/ppq-settings-component.js')).getPpqSettingsView()!.setBalance({ text: 'Updated', tone: 'secondary' }); });
     await expect(input).toHaveValue('PRIVATE SYNTHETIC'); await expect(input).toBeFocused();
     await page.evaluate(async () => { const held = document.getElementById('ppq-key-input') as HTMLInputElement; (await import('/js/ppq-settings-component.js')).disposePpqSettings(); if (held.value) throw new Error('Private key retained'); });
-  } finally { await context.close(); }
+  } finally {
+    try { await stopPageCoverage(page, info); }
+    finally { await context.close(); }
+  }
 });

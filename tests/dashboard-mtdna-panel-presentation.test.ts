@@ -1,15 +1,36 @@
+// @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {expectedMtdnaPanelHTML,mtdnaNativeTree} from './helpers/dashboard-mtdna-study-owned-receipts.js';
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {JSDOM} from 'jsdom';
 import {parse} from 'svelte/compiler';
-import {projectDashboardMtdnaPanel,renderDashboardMtdnaPanelPresentation,renderDashboardGenomeLoading} from '../js/dashboard-mtdna-panel-presentation.js';
+import {projectDashboardMtdnaPanel,type DashboardMtdnaPanelView,renderDashboardMtdnaPanelPresentation,renderDashboardGenomeLoading} from '../js/dashboard-mtdna-panel-presentation.js';
 import type {GenomeEvidence,GenomeHaplogroupTable,MtdnaReader,MtdnaStudyReader} from '../types/dashboard-widget-renderers.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+const projected = vi.hoisted(() => ({view: null as DashboardMtdnaPanelView | null}));
+async function checkNativePanel(html: string) {
+ const view = projected.view;
+ expect(view).not.toBeNull();
+ const component = load('../js/components/DashboardMtdnaPanel.svelte.native.js') as typeof import('../js/components/DashboardMtdnaPanel.svelte.native.js');
+ await expectNativeReview(html, root => {
+  const mounted = component.mount(component.default, {target: root, props: {view: view!}});
+  component.flushSync();
+  return () => component.unmount(mounted);
+ }, root => {
+  expect(root.querySelector<HTMLDetailsElement>('details')?.open ?? false).toBe(false);
+  expect(root.querySelector('script, img, [onclick]')).toBeNull();
+  expect(root.querySelector('.db-mtdna-panel')?.getAttribute('data-mtdna-haplogroup')).toBe(view!.haplogroup);
+ });
+}
 const ports=vi.hoisted(()=>({change:(html:string)=>html}));
 vi.mock('../js/components/DashboardMtdnaPanel.svelte.html.js',async importOriginal=>{
  const actual=await importOriginal<typeof import('../js/components/DashboardMtdnaPanel.svelte.html.js')>();
  return {renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>{
+  projected.view=props.view;
   const raw=actual.renderHTML(props),directory=process.env['GETBASED_MTDNA_PANEL_RAW'];
   if(directory){const name='compiled-'+captureIndex++ +'.json';fs.writeFileSync(directory+'/'+name,JSON.stringify({raw,props},null,2),{flag:'wx'});}
   return ports.change(raw);
@@ -18,8 +39,8 @@ vi.mock('../js/components/DashboardMtdnaPanel.svelte.html.js',async importOrigin
 let captureIndex=0;
 const escape=(value:unknown)=>value==null?'':String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 vi.mock('../js/utils.js',()=>({escapeHTML:(value:unknown)=>value==null?'':String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))}));
-const fixture=fs.readFileSync(new URL('./fixtures/dashboard-mtdna-panel-original.txt',import.meta.url),'utf8');
-const study=vm.runInNewContext('('+fs.readFileSync(new URL('./fixtures/dashboard-mtdna-study-original.txt',import.meta.url),'utf8')+')',{escapeHTML:escape,escapeAttr:escape});
+const fixture=fs.readFileSync('tests/fixtures/dashboard-mtdna-panel-original.txt','utf8');
+const study=vm.runInNewContext('('+fs.readFileSync('tests/fixtures/dashboard-mtdna-study-original.txt','utf8')+')',{escapeHTML:escape,escapeAttr:escape});
 interface Mismatch {message?:unknown;mismatch?:unknown}
 function original(mtdna:MtdnaReader,table:GenomeHaplogroupTable|null,resolve:()=>Mismatch|null,evidence:GenomeEvidence|null):string{
  const fn=vm.runInNewContext('('+fixture+')',{escapeHTML:escape,escapeAttr:escape,detectMtDNAMismatch:resolve,_dashboardGenomeEvidence:evidence,renderDashboardMtdnaEvidenceStudy:study});
@@ -38,7 +59,7 @@ function native(markup:string){
 }
 const full:MtdnaReader={origin:'Maternal <region>',source:'Synthetic export',matchedMutations:4,totalDiagnostic:8,haplogroup:'H1',details:'Details',coupling:{shortLabel:'Tight',label:'Coupling',climate:'Cold',description:'Description',implications:'Implications'}};
 const table:GenomeHaplogroupTable={_meta:{caveat:'Evidence is contextual',references:[{pmid:'PMID 26406369',direction:'supportive',title:'Study',summary:'Summary'},null,{direction:'mixed',model:'Model',limitations:'Limits'}]}};
-beforeEach(()=>{ports.change=html=>html;});afterEach(()=>{ports.change=html=>html;});
+beforeEach(()=>{ports.change=html=>html;projected.view=null;});afterEach(()=>{ports.change=html=>html;});
 describe('complete Dashboard mtDNA panel native source contract',()=>{
  const cases:Array<{m:MtdnaReader;t:GenomeHaplogroupTable|null;r:()=>Mismatch|null}>=[
   {m:{},t:null,r:()=>null},{m:full,t:table,r:()=>({message:'Current latitude context',mismatch:true})},
@@ -46,17 +67,19 @@ describe('complete Dashboard mtDNA panel native source contract',()=>{
   {m:{...full,matchedMutations:Infinity,totalDiagnostic:NaN,details:false},t:{_meta:{references:new Array(3)}},r:()=>null},
   {m:{...full,haplogroup:Symbol('H'),origin:{toString:()=>''}},t:{_meta:{references:[],caveat:'unread'}},r:()=>({message:''})},
  ];
- cases.forEach((input,index)=>it('preserves full raw HTML and genuine fragment defaults '+index,()=>{
+ cases.forEach((input,index)=>it('preserves full raw HTML and genuine fragment defaults '+index,async ()=>{
   const old=original(input.m,input.t,input.r,null),now=renderDashboardMtdnaPanelPresentation(input.m,input.t,input.r,null);
   expect(now).toBe(expectedMtdnaPanelHTML(old));expect(mtdnaNativeTree(now)).toEqual(mtdnaNativeTree(old,true));
+  await checkNativePanel(now);
  }));
- it('preserves hostile text, native provenance attributes and owned child boundaries',()=>{
+ it('preserves hostile text, native provenance attributes and owned child boundaries',async ()=>{
   const hostile='<script>bad()</script> & " \' <!--[0--> gb-mtdna-panel-slot-0-end';
   const m={...full,haplogroup:hostile,origin:hostile,source:hostile,details:hostile,coupling:{shortLabel:hostile,label:hostile,climate:hostile,description:hostile,implications:hostile}};
   const t={_meta:{caveat:hostile,references:[{title:hostile,summary:hostile,pmid:'123'}]}};
   const evidence={mtdnaEvidenceIssueUrl:()=>'/issues?title='+hostile} as GenomeEvidence;
   const old=original(m,t,()=>({message:hostile}),evidence),now=renderDashboardMtdnaPanelPresentation(m,t,()=>({message:hostile}),evidence);
   expect(now).toBe(expectedMtdnaPanelHTML(old));expect(mtdnaNativeTree(now)).toEqual(mtdnaNativeTree(old,true));const dom=new JSDOM(now);try{expect(dom.window.document.querySelector('script,img,[onclick]')).toBeNull();expect(dom.window.document.querySelector('details')!.open).toBe(false);}finally{dom.window.close();}
+  await checkNativePanel(now);
  });
  it('preserves repeated property reads, Number/string coercion and issue callback order',()=>{
   const run=(render:typeof original)=>{const trace:string[]=[];const value=(name:string,result:string|number)=>({[Symbol.toPrimitive](hint:string){trace.push(name+':'+hint);return result;}});
@@ -79,7 +102,7 @@ describe('complete Dashboard mtDNA panel native source contract',()=>{
   ['duplicate lineage',(html:string)=>html.replace('mtDNA H1','mtDNA H1 H1')],
  ]as const)it('independently rejects current SSR corruption '+name,()=>{const expected=expectedMtdnaPanelHTML(original(full,table,()=>null,null));ports.change=mutate;expect(()=>expect(renderDashboardMtdnaPanelPresentation(full,table,()=>null,null)).toBe(expected)).toThrow();});
  for(const count of [0,1,2])it('preserves original loading text, whitespace and native live-region '+count,()=>{
-  const literal=fs.readFileSync(new URL('./fixtures/dashboard-genome-loading-original.txt',import.meta.url),'utf8');const old:string=vm.runInNewContext(literal,{snpCount:count});const now=renderDashboardGenomeLoading(count);const expected='<!--[-->'+old+'<!--]-->';expect(now).toBe(expected);expect(native(now)).toEqual(native(expected));
+  const literal=fs.readFileSync('tests/fixtures/dashboard-genome-loading-original.txt','utf8');const old:string=vm.runInNewContext(literal,{snpCount:count});const now=renderDashboardGenomeLoading(count);const expected='<!--[-->'+old+'<!--]-->';expect(now).toBe(expected);expect(native(now)).toEqual(native(expected));
  });
  it('retains sparse Array-subclass mapping, explicit undefined study and issue chronology',()=>{
   const run=(render:typeof original)=>{
@@ -108,12 +131,12 @@ describe('complete Dashboard mtDNA panel native source contract',()=>{
   };expect(run(renderDashboardMtdnaPanelPresentation)).toEqual(run(original));
  });
  it('retains original entire loading Promise/delegate/domain owner by inverse',()=>{
-  const current=fs.readFileSync(new URL('../js/dashboard-widget-renderers.ts',import.meta.url),'utf8');
+  const current=fs.readFileSync('js/dashboard-widget-renderers.ts','utf8');
   expect(current).toContain('needsMtdna ? ensureHaplogroupTable() : Promise.resolve(null)');expect(current).toContain('body.innerHTML = renderDashboardGenomeWidget()');
   expect(current).toContain(".catch(() => { _dashboardGenomeDataLoadPromise = null; });");
  });
  it('contains no authored HTML/event handlers and composes the genuine study child',()=>{
-  const source=fs.readFileSync(new URL('../js/components/DashboardMtdnaPanel.svelte',import.meta.url),'utf8');const ast=parse(source);expect(ast).toBeDefined();
+  const source=fs.readFileSync('js/components/DashboardMtdnaPanel.svelte','utf8');const ast=parse(source);expect(ast).toBeDefined();
   expect(source).not.toMatch(/\son[a-z]+\s*=|\bon:[a-z]+/);expect(source).not.toContain('{@html');expect(source).toContain('<DashboardMtdnaStudy view={study} />');
  });
 });

@@ -1,6 +1,9 @@
 import{nativeEnvironmentView,expectedGenuineLightChildren,genuineLightChildReceipts}from'./helpers/light-genuine-child-native-receipts.js';
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
+import {createRequire} from 'node:module';
+import {renderHTML as renderAuditBlock} from '../js/components/LightAuditBlock.svelte.html.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 import { expect, it, vi } from 'vitest';
 import { describeAuditComparison } from './helpers/light-audit-comparison-contract.js';
 import { auditActionValue } from '../js/light-audit-presentation.js';
@@ -73,6 +76,23 @@ for (const sample of original.cases) it(`preserves frozen audit behavior: ${samp
     expect(disclosure.querySelector('button,input,a')).toBeNull();
   }
 });
+it.each(original.cases)('retains the native audit cards and comparisons for $name', async sample => {
+  const {api, state, calls} = await setup(sample);
+  const before = JSON.stringify(state.importedData);
+  const view = api.readLightAuditsView();
+  const native = createRequire(import.meta.url)('../js/components/LightAuditBlock.svelte.native.js') as typeof import('../js/components/LightAuditBlock.svelte.native.js');
+  await expectNativeReview(renderAuditBlock({view}), root => {
+    const owned = native.mount(native.default, {target: root, props: {view}});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    expect(root.querySelectorAll('.light-audit-card')).toHaveLength(view.cards.length);
+    expect(root.querySelector('img,script,[onerror]')).toBeNull();
+  });
+  expect(calls).toEqual(sample.calls);
+  expect(JSON.stringify(state.importedData)).toBe(before);
+});
+
 it('keeps configured AI failures isolated and expanded detail lazy', async () => {
   const {api} = await setup(original.cases.find(sample => sample.name === 'collapsed')!);
   const detail = vi.fn(() => {throw new Error('AI unavailable');});

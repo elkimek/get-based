@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import {describe,it,expect,vi} from 'vitest';
 import vm from 'node:vm';
-import {stripTypeScriptTypes} from 'node:module';
+import {createRequire,stripTypeScriptTypes} from 'node:module';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 import {createHash} from 'node:crypto';
 import * as quality from '../js/supplement-quality.js';
 import * as draft from '../js/supplement-import-draft.js';
@@ -9,7 +10,8 @@ import type {SupplementImportReviewView} from '../js/supplement-import-review-vi
 import fs from 'node:fs';import path from 'node:path';import {isDeepStrictEqual} from 'node:util';
 import * as domain from '../js/supplement-medication-domain.js';
 import {formPresentationCases,formPresentationWitness,nativeSupplementFormTree,type FormRenderer,type FormPresentationCase} from './helpers/supplement-form-witness.js';
-const ports=vi.hoisted(()=>({photos:false,calls:[] as unknown[][],mutate:null as ((raw:string)=>string)|null,raw:[] as Array<{component:string,kind:string,raw:string}>}));
+type FormProps = Parameters<typeof import('../js/components/SupplementForm.svelte.html.js').renderHTML>[0];
+const ports=vi.hoisted(()=>({photos:false,calls:[] as unknown[][], observe: null as null | ((props: FormProps) => void),mutate:null as ((raw:string)=>string)|null,raw:[] as Array<{component:string,kind:string,raw:string}>}));
 function escapeHTML(value:unknown){return value==null?'':String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));}
 function formatSupplementTotal(total:ReturnType<typeof domain.ingredientDailyTotal>){if(!total)return '';const v=total.value%1===0?total.value.toString():total.value.toFixed(2).replace(/\.?0+$/,'');return `${v}${total.unit?' '+total.unit:''}/day`;}
 function suppActionAttrs(action:string,extra=''){ports.calls.push(['action',action,extra]);return `data-supp-action="${action}"${extra?` ${extra}`:''}`;}
@@ -22,7 +24,7 @@ vi.mock('../js/supplement-medication-domain.js',async importActual=>({...await i
 vi.mock('../js/components/SupplementIngredientRow.svelte.html.js',async importActual=>{const actual=await importActual<typeof import('../js/components/SupplementIngredientRow.svelte.html.js')>();return {renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>{const raw=actual.renderHTML(props);ports.raw.push({component:'SupplementIngredientRow',kind:props.kind,raw});if(process.env.SUPPLEMENT_FORM_RAW_DIR){fs.mkdirSync(process.env.SUPPLEMENT_FORM_RAW_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.SUPPLEMENT_FORM_RAW_DIR,'compiled-'+ports.raw.length+'.json'),JSON.stringify(ports.raw.at(-1),null,2));}return ports.mutate?ports.mutate(raw):raw;}};});
 vi.mock('../js/components/SupplementPeriodRow.svelte.html.js',async importActual=>{const actual=await importActual<typeof import('../js/components/SupplementPeriodRow.svelte.html.js')>();return {renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>{const raw=actual.renderHTML(props);ports.raw.push({component:'SupplementPeriodRow',kind:props.kind,raw});if(process.env.SUPPLEMENT_FORM_RAW_DIR){fs.mkdirSync(process.env.SUPPLEMENT_FORM_RAW_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.SUPPLEMENT_FORM_RAW_DIR,'compiled-'+ports.raw.length+'.json'),JSON.stringify(ports.raw.at(-1),null,2));}return ports.mutate?ports.mutate(raw):raw;}};});
 vi.mock('../js/components/SupplementQualityRow.svelte.html.js',async importActual=>{const actual=await importActual<typeof import('../js/components/SupplementQualityRow.svelte.html.js')>();return {renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>{const raw=actual.renderHTML(props);ports.raw.push({component:'SupplementQualityRow',kind:props.kind,raw});if(process.env.SUPPLEMENT_FORM_RAW_DIR){fs.mkdirSync(process.env.SUPPLEMENT_FORM_RAW_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.SUPPLEMENT_FORM_RAW_DIR,'compiled-'+ports.raw.length+'.json'),JSON.stringify(ports.raw.at(-1),null,2));}return ports.mutate?ports.mutate(raw):raw;}};});
-vi.mock('../js/components/SupplementForm.svelte.html.js',async importActual=>{const actual=await importActual<typeof import('../js/components/SupplementForm.svelte.html.js')>();return {renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>{const raw=actual.renderHTML(props);ports.raw.push({component:'SupplementForm',kind:props.kind,raw});if(process.env.SUPPLEMENT_FORM_RAW_DIR){fs.mkdirSync(process.env.SUPPLEMENT_FORM_RAW_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.SUPPLEMENT_FORM_RAW_DIR,'compiled-'+ports.raw.length+'.json'),JSON.stringify(ports.raw.at(-1),null,2));}return ports.mutate?ports.mutate(raw):raw;}};});
+vi.mock('../js/components/SupplementForm.svelte.html.js',async importActual=>{const actual=await importActual<typeof import('../js/components/SupplementForm.svelte.html.js')>();return {renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>{const raw=actual.renderHTML(props);ports.observe?.(props);ports.raw.push({component:'SupplementForm',kind:props.kind,raw});if(process.env.SUPPLEMENT_FORM_RAW_DIR){fs.mkdirSync(process.env.SUPPLEMENT_FORM_RAW_DIR,{recursive:true});fs.writeFileSync(path.join(process.env.SUPPLEMENT_FORM_RAW_DIR,'compiled-'+ports.raw.length+'.json'),JSON.stringify(ports.raw.at(-1),null,2));}return ports.mutate?ports.mutate(raw):raw;}};});
 import * as candidate from '../js/supplement-form-ui.js';
 import * as currentPresentation from '../js/supplement-form-presentation.js';
 
@@ -170,6 +172,29 @@ describe('current genuine Supplement Form native acceptance',()=>{
     const before=observe(kind,nativeForm),after=observe(kind,genuineForm);
     expect(genuineTree(after.html)).toEqual(genuineTree(before.html));
     expect(after.trace).toEqual(before.trace);expect(after.calls).toEqual(before.calls);expect(after.error).toEqual(before.error);
+  });
+  const formCases = formPresentationCases.filter(kind => kind.startsWith('form-') && originals[kind].error === null);
+  it.each(formCases)('keeps the native Supplement editor defaults and delegated fields for %s', async kind => {
+    const presented: FormProps[] = [];
+    ports.observe = props => presented.push(props);
+    const outcome = (() => {
+      try { return observe(kind, genuineForm); }
+      finally { ports.observe = null; }
+    })();
+    expect(outcome.error).toBeNull();
+    expect(presented).toHaveLength(1);
+    const props = presented[0]!;
+    const native = createRequire(import.meta.url)('../js/components/SupplementForm.svelte.native.js') as typeof import('../js/components/SupplementForm.svelte.native.js');
+    await expectNativeReview(outcome.html!, root => {
+      const owned = native.mount(native.default, {target: root, props});
+      native.flushSync();
+      return () => native.unmount(owned);
+    }, root => {
+      expect(root.querySelector<HTMLInputElement>('#supp-name')?.required).toBe(true);
+      expect(root.querySelector<HTMLSelectElement>('#supp-type')?.value).toBe(kind === 'form-medication' ? 'medication' : 'supplement');
+      expect(root.querySelector('img,script,[data-supplement-private-removeAction]')).toBeNull();
+      expect(root.querySelector<HTMLButtonElement>('[data-supp-action="save"]')?.type).toBe('submit');
+    });
   });
   it('composes a genuine typed review with escaped text, native selection defaults and delegated actions',()=>{
     ports.photos=false;

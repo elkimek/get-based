@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {generatedInlineStyleMapOutputs} from './inline-style-map-owners.mjs';
+import {isSvelteCompatibilityChunk, MOBILE_DASHBOARD_STACK} from './svelte-compatibility-outputs.mjs';
 const generatedInlineStyleMaps = new Set(generatedInlineStyleMapOutputs.map(file => path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', file)));
 
 export const SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.svelte']);
@@ -10,6 +11,10 @@ const JAVASCRIPT_EXTENSION: Record<string, string> = { '.ts': '.js', '.mts': '.m
 
 /** Resolve an existing runtime URL to its authored source, preferring TS. */
 export function sourcePath(file: string): string {
+  if (file.replaceAll('\\', '/').endsWith('/' + MOBILE_DASHBOARD_STACK + '.shared.js')) {
+    const stack = file.slice(0, -'.shared.js'.length);
+    if (fs.existsSync(stack)) return stack;
+  }
   if (/\.svelte\.(?:native|html)\.js$/.test(file)) {
     const component = file.replace(/\.(?:native|html)\.js$/, '');
     if (fs.existsSync(component)) return component;
@@ -41,6 +46,6 @@ export function walkSourceFiles(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const file = path.join(directory, entry.name);
     if (entry.isDirectory()) return walkSourceFiles(file);
-    return entry.isFile() && isSourceFile(file) && sourcePath(file) === file ? [file] : [];
+    return entry.isFile() && isSourceFile(file) && !isSvelteCompatibilityChunk(file) && sourcePath(file) === file ? [file] : [];
   }).sort();
 }

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 const mint = 'https://mint.minibits.cash/Bitcoin', other = 'https://mint.other.test/with/a/very/long/path/that/must/remain/readable/on/a/narrow/screen';
 // Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.

@@ -1,3 +1,4 @@
+import type { Locator, Page } from '@playwright/test';
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import type {EnvironmentAIView} from '../../js/light-environment-ai-presentation.js';
@@ -21,16 +22,20 @@ const examples:TypedSample[]=original.cases.filter(sample=>['0/true/true','1/tru
  expect(html).not.toContain('data-fixture-');
  return {...sample,html,aiView:structuredClone(nativeAI.view),todayView:structuredClone(nativeToday.view)};
 });
-test('shared authored screen editor preserves independent layouts, accessible themes, focus and delegated keyboard controls',async({page},info)=>{
-  test.setTimeout(120000);await installDiscussionFixture(page.context());await page.goto('/app');await expect(page.locator('html[data-app-ready]')).toBeAttached();await page.emulateMedia({reducedMotion:'reduce'});
-  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.evaluate(async({examples,css})=>{
+async function mountScreenPairs(page: Page, mode: 'html' | 'client') {
+  await installDiscussionFixture(page.context());
+  await page.goto('/app');
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.evaluate(async ({examples,css,mode}) => {
     localStorage.setItem('labcharts-ai-paused','true');await(await import('/js/light-sun-loader.js')).loadLightSunUI();
     // Declared accessibility improvements retain readable skipped screens and add
     // 44px coarse select/switch hit areas; all other geometry uses frozen CSS.
     const style=document.createElement('style');style.textContent=css+`[data-original] .light-env-card-skipped{opacity:1}[data-original] .light-env-screen-card-icon{pointer-events:none}@media(pointer:coarse){[data-original] .ctx-select{min-height:44px}[data-original] .toggle-switch{min-width:44px;min-height:44px}}`;document.head.append(style);
     const host=document.createElement('div');host.id='environment-screen-acceptance';host.style.cssText='position:fixed;inset:0;z-index:20000;overflow:auto;background:var(--bg-primary);padding:12px';document.body.append(host);
-    const {renderScreenCard}=await import('/js/light-env-screen-ui.js');
+    const {renderScreenCard,readScreenCardView}=await import('/js/light-env-screen-ui.js');
+    const native = mode === 'client' ? await import('/js/components/LightEnvironmentScreen.svelte.native.js') : null;
+    const destroy: Array<() => Promise<void>> = [];
     for(const sample of examples){
       const pair=document.createElement('div');pair.dataset.pair=sample.name;
       // The inherited-key icon now uses the same safe Device fallback as other unknown devices.
@@ -38,39 +43,57 @@ test('shared authored screen editor preserves independent layouts, accessible th
       if(sample.screen.device==='__proto__')reference.querySelector('.light-env-screen-card-icon')!.textContent='📱';
       const current=document.createElement('section');current.dataset.current='';
       const screen={...sample.screen};if(screen.todayOverride)screen.todayOverride={date:new Date().toLocaleDateString('sv-SE'),active:false};
-      current.innerHTML=renderScreenCard(screen,{expanded:sample.expanded,rooms:sample.rooms,getTodayView:()=>sample.todayView,getScreenAIView:()=>sample.aiView});
-      pair.append(reference,current);host.append(pair);
+      pair.append(reference,current);
+      host.append(pair);
+      const options = {expanded:sample.expanded,rooms:sample.rooms,getTodayView:()=>sample.todayView,getScreenAIView:()=>sample.aiView};
+      if (native) {
+        const view = native.mount(native.default, {target:current, props:{view:readScreenCardView(screen,options)}});
+        native.flushSync();
+        destroy.push(() => native.unmount(view));
+      } else current.innerHTML = renderScreenCard(screen,options);
     }
-  },{examples,css:scopedFrozenStyles(original.styleBlocks)});
-  const host=page.locator('#environment-screen-acceptance');let pairs=0;
+    Object.assign(host, {disposeScreens: () => Promise.all(destroy.map(dispose => dispose()))});
+  },{examples,css:scopedFrozenStyles(original.styleBlocks),mode});
+  return page.locator('#environment-screen-acceptance');
+}
+
+async function compareScreenPairs(host: Locator) {
+  return host.evaluate(element => {
+    const props=['display','width','height','fontSize','fontWeight','lineHeight','letterSpacing','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft','gap','gridTemplateColumns','alignItems','borderTopWidth','borderTopStyle','borderRadius','whiteSpace','overflow','textOverflow','opacity'] as const;
+    const selectors=['.light-env-screen-card','.light-env-screen-card-head','.light-env-sev-dot','.light-env-screen-card-icon','.light-env-screen-card-name','.light-env-screen-card-summary','.light-env-room-disclosure-chevron','.light-env-overflow','.light-env-screen-card-body','.light-env-screen-meta-row','.ctx-label','.ctx-select','.light-env-picker','.light-env-picker-label','.light-env-chip-row','.light-env-chip','.light-env-screen-blocker'];
+    const failures:string[]=[];
+    for(const pair of element.querySelectorAll('[data-pair]'))for(const selector of selectors){
+      const old=pair.querySelector('[data-original]')!.querySelectorAll(selector),current=pair.querySelector('[data-current]')!.querySelectorAll(selector);
+      if(old.length!==current.length){failures.push(`${pair.getAttribute('data-pair')}/${selector} count ${old.length}/${current.length}`);continue;}
+      old.forEach((node,index)=>{const a=getComputedStyle(node),b=getComputedStyle(current[index]!);for(const prop of props)if(a[prop]!==b[prop])failures.push(`${pair.getAttribute('data-pair')}/${selector}/${index}/${prop}: ${b[prop]} != ${a[prop]}`);});
+    }
+    const probe=document.createElement('span');probe.style.cssText='position:fixed;visibility:hidden';element.append(probe);
+    probe.style.backgroundColor='var(--accent)';probe.style.color='var(--on-accent)';
+    const selectedFill=getComputedStyle(probe).backgroundColor,selectedInk=getComputedStyle(probe).color;
+    for(const chip of element.querySelectorAll('[data-current] .light-env-chip-active')){
+      const css=getComputedStyle(chip);if(css.backgroundColor!==selectedFill||css.color!==selectedInk)failures.push(`selected palette: ${css.backgroundColor}/${css.color} != ${selectedFill}/${selectedInk}`);
+    }
+    for(const pair of element.querySelectorAll('[data-pair]')){
+      const old=pair.querySelector('[data-original] .light-env-screen-card')!,current=pair.querySelector('[data-current] .light-env-screen-card')!;
+      if(old.classList.contains('light-env-card-sev-incomplete'))continue;
+      const a=getComputedStyle(old,'::before'),b=getComputedStyle(current,'::before');
+      for(const prop of ['content','width','position','backgroundColor','top','left','bottom'] as const)if(a[prop]!==b[prop])failures.push(`${pair.getAttribute('data-pair')}/severity rail/${prop}: ${b[prop]} != ${a[prop]}`);
+    }
+    probe.remove();return {failures,overflow:element.scrollWidth-element.clientWidth};
+  });
+}
+
+test('shared authored screen editor preserves independent layouts, accessible themes, focus and delegated keyboard controls',async({page},info)=>{
+  test.setTimeout(120000);
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  const host = await mountScreenPairs(page, 'html');
+  let pairs=0;
   for(const width of [320,375,600,768,1100]){
     await page.setViewportSize({width,height:1000});
     for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm']){
       await page.mouse.move(0,0);await page.evaluate(async theme=>(await import('/js/theme.js')).setTheme(theme),theme);
       await host.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
-      const result=await host.evaluate(element=>{
-        const props=['display','width','height','fontSize','fontWeight','lineHeight','letterSpacing','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft','gap','gridTemplateColumns','alignItems','borderTopWidth','borderTopStyle','borderRadius','whiteSpace','overflow','textOverflow','opacity'] as const;
-        const selectors=['.light-env-screen-card','.light-env-screen-card-head','.light-env-sev-dot','.light-env-screen-card-icon','.light-env-screen-card-name','.light-env-screen-card-summary','.light-env-room-disclosure-chevron','.light-env-overflow','.light-env-screen-card-body','.light-env-screen-meta-row','.ctx-label','.ctx-select','.light-env-picker','.light-env-picker-label','.light-env-chip-row','.light-env-chip','.light-env-screen-blocker'];
-        const failures:string[]=[];
-        for(const pair of element.querySelectorAll('[data-pair]'))for(const selector of selectors){
-          const old=pair.querySelector('[data-original]')!.querySelectorAll(selector),current=pair.querySelector('[data-current]')!.querySelectorAll(selector);
-          if(old.length!==current.length){failures.push(`${pair.getAttribute('data-pair')}/${selector} count ${old.length}/${current.length}`);continue;}
-          old.forEach((node,index)=>{const a=getComputedStyle(node),b=getComputedStyle(current[index]!);for(const prop of props)if(a[prop]!==b[prop])failures.push(`${pair.getAttribute('data-pair')}/${selector}/${index}/${prop}: ${b[prop]} != ${a[prop]}`);});
-        }
-        const probe=document.createElement('span');probe.style.cssText='position:fixed;visibility:hidden';element.append(probe);
-        probe.style.backgroundColor='var(--accent)';probe.style.color='var(--on-accent)';
-        const selectedFill=getComputedStyle(probe).backgroundColor,selectedInk=getComputedStyle(probe).color;
-        for(const chip of element.querySelectorAll('[data-current] .light-env-chip-active')){
-          const css=getComputedStyle(chip);if(css.backgroundColor!==selectedFill||css.color!==selectedInk)failures.push(`selected palette: ${css.backgroundColor}/${css.color} != ${selectedFill}/${selectedInk}`);
-        }
-        for(const pair of element.querySelectorAll('[data-pair]')){
-          const old=pair.querySelector('[data-original] .light-env-screen-card')!,current=pair.querySelector('[data-current] .light-env-screen-card')!;
-          if(old.classList.contains('light-env-card-sev-incomplete'))continue;
-          const a=getComputedStyle(old,'::before'),b=getComputedStyle(current,'::before');
-          for(const prop of ['content','width','position','backgroundColor','top','left','bottom'] as const)if(a[prop]!==b[prop])failures.push(`${pair.getAttribute('data-pair')}/severity rail/${prop}: ${b[prop]} != ${a[prop]}`);
-        }
-        probe.remove();return {failures,overflow:element.scrollWidth-element.clientWidth};
-      });
+      const result = await compareScreenPairs(host);
       expect(result.failures,`${width}/${theme} original geometry`).toEqual([]);expect(result.overflow).toBeLessThanOrEqual(1);pairs+=examples.length;
     }
   }
@@ -117,4 +140,28 @@ test('shared authored screen editor preserves independent layouts, accessible th
   const disclosure=host.locator('.light-env-screen-disclosure').first();await disclosure.focus();await page.keyboard.press('Enter');await expect(host).toHaveAttribute('data-disclosures','1');await expect(host).toHaveAttribute('data-expanded','true');await page.keyboard.press('Space');await expect(host).toHaveAttribute('data-disclosures','2');await expect(host).toHaveAttribute('data-expanded','false');
   expect(errors).toEqual([]);expect(pairs).toBe(examples.length*30);
   await fs.promises.writeFile(info.outputPath('environment-screen-pairs.json'),JSON.stringify({pairs,examples:examples.length,themes:6,widths:[320,375,600,768,1100],focus:focus.count}));
+});
+
+test('native screen editor preserves the frozen phone and desktop controls and disposes its own cards', async ({page}) => {
+  const host = await mountScreenPairs(page, 'client');
+  for (const width of [320,1100]) {
+    await page.setViewportSize({width,height:1000});
+    await page.evaluate(async theme => (await import('/js/theme.js')).setTheme(theme), width === 320 ? 'dark' : 'light');
+    await page.mouse.move(0,0);
+    await host.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const result = await compareScreenPairs(host);
+    expect(result.failures, `native screen at ${width}px`).toEqual([]);
+    expect(result.overflow).toBeLessThanOrEqual(1);
+  }
+  const disclosure = host.locator('[data-current] .light-env-screen-disclosure').first();
+  await page.keyboard.press('Tab');
+  await disclosure.focus();
+  await expect(disclosure).toBeFocused();
+  await expect(disclosure).toHaveCSS('outline-width', '2px');
+  await host.evaluate(async element => {
+    const owned = element as HTMLElement & {disposeScreens(): Promise<unknown>};
+    await owned.disposeScreens();
+  });
+  await expect(host.locator('[data-current] .light-env-screen-card')).toHaveCount(0);
+  await expect(host.locator('[data-original] .light-env-screen-card')).toHaveCount(examples.length);
 });

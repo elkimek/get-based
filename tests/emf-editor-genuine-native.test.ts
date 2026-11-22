@@ -2,10 +2,35 @@
 import {afterEach,expect,it,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 import {state} from '../js/state.js';
 import * as current from '../js/emf-editor.js';
 import {nativeEMFEditor} from './helpers/emf-editor-native.js';
 import {expectedEMFEditorHTML} from './helpers/emf-comparison-owned-receipts.js';
+type EditorProps = Parameters<typeof import('../js/components/EMFEditor.svelte.html.js').renderHTML>[0];
+type ImportProps = Parameters<typeof import('../js/components/EMFImportPreview.svelte.html.js').renderHTML>[0];
+const presented = vi.hoisted(() => ({
+  editor: null as null | ((props: EditorProps, html: string) => void),
+  preview: null as null | ((props: ImportProps, html: string) => void),
+}));
+vi.mock('../js/components/EMFEditor.svelte.html.js', async original => {
+  const renderer = await original<typeof import('../js/components/EMFEditor.svelte.html.js')>();
+  return {renderHTML(props: EditorProps) {
+    const html = renderer.renderHTML(props);
+    presented.editor?.(props, html);
+    return html;
+  }};
+});
+vi.mock('../js/components/EMFImportPreview.svelte.html.js', async original => {
+  const renderer = await original<typeof import('../js/components/EMFImportPreview.svelte.html.js')>();
+  return {renderHTML(props: ImportProps) {
+    const html = renderer.renderHTML(props);
+    presented.preview?.(props, html);
+    return html;
+  }};
+});
+const load = createRequire(import.meta.url);
 const saved=state.importedData;
 afterEach(()=>{state.importedData=saved;document.body.innerHTML='';localStorage.clear();vi.restoreAllMocks();});
 interface Data {emfAssessment:{assessments:unknown[]};protected:unknown}
@@ -86,4 +111,77 @@ it('keeps hostile photo payload characters inside the literal image URL',()=>{
  const data=createData();const assessment=data.emfAssessment.assessments[0] as {rooms:{photos:{base64:unknown}[]}[]};assessment.rooms[0]!.photos[0]!.base64='payload" onerror="alert(1)';
  (state as {importedData:unknown}).importedData=data;current.emfEditorState.editingAssessmentId='assessment<&>';current.emfEditorState.activeRoomIdx=0;current.emfEditorState.compareMode=false;
  let raw='';current.renderEMFEditor({set innerHTML(value:string){raw=value;}});const host=document.createElement('div');host.innerHTML=raw;const image=host.querySelector('img')!;expect(image.getAttribute('src')).toBe('data:image/png;base64,payload" onerror="alert(1)');expect(host.querySelector('[onerror]')).toBeNull();
+});
+
+it.each(['expanded', 'collapsed', 'empty', 'no-photos', 'missing-values', 'no-provider', 'clamp', 'no-rooms'])(
+ 'preserves native EMF editor controls and keeps its projected assessment unchanged for %s', async scenario => {
+  const renders: Array<{props: EditorProps; html: string}> = [];
+  presented.editor = (props, html) => renders.push({props, html});
+  const outcome = (() => {
+    try { return capture(false, scenario); }
+    finally { presented.editor = null; }
+  })();
+  expect(outcome.data).toEqual(outcome.before);
+  expect(outcome.storageAfter).toBe(outcome.storage);
+  if (scenario === 'no-rooms') {
+    expect(outcome.error).toBe("TypeError:Cannot read properties of undefined (reading 'name')");
+    expect(renders).toHaveLength(0);
+    expect(outcome.raw).toBe('');
+    return;
+  }
+  expect(outcome.error).toBeNull();
+  expect(renders).toHaveLength(1);
+  const {props, html} = renders[0]!;
+  const reference = document.createElement('div');
+  reference.innerHTML = html;
+  const separator = Array.from(reference.querySelectorAll<HTMLOptionElement>('.emf-room-select option'))
+    .find(option => option.textContent === '──────────');
+  if (separator) {
+    // SSR omits the null option value, and the native DOM setter writes an
+    // empty value. Both renderers retain the disabled separator and its label.
+    expect(separator.disabled).toBe(true);
+    expect(separator.selected).toBe(false);
+    expect(separator.hasAttribute('value')).toBe(false);
+    expect(separator.value).toBe('──────────');
+    separator.setAttribute('value', '');
+  }
+  const native = load('../js/components/EMFEditor.svelte.native.js') as typeof import('../js/components/EMFEditor.svelte.native.js');
+  await expectNativeReview(reference.innerHTML, root => {
+    const owned = native.mount(native.default, {target: root, props});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    expect(root.querySelector('script,[onerror]')).toBeNull();
+    if (separator) {
+      const nativeSeparator = Array.from(root.querySelectorAll<HTMLOptionElement>('.emf-room-select option'))
+        .find(option => option.textContent === '──────────');
+      expect(nativeSeparator?.getAttribute('value')).toBe('');
+      expect(nativeSeparator?.value).toBe('');
+      expect(nativeSeparator?.disabled).toBe(true);
+      expect(nativeSeparator?.selected).toBe(false);
+    }
+    if (scenario === 'expanded') {
+      expect(root.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe('2026-06-12');
+      expect(root.querySelector('[data-emf-action="view-photo"]')).not.toBeNull();
+    }
+  });
+});
+
+it.each(['full', 'empty', 'unknown-date', 'no-consultant'])('preserves native EMF import controls for %s', async scenario => {
+  const renders: Array<{props: ImportProps; html: string}> = [];
+  presented.preview = (props, html) => renders.push({props, html});
+  const outcome = (() => {
+    try { return preview(false, scenario); }
+    finally { presented.preview = null; }
+  })();
+  expect(outcome.error).toBeNull();
+  expect(outcome.before).toEqual(outcome.after);
+  expect(renders).toHaveLength(1);
+  const {props, html} = renders[0]!;
+  const native = load('../js/components/EMFImportPreview.svelte.native.js') as typeof import('../js/components/EMFImportPreview.svelte.native.js');
+  await expectNativeReview(html, root => {
+    const owned = native.mount(native.default, {target: root, props});
+    native.flushSync();
+    return () => native.unmount(owned);
+  });
 });

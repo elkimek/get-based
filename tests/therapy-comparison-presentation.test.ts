@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {it,expect,afterEach,beforeEach,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -7,7 +8,31 @@ import * as candidate from '../js/therapy-correlation-view.js';
 import {prepareCorrelationSelection} from '../js/therapy-correlations.js';
 import {state} from '../js/state.js';
 import {categoryRawDOM} from './helpers/category-genuine-native-dom.js';
-import {renderMarkerPairComparison} from '../js/therapy-comparison-presentation.js';
+import {renderMarkerPairComparison, type MarkerPairComparisonView, type TherapyComparisonView} from '../js/therapy-comparison-presentation.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+const rendered = vi.hoisted(() => ({
+ therapy: null as {view: TherapyComparisonView; html: string} | null,
+ marker: null as {view: MarkerPairComparisonView; html: string} | null,
+}));
+vi.mock('../js/components/TherapyComparisonResults.svelte.html.js', async original => {
+ const actual = await original<typeof import('../js/components/TherapyComparisonResults.svelte.html.js')>();
+ return {...actual, renderHTML: ({view}: {view: TherapyComparisonView}) => {
+  const html = actual.renderHTML({view});
+  rendered.therapy = {view, html};
+  return html;
+ }};
+});
+vi.mock('../js/components/MarkerPairComparison.svelte.html.js', async original => {
+ const actual = await original<typeof import('../js/components/MarkerPairComparison.svelte.html.js')>();
+ return {...actual, renderHTML: ({view}: {view: MarkerPairComparisonView}) => {
+  const html = actual.renderHTML({view});
+  rendered.marker = {view, html};
+  return html;
+ }};
+});
+
 const boundary=vi.hoisted(()=>({charts:0,saves:0}));
 vi.mock('../js/charts-runtime.js',async importOriginal=>({...await importOriginal<typeof import('../js/charts-runtime.js')>(),createChartRuntime:()=>{boundary.charts++;return null;}}));
 vi.mock('../js/correlation-workspace-store.js',()=>({saveCorrelationWorkspace:()=>{boundary.saves++;return Promise.resolve();}}));
@@ -49,7 +74,42 @@ function capture(owner:typeof candidate,mode:Mode,traceMode:'none'|'getters'|'th
  if(interact){container.querySelector<HTMLButtonElement>('[data-corr-tab="data"]')!.click();lifecycle.push({refresh,tab:state.correlationView.tab});container.querySelector<HTMLButtonElement>('[data-corr-choice="rangePreset"][data-corr-value="custom"]')!.click();lifecycle.push({refresh,rangePreset:state.correlationView.rangePreset,start:state.correlationView.start,end:state.correlationView.end});container.querySelector<HTMLButtonElement>('[data-corr-series]')!.click();lifecycle.push({refresh,hidden:state.correlationView.hidden});const details=container.querySelector<HTMLDetailsElement>('#corr-pair-detail details')!;details.open=true;lifecycle.push({detailOpen:details.open});}
  const result={raw,tree:tree(container),trace,error,lifecycle,refresh,charts:boundary.charts,saves:boundary.saves,view:structuredClone(state.correlationView)};vi.restoreAllMocks();vi.unstubAllGlobals();return result;
 }
-it.each(['therapy-timeline','therapy-data','therapy-scatter','marker-timeline','marker-data','marker-scatter','empty','unknown-dose','range-error','warnings-baseline','needs-dates'] as const)('%s preserves complete actual public raw and ordered native trees',mode=>{const old=before.find(r=>r.name===mode)!.original,current=capture(candidate,mode);expect(compareGenuineReceipt(current)).toEqual(compareGenuineReceipt(old));});
+it.each(['therapy-timeline','therapy-data','therapy-scatter','marker-timeline','marker-data','marker-scatter','empty','unknown-dose','range-error','warnings-baseline','needs-dates'] as const)('%s preserves complete actual public raw and ordered native trees', async mode => {
+ rendered.therapy = null;
+ rendered.marker = null;
+ const old = before.find(r => r.name === mode)!.original;
+ const current = capture(candidate, mode);
+ expect(compareGenuineReceipt(current)).toEqual(compareGenuineReceipt(old));
+ const therapy = rendered.therapy as {view: TherapyComparisonView; html: string} | null;
+ const marker = rendered.marker as {view: MarkerPairComparisonView; html: string} | null;
+ expect(therapy || marker).not.toBeNull();
+ expect(current.raw.some(packet => packet.html.includes((therapy || marker)!.html))).toBe(true);
+ if (therapy) {
+  const component = load('../js/components/TherapyComparisonResults.svelte.native.js') as typeof import('../js/components/TherapyComparisonResults.svelte.native.js');
+  const {view, html} = therapy;
+  await expectNativeReview(html, root => {
+   const mounted = component.mount(component.default, {target: root, props: {view}});
+   component.flushSync();
+   return () => component.unmount(mounted);
+  }, root => {
+   expect(root.querySelector('therapy, marker, source, script')).toBeNull();
+   expect(root.querySelector('.corr-therapy-card')?.getAttribute('aria-label')).toBe(view.marker + ' × ' + view.therapy);
+  });
+ }
+ if (marker) {
+  const component = load('../js/components/MarkerPairComparison.svelte.native.js') as typeof import('../js/components/MarkerPairComparison.svelte.native.js');
+  const {view, html} = marker;
+  await expectNativeReview(html, root => {
+   const mounted = component.mount(component.default, {target: root, props: {view}});
+   component.flushSync();
+   return () => component.unmount(mounted);
+  }, root => {
+   expect(root.querySelector('therapy, marker, source, script')).toBeNull();
+   expect(root.querySelector<HTMLDetailsElement>('details')?.open).toBe(view.open);
+  });
+ }
+ expect(boundary.saves).toBe(0);
+});
 it.each(['therapy-data','marker-data'] as const)('%s retains opaque chronology and native throws',kind=>{for(const mode of ['getters','throw'] as const){const old=before.find(r=>r.name===kind+'-'+mode)!.original,current=capture(candidate,kind,mode);expect(compareGenuineReceipt(current)).toEqual(compareGenuineReceipt(old));if(mode==='throw')expect(current.error).toBe('RangeError:native-unit');}});
 it.each(['raw-date','formatted-scalar'] as const)('%s preserves public raw compatibility and renders ordinary malformed values literally',mode=>{
  const current=capture(candidate,'marker-data',mode),old=before.find(r=>r.name===mode)!.original as typeof current;

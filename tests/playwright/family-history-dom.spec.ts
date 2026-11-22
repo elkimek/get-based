@@ -6,6 +6,8 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
     localStorage.setItem('labcharts-encryption-nudge-dismissed', 'true'); localStorage.setItem('labcharts-ai-paused', 'true');
+    localStorage.setItem('labcharts-analytics-disabled', 'true');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
   });
 });
 async function seed(page: Page) {

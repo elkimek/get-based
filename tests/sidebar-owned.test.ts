@@ -1,5 +1,7 @@
-import {withoutStandaloneLensEntries} from './helpers/sidebar-lens-entries.js';
 // @vitest-environment jsdom
+import {withoutStandaloneLensEntries} from './helpers/sidebar-lens-entries.js';
+import {createRequire} from 'node:module';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 import {afterEach,expect,it,vi} from 'vitest';import {readFileSync} from 'node:fs';import path from 'node:path';import {parse} from 'svelte/compiler';
 import {renderSidebarPresentation as renderCurrentSidebar,sidebarAction,sidebarText,type SidebarView,type SidebarIcon,type SidebarActionName} from '../js/sidebar-presentation.js';
 import {expectedSidebarHTML,expectedSidebarReceipt} from './helpers/sidebar-owned-receipts.js';
@@ -21,3 +23,62 @@ it('native actions keep exact original qualified strings and reject foreign name
 it('owned label markup remains escaped real text without foreign elements or delegate attrs',()=>{const raw=renderSidebarPresentation({...view,light:{...view.light,label:'<img data-nav-action="other"> & " >'}}),host=document.createElement('div');host.innerHTML=raw;expect(host.querySelector('img')).toBeNull();expect(host.querySelector('[data-category="light"] .nav-item-label')!.textContent).toBe('<img data-nav-action="other"> & " >');});
 it('four genuine owners have readonly DTOs and no parser/HTML child/callback coordinate/frame/controller event/suppression',()=>{for(const name of['SidebarNavigation','ConditionalSidebarItem','SidebarCategoryItem','SidebarIcon']){const source=readFileSync(path.join(process.cwd(),'js/components/'+name+'.svelte'),'utf8');expect(source).not.toMatch(/gb-sidebar-|\{@html|\bsvelte-ignore\b|\bon[a-z]+\s*=|NativePort|CompilerFrame|DOMParser/);function visit(value:unknown){if(!value||typeof value!=='object')return;const n=value as Record<string,unknown>;expect(n.type).not.toBe('HtmlTag');expect(n.type).not.toBe('EventDirective');for(const child of Object.values(n))if(Array.isArray(child))child.forEach(visit);else visit(child);}visit(parse(source,{modern:true}));}});
 it('expected-only transport refuses original raw/DOM disagreement before any Svelte comment or encoding transformation',()=>{const source=structuredClone(originals.find(row=>row.name==='sidebar-empty')!.original);source.raw=source.raw!.replace('>Dashboard<','>Foreign<');expect(()=>expectedSidebarReceipt(source)).toThrow('Whole native raw and ordered DOM authenticate');});
+
+const load = createRequire(import.meta.url);
+const labGroup = 'Synthetic <b>marker</b> group';
+const groupToggle = {name: 'toggle-group', group: labGroup} as const;
+const markerCategory = {
+  category: 'synthetic-markers', markerNames: 'marker A, marker B', group: labGroup,
+  action: {name: 'navigate', route: 'synthetic-markers'}, label: 'Synthetic <b>markers</b>',
+  badge: {kind: 'flagged', text: '1'},
+} as const;
+
+it.each(['empty', 'collapsed', 'expanded'] as const)('mounts the native Sidebar with %s lab groups', async scenario => {
+  const open = scenario === 'expanded';
+  const populated: SidebarView = scenario === 'empty' ? view : {
+    ...view, dashboardCount: '2', labsCount: '4',
+    bodyBadge: {kind: 'count', text: '3'},
+    genomeBadge: {kind: 'count', text: '2 variants'},
+    light: {...view.light, badge: {kind: 'count', text: '4'}},
+    emf: {...view.emf, badge: {kind: 'count', text: '1'}},
+    categories: [{
+      ...markerCategory, category: 'synthetic-standalone', group: '',
+      action: {name: 'navigate', route: 'synthetic-standalone'}, badge: {kind: 'count', text: '2'},
+    }],
+    groups: [{
+      className: 'sidebar-group-header', name: labGroup, headerAction: groupToggle, toggleAction: groupToggle,
+      expanded: open ? 'true' : 'false', accessibleName: labGroup + ' group', label: labGroup,
+      flagged: open ? null : '1', itemsName: labGroup, collapsedStyle: open ? undefined : 'display:none',
+      items: [markerCategory],
+    }],
+  };
+  const component = load('../js/components/SidebarNavigation.svelte.native.js') as typeof import('../js/components/SidebarNavigation.svelte.native.js');
+  await expectNativeReview(renderCurrentSidebar(populated), root => {
+    const mounted = component.mount(component.default, {target: root, props: {view: populated}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('#sidebar-search')?.getAttribute('data-nav-input-action')).toBe('filter-sidebar');
+    expect(root.querySelector('[data-category="dashboard"] .nav-item-count')?.textContent).toBe(populated.dashboardCount);
+    expect(root.querySelector('[data-category="emf"]')?.getAttribute('data-nav-action')).toBe('open-emf-assessment');
+    expect(root.querySelector('[data-category="light-env-assessment"]')?.getAttribute('data-nav-action')).toBe('open-light-assessment');
+    expect([...root.querySelectorAll('svg')].every(svg => svg.namespaceURI === 'http://www.w3.org/2000/svg')).toBe(true);
+    expect(root.querySelector('b')).toBeNull();
+    if (scenario === 'empty') {
+      expect(root.querySelector('[data-group-items]')).toBeNull();
+      expect(root.querySelector('[data-category="light"] .nav-item-dot')).not.toBeNull();
+      return;
+    }
+    const toggle = root.querySelector<HTMLButtonElement>('.sidebar-group-toggle');
+    const items = root.querySelector<HTMLElement>('[data-group-items]');
+    expect(toggle?.getAttribute('data-nav-group')).toBe(labGroup);
+    expect(toggle?.getAttribute('aria-label')).toBe(labGroup + ' group');
+    expect(toggle?.getAttribute('aria-expanded')).toBe(String(open));
+    expect(toggle?.querySelector('.flag-count')?.textContent ?? null).toBe(open ? null : '1');
+    expect(items?.getAttribute('data-group-items')).toBe(labGroup);
+    expect(items?.style.display).toBe(open ? '' : 'none');
+    expect(items?.querySelector('[role="button"][tabindex="0"]')?.getAttribute('data-nav-route')).toBe('synthetic-markers');
+    expect(items?.querySelector('.nav-item-label')?.textContent).toBe(markerCategory.label);
+    expect(items?.querySelector('.flag-count')?.textContent).toBe('1');
+  });
+});

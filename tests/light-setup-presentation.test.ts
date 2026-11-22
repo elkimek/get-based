@@ -1,8 +1,10 @@
 import{nativeOnboardingView}from'./helpers/light-genuine-child-native-receipts.js';
 // @vitest-environment jsdom
 import { expect, it } from 'vitest';
+import {createRequire} from 'node:module';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 import { renderHTML } from '../js/components/LightSetupPresentation.svelte.html.js';
-import { projectLightSetup, projectSetupLocation } from '../js/light-setup-presentation.js';
+import { projectLightSetup, projectSetupLocation, type LightSetupPresentationProps } from '../js/light-setup-presentation.js';
 import { FITZPATRICK_ROMAN, PHOTOSENSITIVE_OPTIONS, HOME_LIGHT_OPTIONS, EYEWEAR_OPTIONS, OTT_QUESTIONS, ottScoreToLabel } from '../js/sun-defaults-model.js';
 const input = { defaults: null, savedFitzpatrick: null, legacySkin: null, complete: false, coords: null, profileLocation: null };
 it('retains required confirmation, all option catalogs, educational questions and accessible labels', () => {
@@ -49,4 +51,37 @@ for (const source of ['current-device','profile-precise','home-postal','country-
   expect(host.querySelectorAll('[data-light-setup-action="clear-current-location"]')).toHaveLength(source === 'current-device' ? 1 : 0);
   expect(status.tone).toBe(['current-device','profile-precise'].includes(source) ? 'precise' : source === 'unknown' ? 'missing' : 'estimate');
   if (source === 'current-device') { expect(status.value).toContain('9.88°S'); expect(status.detail).toContain('not saved to your profile'); }
+});
+
+const setupViews: Array<[string, LightSetupPresentationProps]> = [
+  ['blank editor', {surface: 'editor', view: projectLightSetup(input)}],
+  ['unconfigured card', {surface: 'card', view: projectLightSetup(input)}],
+  ['editor with saved choices', {surface: 'editor', view: projectLightSetup({...input, savedFitzpatrick: 'IV',
+    defaults: {homeLight: 'halogen', eyewear: 'custom <setting>', photosensitiveMeds: true,
+      ott: Object.fromEntries(OTT_QUESTIONS.map((question, index) => [question.key, index < 4])), ottScore: 4}})}],
+  ['completed setup and its existing insight', {surface: 'card', view: projectLightSetup({...input, complete: true,
+    savedFitzpatrick: 'III', defaults: {homeLight: 'halogen'}, ai: nativeOnboardingView()})}],
+  ['device location', {surface: 'location', view: {...projectLightSetup(input),
+    location: projectSetupLocation({lat: -9.876, lon: 15, source: 'current-device'}, null)}}],
+  ['optional actions', {surface: 'actions', view: projectLightSetup(input)}],
+  ['modal with actions', {surface: 'modal', includeActions: true, view: projectLightSetup(input)}],
+];
+
+it.each(setupViews)('retains the emitted native Light setup controls for %s', async (_label, props) => {
+  const native = createRequire(import.meta.url)('../js/components/LightSetupPresentation.svelte.native.js') as typeof import('../js/components/LightSetupPresentation.svelte.native.js');
+  await expectNativeReview(renderHTML(props), root => {
+    const owned = native.mount(native.default, {target: root, props});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    if (props.surface === 'editor' || props.surface === 'modal') {
+      expect(root.querySelectorAll('[data-ott]')).toHaveLength(OTT_QUESTIONS.length);
+      expect(root.querySelectorAll('[data-ott]:checked')).toHaveLength(props.view.selectedPatterns);
+      expect(root.querySelector('[role="tabpanel"][data-setup-pane="score"]')?.hasAttribute('hidden')).toBe(true);
+    }
+    if (props.surface === 'location') {
+      expect(root.querySelector('[data-light-setup-action="clear-current-location"]')).not.toBeNull();
+      expect(root.textContent).toContain('not saved to your profile');
+    }
+  });
 });

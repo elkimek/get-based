@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripTypeScriptTypes } from 'node:module';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
+import { isSvelteCompatibilityChunk } from './svelte-compatibility-outputs.mjs';
 import { compile } from 'svelte/compiler';
 
 type QualityBaseline = Record<
@@ -84,7 +85,8 @@ function walkFiles(dir: string, extensions = new Set(['.js', '.ts', '.svelte']))
     if (entry.name === 'node_modules' || entry.name === '.git') continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) files.push(...walkFiles(full, extensions));
-    else if (entry.isFile() && extensions.has(path.extname(entry.name)) && sourcePath(full) === full) files.push(full);
+    else if (entry.isFile() && extensions.has(path.extname(entry.name)) && sourcePath(full) === full
+      && !isSvelteCompatibilityChunk(full)) files.push(full);
   }
   return files;
 }

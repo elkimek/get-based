@@ -1,16 +1,50 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
+import type { ConditionsPresentationProps } from '../../js/light-conditions-presentation.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 
 test.beforeEach(async ({ context }) => { await installDiscussionFixture(context); });
+
+const renderModes = ['server-rendered', 'native client'] as const;
+type RenderMode = typeof renderModes[number];
+interface ConditionsFixture extends HTMLElement {
+  showConditions(props: ConditionsPresentationProps): Promise<void>;
+  clearConditions(): Promise<void>;
+}
+
+async function attachConditionsFixture(page: Page, id: string, cssText: string, mode: RenderMode) {
+  await page.evaluate(async ({ id, cssText, mode }) => {
+    await (await import('/js/light-sun-loader.js')).loadLightSunUI();
+    const host = document.createElement('div');
+    host.id = id;
+    host.style.cssText = cssText;
+    document.body.append(host);
+    let clearConditions = async () => {};
+    async function showConditions(props: ConditionsPresentationProps) {
+      await clearConditions();
+      if (mode === 'server-rendered') {
+        const { renderHTML } = await import('/js/components/LightConditionsPresentation.svelte.html.js');
+        host.innerHTML = renderHTML(props);
+        clearConditions = async () => { host.replaceChildren(); };
+      } else {
+        const native = await import('/js/components/LightConditionsPresentation.svelte.native.js');
+        const instance = native.mount(native.default, { target: host, props });
+        native.flushSync();
+        clearConditions = async () => {
+          await native.unmount(instance);
+          if (host.childElementCount) throw new Error('Mounted conditions nodes leaked after disposal');
+        };
+      }
+    }
+    Object.assign(host, { showConditions, clearConditions: () => clearConditions() });
+  }, { id, cssText, mode });
+}
 // Floating fixtures need an opaque page canvas: translucent glass cards must not
 // composite unrelated Dashboard text underneath their own reading surfaces.
-test('authored conditions retain themed responsive reading, keyboard tooltips, touch targets and reduced motion', async ({ page }, info) => {
+for (const mode of renderModes) test(
+  `authored conditions retain themed responsive reading, keyboard tooltips, touch targets and reduced motion (${mode})`, async ({ page }, info) => {
   test.setTimeout(120000); await page.goto('/app');
-  await page.evaluate(async () => {
-    await (await import('/js/light-sun-loader.js')).loadLightSunUI();
-    const el = document.createElement('div'); el.id = 'owned-conditions';
-    el.style.cssText = 'position:fixed;top:20px;left:16px;right:16px;bottom:70px;overflow:auto;z-index:500;background:var(--bg-primary);padding:12px'; document.body.append(el);
-  });
+  await attachConditionsFixture(page, 'owned-conditions', 'position:fixed;top:20px;left:16px;right:16px;bottom:70px;overflow:auto;z-index:500;background:var(--bg-primary);padding:12px', mode);
   const host = page.locator('#owned-conditions');
   for (const width of [320, 1100]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -18,10 +52,10 @@ test('authored conditions retain themed responsive reading, keyboard tooltips, t
       await page.evaluate(async value => (await import('/js/theme.js')).setTheme(value), theme);
       for (const variant of ['full', 'compact']) {
         await host.evaluate(async (element, variant) => {
-          const [{ projectConditions }, { renderHTML }] = await Promise.all([import('/js/light-conditions-presentation.js'), import('/js/components/LightConditionsPresentation.svelte.html.js')]);
+          const { projectConditions } = await import('/js/light-conditions-presentation.js');
           const now = Date.now(), day = new Date().toISOString().slice(0, 10);
           const view = projectConditions({ uvIndex: 2, uvClearSky: 3, cloudCover: 35, source: 'open_meteo', validAt: now, fetchedAt: now, daily: { sunrise: day + 'T06:00', sunset: day + 'T18:00', peakAt: day + 'T12:00', uvIndexMax: 5 }, airQuality: { european_aqi: 30, surfaceOzoneUgM3: 35, european_aqi_ozone: 30 } }, null, variant);
-          element.innerHTML = renderHTML({ kind: 'widget', hasLocation: true, slot: { id: 'conditions-owned-slot', variant, view } });
+          await (element as ConditionsFixture).showConditions({ kind: 'widget', hasLocation: true, slot: { id: 'conditions-owned-slot', variant, view } });
         }, variant);
         expect(await host.evaluate(el => el.scrollWidth - el.clientWidth), `${width}/${theme}/${variant} overflow`).toBeLessThanOrEqual(1);
         const violations = await host.evaluate(async el => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(el, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) })));
@@ -38,28 +72,27 @@ test('authored conditions retain themed responsive reading, keyboard tooltips, t
   await host.locator('.conditions-now-source-compact').evaluate(el => el.classList.add('just-refreshed'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(host.locator('.conditions-now')).toHaveCSS('transition-duration', '0s');
+  await host.evaluate(element => (element as ConditionsFixture).clearConditions());
 });
 
-test('severity readings and warnings retain AA contrast in every theme', async ({ page }) => {
+for (const mode of renderModes) test(
+  `severity readings and warnings retain AA contrast in every theme (${mode})`, async ({ page }) => {
   await page.goto('/app'); await page.setViewportSize({ width: 320, height: 1000 });
-  await page.evaluate(async () => {
-    await (await import('/js/light-sun-loader.js')).loadLightSunUI();
-    const el = document.createElement('div'); el.id = 'conditions-severity';
-    el.style.cssText = 'position:fixed;inset:16px;overflow:auto;z-index:500;background:var(--bg-primary);padding:12px'; document.body.append(el);
-  });
+  await attachConditionsFixture(page, 'conditions-severity', 'position:fixed;inset:16px;overflow:auto;z-index:500;background:var(--bg-primary);padding:12px', mode);
   const host = page.locator('#conditions-severity');
   for (const theme of ['dark', 'light', 'glass', 'synth-sunrise', 'neuromancer', 'cyberterm']) {
     await page.evaluate(async value => (await import('/js/theme.js')).setTheme(value), theme);
     for (const [uvIndex, european_aqi] of [[2, 10], [4, 30], [7, 60], [9, 80], [12, 110], [17, 120]]) {
       await host.evaluate(async (element, data) => {
-        const [{ projectConditions }, { renderHTML }] = await Promise.all([import('/js/light-conditions-presentation.js'), import('/js/components/LightConditionsPresentation.svelte.html.js')]);
+        const { projectConditions } = await import('/js/light-conditions-presentation.js');
         const view = projectConditions({ uvIndex: data.uvIndex, source: 'open_meteo', validAt: Date.now(), fetchedAt: Date.now(), airQuality: { european_aqi: data.european_aqi } }, null, 'full');
-        element.innerHTML = renderHTML({ kind: 'conditions', view });
+        await (element as ConditionsFixture).showConditions({ kind: 'conditions', view });
       }, { uvIndex, european_aqi });
       const violations = await host.evaluate(async el => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(el, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) })));
       expect(violations, `${theme}/UVI ${uvIndex}/AQ ${european_aqi}`).toEqual([]);
     }
   }
+  await host.evaluate(element => (element as ConditionsFixture).clearConditions());
 });
 
 test('actual conditions refresh and inspection retain cache bypass, keyboard scrolling, escape and source trust', async ({ page }) => {

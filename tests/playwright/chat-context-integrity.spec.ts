@@ -45,10 +45,11 @@ async function currentField(page: Page, card: AgentContextCard, key: string) {
   }, { card, key });
 }
 
-// Each field retains both cold reloads. Independent Diet cases keep its
-// larger catalog within the same per-case timeout and CI resource limits.
+// Each field retains both cold reloads. Partition the larger catalogs within
+// the per-case timeout, including native coverage snapshots before navigation.
+const contextFieldPartitions: Partial<Record<AgentContextCard, number>> = {diet: 3, environment: 2};
 const contextFieldCases = AGENT_CONTEXT_CARDS.filter(card => card !== 'healthGoals').flatMap(card => {
-  const partitions = card === 'diet' ? 3 : 1;
+  const partitions = contextFieldPartitions[card] ?? 1;
   return Array.from({length: partitions}, (_value, partition) => ({card, partition, partitions}));
 });
 for (const {card, partition, partitions} of contextFieldCases) {

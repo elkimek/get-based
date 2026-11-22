@@ -14,6 +14,8 @@ import type {withLegalConsentSnapshot as WithLegal} from './legal-consent-snapsh
 const {withAppShellSnapshot}: {withAppShellSnapshot: typeof WithShell} = await import(new URL('./app-shell-snapshot.mts', import.meta.url).href);
 const {withInlineThemeStyleSnapshot}: {withInlineThemeStyleSnapshot: typeof WithThemes} = await import(new URL('./inline-theme-style-snapshot.mts', import.meta.url).href);
 const {withLegalConsentSnapshot}: {withLegalConsentSnapshot: typeof WithLegal} = await import(new URL('./legal-consent-snapshot.mts', import.meta.url).href);
+const {SVELTE_COMPATIBILITY_ROOT, SVELTE_COMPATIBILITY_MANIFEST, isSvelteCompatibilityChunk, parseSvelteCompatibilityManifest}: typeof import('./svelte-compatibility-outputs.mjs')
+  = await import(new URL('./svelte-compatibility-outputs.mts', import.meta.url).href);
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TRANSPORT = '.local-notes/ci/compiled';
@@ -69,6 +71,7 @@ function outputAllowed(file: string, inputs: ReadonlySet<string>): boolean {
   if (file === 'index.html') return inputs.has(file);
   if (inputs.has(file)) return false;
   const runtime = file.replace(/\.map$/, '');
+  if (file === SVELTE_COMPATIBILITY_MANIFEST || isSvelteCompatibilityChunk(runtime)) return inputs.has(SVELTE_COMPATIBILITY_ROOT);
   if (/\.(?:js|mjs)$/.test(runtime) && inputs.has(runtime.replace(/\.mjs$/, '.mts').replace(/\.js$/, '.ts'))) return true;
   if (/\.svelte\.(?:native|html)\.js$/.test(runtime) && inputs.has(runtime.replace(/\.(?:native|html)\.js$/, ''))) return true;
   return /^(?:css\/[^/]+\.css|styles\.css|themes-extra\.css|js\/[^/]+\.generated\.(?:js|d\.ts))$/.test(file);
@@ -91,11 +94,32 @@ function validate(value: unknown): CompiledManifest {
   assert(Number.isSafeInteger(bytes) && bytes > 0 && bytes <= 1024 ** 3, 'Bounded portable compiler payload');
   const inputs = new Set(manifest.inputs.map(row => row.file));
   for (const row of manifest.outputs) assert(outputAllowed(row.file, inputs), 'Only compiler-owned outputs, never other authored/dependency files');
+  if (inputs.has(SVELTE_COMPATIBILITY_ROOT)) {
+    const outputs = new Set(manifest.outputs.map(row => row.file));
+    assert(outputs.has(SVELTE_COMPATIBILITY_MANIFEST), 'Missing Svelte compatibility manifest');
+    const shared = [...outputs].filter(isSvelteCompatibilityChunk);
+    assert(shared.length > 0, 'Missing Svelte compatibility chunks');
+    for (const file of shared) {
+      assert(outputs.has(file + '.map'), 'Missing Svelte compatibility chunk map: ' + file);
+    }
+    for (const file of outputs) if (file.endsWith('.map') && isSvelteCompatibilityChunk(file.slice(0, -4))) {
+      assert(outputs.has(file.slice(0, -4)), 'Missing Svelte compatibility chunk for map: ' + file);
+    }
+  }
   return manifest;
 }
 export async function sealCompiledInputs(root = ROOT): Promise<CompiledManifest> {
   const transport = path.join(root, TRANSPORT), inputs = await authoredInputs(root), known = new Set(inputs.map(row => row.file));
   const candidates = new Set<string>();
+  let sharedChunks: string[] | undefined;
+  if (known.has(SVELTE_COMPATIBILITY_ROOT)) {
+    candidates.add(SVELTE_COMPATIBILITY_MANIFEST);
+    sharedChunks = parseSvelteCompatibilityManifest((await regular(path.join(root, SVELTE_COMPATIBILITY_MANIFEST))).toString('utf8'));
+    for (const file of sharedChunks) {
+      candidates.add(file);
+      candidates.add(file + '.map');
+    }
+  }
   for (const file of known) {
     if (/\.(?:ts|mts)$/.test(file) && !/\.d\.[cm]?ts$/.test(file)) {
       const runtime = file.replace(/\.mts$/, '.mjs').replace(/\.ts$/, '.js'); candidates.add(runtime); candidates.add(runtime + '.map');
@@ -113,6 +137,7 @@ export async function sealCompiledInputs(root = ROOT): Promise<CompiledManifest>
     if (exists) outputs.push(await member(root, file));
   }
   const manifest = validate({schemaVersion: 1, revision: git(root, 'rev-parse', 'HEAD').trim(), nodeMajor: Number(process.versions.node.split('.')[0]), inputs, outputs});
+  if (sharedChunks) assert.deepEqual(outputs.filter(row => isSvelteCompatibilityChunk(row.file)).map(row => row.file), sharedChunks, 'Exact Svelte compatibility transport inventory');
   await safeDirectory(root, TRANSPORT);
   assert.equal((await fs.readdir(transport)).length, 0, 'Seal a new compiled transport');
   const bodies: Buffer[] = [];
@@ -137,12 +162,15 @@ async function qualified(root: string) {
   const payload = brotliDecompressSync(await regular(path.join(transport, 'payload.br')), {maxOutputLength: bytes});
   assert.equal(payload.length, bytes, 'Exact decompressed payload size');
   let offset = 0;
+  let sharedChunks: string[] | undefined;
   for (const output of manifest.outputs) {
     const body = payload.subarray(offset, offset + output.bytes);
     assert.equal(hash(body), output.sha256, 'Exact compiled payload');
     if (output.file === 'index.html') assert.deepEqual(inputIdentity(output.file, body), manifest.inputs.find(row => row.file === output.file), 'Exact authored HTML outside generated sections');
+    if (output.file === SVELTE_COMPATIBILITY_MANIFEST) sharedChunks = parseSvelteCompatibilityManifest(body.toString('utf8'));
     offset += output.bytes;
   }
+  if (sharedChunks) assert.deepEqual(manifest.outputs.filter(row => isSvelteCompatibilityChunk(row.file)).map(row => row.file), sharedChunks, 'Exact Svelte compatibility transport inventory');
   return {manifest, payload};
 }
 export async function restoreCompiledInputs(root = ROOT): Promise<CompiledManifest> {

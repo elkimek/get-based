@@ -15,6 +15,7 @@ import { enforceFunctionCoverage, enforceFeatureCoverage, resolveCoverageMinimum
 import { isProductionSource, productionSources, productionFunctionIndex, productionFunctionIndexes, matchSourceFunction, summarizeFeatures } from './coverage-source.mjs';
 import { renderCoverageMarkdown, renderCoverageHtml } from './coverage-report.mjs';
 import {readNativeFunctionCoverage, type NativeCoverageReceipt} from './native-coverage-receipt.mjs';
+import {readCoverageInventories, readQualifiedNativeCoverageUnion} from './ci-results.mjs';
 import {
   coverageEntryMatchesSource,
   coverageFunctionRange,
@@ -312,7 +313,7 @@ export function addNativeFunctionCoverageToModel(model: CoverageModel, coverage:
   }
 }
 
-async function readVitestCoverageModel() {
+async function readVitestCoverageModel(verifiedNative?: NativeCoverageReceipt) {
   if (!includeVitestCoverage) return null;
   if (!fs.existsSync(vitestCoveragePath)) throw new Error(`Required Vitest coverage is missing: ${vitestCoveragePath}`);
 
@@ -323,7 +324,7 @@ async function readVitestCoverageModel() {
   for (const file of productionSources(repoRoot, { runtime: true })) getFileMetrics(model, file, sourceForFile(file).length);
 
   if (vitestCoverageFormat === 'native-functions') {
-    const native = await readNativeFunctionCoverage(vitestCoveragePath, {root: repoRoot});
+    const native = verifiedNative ?? await readNativeFunctionCoverage(vitestCoveragePath, {root: repoRoot});
     addNativeFunctionCoverageToModel(model, native);
     return {model, native};
   }
@@ -420,6 +421,18 @@ function normalizeFixture(fixture: BrowserFixture | FixtureReader) {
   return fixture;
 }
 
+function foldPlaywrightShard(model: CoverageModel, directory: string, file: string, shard: RawShard): FixtureReader {
+  const entries = Array.isArray(shard.entries) ? shard.entries : [];
+  // Keep only the aggregate and one input receipt's parsed entries in memory.
+  addBrowserEntriesToModel(model, entries);
+  return {
+    name: shard.titlePath?.slice(-1)[0] || shard.title || path.basename(file, '.json'),
+    path: shard.file || path.relative(repoRoot, path.join(directory, file)).split(path.sep).join('/'),
+    label: shard.label || null,
+    entryCount: entries.length,
+  };
+}
+
 export function readPlaywrightCoverageShards(directory = playwrightCoverageDir) {
   const model: CoverageModel = new Map();
   if (!fs.existsSync(directory)) return { model, fixtures: [], files: [], unreadable: [] };
@@ -439,20 +452,28 @@ export function readPlaywrightCoverageShards(directory = playwrightCoverageDir) 
       unreadable.push({ file, error: (error as { message?: unknown }).message });
       continue;
     }
-    const shardEntries = Array.isArray(shard.entries) ? shard.entries : [];
-    // Fold one shard at a time with the same exact source/function checks.
-    // Never retain all source strings
-    // and raw function/range trees while also building the aggregate model.
-    addBrowserEntriesToModel(model, shardEntries);
-    fixtures.push({
-      name: shard.titlePath?.slice(-1)[0] || shard.title || path.basename(file, '.json'),
-      path: shard.file || path.relative(repoRoot, shardPath).split(path.sep).join('/'),
-      label: shard.label || null,
-      entryCount: shardEntries.length,
-    });
+    fixtures.push(foldPlaywrightShard(model, directory, file, shard));
   }
 
   return { model, fixtures, files, unreadable };
+}
+
+async function readVerifiedCoverageInputs(args: string[]) {
+  const [flag, inventoryDirectory, shards, qualificationPath] = args;
+  if (args.length !== 4 || flag !== '--verify-inventories' || !inventoryDirectory || !shards || !qualificationPath
+    || !requirePlaywrightCoverageShards || !includeVitestCoverage || vitestCoverageFormat !== 'native-functions') {
+    throw new Error('Usage: --verify-inventories <directory> <shard-count> <qualification-output> with required browser and native unit coverage');
+  }
+  const model: CoverageModel = new Map();
+  const byFile = new Map<string, FixtureReader>();
+  const {qualification, native} = await readQualifiedNativeCoverageUnion(
+    playwrightCoverageDir, readCoverageInventories(inventoryDirectory), Number(shards), vitestCoveragePath, {root: repoRoot},
+    (file, body) => byFile.set(file, foldPlaywrightShard(model, playwrightCoverageDir, file, body)),
+  );
+  fs.mkdirSync(path.dirname(qualificationPath), {recursive: true});
+  fs.writeFileSync(qualificationPath, JSON.stringify(qualification, null, 2) + '\n');
+  const files = [...byFile.keys()].sort();
+  return {model, files, fixtures: files.map(file => byFile.get(file)!), unreadable: [], native};
 }
 
 function enforceCoverageGate(report: CoverageSummary) {
@@ -470,10 +491,10 @@ function enforceCoverageGate(report: CoverageSummary) {
   );
 }
 
-async function writeCoverageReport(playwrightModel: CoverageModel, fixtures: readonly (BrowserFixture | FixtureReader)[], options: { playwrightScope?: string } = {}) {
+async function writeCoverageReport(playwrightModel: CoverageModel, fixtures: readonly (BrowserFixture | FixtureReader)[], options: { playwrightScope?: string; verifiedNative?: NativeCoverageReceipt } = {}) {
   const playwright = summarizeCoverageModel(playwrightModel);
 
-  const unitCoverage = await readVitestCoverageModel();
+  const unitCoverage = await readVitestCoverageModel(options.verifiedNative);
   const vitestModel = unitCoverage?.model ?? null;
   const native = unitCoverage?.native ?? null;
   const nativeDiagnostics = native ? {
@@ -568,7 +589,9 @@ async function main() {
     const sources = new Map(productionSources(repoRoot, {runtime: true}).map(file => [file, sourceForFile(file)]));
     for (const [file, index] of productionFunctionIndexes(sources, repoRoot)) functionIndexes.set(file, index);
   }
-  const suiteCoverage = readPlaywrightCoverageShards();
+  const args = process.argv.slice(2);
+  const verified = args.length ? await readVerifiedCoverageInputs(args) : null;
+  const suiteCoverage = verified ?? readPlaywrightCoverageShards();
   if (suiteCoverage.files.length) {
     for (const { file, error } of suiteCoverage.unreadable) {
       console.warn(`  Warning: skipping unreadable coverage shard ${file}: ${error}`);
@@ -579,6 +602,7 @@ async function main() {
     console.log(`Reading ${suiteCoverage.fixtures.length} readable Playwright coverage shard(s) from ${path.relative(repoRoot, playwrightCoverageDir)}`);
     const report = await writeCoverageReport(suiteCoverage.model, suiteCoverage.fixtures, {
       playwrightScope: 'Playwright suite coverage shards',
+      ...(verified ? {verifiedNative: verified.native} : {}),
     });
     enforceCoverageGate(report);
     return;

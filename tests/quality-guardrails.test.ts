@@ -344,6 +344,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     'npm run typecheck:service-worker',
     'npm run typecheck:strict-null',
     'npm run architecture:check',
+    'node scripts/build-svelte.mjs --check',
     'npm run quality',
     'npm run vendor:check',
     'npm run supply-chain:check',

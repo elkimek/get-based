@@ -5,6 +5,23 @@ import { collectRawModuleAssets } from '../scripts/raw-module-assets.mjs';
 import { productionRawModuleAssets, pruneSourceModuleAppShell } from '../scripts/build-production.mjs';
 import { inlineServiceWorkerAssets } from '../scripts/service-worker-source.js';
 import { parseAppShellEntries } from '../scripts/app-shell-budget.mjs';
+import {MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK, isSvelteCompatibilityChunk} from '../scripts/svelte-compatibility-outputs.mjs';
+
+it('precaches the native dashboard graph and prunes its compatibility entries from the optimized shell', async () => {
+  const entries = new Set([MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK].map(file => '/' + file + '.native.js'));
+  const graph = await collectRawModuleAssets(entries, url => fs.readFile(url.slice(1), 'utf8'));
+  const worker = inlineServiceWorkerAssets(await fs.readFile('service-worker.js', 'utf8'), await fs.readFile('service-worker-assets.js', 'utf8'));
+  const native = new Set(parseAppShellEntries(worker));
+  const shared = [...graph].filter(isSvelteCompatibilityChunk);
+  expect(shared.length).toBeGreaterThan(0);
+  expect([...graph].filter(url => !native.has(url))).toEqual([]);
+  const raw = await productionRawModuleAssets();
+  const optimized = new Set(parseAppShellEntries(pruneSourceModuleAppShell(worker, raw)));
+  for (const url of [...entries, ...shared]) {
+    expect(raw.has(url)).toBe(false);
+    expect(optimized.has(url)).toBe(false);
+  }
+});
 
 it('retains recursive runtime imports, exports and literal lazy imports through cycles', async () => {
   const modules = new Map([
@@ -14,8 +31,8 @@ it('retains recursive runtime imports, exports and literal lazy imports through 
   ]);
   const reads: string[] = [];
   const result = await collectRawModuleAssets(new Set(['/js/worker.js']), async url => { reads.push(url); if (!modules.has(url)) throw new Error(url); return modules.get(url)!; });
-  expect([...result].sort()).toEqual([...modules.keys()].sort());
-  expect(reads).toHaveLength(modules.size);
+  expect([...result]).toEqual(['/js/worker.js', '/js/lazy.js', '/js/export.js', '/js/shared.js', '/shared/deep.mjs']);
+  expect(reads.sort()).toEqual([...modules.keys()].sort());
 });
 it('rejects missing dependencies and unsupported local import types', async () => {
   await expect(collectRawModuleAssets(new Set(['/js/worker.js']), async url => { if (url.endsWith('missing.js')) throw new Error('Missing emitted module'); return `import './missing.js';`; })).rejects.toThrow('Missing emitted module');

@@ -99,6 +99,64 @@ describe('service worker update prompt', () => {
     expect(register).toHaveBeenCalledWith({ win, serviceWorkerContainer, cacheStorage: null });
   });
 
+  it.each([false, true])('bounds an unavailable worker registration (existing controller: %s)', async hasController => {
+    const serviceWorkerContainer: UpdateContainerView = {
+      controller: hasController ? {} : null,
+      register: vi.fn(async () => { throw new Error('Synthetic import unavailable'); }),
+      addEventListener: vi.fn(),
+    };
+    await expect(serviceWorkerUpdate!.registerServiceWorkerUpdates({
+      win: {location: {hostname: 'getbased.health', search: '', reload: vi.fn()}},
+      serviceWorkerContainer,
+    })).resolves.toBeNull();
+    expect(serviceWorkerContainer.register).toHaveBeenCalledTimes(hasController ? 1 : 2);
+    expect(serviceWorkerContainer.addEventListener).not.toHaveBeenCalled();
+  });
+
+  it('retries a resolved but empty first registration once', async () => {
+    const registration = {active: null, installing: null, waiting: null, addEventListener: vi.fn()};
+    const serviceWorkerContainer = {controller: null, register: vi.fn(async () => registration), addEventListener: vi.fn()};
+    await expect(serviceWorkerUpdate!.registerServiceWorkerUpdates({
+      win: {location: {hostname: 'getbased.health', search: '', reload: vi.fn()}},
+      serviceWorkerContainer,
+    })).resolves.toBe(registration);
+    expect(serviceWorkerContainer.register).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['redundant', 'installed', 'controller', 'pagehide', 'cached page'] as const)('keeps a single first-install retry bound to its %s outcome', async outcome => {
+    const winEvents = new EventTarget();
+    const worker = Object.assign(new EventTarget(), {state: 'installing' as ServiceWorkerState});
+    const registration: UpdateRegistrationView = {
+      active: null, waiting: null, installing: worker, addEventListener: vi.fn(),
+    };
+    const recovered: UpdateRegistrationView = {...registration, active: worker, installing: null};
+    const register = vi.fn(async () => recovered).mockResolvedValueOnce(registration);
+    const container: UpdateContainerView = {controller: null, register, addEventListener: vi.fn()};
+    const reload = vi.fn();
+    const result = serviceWorkerUpdate!.registerServiceWorkerUpdates({
+      win: {location: {hostname: 'getbased.health', search: '', reload},
+        addEventListener: winEvents.addEventListener.bind(winEvents)},
+      serviceWorkerContainer: container,
+    });
+    await Promise.resolve();
+    expect(register).toHaveBeenCalledTimes(1);
+    if (outcome === 'pagehide' || outcome === 'cached page') {
+      winEvents.dispatchEvent(new PageTransitionEvent('pagehide', {persisted: outcome === 'cached page'}));
+    }
+    if (outcome === 'controller') container.controller = {};
+    worker.state = outcome === 'installed' ? 'installed' : 'redundant';
+    registration.installing = null;
+    if (outcome === 'installed') registration.waiting = worker;
+    worker.dispatchEvent(new Event('statechange'));
+    const retried = outcome === 'redundant' || outcome === 'cached page';
+    expect(await result).toBe(outcome === 'pagehide' ? null : retried ? recovered : registration);
+    expect(register).toHaveBeenCalledTimes(retried ? 2 : 1);
+    worker.dispatchEvent(new Event('statechange'));
+    expect(register).toHaveBeenCalledTimes(retried ? 2 : 1);
+    expect(reload).not.toHaveBeenCalled();
+    expect(document.getElementById('version-update-banner')).toBeNull();
+  });
+
   it('turns a secondary-tab controllerchange into a reload prompt', async () => {
     const { registerServiceWorkerUpdates } = serviceWorkerUpdate!;
     let onControllerChange: (() => void) | null = null;

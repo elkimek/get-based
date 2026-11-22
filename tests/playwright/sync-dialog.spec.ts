@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { openIsolatedSyncSetupPage } from '../helpers/sync-settings-page.js';
 
 test('owned Sync dialogs preserve accessible themes, word entry, focus and short-screen scrolling', async ({ page, context }) => {

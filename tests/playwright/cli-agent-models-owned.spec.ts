@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 test('owned CLI model controls preserve search, keyboard operation, themes and small-screen accessibility', async ({ page,context }) => {
   test.setTimeout(150_000); await context.addInitScript({ path:'node_modules/axe-core/axe.min.js' });

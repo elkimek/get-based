@@ -69,6 +69,7 @@ jobs:
           npm run typecheck:service-worker
           npm run typecheck:strict-null
           npm run architecture:check
+          node scripts/build-svelte.mjs --check
           npm run quality
           npm run vendor:check
           npm run supply-chain:check
@@ -493,18 +494,15 @@ jobs:
           pattern: coverage-inventory-*
           path: .local-notes/ci/coverage-inventories
           merge-multiple: true
-      - name: Reject missing, extra, corrupt or incomplete source-coverage inputs
+      - name: Qualify source coverage inputs and enforce the combined denominator and floors
         env:
           EXPECTED_COVERAGE_SHARDS: ${{ needs.prepare.outputs.native_coverage_shards }}
-        run: node scripts/ci-results.mjs coverage-verify --inventories .local-notes/ci/coverage-inventories --directory tests/.playwright-coverage --shards "$EXPECTED_COVERAGE_SHARDS" --unit tests/.vitest-coverage/coverage-functions.json --unit-format native-functions --output .local-notes/ci/coverage-inputs.json
-      - name: Enforce unchanged combined source coverage denominator and floors
-        env:
           INCLUDE_VITEST_COVERAGE: '1'
           VITEST_COVERAGE_FORMAT: native-functions
           VITEST_COVERAGE_JSON: tests/.vitest-coverage/coverage-functions.json
           REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS: '1'
           PLAYWRIGHT_COVERAGE_DIR: tests/.playwright-coverage
-        run: node scripts/playwright-coverage.mjs
+        run: node scripts/playwright-coverage.mjs --verify-inventories .local-notes/ci/coverage-inventories "$EXPECTED_COVERAGE_SHARDS" .local-notes/ci/coverage-inputs.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:

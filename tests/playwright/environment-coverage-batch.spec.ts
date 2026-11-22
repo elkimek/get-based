@@ -1,6 +1,6 @@
 import { nativeEnvironmentView } from '../helpers/light-genuine-child-native-receipts.js';
 type EmfRoomFixtureReader = { name?: unknown; location?: unknown; sources: unknown[]; mitigations: unknown[]; photos?: unknown[]; measurements: Record<string, { value?: unknown; unit?: unknown; meter?: unknown }> };
-type EmfAssessmentFixtureReader = { id?: unknown; date?: unknown; label?: unknown; rooms: EmfRoomFixtureReader[] };
+type EmfAssessmentFixtureReader = { id?: unknown; date?: unknown; label?: unknown; consultant?: unknown; rooms: EmfRoomFixtureReader[] };
 type AuditFixtureReader = { id?: unknown; label?: unknown; updatedAt?: unknown; rooms?: { id?: unknown }[]; measurements?: { length: unknown } };
 import type {Page} from '@playwright/test';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
@@ -173,12 +173,10 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const waitFor = async (selector: string, label: string = selector) => {
-      let found: Element | null = null;
-      await waitUntil(() => {
-        found = document.querySelector(selector);
-        return !!found;
-      }, label);
+    const waitFor = async <T extends Element = Element>(selector: string, label: string = selector): Promise<T> => {
+      await waitUntil(() => !!document.querySelector(selector), label);
+      const found = document.querySelector<T>(selector);
+      if (!found) throw new Error(`Missing control after rendering ${label}`);
       return found;
     };
     const setAndChange = (selector: string, value: unknown) => {
@@ -232,7 +230,10 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       document.querySelector<HTMLElement>('#detail-modal [data-emf-action="add-assessment"]')?.click();
       await waitUntil(() => assessments().length === 1, 'new EMF assessment');
       const id = activeAssessment().id;
-      const dateField = `#detail-modal .emf-assessment-card.expanded [data-emf-field="date"][data-emf-assessment-id="${CSS.escape(String(id))}"]`;
+      const expandedCard = '#detail-modal .emf-assessment-card.expanded';
+      const assessmentId = `[data-emf-assessment-id="${CSS.escape(String(id))}"]`;
+      const dateField = `${expandedCard} [data-emf-field="date"]${assessmentId}`;
+      const roomTab = (index: number) => `${expandedCard} .emf-room-tab${assessmentId}[data-emf-room-idx="${index}"]`;
       await waitFor(dateField, 'new EMF assessment editor');
       outcomes.newAssessmentExpandsWithDefaultBedroom =
         activeAssessment().rooms[0]!.name === 'Bedroom'
@@ -248,40 +249,49 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
 
       document.querySelector<HTMLElement>(`#emf-sources-${id}-0 .ctx-tag:not(.active)`)?.click();
       document.querySelector<HTMLElement>(`#emf-mits-${id}-0 .ctx-tag:not(.active)`)?.click();
-      emf.saveEMFExplicit();
+      if (!await emf.saveEMFExplicit()) throw new Error('EMF editor did not commit the reviewed values');
       await waitUntil(
-        () => activeAssessment().rooms[0]!.sources.length > 0 && activeAssessment().rooms[0]!.mitigations.length > 0,
-        'EMF tags saved'
+        () => activeAssessment().rooms[0]!.sources.length > 0 && activeAssessment().rooms[0]!.mitigations.length > 0
+          && document.querySelector('.emf-severity-dot') !== null,
+        'saved EMF tags and rendered reading severity'
       );
       outcomes.measurementAndTagsPersist =
         activeAssessment().date === '2026-06-01'
         && activeAssessment().label === 'Before shielding'
+        && activeAssessment().consultant === 'Building Bio Lab'
         && activeAssessment().rooms[0]!.location === 'Pillow side'
+        && activeAssessment().rooms[0]!.measurements.acElectric!.value === 28
         && activeAssessment().rooms[0]!.measurements.acElectric!.meter === 'NFA1000'
         && activeAssessment().rooms[0]!.sources.length > 0
         && activeAssessment().rooms[0]!.mitigations.length > 0
         && document.querySelector('.emf-severity-dot') !== null;
 
-      const roomSelect = document.querySelector<HTMLSelectElement>('.emf-room-select');
+      const roomSelect = document.querySelector<HTMLSelectElement>(`${expandedCard} .emf-room-select${assessmentId}`);
       roomSelect!.value = '_custom';
       roomSelect!.dispatchEvent(new Event('change', { bubbles: true }));
       await waitFor('#prompt-dialog-input', 'custom room prompt');
       (document.getElementById('prompt-dialog-input') as HTMLInputElement | null)!.value = 'Office nook';
       document.getElementById('prompt-ok')!.click();
       await waitUntil(() => activeAssessment().rooms.length === 2, 'custom room added');
+      await waitFor(`${roomTab(1)}.active`, 'custom room selected in the editor');
       outcomes.customRoomPromptAddsAndSelects =
         activeAssessment().rooms[1]!.name === 'Office nook'
-        && document.querySelector('.emf-room-tab.active')?.textContent!.includes('Office nook') === true;
+        && document.querySelector(`${roomTab(1)}.active`)?.textContent!.includes('Office nook') === true;
 
-      document.querySelector<HTMLElement>('.emf-remove-room')?.click();
-      await waitUntil(() => activeAssessment().rooms.length === 1, 'custom room removed');
+      const removeRoom = await waitFor<HTMLButtonElement>(`${expandedCard} [data-emf-action="remove-room"]${assessmentId}[data-emf-room-idx="1"]`);
+      removeRoom.click();
+      // The profile write can publish records before its timestamp update and
+      // the editor refresh finish. Wait for the surviving room to render.
+      await waitUntil(() => activeAssessment().rooms.length === 1
+        && !!document.querySelector(`${roomTab(0)}.active`)
+        && !document.querySelector(roomTab(1)), 'custom room removed from the editor');
       outcomes.removeRoomKeepsAssessmentUsable =
         activeAssessment().rooms.length === 1
-        && document.querySelector('.emf-room-tab.active')?.textContent!.includes('Bedroom') === true;
+        && document.querySelector(`${roomTab(0)}.active`)?.textContent!.includes('Bedroom') === true;
 
-      emf.selectEMFRoom('stale-assessment-id', 99);
+      await emf.selectEMFRoom('stale-assessment-id', 99);
       outcomes.staleRoomSelectionCannotChangeActiveAssessment =
-        document.querySelector('.emf-room-tab.active')?.textContent!.includes('Bedroom') === true
+        document.querySelector(`${roomTab(0)}.active`)?.textContent!.includes('Bedroom') === true
         && document.querySelector('[data-emf-room-idx="99"]') === null;
 
       activeAssessment().rooms[0]!.photos = [{
@@ -290,15 +300,16 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
       }];
       if (!await data.saveImportedData()) throw new Error('Could not persist the fixture photo');
-      emf.selectEMFRoom(id, 0);
+      if (!await emf.selectEMFRoom(id, 0)) throw new Error('EMF editor could not reopen the saved room');
       await waitFor('.emf-photo-thumb img', 'EMF photo thumbnail');
       document.querySelector<HTMLElement>('.emf-photo-thumb img')?.click();
       await waitFor('.emf-lightbox img', 'EMF photo lightbox');
       const safeMediaFallback = document.querySelector('.emf-lightbox img')?.getAttribute('src')?.startsWith('data:image/png;base64,') === true;
       document.querySelector<HTMLElement>('.emf-lightbox')?.click();
       await waitUntil(() => !document.querySelector('.emf-lightbox'), 'EMF lightbox closed');
-      document.querySelector<HTMLElement>('.emf-photo-remove')?.click();
-      await waitUntil(() => activeAssessment().rooms[0]!.photos!.length === 0, 'EMF photo removed');
+      document.querySelector<HTMLElement>(`${expandedCard} .emf-photo-remove${assessmentId}`)?.click();
+      await waitUntil(() => activeAssessment().rooms[0]!.photos!.length === 0
+        && !document.querySelector(`${expandedCard} .emf-photo-thumb`), 'EMF photo removed from the editor');
       outcomes.photoLightboxUsesSafeType = safeMediaFallback;
       outcomes.photoRemoveWorks = activeAssessment().rooms[0]!.photos!.length === 0;
 
@@ -353,14 +364,16 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         calls.some(call => call[0] === 'close-modal')
         && calls.some(call => call[0] === 'chat' && (call[1] as string).includes('RF improved'));
 
-      emf.toggleEMFCompare();
-      await waitFor(`.emf-assessment-header[data-emf-action="toggle-assessment"][data-emf-assessment-id="${id}"]`, 'old assessment header');
-      document.querySelector<HTMLElement>(`.emf-assessment-header[data-emf-action="toggle-assessment"][data-emf-assessment-id="${id}"]`)?.click();
-      await waitFor('.emf-assessment-card.expanded button[data-emf-action="delete-assessment"]', 'delete EMF assessment button');
-      document.querySelector<HTMLElement>('.emf-assessment-card.expanded button[data-emf-action="delete-assessment"]')?.click();
+      if (!await emf.toggleEMFCompare()) throw new Error('EMF editor could not return to the assessment list');
+      const oldAssessmentHeader = `#detail-modal .emf-assessment-header[data-emf-action="toggle-assessment"]${assessmentId}`;
+      const oldHeader = await waitFor<HTMLButtonElement>(oldAssessmentHeader, 'old assessment header');
+      oldHeader.click();
+      const deleteAssessment = await waitFor<HTMLButtonElement>(`${expandedCard} [data-emf-action="delete-assessment"]${assessmentId}`, 'delete EMF assessment button');
+      deleteAssessment.click();
       await waitFor('#confirm-ok', 'EMF delete confirm');
       document.getElementById('confirm-ok')!.click();
-      await waitUntil(() => !assessments().some(a => a.id === id), 'EMF assessment deleted');
+      await waitUntil(() => !assessments().some(a => a.id === id)
+        && !document.querySelector(oldAssessmentHeader), 'EMF assessment deleted from the editor');
       outcomes.deleteConfirmsRemovesAndKeepsListUsable =
         !assessments().some(a => a.id === id)
         && document.querySelector('.emf-assessment-card')?.textContent!.includes('After mitigation') === true;

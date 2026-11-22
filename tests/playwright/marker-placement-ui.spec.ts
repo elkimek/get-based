@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 async function seedMarkerPlacementProfile(page: import('@playwright/test').Page) {
   await page.addInitScript(() => {

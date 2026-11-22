@@ -1059,6 +1059,23 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(sourceA.reserve('keyset-concurrent', 0)).resolves.toEqual({ start: 7, count: 0 });
   });
 
+  it('advances atomic counters monotonically while isolating seed namespaces and legacy offsets', async () => {
+    await loadWallet();
+    const store = await import('../js/cashu-wallet-store.js');
+    const legacy = store._createCounterSource(), restored = store._createCounterSource('restored');
+    const separate = store._createCounterSource('separate', false);
+    await legacy.advanceToAtLeast('synthetic-keyset', 7);
+    await expect(restored.reserve('synthetic-keyset', 0)).resolves.toEqual({start: 7, count: 0});
+    await restored.advanceToAtLeast('synthetic-keyset', 12);
+    await restored.advanceToAtLeast('synthetic-keyset', 2);
+    await expect(restored.reserve('synthetic-keyset', 3)).resolves.toEqual({start: 12, count: 3});
+    await expect(restored.advanceToAtLeast('synthetic-keyset', -1)).rejects.toThrow('invalid value');
+    await expect(restored.reserve('synthetic-keyset', 0.5)).rejects.toThrow('invalid count');
+    await expect(restored.reserve('synthetic-keyset', 0)).resolves.toEqual({start: 15, count: 0});
+    await expect(legacy.reserve('synthetic-keyset', 0)).resolves.toEqual({start: 7, count: 0});
+    await expect(separate.reserve('synthetic-keyset', 0)).resolves.toEqual({start: 0, count: 0});
+  });
+
   it('retains ISSUED funding records until quote-specific proofs are recovered', async () => {
     const stub = installCashuStub();
     const wallet = await loadWallet() as CashuWalletOperations;

@@ -1,10 +1,41 @@
 // @vitest-environment jsdom
 import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
 import {afterEach, expect, it} from 'vitest';
 import {renderHTML} from '../js/components/LightCameraPresentation.svelte.html.js';
 import {renderHTML as renderGuide} from '../js/components/LightCameraGuidePresentation.svelte.html.js';
-import {projectAimingGuide, type CameraToolKey, type CameraMessageView, type CameraLockDisplay} from '../js/light-camera-presentation.js';
+import {projectAimingGuide, type CameraToolKey, type CameraMessageView, type CameraLockDisplay, type CameraToolPresentationProps, type CameraGuidePresentationProps} from '../js/light-camera-presentation.js';
 import {aimingGuideHTML, dismissAimingGuide} from '../js/light-tool-camera.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+function checkNativeCamera(props: CameraToolPresentationProps) {
+  const native = load('../js/components/LightCameraPresentation.svelte.native.js') as typeof import('../js/components/LightCameraPresentation.svelte.native.js');
+  const reference = host(renderHTML(props));
+  const video = reference.querySelector('video');
+  if (video) {
+    // The client compiler sets the live media property. HTML carries the default.
+    expect(video.defaultMuted).toBe(true);
+    video.removeAttribute('muted');
+  }
+  return expectNativeReview(reference.innerHTML, root => {
+    const mounted = native.mount(native.default, {target: root, props});
+    native.flushSync();
+    return () => native.unmount(mounted);
+  }, root => {
+    if (video) expect(root.querySelector('video')?.muted).toBe(true);
+    else expect(root.querySelector('video')).toBeNull();
+  });
+}
+function checkNativeGuide(props: CameraGuidePresentationProps) {
+  const native = load('../js/components/LightCameraGuidePresentation.svelte.native.js') as typeof import('../js/components/LightCameraGuidePresentation.svelte.native.js');
+  return expectNativeReview(renderGuide(props), root => {
+    const mounted = native.mount(native.default, {target: root, props});
+    native.flushSync();
+    return () => native.unmount(mounted);
+  });
+}
+
 const original = JSON.parse(readFileSync('tests/fixtures/light-camera-original.json','utf8')) as {
   shells: {key: CameraToolKey; initial: string; authored: string; denied: string}[]; guides: {key: string; html: string}[];
   locks: {lock: CameraLockDisplay; html: string}[]; messages: {view: CameraMessageView; html: string}[];
@@ -18,21 +49,28 @@ function structure(node: Element): Structure {
 }
 const zones = [...host(original.shells[0]!.initial).querySelectorAll('.lux-zone-marker')].map(node=>({max: Number(node.textContent?.match(/\d+/)?.[0]),label:text(node.querySelector('span')!)!}));
 afterEach(()=>{localStorage.clear();document.body.innerHTML='';});
-for(const sample of original.shells) it(`preserves the complete native ${sample.key} shell contract`,()=>{
-  const current=host(renderHTML({kind:'shell',view:{tool:sample.key,guide:projectAimingGuide(sample.key),zones}}));
+for(const sample of original.shells) it(`preserves the complete native ${sample.key} shell contract`,async ()=>{
+  const props = {kind:'shell',view:{tool:sample.key,guide:projectAimingGuide(sample.key),zones}} as const;
+  const current=host(renderHTML(props));
   expect(structure(current)).toEqual(structure(host(sample.authored)));
   expect([...current.querySelectorAll('button')].every(button=>button.type==='button')).toBe(true);
   expect(current.querySelectorAll('[data-light-tool-modal-action]')).toHaveLength(2);
+  await checkNativeCamera(props);
 });
-for(const sample of original.guides) it(`preserves guide copy, emphasis and dismiss contract: ${sample.key}`,()=>{
-  expect(structure(host(renderGuide({kind:'guide',guide:projectAimingGuide(sample.key)})))).toEqual(structure(host(sample.html)));
+for(const sample of original.guides) it(`preserves guide copy, emphasis and dismiss contract: ${sample.key}`,async ()=>{
+  const props = {kind:'guide',guide:projectAimingGuide(sample.key)} as const;
+  expect(structure(host(renderGuide(props)))).toEqual(structure(host(sample.html)));
+  await checkNativeGuide(props);
 });
-for(const [index,sample] of original.locks.entries()) it(`preserves camera lock display: ${index}`,()=>{
-  expect(structure(host(renderGuide({kind:'lock',lock:sample.lock})))).toEqual(structure(host(sample.html)));
+for(const [index,sample] of original.locks.entries()) it(`preserves camera lock display: ${index}`,async ()=>{
+  const props = {kind:'lock',lock:sample.lock} as const;
+  expect(structure(host(renderGuide(props)))).toEqual(structure(host(sample.html)));
+  await checkNativeGuide(props);
 });
-for(const [index,sample] of original.messages.entries()) it(`preserves result content and structure: ${sample.view.kind}/${index}`,()=>{
+for(const [index,sample] of original.messages.entries()) it(`preserves result content and structure: ${sample.view.kind}/${index}`,async ()=>{
   const before=structuredClone(sample.view);
   expect(structure(host(renderHTML(sample.view)))).toEqual(structure(host(sample.html)));
+  await checkNativeCamera(sample.view);
   expect(sample.view).toEqual(before);
 });
 it('preserves per-tool dismissal through the stable facade',()=>{

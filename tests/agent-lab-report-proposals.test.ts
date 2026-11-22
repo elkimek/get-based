@@ -8,7 +8,7 @@ import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
 import { createAgentToolRuntime } from '../js/agent-tool-runtime.js';
 import { createBrowserAgentToolDependencies, canDiscloseAgentDraftReview } from '../js/agent-tool-bindings.js';
 import { readCurrentLabReport, prepareReviewedLabReport, commitReviewedLabReport } from '../js/lab-report-records.js';
-import { projectLabReport } from '../js/lab-report-proposals.js';
+import { describeLabReport, projectLabReport } from '../js/lab-report-proposals.js';
 import { isAgentDataEnabled } from '../js/agent-data-bindings.js';
 import type { AgentDataProposal } from '../shared/agent-data-contract.js';
 function applyNativeReport(draft: { payload: AgentDataProposal }) { return commitReviewedLabReport(profile, draft.payload, () => state.currentProfile === profile && isAgentDataEnabled('labReports')); }
@@ -61,6 +61,78 @@ it('lists exact report identities without publishing private source metadata or 
   const list = JSON.parse(result.contentItems[0].text); expect(list.operations).toEqual([]); expect(list.records.map((row: { recordId: string }) => row.recordId)).toEqual(['evening-report', 'morning-report', 'older-evening']);
   expect(JSON.stringify(list)).not.toMatch(/\/private\/|patient\.pdf|rawText|extraction-sentinel/); expect(await storage.encryptedGetItem(key)).toBe(before);
 });
+it('orders tied report receipts by identity and withholds unrecognized marker rows', async () => {
+  const morning = state.importedData.importSnapshots[0]!;
+  state.importedData.importSnapshots.push(
+    {...morning, id: 'same-time-z', importedAt: 100},
+    {...morning, id: 'same-time-a', importedAt: 100},
+    {...morning, id: 'unrecognized-report', importedAt: 100, markers: [{mappedKey: 'missing.synthetic', value: 1}]},
+  );
+  expect(await saveImportedData()).toBe(true);
+  const before = await stored(), runtime = tools();
+  const result = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports'}});
+  expect(result.success).toBe(true);
+  expect(JSON.parse(result.contentItems[0].text).records.map((record: {recordId: string}) => record.recordId))
+    .toEqual(['evening-report', 'morning-report', 'same-time-a', 'same-time-z', 'older-evening']);
+  const unknown = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports', recordId: 'unrecognized-report'}});
+  expect(unknown.success).toBe(false);
+  expect(unknown.contentItems[0].text).not.toMatch(/patient[.]pdf|private-extraction/);
+  expect(await stored()).toEqual(before);
+});
+
+it('reports valid exclusions and withholds a report whose excluded row is outside the import', async () => {
+  const morning = state.importedData.importSnapshots[0]!;
+  morning.excludedIndices = [0];
+  state.importedData.importSnapshots.push({...morning, id: 'invalid-exclusion-report', excludedIndices: [1]});
+  expect(await saveImportedData()).toBe(true);
+  const before = await stored();
+  const valid = await readCurrentLabReport(profile, 'morning-report');
+  expect(valid?.record).toMatchObject({markerCount: 0, excludedCount: 1, sourceKeys: [glucose]});
+  const runtime = tools();
+  const catalog = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports'}});
+  expect(catalog.success).toBe(true);
+  expect(JSON.parse(catalog.contentItems[0].text).records.map((record: {recordId: string}) => record.recordId))
+    .toEqual(['evening-report', 'morning-report', 'older-evening']);
+  const invalid = await runtime.execute({tool: 'getbased_read_data', arguments: {resource: 'labReports', recordId: 'invalid-exclusion-report'}});
+  expect(invalid.success).toBe(false);
+  expect(invalid.contentItems[0].text).not.toMatch(/private|patient[.]pdf/);
+  expect(await stored()).toEqual(before);
+});
+
+it('describes the qualified report without source filenames and labels missing collection fields', async () => {
+  const before = await stored();
+  const receipt = await readCurrentLabReport(profile, 'evening-report');
+  if (!receipt?.record.sample) throw new Error('Missing synthetic report sample');
+  const text = describeLabReport(receipt);
+  expect(text).toContain(`Report collected ${day} · pdf`);
+  expect(text).toContain('Uploaded: 1970-01-01T00:00:00.200Z');
+  expect(text).toContain('2 included rows · 0 excluded rows');
+  expect(text).toContain(`Sample ${day} · plasma · 16:00 · Not fasting`);
+  expect(text).toContain('Cycle day: 12 · Phase: Follicular');
+  expect(text).not.toMatch(/private|patient[.]pdf|extraction/);
+
+  const sample = {...receipt.record.sample, specimen: null, sampleTime: null, fasting: null};
+  const older = {...receipt.record, format: '', importedAt: null, sample};
+  expect(describeLabReport(older)).toContain('Unknown format');
+  expect(describeLabReport(older)).toContain('Specimen unknown · Time unknown · Fasting unknown');
+  expect(describeLabReport({...older, sample: null})).toContain('No active linked sample');
+  expect(describeLabReport(null)).toContain('Diagnostic history is retained');
+  expect(await stored()).toEqual(before);
+});
+
+it('rejects an exact report read when the active profile changes while hashing its revision', async () => {
+  const before = await stored(), digest = crypto.subtle.digest.bind(crypto.subtle);
+  vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(async (...args) => {
+    const revision = await digest(...args);
+    state.currentProfile = 'another-test-profile';
+    return revision;
+  });
+  const result = await tools().execute({tool: 'getbased_read_data', arguments: {resource: 'labReports', recordId: 'evening-report'}});
+  expect(result.success).toBe(false);
+  expect(result.contentItems[0].text).not.toMatch(/private-extraction|patient[.]pdf|16:00|follicular/);
+  expect(await stored()).toEqual(before);
+});
+
 it('freezes faithful result, calculation, collection and stored-range effects before approval', async () => {
   const before = await stored(), { draft, nativeReview } = await propose(), payload = draft.payload as { baseline: string };
   const snapshot = JSON.parse(payload.baseline); expect(snapshot.plan.results).toEqual(expect.arrayContaining([

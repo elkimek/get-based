@@ -6,6 +6,7 @@ import {stripTypeScriptTypes} from 'node:module';
 import {createHash} from 'node:crypto';
 import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
+import {assertCompiledSvelteOwner} from './compiled-svelte-graph.js';
 import {escapeAttr, escapeHTML} from '../../js/utils.js';
 import {markerDetailActionAttrs} from '../../js/marker-detail-actions.js';
 import type {PlacementFormInput} from '../../js/marker-placement-presentation.js';
@@ -54,11 +55,10 @@ export function qualifyCurrentPlacementSources(): void {
   assert.equal(sha(fs.readFileSync('tests/fixtures/marker-placement-original.json', 'utf8')), pins.originalFixtureSHA256);
   for (const file of Object.keys(pins.current)) requireCurrentPlacementSource(file, fs.readFileSync(file, 'utf8'));
   for (const owner of ['MarkerPlacementForm', 'MarkerPlacementOptions', 'MarkerPlacementSummary']) {
-    const source = fs.readFileSync('js/components/' + owner + '.svelte', 'utf8');
-    const map = JSON.parse(fs.readFileSync('js/components/' + owner + '.svelte.html.js.map', 'utf8')) as {sources: string[]; sourcesContent: string[]};
-    const matches = map.sources.flatMap((file, index) => file.endsWith('/' + owner + '.svelte') || file === owner + '.svelte' ? [map.sourcesContent[index]] : []);
-    assert.deepEqual(matches, [source], 'Current compiled SDK facade binds its exact authored owner');
+    const source = 'js/components/' + owner + '.svelte';
+    assertCompiledSvelteOwner(source, source + '.html.js');
   }
+
 }
 function coordinate(source: string, before: string, after: string, count = 1): string {
   assert.equal(source.split(before).length - 1, count, 'Exact source-qualified SDK coordinate');

@@ -5,6 +5,8 @@ import {promisify} from 'node:util';
 import {expect, it} from 'vitest';
 import type {TestProject} from 'vitest/node';
 import coverageGlobalSetup from './helpers/coverage-global-setup.js';
+import {readCompiledSvelteGraph} from './helpers/compiled-svelte-graph.js';
+import {isMappedSvelteOutput} from '../scripts/svelte-compatibility-outputs.mjs';
 import {createCoverageInventory, qualifyCoverageUnion} from '../scripts/ci-results.mjs';
 import {coverageFilePattern, matchSourceFunction, productionFunctionIndex, sourceFunctions} from '../scripts/coverage-source.mjs';
 
@@ -38,7 +40,7 @@ function locationOffset(source: string, position: Position) {
   return lines.slice(0, position.line - 1).reduce((sum, line) => sum + line.length + 1, 0) + (position.column || 0);
 }
 function functionIdentity(source: string, entry: FileCoverage['fnMap'][string], file: string,
-  index = file.endsWith('.svelte.native.js') || file.endsWith('.svelte.html.js')
+  index = isMappedSvelteOutput(file)
     ? productionFunctionIndex(source, file, root) : {owned: sourceFunctions(source, file), thirdParty: []}) {
   // Use the same body-first coordinate contract as the combined collector.
   const body = [locationOffset(source, entry.loc.start), locationOffset(source, entry.loc.end)] as const;
@@ -103,12 +105,19 @@ it('executes both async paths, a distinct same-named method and genuine compiled
   await unmount(mounted); target.remove();
 });
 `);
+    const componentGraphs = ['native.js', 'html.js'].map(suffix =>
+      readCompiledSvelteGraph([`${component}.${suffix}`], root).map(output => ({
+        ...output, index: productionFunctionIndex(output.source, output.file, root),
+      })).filter(({index}) => index.owned.length || index.thirdParty.length));
+    const inputs = [
+      relative(mixed), relative(awaited), ...componentGraphs.flatMap(graph => graph.map(({file}) => file)), 'service-worker-runtime.js',
+    ];
     const config = path.join(directory, 'vitest.config.mjs'), reports = path.join(directory, 'coverage');
     fs.writeFileSync(config, `import base from ${JSON.stringify(path.join(root, 'vitest.config.js'))};
 export default {...base, root: ${JSON.stringify(root)}, test: {...base.test,
   include: [${JSON.stringify(relative(fixture))}, 'tests/service-worker-client-cache.test.ts'], setupFiles: [],
   coverage: {...base.test.coverage, provider: 'istanbul', enabled: true,
-    include: ${JSON.stringify([relative(mixed), relative(awaited), `${component}.native.js`, `${component}.html.js`, 'service-worker-runtime.js'].map(coverageFilePattern))},
+    include: ${JSON.stringify(inputs.map(coverageFilePattern))},
     reportsDirectory: ${JSON.stringify(reports)}}}};
 `);
     await promisify(execFile)(process.execPath, [path.join(root, 'node_modules/vitest/vitest.mjs'), 'run', '--config', config, '--maxWorkers=1'], {
@@ -117,7 +126,7 @@ export default {...base, root: ${JSON.stringify(root)}, test: {...base.test,
     const unitFile = path.join(reports, 'coverage-final.json');
     const coverage = JSON.parse(fs.readFileSync(unitFile, 'utf8')) as Record<string, FileCoverage>;
     const entries = Object.values(coverage);
-    expect(entries.map(entry => path.resolve(entry.path)).sort()).toEqual([mixed, awaited, path.join(root, `${component}.native.js`), path.join(root, `${component}.html.js`), path.join(root, 'service-worker-runtime.js')].sort());
+    expect(entries.map(entry => relative(entry.path)).sort()).toEqual([...inputs].sort());
     for (const entry of entries) {
       for (const counts of Object.values(entry.b)) expect(counts.every(count => Number.isFinite(count) && count >= 0)).toBe(true);
       for (const map of [entry.s, entry.f]) expect(Object.values(map).every(count => Number.isFinite(count) && count >= 0)).toBe(true);
@@ -133,15 +142,17 @@ export default {...base, root: ${JSON.stringify(root)}, test: {...base.test,
       expect(methods.map(({id}) => entry.f[id])).toEqual([0, 1]);
       expect(methods[0]!.identity!.start).not.toBe(methods[1]!.identity!.start);
     }
-    for (const suffix of ['native.js', 'html.js']) {
-      const file = `${component}.${suffix}`, entry = entries.find(entry => entry.path === path.join(root, file))!;
-      const source = fs.readFileSync(path.join(root, file), 'utf8'); let ownedCalled = 0, frameworkCalled = 0;
-      const index = productionFunctionIndex(source, file, root);
-      for (const [id, fn] of Object.entries(entry.fnMap)) {
-        if (!entry.f[id]) continue;
-        const identity = functionIdentity(source, fn, file, index);
-        expect(identity.owned !== null || identity.framework !== null, `${file}: ${fn.name}`).toBe(true);
-        if (identity.owned) ownedCalled++; if (identity.framework) frameworkCalled++;
+    for (const graph of componentGraphs) {
+      let ownedCalled = 0, frameworkCalled = 0;
+      for (const {file, source, index} of graph) {
+        const entry = entries.find(entry => entry.path === path.join(root, file))!;
+        for (const [id, fn] of Object.entries(entry.fnMap)) {
+          if (!entry.f[id]) continue;
+          const identity = functionIdentity(source, fn, file, index);
+          expect(identity.owned !== null || identity.framework !== null, `${file}: ${fn.name}`).toBe(true);
+          if (identity.owned) ownedCalled++;
+          if (identity.framework) frameworkCalled++;
+        }
       }
       expect(ownedCalled).toBeGreaterThan(0); expect(frameworkCalled).toBeGreaterThan(0);
     }
@@ -162,7 +173,7 @@ export default {...base, root: ${JSON.stringify(root)}, test: {...base.test,
     // This is the transport validator's unit input seam, not a browser execution receipt.
     fs.writeFileSync(path.join(browser, 'one.json'), JSON.stringify({entries: [{url: '/js/probe.js'}]}));
     const inventory = createCoverageInventory(browser, '1/1');
-    expect(qualifyCoverageUnion(browser, [inventory], 1, unitFile)).toMatchObject({status: 'passed', unit: {files: 5}});
+    expect(qualifyCoverageUnion(browser, [inventory], 1, unitFile)).toMatchObject({status: 'passed', unit: {files: inputs.length}});
     const first = entries.find(entry => entry.path === mixed)!;
     const branch = Object.entries(first.branchMap).find(([, value]) => value.type === 'if')![0];
     first.b[branch]![1] = -1;

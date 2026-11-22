@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import type { BiologyCardProps } from '../../js/biology-card-presentation.js';
 import {expect,test} from './coverage-fixture.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {scopedFrozenStyles} from '../helpers/frozen-style-scope.js';
@@ -16,36 +17,54 @@ const frozenCSS=original.styleBlocks.map(block=>{
  for(const wrapper of [...block.atRules].reverse())rule=`@${wrapper.name} ${wrapper.params}{${rule}}`;
  return rule;
 }).join('\n');
-test('authored Biology cards preserve complete frozen geometry palette and tools',async({page},info)=>{
+for (const mode of ['server-rendered', 'native client'] as const) test(
+  `authored Biology cards preserve complete frozen geometry palette and tools (${mode})`, async ({page}, info) => {
  test.setTimeout(240000);
  await installDiscussionFixture(page.context());await prepareDemoProfile(page);
  await page.evaluate(async()=>{(await import('/js/views.js')).navigate('biology-scores');});
  await expect(page.locator('#biology-score-metabolicFlexibility')).toBeVisible();
  await page.emulateMedia({reducedMotion:'reduce'});
  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
- await page.evaluate(async({samples,css})=>{
-  const {renderHTML}=await import('/js/components/BiologyCardPresentation.svelte.html.js');
+ await page.evaluate(async({samples,css,mode})=>{
+  const server = mode === 'server-rendered' ? await import('/js/components/BiologyCardPresentation.svelte.html.js') : null;
+  const client = mode === 'native client' ? await import('/js/components/BiologyCardPresentation.svelte.native.js') : null;
+  const dispose: (() => Promise<void>)[] = [];
   const {projectBiologyScoreDetail,projectBiologyScoreMetric}=await import('/js/biology-card-presentation.js');
   const style=document.createElement('style');style.textContent=css;document.head.append(style);
   const host=document.createElement('div');host.id='biology-cards-acceptance';host.style.cssText='position:fixed;inset:0;z-index:20000;overflow:auto;background:var(--bg-primary);padding:12px';document.body.append(host);
-  const pair=(name:string,oldHTML:string,newHTML:string,coherence=false)=>{
+  const pair=(name:string,oldHTML:string,props: BiologyCardProps,coherence=false)=>{
    const pair=document.createElement('div');pair.dataset.pair=name;
-   for(const [key,html] of [['original',oldHTML],['current',newHTML]]){
-    const side=document.createElement('section');side.dataset[key!]='';
+   for (const key of ['original', 'current'] as const) {
+    const side=document.createElement('section');side.dataset[key]='';
     const context=document.createElement('div');context.className='biology-scores-page';
     const grid=document.createElement('div');grid.className='lens-page-widgets';
-    const row=document.createElement('section');row.className=coherence?'biology-coherence-overview':'biology-score-lens-row';row.innerHTML=html!;
+    const row=document.createElement('section');row.className=coherence?'biology-coherence-overview':'biology-score-lens-row';
     grid.append(row);context.append(grid);side.append(context);pair.append(side);
-   }host.append(pair);
+    if (key === 'original') row.innerHTML = oldHTML;
+    else if (client) {
+     const instance = client.mount(client.default, {target: row, props});
+     dispose.push(async () => {
+      await client.unmount(instance);
+      if (row.childElementCount) throw new Error(`Mounted Biology card nodes leaked from ${name}`);
+     });
+    } else if (server) row.innerHTML = server.renderHTML(props);
+   }
+   host.append(pair);
   };
   for(const sample of samples){
-   pair(sample.name,sample.withoutTools,renderHTML({kind:'detail',view:projectBiologyScoreDetail(sample.score,sample.ai)}));
+   pair(sample.name,sample.withoutTools,{kind:'detail',view:projectBiologyScoreDetail(sample.score,sample.ai)});
    if(sample.name==='zero'||sample.name==='historical'){
     const old=document.createElement('div');old.innerHTML=sample.withoutTools;
-    pair(`coherence-${sample.name}`,old.querySelector('.biology-score-dial')!.outerHTML,renderHTML({kind:'metric',view:projectBiologyScoreMetric(sample.score)}),true);
+    pair(`coherence-${sample.name}`,old.querySelector('.biology-score-dial')!.outerHTML,{kind:'metric',view:projectBiologyScoreMetric(sample.score)},true);
    }
   }
- },{samples,css:frozenCSS});
+  client?.flushSync();
+  Object.assign(host, {
+    dispose: async () => {
+      for (const unmount of dispose) await unmount();
+    },
+  });
+ },{samples,css:frozenCSS,mode});
  const host=page.locator('#biology-cards-acceptance');let pairs=0;
  for(const width of [320,600,601,650,651,1100])for(const theme of ['dark','light','glass','synth-sunrise','neuromancer','cyberterm'])for(const open of [false,true]){
   await page.setViewportSize({width,height:1000});await page.mouse.move(0,0);
@@ -70,6 +89,7 @@ test('authored Biology cards preserve complete frozen geometry palette and tools
   await button.focus();await expect(button).toBeFocused();
   expect(await button.evaluate(node=>parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2);controls++;
  }
+ await host.evaluate(element => (element as HTMLElement & {dispose: () => Promise<void>}).dispose());
  expect(errors).toEqual([]);
- fs.writeFileSync(info.outputPath('biology-card-parity.json'),JSON.stringify({pairs,controls,widths:[320,600,601,650,651,1100],themes:6,states:['closed','open'],pageErrors:errors}));
+ fs.writeFileSync(info.outputPath('biology-card-parity.json'),JSON.stringify({mode,pairs,controls,widths:[320,600,601,650,651,1100],themes:6,states:['closed','open'],pageErrors:errors}));
 });

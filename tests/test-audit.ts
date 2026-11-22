@@ -63,9 +63,24 @@ const indexSrc = read('index.html');
 const serviceWorkerUpdateSrc = read('js/service-worker-update.js').replace(/}\s+catch\s*{/g, '} catch {');
 assert('index loads service worker update module', indexSrc.includes('src="js/service-worker-update.js"'));
 assert('SW registration uses absolute path', serviceWorkerUpdateSrc.includes("'/service-worker.js'") || serviceWorkerUpdateSrc.includes('"/service-worker.js"'));
-assert('SW registration failures are handled',
-  serviceWorkerUpdateSrc.includes("serviceWorkerContainer.register('/service-worker.js'")
-    && serviceWorkerUpdateSrc.includes('} catch {'));
+const {registerServiceWorkerUpdates} = await import('../js/service-worker-update.js');
+const handledRegistrationFailures = await Promise.all([false, true].map(async controlled => {
+  const attempts: Array<{url: string; updateViaCache: RegistrationOptions['updateViaCache']}> = [];
+  let reloaded = false;
+  const registration = await registerServiceWorkerUpdates({
+    win: {location: {hostname: 'getbased.health', search: '', reload: () => { reloaded = true; }}},
+    serviceWorkerContainer: {
+      controller: controlled ? {} : null,
+      register: async (url, options) => {
+        attempts.push({url: String(url), updateViaCache: options?.updateViaCache});
+        throw new Error('Synthetic worker registration failure');
+      },
+    },
+  });
+  return registration === null && !reloaded && attempts.length === (controlled ? 1 : 2)
+    && attempts.every(attempt => attempt.url === '/service-worker.js' && attempt.updateViaCache === 'none');
+}));
+assert('SW registration failures are handled', handledRegistrationFailures.every(Boolean));
 assert('SW registration bypasses cached import scripts for version detection',
   serviceWorkerUpdateSrc.includes("updateViaCache: 'none'"));
 assert('SW has explicit dev-host offline test opt-in',

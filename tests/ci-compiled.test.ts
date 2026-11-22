@@ -9,13 +9,14 @@ import {withAppShellSnapshot} from '../scripts/app-shell-snapshot.mjs';
 import {withInlineThemeStyleSnapshot} from '../scripts/inline-theme-style-snapshot.mjs';
 import {withLegalConsentSnapshot} from '../scripts/legal-consent-snapshot.mjs';
 import {sealCompiledInputs, restoreCompiledInputs, verifyCompiledInputs} from '../scripts/ci-compiled.mjs';
+import {SVELTE_COMPATIBILITY_ROOT, SVELTE_COMPATIBILITY_MANIFEST} from '../scripts/svelte-compatibility-outputs.mjs';
 
 const cleanup: string[] = [];
 afterEach(async () => {vi.restoreAllMocks(); for (const root of cleanup.splice(0)) await fs.rm(root, {recursive: true, force: true});});
 async function fixture() {
   const root = await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()), 'getbased-compiled-')); cleanup.push(root);
   const write = async (file: string, body: string) => {await fs.mkdir(path.dirname(path.join(root, file)), {recursive: true}); await fs.writeFile(path.join(root, file), body);};
-  await write('.gitignore', '.local-notes/\n*.js\n*.map\ncss/feature.css\n');
+  await write('.gitignore', '.local-notes/\n*.js\n*.map\ncss/feature.css\n' + SVELTE_COMPATIBILITY_MANIFEST + '\n');
   await write('js/feature.ts', 'export const value = 1;'); await write('js/feature.js', 'export const value = 1;');
   await write('js/feature.js.map', '{"sources":["feature.ts"]}');
   await write('css/feature.tailwind.css', '@import "tailwindcss";'); await write('css/feature.css', '.feature{display:flex}');
@@ -25,6 +26,22 @@ async function fixture() {
   return {root, write, transport: path.join(root, '.local-notes/ci/compiled')};
 }
 describe('portable exact compiler output reuse', () => {
+  it('requires the registry and every exact shared chunk map before portable restoration', async () => {
+    const sample = await fixture();
+    const chunk = 'js/components/svelte-compat-client-Abcd1234.js';
+    await sample.write(SVELTE_COMPATIBILITY_ROOT, '<p>Dashboard</p>');
+    await sample.write(SVELTE_COMPATIBILITY_MANIFEST, JSON.stringify([chunk]));
+    await sample.write(chunk, 'export const dashboard = 1;');
+    await expect(sealCompiledInputs(sample.root)).rejects.toThrow('Missing Svelte compatibility chunk map');
+    await sample.write(chunk + '.map', '{}');
+    const manifest = await sealCompiledInputs(sample.root);
+    expect(manifest.outputs.map(row => row.file)).toContain(chunk + '.map');
+    await fs.unlink(path.join(sample.root, chunk));
+    await restoreCompiledInputs(sample.root);
+    expect(await verifyCompiledInputs(sample.root)).toEqual(manifest);
+    await sample.write(chunk + '.map', '{"changed":true}');
+    await expect(verifyCompiledInputs(sample.root)).rejects.toThrow();
+  });
   it('restores into a different checkout without shipping native dependencies or changing any authored input', async () => {
     const sample = await fixture(), manifest = await sealCompiledInputs(sample.root);
     expect(manifest.outputs.map(row => row.file)).toEqual(['css/feature.css', 'js/Panel.svelte.native.js', 'js/feature.js', 'js/feature.js.map']);

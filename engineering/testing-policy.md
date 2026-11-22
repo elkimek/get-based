@@ -18,6 +18,13 @@ activation and cache protections. The small browser fixture is a protocol regres
 not whole-application release acceptance. Pre-protocol pages still require closing
 all app windows because their old script cannot handle the new worker messages.
 
+On first launch without a usable worker, the application can make one new
+registration attempt after rejection or a failed install. Failed precache
+responses release their bodies before retrying the resource. The deployed
+worker must verify the release and complete precaching before it can control
+the original document. [Static browser cases](../tests/pwa/sveltekit.spec.ts)
+also require a closed-client launch with the server offline after recovery.
+
 Same-build worker reinstall attempts must leave the active build cache intact
 until deployment metadata, required resources and producer proofs pass. Failed
 checks remove only the candidate; invalid existing producer proofs still reject
@@ -195,7 +202,9 @@ static-PWA coverage in
 [`sveltekit-chat-onboarding-optional.spec.ts`](../tests/pwa/sveltekit-chat-onboarding-optional.spec.ts).
 [`context-notes-ownership.test.ts`](../tests/context-notes-ownership.test.ts)
 checks captured-profile writes, commit confirmation, ordered revisions, retry drafts,
-retired controls, missing baselines and failed reads. The actual-storage headless
+retired controls, missing baselines and failed reads. A retry binds to the
+button state the user received, even when the click itself hydrates the view.
+The actual-storage headless
 [`context-notes-owned.spec.ts`](../tests/playwright/context-notes-owned.spec.ts)
 checks profile changes, simultaneous authored catalogs, unique labels, textarea
 identity/focus preservation during hydration and updates, rebuilds, actual IndexedDB write
@@ -653,7 +662,7 @@ Preserve independently failing assertions for these workflows:
 | Security and Backup settings | Preserve encryption and backup explanations together; keep snapshot IDs and folder permissions; use keyboard-accessible restore controls; reject stale snapshot reads after remount; retain offline first use and encrypted cold-launch unlock | [Owned components](../tests/settings-protection.test.ts), [folder lifecycle](../tests/backup-folder-presentation.test.ts), [browser backup paths](../tests/playwright/backup-browser-coverage.spec.ts), [static PWA](../tests/pwa/sveltekit-protection.spec.ts) |
 | PPQ accounts and funding | Preserve anonymous recovery credentials before encrypted storage, catalog or consent failures; reject stale account, invoice, QR and balance replies; keep keys and payment text out of nonsecret snapshots and clipboard attributes; enforce every payment-method minimum; preserve funded-account removal confirmation, private-model entitlement, cold launch and update consent | [Account lifecycle](../tests/ppq-account-controller.test.ts), [funding lifecycle](../tests/ppq-topup-controller.test.ts), [view ownership](../tests/ppq-settings-service-owner.test.ts), [private catalog](../tests/ppq-catalog-owner.test.ts), [owned browser UI](../tests/playwright/ppq-settings-owned.spec.ts), [static PWA](../tests/pwa/sveltekit-ppq-settings.spec.ts) |
 | Wallet funding ownership | Preserve private invoice and token ports, original-mint quote identity, minimum whole-sat amounts, single-flight requests, paid/terminal QR guards, close/reopen recovery, cross-tab leadership, fee disclosures and encrypted cold launch; closing presentation must not stop wallet-wide reconciliation | [Owned component](../tests/wallet-funding-component.test.ts), [controller](../tests/wallet-funding-controller.test.ts), [invoice/recovery lifecycle](../tests/wallet-funding-service.test.ts), [background monitor](../tests/routstr-funding-monitor.test.ts), [theme/layout browser UI](../tests/playwright/wallet-funding-owned.spec.ts), [static PWA](../tests/pwa/sveltekit-wallet-funding.spec.ts) |
-| CLI Settings ownership | Preserve setup/login/testing, agent and target-isolated model choices, direct/paused/outdated/linked/embedded companion management, bounded frame messages and credential-free UI; reject obsolete connection publication and late responses while allowing accepted writes and host actions to finish after close | [Owned panel](../tests/cli-agent-settings-component.test.ts), [action controller](../tests/cli-agent-settings-controller.test.ts), [connection publication](../tests/agent-connection-owner.test.ts), [management branches](../tests/cli-companion-ui.test.ts), [headless theme/layout controls](../tests/playwright/cli-agent-settings-owned.spec.ts), [static controls and cold launch](../tests/pwa/sveltekit-cli-agent-settings.spec.ts), [encrypted model choices](../tests/pwa/sveltekit-cli-agent-models.spec.ts) |
+| CLI Settings ownership | Preserve setup/login/testing, agent and target-isolated model choices, direct/paused/outdated/linked/embedded companion management, bounded frame messages and credential-free UI; keep background catalogs on request-scoped credentials, reject obsolete connection publication and late responses, and let accepted writes and host actions finish after close | [Owned panel](../tests/cli-agent-settings-component.test.ts), [action controller](../tests/cli-agent-settings-controller.test.ts), [connection publication](../tests/agent-connection-owner.test.ts), [overlapping catalog and selection](../tests/playwright/cli-agent-capabilities.spec.ts), [management branches](../tests/cli-companion-ui.test.ts), [headless theme/layout controls](../tests/playwright/cli-agent-settings-owned.spec.ts), [static controls and cold launch](../tests/pwa/sveltekit-cli-agent-settings.spec.ts), [encrypted model choices](../tests/pwa/sveltekit-cli-agent-models.spec.ts) |
 | Import Benchmarks ownership | Preserve report/protocol identity, raw versus corrected scoring, missing-value and percentage-point metrics, bounded difference review, locked answer keys and health records; accepted runs survive closure while obsolete confirmation/progress callbacks cannot update another view; native and static cached cold launch retain device-local history | [Owned runtime](../tests/settings-import-benchmark-controller-runtime.test.ts), [existing workflows and calculation parity](../tests/playwright/import-benchmarks.spec.ts), [headless theme/layout accessibility](../tests/playwright/import-benchmarks-owned.spec.ts), [static PWA history and health-data persistence](../tests/pwa/sveltekit-import-benchmarks.spec.ts) |
 | Routstr shared actions and status | Preserve synchronous public controls, escaped attributes, first-click single dispatch and button identity through hydration; retain menu keyboard/outside behavior and reject removed/replaced/disposed owners; preserve node/mint/refund financial assertions, status typography, complete offline graph and both generated artifacts in coverage | [Action ownership](../tests/routstr-actions-component.test.ts), [status ownership](../tests/provider-status-component.test.ts), [build accounting](../tests/routstr-actions-build.test.ts), [real browser compatibility](../tests/playwright/routstr-actions-owned.spec.ts), [wallet and refund regression](../tests/playwright/cashu-wallet-browser-coverage.spec.ts), [static recovery](../tests/pwa/sveltekit-routstr-shell.spec.ts), [static node flow](../tests/pwa/sveltekit-wallet-node.spec.ts) |
 | Routstr session connection | Keep draft tokens and session receipts behind private ports; preserve consent, original-node encrypted saves/removal, journal-before-payment, early recovery receipt, single-flight and 60-second clipboard clearing; reject stale views/accounts/drafts and malformed conversion keys without redeeming again; retain encrypted sessions and uncertain payment journals through cached cold launch | [Account ownership](../tests/routstr-account-controller.test.ts), [payment boundaries](../tests/routstr-security.test.ts), [original provider callbacks](../tests/playwright/provider-coverage-batch.spec.ts), [headless theme/layout accessibility](../tests/playwright/routstr-account-owned.spec.ts), [static account and recovery](../tests/pwa/sveltekit-routstr-account.spec.ts) |
@@ -677,8 +686,23 @@ TypeScript sources, without counting both as separate modules. Function identity
 uses source ranges rather than names. Unmapped collector ranges remain visible;
 do not assign them through broad overlap to improve a result.
 
-Svelte components are inventoried once at their emitted native-browser URL.
-Their generated source maps identify bundled third-party framework functions;
+Coverage inventories Svelte compatibility entries and their emitted implementations.
+The compiler shares compatibility code within each directory and render mode.
+Existing client and HTML entry URLs retain their exports. The native startup
+entries and raw worker renderers retain their standalone request boundaries.
+The native precache follows the actual shared dependencies of its existing
+entries. The compiler transport seals the generated inventory, chunk bytes and
+maps, and the coverage reader includes every registered chunk. A forwarding
+entry receives an empty map only when its program consists of imports and
+exports within the emitted graph. The native dashboard test mounts the widget
+stack and hydrates the page, preserving existing DOM nodes through hydration
+and removing them on disposal.
+The native Chromium collector records the current document before Playwright
+navigates or reloads. V8 may release an earlier document before the final
+capture. Retain each document's emitted source fingerprint and function ranges
+in the same case receipt. Named worker observations use the exact script bytes
+from the worker's debugger target.
+Generated source maps identify bundled third-party framework functions;
 only positively mapped library functions are separated from the first-party
 function denominator. Unit collection uses a public native V8 provider and keeps these artifacts in
 the same compiled coordinate space as browser collection. Its explicit
@@ -686,6 +710,10 @@ the same compiled coordinate space as browser collection. Its explicit
 must retain its own native entry count, exact canonical source mapping, complete
 public transform witness and collected-versus-finished test membership. The
 consumer independently rederives these identities from the retained raw capture.
+The full CI reporter folds each browser receipt after checking its declared
+digest and replays the native unit witness once in the same process. It writes
+the qualification record and enforces the denominator and floors only after
+all expected evidence passes these checks.
 Large inspector source-map URLs are stored once as authenticated, content-addressed
 JSON strings in the versioned capture transport. Readers restore their exact
 logical metadata before validation and replay, accept earlier inline captures,
@@ -722,7 +750,10 @@ as well as [installation, version and offline failure paths](../tests/service-wo
 and [proved retry-chunk behavior](../tests/service-worker-retry-aliases.test.ts).
 Early activation requires direct identity replies from all live documents; missing
 replies must defer activation without reloading an old document. Verify both that
-legacy close-and-reopen boundary and normal identified-tab updates. Stylesheet
+legacy close-and-reopen boundary and normal identified-tab updates. A rejected
+first registration receives one fresh attempt while the app is uncontrolled.
+The static lifecycle regression checks that the recovered worker caches its
+shell and owns a new offline launch. Stylesheet
 ownership tests must reject unknown or missing owned bodies, retain the same rule
 for exact retry URLs, and bind startup CSS only to proven cached app navigations.
 Their inclusion must retain the same module floors; additional selected execution

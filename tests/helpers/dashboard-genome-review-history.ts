@@ -6,6 +6,7 @@ import {stripTypeScriptTypes} from 'node:module';
 import {createHash} from 'node:crypto';
 import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
+import {assertCompiledSvelteOwner} from './compiled-svelte-graph.js';
 import pins from '../fixtures/migration-review-dashboard-genome/source-pins.json' with {type:'json'};
 const archive=path.join(import.meta.dirname,'../fixtures/migration-review-dashboard-genome');
 const sha=(source:string)=>createHash('sha256').update(source).digest('hex');
@@ -73,10 +74,8 @@ export function qualifyCurrentGenomeSources():void {
   assert.equal(sha(qualified),hash,'Reviewed actual Genome composition source: '+file);
  }
  for(const owner of ['DashboardGenomeWidget','DashboardGenomeRows','DashboardGenomeLoading','DashboardMtdnaPanel']){
-  const source=readFileSync('js/components/'+owner+'.svelte','utf8');
-  const map=JSON.parse(readFileSync('js/components/'+owner+'.svelte.html.js.map','utf8')) as {sources:string[];sourcesContent:string[]};
-  const matches=map.sources.flatMap((file,index)=>file===owner+'.svelte'||file.endsWith('/'+owner+'.svelte')?[map.sourcesContent[index]]:[]);
-  assert.deepEqual(matches,[source],'Actual SDK facade owns exact authored component: '+owner);
+   const source = 'js/components/' + owner + '.svelte';
+   assertCompiledSvelteOwner(source, source + '.html.js');
  }
  const current=readFileSync('js/dashboard-widget-renderers.ts','utf8');
  assert.equal(current.includes('dashboardWidgetActionAttrs'),false,'Typed owner directly emits its two literal public Ask action attributes');

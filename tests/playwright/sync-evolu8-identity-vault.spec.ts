@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 const LEGACY_BUNDLE = '**/vendor/evolu/evolu-bundle.js';
 

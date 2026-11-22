@@ -151,3 +151,71 @@ test('Sync between notes keystrokes preserves the peer profile until explicit dr
   expect(results).toEqual({ peerPreservedAfterSync: true, draftRetained: true, conflictShown: true, peerPreservedAfterMoreTyping: true,
     explicitLabel: 'Save draft instead', reviewedPeerStillDisplayed: true, unseenPeerPreservedAfterReplacement: true, replacedNotes: 'Local third input', finalNotes: 'Normal subsequent edit', unrelatedPeerDataPreserved: true });
 });
+
+test('a Retry click hydrates its view without accepting a newly synced peer note', async ({page}) => {
+  await page.goto('/app');
+  const result = await page.evaluate(async () => {
+    const [{state}, profile, writes, cards, store] = await Promise.all([
+      import('/js/state.js'), import('/js/profile.js'), import('/js/profile-data-writes.js'),
+      import('/js/context-cards.js'), import('/js/crypto.js'),
+    ]);
+    const id = 'context-notes-unhydrated-retry';
+    const key = profile.profileStorageKey(id, 'imported');
+    const read = async () => JSON.parse((await store.encryptedGetItem(key))!) as typeof state.importedData;
+    const render = () => {
+      const host = document.createElement('div');
+      host.innerHTML = cards.renderProfileContextCards();
+      document.body.append(host);
+      return host;
+    };
+    const settled = async (host: HTMLElement, expected: string) => {
+      for (let index = 0; index < 100; index++) {
+        if (host.querySelector('.ctx-notes-status')?.textContent === expected) return;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      throw new Error('Notes did not reach ' + expected);
+    };
+    state.currentProfile = id;
+    state.importedData = profile.createDefaultProfileData();
+    state.importedData.contextNotes = 'Original saved';
+    await store.encryptedSetItem(key, JSON.stringify(state.importedData));
+    writes.rememberProfileData(state.importedData);
+    const original = render();
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<typeof put>) {
+      if (args[1] === key) {
+        IDBObjectStore.prototype.put = put;
+        throw new DOMException('Synthetic storage limit', 'QuotaExceededError');
+      }
+      return put.apply(this, args);
+    };
+    try {
+      const textarea = original.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea')!;
+      textarea.value = 'Local retry draft';
+      textarea.dispatchEvent(new InputEvent('input', {bubbles: true}));
+      await settled(original, 'Not saved — try again');
+      const peer = await read();
+      peer.contextNotes = 'Newly synced peer';
+      await store.encryptedSetItem(key, JSON.stringify(peer));
+
+      const replacement = render();
+      const retry = replacement.querySelector<HTMLButtonElement>('.ctx-notes-retry')!;
+      const label = retry.textContent;
+      writes.adoptProfileData(state.importedData, peer);
+      writes.rememberProfileData(state.importedData);
+      retry.click();
+      await settled(replacement, 'Not saved — try again');
+      const afterRetry = (await read()).contextNotes;
+      const reviewed = replacement.querySelector('.ctx-notes-conflict-saved')?.textContent;
+      retry.click();
+      await settled(replacement, 'Saved');
+      return {label, afterRetry, reviewed, afterReplacement: (await read()).contextNotes};
+    } finally {
+      IDBObjectStore.prototype.put = put;
+    }
+  });
+  expect(result).toEqual({
+    label: 'Retry save', afterRetry: 'Newly synced peer', reviewed: 'Newly synced peer',
+    afterReplacement: 'Local retry draft',
+  });
+});

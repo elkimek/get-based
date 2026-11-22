@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('labcharts-legal-acceptance', JSON.stringify({

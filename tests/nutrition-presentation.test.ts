@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { computeNutritionHistory } from '../js/nutrition-summary.js';
-import { projectNutritionGoal, projectNutritionRing, projectNutritionFuel, projectNutritionHistory, projectNutritionMealRow } from '../js/nutrition-presentation-model.js';
+import { projectNutritionGoal, projectNutritionRing, projectNutritionFuel, projectNutritionHistory, projectNutritionMealRow, type NutritionPresentationProps } from '../js/nutrition-presentation-model.js';
 import { renderHTML } from '../js/components/NutritionPresentation.svelte.html.js';
 import History, { mount, unmount, flushSync } from '../js/components/NutritionHistory.svelte.native.js';
 import type { NutritionRenderMeal } from '../js/nutrition-render.js';
+import { buildNutritionFluidView, buildNutritionTargetsView } from '../js/nutrition-entry-model.js';
+import { projectNutritionDashboard } from '../js/nutrition-dashboard-model.js';
+import { projectNutritionMealDetail } from '../js/nutrition-meal-detail-model.js';
+import { projectNutritionComparisonPicker, projectNutritionComparisonProgress } from '../js/nutrition-benchmark-model.js';
+import { projectNutritionComparisonResults } from '../js/nutrition-comparison-results-model.js';
+import { projectEditableIngredients, projectReviewChecks } from '../js/nutrition-editor-review-model.js';
+import { projectNutritionEditor, type NutritionMealModelView } from '../js/nutrition-editor-model.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
 function host(html: string) { const root = document.createElement('div'); root.innerHTML = html; return root; }
 const field = ['proteinG', 'Protein', 'g', 'proteinG', 'goal'] as const;
 function meal(id: number, day: string): NutritionRenderMeal {
@@ -70,4 +79,98 @@ describe('authored nutrition projections and compatibility HTML', () => {
     current = false; target.querySelector<HTMLButtonElement>('[data-nutrition-action="set-history-range"]')!.click(); expect(calls).toBe(1);
     document.removeEventListener('click', delegated); await unmount(instance); target.remove();
   });
+});
+
+const load = createRequire(import.meta.url);
+const recordedAt = new Date(2026, 9, 7, 11);
+const savedMeal = {...meal(1, '2026-10-07'), name: 'Saved <em>meal</em>', note: 'Private synthetic note'};
+const savedModel: NutritionMealModelView = {
+  purpose: 'Photo model', accessibleLabel: 'Meal photo analysis model',
+  selectedValue: '', automatic: true, available: false, automaticAvailable: false,
+  automaticLabel: 'Follow chat assistant · unavailable', savedChoice: '',
+  options: [], provider: 'Unavailable', price: '', status: 'Unavailable',
+};
+const benchmark = projectNutritionComparisonPicker([], [], false);
+const progress = projectNutritionComparisonProgress(1, 2, 'Compare estimates', 'running');
+const targets = {proteinG: 100, configured: true, energyKcal: 2000, widgetNutrients: ['proteinG']};
+const selectedPhoto = 'data:image/png;base64,AA';
+
+const surfaces: Array<{label: string; props: NutritionPresentationProps; text: string; focus?: string}> = [
+  {label: 'goal', props: {kind: 'goal', view: projectNutritionGoal({dailyAverages: {proteinG: 0}}, targets, field)}, text: '0 g recorded'},
+  {label: 'ring', props: {kind: 'ring', view: projectNutritionRing('Energy', 0, 2000, 'kcal')}, text: 'Energy'},
+  {label: 'unmeasured fuel', props: {kind: 'fuel', view: projectNutritionFuel(null)}, text: 'Missing values stay unknown'},
+  {label: 'meal row', props: {kind: 'meal', view: projectNutritionMealRow(savedMeal, 'history')}, text: savedMeal.name},
+  {
+    label: 'meal history',
+    props: {kind: 'history', view: projectNutritionHistory(computeNutritionHistory([savedMeal], {rangeKey: 'all'}), targets, [field], false)},
+    text: savedMeal.name,
+  },
+  {
+    label: 'meal detail',
+    props: {kind: 'detail', view: projectNutritionMealDetail(savedMeal)},
+    text: savedMeal.name,
+  },
+  {
+    label: 'targets',
+    props: {kind: 'entry', view: buildNutritionTargetsView({}, {returnTo: 'history'})},
+    text: 'No weight measurement yet',
+  },
+  {label: 'water entry', props: {kind: 'entry', view: buildNutritionFluidView(recordedAt)}, text: 'Log a drink'},
+  {
+    label: 'empty dashboard',
+    props: {kind: 'dashboard', view: projectNutritionDashboard(null, targets, recordedAt)},
+    text: 'intake',
+  },
+  {label: 'analysis tabs', props: {kind: 'editor-navigation', part: 'tabs'}, text: 'Nutrition label'},
+  {label: 'saved records', props: {kind: 'editor-navigation', part: 'records'}, text: 'Browse meals'},
+  {
+    label: 'edit a saved meal',
+    props: {kind: 'editor', view: projectNutritionEditor({editingMealId: '1', returnTo: 'history'}, '2026-10-07T11:00', false, false, savedModel)},
+    text: 'Save changes', focus: '[data-nutrition-action="return-history"]',
+  },
+  {label: 'model picker', props: {kind: 'meal-model', view: savedModel}, text: 'Unavailable'},
+  {label: 'selected photo', props: {kind: 'meal-photo', view: {urls: [selectedPhoto], kind: 'selected'}}, text: '1 view · change'},
+  {
+    label: 'cancellable progress',
+    props: {kind: 'analysis-progress', view: {label: 'Analyzing meal', detail: 'Reading selected photo', percent: 50, state: 'running', accessibleLabel: 'Meal analysis', cancel: true}},
+    text: 'Cancel analysis',
+  },
+  {
+    label: 'remaining checks', props: {kind: 'editor-feedback', view: projectReviewChecks({analysis: {warnings: ['Review <em>portion</em>']}})},
+    text: 'Review <em>portion</em>',
+  },
+  {
+    label: 'editable ingredients', props: {kind: 'editable-ingredients', rows: projectEditableIngredients([{name: 'Synthetic ingredient', quantityG: 50}])},
+    text: '',
+  },
+  {label: 'benchmark workspace', props: {kind: 'benchmark', view: benchmark}, text: 'Meal benchmark'},
+  {label: 'comparison picker', props: {kind: 'comparison-picker', view: benchmark}, text: '0 providers available'},
+  {label: 'benchmark photo', props: {kind: 'benchmark-photo', urls: [selectedPhoto]}, text: ''},
+  {label: 'benchmark progress', props: {kind: 'benchmark-status', view: progress}, text: '1 of 2 finished'},
+  {label: 'results before analysis', props: {kind: 'comparison-results', view: projectNutritionComparisonResults()}, text: ''},
+];
+
+it.each(surfaces)('dispatches the native Nutrition $label with the same visible control contract', async ({props, text, focus}) => {
+  const component = load('../js/components/NutritionPresentation.svelte.native.js') as typeof import('../js/components/NutritionPresentation.svelte.native.js');
+  const html = renderHTML(props);
+  const reference = host(html);
+  const actions = (root: HTMLElement) => [...root.querySelectorAll('[data-nutrition-action]')].map(action =>
+    [action.getAttribute('data-nutrition-action'), action.getAttribute('data-nutrition-id')],
+  );
+  await expectNativeReview(html, root => {
+    const mounted = component.mount(component.default, {target: root, props});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    if (text) expect(root.textContent).toContain(text);
+    expect(actions(root)).toEqual(actions(reference));
+    expect(root.querySelector('em, script, [onerror]')).toBeNull();
+    if (props.kind === 'meal-photo' || props.kind === 'benchmark-photo') {
+      expect(root.querySelectorAll('img')).toHaveLength(1);
+      expect(root.querySelector('img')?.getAttribute('src')).toBe(selectedPhoto);
+    }
+    if (props.kind === 'editable-ingredients') {
+      expect([...root.querySelectorAll<HTMLInputElement>('input')].map(input => input.value)).toContain('50');
+    }
+  }, focus);
 });

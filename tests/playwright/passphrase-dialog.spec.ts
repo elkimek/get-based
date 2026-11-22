@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import type { Page } from '@playwright/test';
 import type { PassphraseKind } from '../../js/passphrase-contract.js';
 
