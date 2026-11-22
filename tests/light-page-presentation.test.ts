@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {createRequire} from 'node:module';
-import {describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import { renderHTML } from '../js/components/LightPagePresentation.svelte.html.js';
 import { projectLightSessionActions, projectLightUVSafety, type LightPagePresentationProps } from '../js/light-page-presentation.js';
 import {configureLightPageView, getDashboardLightChannelsWidgetView, getLightTodayStripView, showLight} from '../js/light-page-view.js';
@@ -101,57 +101,72 @@ describe('authored Light page presentation', () => {
 
 });
 
-it.each(['first visit', 'saved session'] as const)('mounts the complete projected Light page for a %s', async scenario => {
-  const saved = scenario === 'saved session';
-  const session = {id: 'fixture-session', startedAt: Date.now() - 60_000, endedAt: Date.now(), pausedAt: 0};
-  const devices = [{brand: 'Synthetic', model: 'device'}];
-  configureLightPageView({
-    getSessions: () => saved ? [session] : [],
-    getDevices: () => saved ? devices : [],
-    cumulativeMEDToday: () => saved ? 0.7 : 0,
-    rollingChannelTotals: () => saved ? {uva: 1} : {},
-    renderDevicesSection: async () => '<p>Synthetic local device</p>',
+describe('mounted Light page ownership', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']});
   });
-  const original = document.createElement('main');
-  original.id = 'main-content';
-  document.body.append(original);
-  capture.pages.length = 0;
-  try {
-    showLight({});
-    await Promise.resolve();
-    expect(capture.pages).toHaveLength(1);
-    const {props, html} = capture.pages[0]!;
-    const originalWidgets = Array.from(original.querySelectorAll('[data-widget-id]'), widget => widget.getAttribute('data-widget-id'));
-    expect(originalWidgets).toContain('light-conditions-now');
-    expect(originalWidgets.includes('light-today')).toBe(saved);
-    await verifyNativeLightPage(props, root => {
-      const nativeWidgets = Array.from(root.querySelectorAll('[data-widget-id]'), widget => widget.getAttribute('data-widget-id'));
-      expect(nativeWidgets).toEqual(originalWidgets);
-      expect(root.querySelector('[data-light-page-action="quick-log-sun"]')).not.toBeNull();
-      expect(root.querySelector('[data-light-page-action="open-add-device"]') !== null).toBe(!saved);
-      expect(root.querySelector('[data-light-page-action="quick-log-device"]') !== null).toBe(saved);
-      expect(root.querySelector('section[aria-label="UV safety today"]') !== null).toBe(saved);
-    }, html);
-  } finally {
-    original.remove();
-    capture.pages.length = 0;
-    configureLightPageView({
-      getSessions: () => [], getDevices: () => [], cumulativeMEDToday: () => 0,
-      rollingChannelTotals: () => ({}), renderDevicesSection: async () => '',
-    });
-  }
-});
 
-it('mounts the dashboard Light strip and retains separate channel links', async () => {
-  const today = getLightTodayStripView();
-  await verifyNativeLightPage(today, root => {
-    expect(root.querySelector('[data-light-page-action="quick-log-sun"]')).not.toBeNull();
-    expect(root.querySelector('[data-light-page-action="navigate-light"]')).not.toBeNull();
+  afterEach(async () => {
+    try {
+      // Retired conditions slots release their own refresh interval when it fires.
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+    } finally {
+      vi.useRealTimers();
+    }
   });
-  const channels = getDashboardLightChannelsWidgetView(2);
-  await verifyNativeLightPage(channels, root => {
-    expect(root.textContent).toContain('sunlight and device signals kept separate');
-    expect(Array.from(root.querySelectorAll('[data-channel]'), control => control.getAttribute('data-channel')))
-      .toEqual(channels.pills.map(pill => pill.key));
+
+  it.each(['first visit', 'saved session'] as const)('mounts the complete projected Light page for a %s', async scenario => {
+    const saved = scenario === 'saved session';
+    const session = {id: 'fixture-session', startedAt: Date.now() - 60_000, endedAt: Date.now(), pausedAt: 0};
+    const devices = [{brand: 'Synthetic', model: 'device'}];
+    configureLightPageView({
+      getSessions: () => saved ? [session] : [],
+      getDevices: () => saved ? devices : [],
+      cumulativeMEDToday: () => saved ? 0.7 : 0,
+      rollingChannelTotals: () => saved ? {uva: 1} : {},
+      renderDevicesSection: async () => '<p>Synthetic local device</p>',
+    });
+    const original = document.createElement('main');
+    original.id = 'main-content';
+    document.body.append(original);
+    capture.pages.length = 0;
+    try {
+      showLight({});
+      await Promise.resolve();
+      expect(capture.pages).toHaveLength(1);
+      const {props, html} = capture.pages[0]!;
+      const originalWidgets = Array.from(original.querySelectorAll('[data-widget-id]'), widget => widget.getAttribute('data-widget-id'));
+      expect(originalWidgets).toContain('light-conditions-now');
+      expect(originalWidgets.includes('light-today')).toBe(saved);
+      await verifyNativeLightPage(props, root => {
+        const nativeWidgets = Array.from(root.querySelectorAll('[data-widget-id]'), widget => widget.getAttribute('data-widget-id'));
+        expect(nativeWidgets).toEqual(originalWidgets);
+        expect(root.querySelector('[data-light-page-action="quick-log-sun"]')).not.toBeNull();
+        expect(root.querySelector('[data-light-page-action="open-add-device"]') !== null).toBe(!saved);
+        expect(root.querySelector('[data-light-page-action="quick-log-device"]') !== null).toBe(saved);
+        expect(root.querySelector('section[aria-label="UV safety today"]') !== null).toBe(saved);
+      }, html);
+    } finally {
+      original.remove();
+      capture.pages.length = 0;
+      configureLightPageView({
+        getSessions: () => [], getDevices: () => [], cumulativeMEDToday: () => 0,
+        rollingChannelTotals: () => ({}), renderDevicesSection: async () => '',
+      });
+    }
+  });
+
+  it('mounts the dashboard Light strip and retains separate channel links', async () => {
+    const today = getLightTodayStripView();
+    await verifyNativeLightPage(today, root => {
+      expect(root.querySelector('[data-light-page-action="quick-log-sun"]')).not.toBeNull();
+      expect(root.querySelector('[data-light-page-action="navigate-light"]')).not.toBeNull();
+    });
+    const channels = getDashboardLightChannelsWidgetView(2);
+    await verifyNativeLightPage(channels, root => {
+      expect(root.textContent).toContain('sunlight and device signals kept separate');
+      expect(Array.from(root.querySelectorAll('[data-channel]'), control => control.getAttribute('data-channel')))
+        .toEqual(channels.pills.map(pill => pill.key));
+    });
   });
 });
