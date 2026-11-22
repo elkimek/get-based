@@ -3,7 +3,7 @@ import {afterEach, beforeEach, expect, it, vi} from 'vitest';
 import {configureProviderPanelRendererRuntime} from '../js/provider-panel-renderers-runtime.js';
 import {
   clearRoutstrWalletTimers, configureRoutstrWalletRuntime, hydrateRoutstrSettings,
-  refreshCashuWalletBalance, refreshRoutstrBalance, refreshWalletSeedStatus,
+  refreshCashuWalletBalance, refreshRoutstrBalance, refreshWalletSeedStatus, walletRuntime,
 } from '../js/provider-wallet-panels.js';
 
 const owner = vi.hoisted(() => ({
@@ -241,5 +241,148 @@ it('copies only the selected synthetic recovery and refuses its replacement befo
     vi.useRealTimers();
     if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard);
     else Reflect.deleteProperty(navigator, 'clipboard');
+  }
+});
+
+function openWalletMenuAction(action: 'seed' | 'backup'): void {
+  document.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="toggle-wallet-menu"]')!.click();
+  document.querySelector<HTMLButtonElement>('[data-wallet-action="' + action + '"]')!.click();
+}
+
+function withStubClipboard(writeText: (value: string) => Promise<void>): () => void {
+  const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {writeText}});
+  return () => {
+    if (original) Object.defineProperty(navigator, 'clipboard', original);
+    else Reflect.deleteProperty(navigator, 'clipboard');
+  };
+}
+
+const fixtureSeed = Array.from({length: 12}, () => 'fixture').join(' ');
+
+it('keeps the native seed masked until reveal and clears a copied seed after its panel closes', async () => {
+  const writeText = vi.fn(async (_value: string) => {});
+  const restoreClipboard = withStubClipboard(writeText);
+  const restoreSeed = vi.fn(async () => { throw new Error('Unexpected restore'); });
+  const previous = configureRoutstrWalletRuntime({...walletRuntime, cashuGetWalletMnemonic: async () => fixtureSeed, cashuRestoreWalletFromSeed: restoreSeed});
+  try {
+    hydrateRoutstrSettings();
+    openWalletMenuAction('seed');
+    await vi.waitFor(() => expect(document.getElementById('wallet-seed-display')).not.toBeNull());
+    const panel = document.querySelector<HTMLElement>('[data-wallet-seed-view]')!;
+    const words = panel.querySelector<HTMLButtonElement>('#wallet-seed-display')!;
+    expect(words.getAttribute('aria-pressed')).toBe('false');
+    expect(panel.textContent).not.toContain(fixtureSeed);
+    expect(writeText).not.toHaveBeenCalled();
+    words.click();
+    expect(words.getAttribute('aria-pressed')).toBe('true');
+    expect(words.textContent).toBe(fixtureSeed);
+    words.click();
+    expect(words.getAttribute('aria-pressed')).toBe('false');
+    expect(panel.textContent).not.toContain(fixtureSeed);
+    const draft = panel.querySelector<HTMLTextAreaElement>('textarea')!;
+    draft.value = 'fixture';
+    draft.dispatchEvent(new Event('input', {bubbles: true}));
+    panel.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="wallet-restore"]')!.click();
+    await vi.waitFor(() => expect(status('routstr-restore-status')).toBe('Enter exactly 12 words'));
+    expect(restoreSeed).not.toHaveBeenCalled();
+
+    vi.useFakeTimers();
+    [...panel.querySelectorAll('button')].find(button => button.textContent === 'Copy Seed')!.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(fixtureSeed);
+    expect(panel.textContent).toContain('Copied (60s)');
+    openWalletMenuAction('seed');
+    expect(panel.isConnected).toBe(false);
+    expect(draft.value).toBe('');
+    expect(words.textContent).not.toContain(fixtureSeed);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(writeText).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(writeText.mock.calls).toEqual([[fixtureSeed], ['']]);
+  } finally {
+    configureRoutstrWalletRuntime(previous);
+    restoreClipboard();
+    vi.useRealTimers();
+  }
+});
+
+it('requires acknowledged seed setup and keeps a failed acknowledgement reviewable', async () => {
+  seed.mockResolvedValue(false);
+  const createSeed = vi.fn(async () => ({mnemonic: fixtureSeed}));
+  const acknowledge = vi.fn(async () => { seed.mockResolvedValue(true); })
+    .mockRejectedValueOnce(new Error('Synthetic write failure'));
+  const previous = configureRoutstrWalletRuntime({
+    ...walletRuntime,
+    cashuGetWalletMnemonic: async () => (await seed()) ? fixtureSeed : null,
+    cashuGenerateWalletSeed: createSeed, acknowledgeWalletSeedBackup: acknowledge,
+  });
+  try {
+    hydrateRoutstrSettings();
+    openWalletMenuAction('seed');
+    const create = '[data-routstr-wallet-action="setup-wallet-seed"]';
+    await vi.waitFor(() => expect(document.querySelector(create)).not.toBeNull());
+    document.querySelector<HTMLButtonElement>(create)!.click();
+    await vi.waitFor(() => expect(document.querySelector('#routstr-seed-ack')).not.toBeNull());
+    const confirm = document.querySelector<HTMLButtonElement>('#routstr-seed-continue')!;
+    expect(confirm.disabled).toBe(true);
+    confirm.click();
+    expect(acknowledge).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain(fixtureSeed);
+    expect(createSeed).toHaveBeenCalledOnce();
+
+    document.querySelector<HTMLInputElement>('#routstr-seed-ack')!.click();
+    expect(confirm.disabled).toBe(false);
+    confirm.click();
+    await vi.waitFor(() => expect(status('routstr-restore-status')).toContain('Could not save the seed backup confirmation'));
+    expect(confirm.isConnected).toBe(true);
+    expect(confirm.disabled).toBe(false);
+    confirm.click();
+    await vi.waitFor(() => expect(document.getElementById('wallet-seed-display')).not.toBeNull());
+    expect(acknowledge).toHaveBeenCalledTimes(2);
+    expect(document.body.textContent).not.toContain(fixtureSeed);
+  } finally {
+    configureRoutstrWalletRuntime(previous);
+  }
+});
+
+it('retries a native wallet export and clears the synthetic token from the preview and stub clipboard', async () => {
+  const token = 'synthetic-backup-for-active-mint';
+  const exportToken = vi.fn(async (_mint: string) => token)
+    .mockRejectedValueOnce(new Error('Synthetic storage details'));
+  const writeText = vi.fn(async (_value: string) => {});
+  const restoreClipboard = withStubClipboard(writeText);
+  const previous = configureRoutstrWalletRuntime({...walletRuntime, cashuExportWallet: exportToken});
+  try {
+    hydrateRoutstrSettings();
+    openWalletMenuAction('backup');
+    const panel = document.querySelector<HTMLElement>('[data-wallet-export-view]')!;
+    const button = (text: string) => [...panel.querySelectorAll('button')].find(candidate => candidate.textContent === text)!;
+    await vi.waitFor(() => expect(panel.textContent).toContain('Funds and recovery records are preserved'));
+    expect(panel.textContent).not.toContain('Synthetic storage details');
+    expect(panel.querySelector('textarea')).toBeNull();
+    expect(writeText).not.toHaveBeenCalled();
+
+    vi.useFakeTimers();
+    button('Refresh export').click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(exportToken.mock.calls).toEqual([[mintA], [mintA]]);
+    expect(panel.querySelector('[role="status"]')?.textContent).toContain('Wallet backup copied to clipboard');
+    const preview = panel.querySelector<HTMLTextAreaElement>('#routstr-export-token');
+    expect(preview?.value).toBe(token);
+    expect(preview?.readOnly).toBe(true);
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(token);
+    button('✓ Copied (60s)').click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writeText.mock.calls).toEqual([[token], [token]]);
+    button('Close export').click();
+    expect(panel.isConnected).toBe(false);
+    expect(preview?.value).toBe('');
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(writeText.mock.calls).toEqual([[token], [token], ['']]);
+  } finally {
+    configureRoutstrWalletRuntime(previous);
+    restoreClipboard();
+    vi.useRealTimers();
   }
 });

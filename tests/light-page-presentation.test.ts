@@ -1,7 +1,30 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import {createRequire} from 'node:module';
+import {describe, expect, it, vi} from 'vitest';
 import { renderHTML } from '../js/components/LightPagePresentation.svelte.html.js';
 import { projectLightSessionActions, projectLightUVSafety, type LightPagePresentationProps } from '../js/light-page-presentation.js';
+import {configureLightPageView, getDashboardLightChannelsWidgetView, getLightTodayStripView, showLight} from '../js/light-page-view.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+type PageProps = Extract<LightPagePresentationProps, {kind: 'page'}>;
+const capture = vi.hoisted(() => ({pages: [] as Array<{props: PageProps; html: string}>}));
+vi.mock('../js/components/LightPagePresentation.svelte.html.js', async importOriginal => {
+  const actual = await importOriginal<typeof import('../js/components/LightPagePresentation.svelte.html.js')>();
+  return {renderHTML(props: LightPagePresentationProps) {
+    const html = actual.renderHTML(props);
+    if (props.kind === 'page') capture.pages.push({props, html});
+    return html;
+  }};
+});
+const load = createRequire(import.meta.url);
+async function verifyNativeLightPage(props: LightPagePresentationProps, verify: (root: HTMLElement) => void, html = renderHTML(props)) {
+  const native = load('../js/components/LightPagePresentation.svelte.native.js') as typeof import('../js/components/LightPagePresentation.svelte.native.js');
+  await expectNativeReview(html, root => {
+    const mounted = native.mount(native.default, {target: root, props});
+    native.flushSync();
+    return () => native.unmount(mounted);
+  }, verify);
+}
 function host(props: LightPagePresentationProps) { const element = document.createElement('div'); element.innerHTML = renderHTML(props); return element; }
 describe('authored Light page presentation', () => {
   for (const sunActive of [false, true]) for (const deviceActive of [false, true]) for (const hasDevices of [false, true]) {
@@ -76,4 +99,59 @@ describe('authored Light page presentation', () => {
     expect(button.querySelectorAll('svg[aria-hidden="true"] rect')).toHaveLength(1);
   });
 
+});
+
+it.each(['first visit', 'saved session'] as const)('mounts the complete projected Light page for a %s', async scenario => {
+  const saved = scenario === 'saved session';
+  const session = {id: 'fixture-session', startedAt: Date.now() - 60_000, endedAt: Date.now(), pausedAt: 0};
+  const devices = [{brand: 'Synthetic', model: 'device'}];
+  configureLightPageView({
+    getSessions: () => saved ? [session] : [],
+    getDevices: () => saved ? devices : [],
+    cumulativeMEDToday: () => saved ? 0.7 : 0,
+    rollingChannelTotals: () => saved ? {uva: 1} : {},
+    renderDevicesSection: async () => '<p>Synthetic local device</p>',
+  });
+  const original = document.createElement('main');
+  original.id = 'main-content';
+  document.body.append(original);
+  capture.pages.length = 0;
+  try {
+    showLight({});
+    await Promise.resolve();
+    expect(capture.pages).toHaveLength(1);
+    const {props, html} = capture.pages[0]!;
+    const originalWidgets = Array.from(original.querySelectorAll('[data-widget-id]'), widget => widget.getAttribute('data-widget-id'));
+    expect(originalWidgets).toContain('light-conditions-now');
+    expect(originalWidgets.includes('light-today')).toBe(saved);
+    await verifyNativeLightPage(props, root => {
+      const nativeWidgets = Array.from(root.querySelectorAll('[data-widget-id]'), widget => widget.getAttribute('data-widget-id'));
+      expect(nativeWidgets).toEqual(originalWidgets);
+      expect(root.querySelector('[data-light-page-action="quick-log-sun"]')).not.toBeNull();
+      expect(root.querySelector('[data-light-page-action="open-add-device"]') !== null).toBe(!saved);
+      expect(root.querySelector('[data-light-page-action="quick-log-device"]') !== null).toBe(saved);
+      expect(root.querySelector('section[aria-label="UV safety today"]') !== null).toBe(saved);
+    }, html);
+  } finally {
+    original.remove();
+    capture.pages.length = 0;
+    configureLightPageView({
+      getSessions: () => [], getDevices: () => [], cumulativeMEDToday: () => 0,
+      rollingChannelTotals: () => ({}), renderDevicesSection: async () => '',
+    });
+  }
+});
+
+it('mounts the dashboard Light strip and retains separate channel links', async () => {
+  const today = getLightTodayStripView();
+  await verifyNativeLightPage(today, root => {
+    expect(root.querySelector('[data-light-page-action="quick-log-sun"]')).not.toBeNull();
+    expect(root.querySelector('[data-light-page-action="navigate-light"]')).not.toBeNull();
+  });
+  const channels = getDashboardLightChannelsWidgetView(2);
+  await verifyNativeLightPage(channels, root => {
+    expect(root.textContent).toContain('sunlight and device signals kept separate');
+    expect(Array.from(root.querySelectorAll('[data-channel]'), control => control.getAttribute('data-channel')))
+      .toEqual(channels.pills.map(pill => pill.key));
+  });
 });
