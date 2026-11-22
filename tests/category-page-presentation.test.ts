@@ -3,8 +3,30 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {runInNewContext} from 'node:vm';
-import {stripTypeScriptTypes} from 'node:module';
+import {createRequire, stripTypeScriptTypes} from 'node:module';
 import {categoryNativeDOM,categoryRawDOM} from './helpers/category-genuine-native-dom.js';
+import type {CategoryPageBodyView, CategoryPageView} from '../js/category-page-presentation.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+const pageReceipts = vi.hoisted(() => ({
+  chrome: [] as Array<{view: CategoryPageView; html: string}>,
+  body: [] as Array<{view: CategoryPageBodyView; html: string}>,
+}));
+vi.mock('../js/category-page-presentation.js', async importOriginal => {
+  const actual = await importOriginal<typeof import('../js/category-page-presentation.js')>();
+  return {
+    ...actual,
+    renderCategoryPagePresentation(view: CategoryPageView) {
+      const html = actual.renderCategoryPagePresentation(view);
+      pageReceipts.chrome.push({view, html});
+      return html;
+    },
+    renderCategoryPageBody(view: CategoryPageBodyView) {
+      const html = actual.renderCategoryPageBody(view);
+      pageReceipts.body.push({view, html});
+      return html;
+    },
+  };
+});
 const runtime=vi.hoisted(()=>({trace:[] as unknown[],data:{} as unknown,filtered:{} as unknown,state:{} as Record<string,unknown>,throwAt:'',glyphValue:null as unknown}));
 vi.mock('../js/state.js',()=>({state:runtime.state}));
 vi.mock('../js/data.js',async()=>{const range=await import('../js/lab-date-range-presentation.js'),child=await import('../js/components/LabDateRange.svelte.html.js');return ({
@@ -141,4 +163,45 @@ for(const scenario of scenarios)it((scenario.name==='switch-other'?'rejects an u
  if(scenario.name==='delegated-click-rename')expect(before.trace).toContainEqual(['rename','chemistry']);
  if(scenario.name==='delegated-Enter-switch')expect(before.event).toMatchObject({defaultPrevented:true,listenerCounts:{click:1,keydown:1}});
 });
-afterEach(()=>{document.body.replaceChildren();runtime.trace=[];});
+afterEach(()=>{document.body.replaceChildren();runtime.trace=[];pageReceipts.chrome.length=0;pageReceipts.body.length=0;});
+
+const load = createRequire(import.meta.url);
+const renderedViews = new Map([
+  ['charts-populated', 'charts'], ['charts-empty', 'empty-category'],
+  ['charts-fatty', 'fatty'], ['outside-3m', 'outside-range'],
+]);
+it.each(scenarios.filter(scenario => renderedViews.has(scenario.name)))('mounts full projected Category chrome for $name', async scenario => {
+  const result = capture(candidate, scenario);
+  expect(result.error).toBeNull();
+  expect(pageReceipts.chrome).toHaveLength(1);
+  const observed = pageReceipts.chrome[0];
+  expect(observed?.view.body.kind).toBe(renderedViews.get(scenario.name));
+  const native = load('../js/components/CategoryPageChrome.svelte.native.js') as typeof import('../js/components/CategoryPageChrome.svelte.native.js');
+  const {view, html} = observed!;
+  await expectNativeReview(html, root => {
+    const owned = native.mount(native.default, {target: root, props: {view}});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    expect(root.querySelector('#view-content')).not.toBeNull();
+    expect(root.querySelector('h2')?.textContent).toContain(view.label);
+  });
+});
+
+const switchedViews = new Map([['saved-table', 'table'], ['saved-heatmap', 'heatmap'], ['switch-empty', 'empty-charts']]);
+it.each(scenarios.filter(scenario => switchedViews.has(scenario.name)))('mounts the actual replacement Category body for $name', async scenario => {
+  const result = capture(candidate, scenario);
+  expect(result.error).toBeNull();
+  expect(pageReceipts.body).toHaveLength(1);
+  const {view, html} = pageReceipts.body[0]!;
+  expect(view.kind).toBe(switchedViews.get(scenario.name));
+  const native = load('../js/components/CategoryPageViewBody.svelte.native.js') as typeof import('../js/components/CategoryPageViewBody.svelte.native.js');
+  await expectNativeReview(html, root => {
+    const owned = native.mount(native.default, {target: root, props: {view}});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    if (view.kind === 'empty-charts') expect(root.textContent).toContain('No Data Available');
+    else expect(root.querySelectorAll('tbody tr').length).toBeGreaterThan(0);
+  });
+});
