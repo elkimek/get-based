@@ -386,3 +386,38 @@ it('retries a native wallet export and clears the synthetic token from the previ
     vi.useRealTimers();
   }
 });
+
+it('clears the withdrawal draft when switching rails and rejects invalid drafts before any transfer', async () => {
+  const previous = configureRoutstrWalletRuntime({
+    ...walletRuntime, cashuCreateWithdrawQuote: transfer, cashuSendAsToken: transfer, cashuWithdrawToAddress: transfer,
+  });
+  try {
+    hydrateRoutstrSettings();
+    document.querySelector<HTMLButtonElement>('#routstr-wallet-actions [data-wallet-action="withdraw"]')!.click();
+    const panel = document.querySelector<HTMLElement>('[data-wallet-withdraw-view]')!;
+    const action = (id: string) => panel.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="' + id + '"]')!;
+    await vi.waitFor(() => expect(panel.getAttribute('aria-busy')).toBe('false'));
+
+    action('withdraw-lightning').click();
+    await vi.waitFor(() => expect(action('withdraw-quote')?.disabled).toBe(false));
+    const original = panel.querySelector<HTMLInputElement>('#routstr-withdraw-input')!;
+    original.value = 'Synthetic invalid destination';
+    original.dispatchEvent(new Event('input', {bubbles: true}));
+    action('withdraw-quote').click();
+    await vi.waitFor(() => expect(panel.textContent).toContain('Enter a Lightning invoice (lnbc…) or address'));
+
+    action('withdraw-token').click();
+    await vi.waitFor(() => expect(action('send-token-input')?.disabled).toBe(false));
+    expect(original.value).toBe('');
+    expect(original.isConnected).toBe(false);
+    action('send-token-input').click();
+    await vi.waitFor(() => expect(panel.textContent).toContain('Enter a valid whole amount'));
+    expect(transfer).not.toHaveBeenCalled();
+
+    const close = [...panel.querySelectorAll('button')].find(button => button.textContent === 'Close withdrawal')!;
+    close.click();
+    expect(panel.isConnected).toBe(false);
+  } finally {
+    configureRoutstrWalletRuntime(previous);
+  }
+});
