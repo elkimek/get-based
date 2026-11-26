@@ -217,7 +217,13 @@ export async function callPpqPrivateAPI(opts: ProviderRequestOptions) {
 export async function callPpqAPI(opts: ProviderRequestOptions) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
-  const modelId = String(opts?.modelOverride || getPpqModel());
+  const modelOverride = String(opts?.modelOverride || '').trim();
+  const savedModel = getPpqModel();
+  const modelId = modelOverride || savedModel;
+  const privateRequested = getPpqPrivateMode() || isPpqPrivateModel(savedModel) || isPpqPrivateModel(modelId);
+  if (privateRequested && !isPpqPrivateModel(modelId)) {
+    throw new Error('PPQ Private TEE is enabled, so non-private models are blocked. Choose a PPQ Private TEE model or turn off Private mode in Settings.');
+  }
   if (isPpqPrivateModel(modelId)) return callPpqPrivateAPI({ ...opts, webSearch: false });
   const extraBody = opts.webSearch ? { plugins: [{ id: 'web' }] } : {};
   return callOpenAICompatibleAPI(

@@ -136,7 +136,8 @@ function processAppleCycleRecord(attrsRaw: string, byKey: Map<string, CycleImpor
   } else if (attrs.type === 'HKCategoryTypeIdentifierIntermenstrualBleeding') {
     addObservation(byKey, 'apple_health', date, { bleeding: { flow: 'spotting', excluded: true, intermenstrual: true } });
   } else if (attrs.type === 'HKCategoryTypeIdentifierOvulationTestResult') {
-    addObservation(byKey, 'apple_health', date, { ovulationTest: APPLE_OVULATION[attrs.value!] || String(attrs.value || '').replace('HKCategoryValueOvulationTestResult', '').toLowerCase() });
+    const mapped = Object.prototype.hasOwnProperty.call(APPLE_OVULATION, attrs.value!) ? APPLE_OVULATION[attrs.value!] : undefined;
+    addObservation(byKey, 'apple_health', date, { ovulationTest: mapped || String(attrs.value || '').replace('HKCategoryValueOvulationTestResult', '').toLowerCase() });
   } else if (attrs.type === 'HKCategoryTypeIdentifierCervicalMucusQuality') {
     addObservation(byKey, 'apple_health', date, { cervicalMucus: { quality: String(attrs.value || '').replace('HKCategoryValueCervicalMucusQuality', '').toLowerCase() } });
   }
@@ -195,6 +196,14 @@ export async function parseAppleHealthCycleBlob(blob: Blob, fileName = 'apple-he
       flushLine(buffer.slice(0, nlIdx));
       buffer = buffer.slice(nlIdx + 1);
     }
+    if (buffer.length > 65_536) {
+      const lastClose = buffer.lastIndexOf('>');
+      if (lastClose >= 0) {
+        flushLine(buffer.slice(0, lastClose + 1));
+        buffer = buffer.slice(lastClose + 1);
+      }
+      if (buffer.length > 65_536) buffer = '';
+    }
     if (totalSize && onProgress) onProgress({ stage: 'parsing-cycle', pct: Math.round((bytesRead / totalSize) * 35 + 40) });
   }
   if (buffer.length) flushLine(buffer);
@@ -204,6 +213,9 @@ export async function parseAppleHealthCycleBlob(blob: Blob, fileName = 'apple-he
 export function isAppleHealthCycleFile(file: Parameters<typeof cycleFileKind>[0]) {
   return cycleFileKind(file) === 'xml';
 }
+
+const MAX_CYCLE_ZIP_ENTRIES = 100;
+const MAX_CYCLE_TEXT_CHARS = 20 * 1024 * 1024;
 
 export const CYCLE_IMPORT_ADAPTERS = Object.freeze<CycleImportAdapter[]>([
   {
@@ -223,8 +235,14 @@ export const CYCLE_IMPORT_ADAPTERS = Object.freeze<CycleImportAdapter[]>([
       : context.kind === 'zip' && clueArchiveEntries(context).length > 0,
     parse: async context => {
       if (context.kind === 'json') return parseClueCycleJson(context.text, context.file.name || 'clue-data.json');
-      for (const entry of clueArchiveEntries(context)) {
-        const parsed = parseClueCycleJson(await entry.async('text'), context.file.name || entry.name);
+      const entries = clueArchiveEntries(context);
+      if (entries.length > MAX_CYCLE_ZIP_ENTRIES) throw new Error('Clue archive contains too many files.');
+      let totalChars = 0;
+      for (const entry of entries) {
+        const text = await entry.async('text');
+        totalChars += text.length;
+        if (totalChars > MAX_CYCLE_TEXT_CHARS) throw new Error('Clue archive exceeds the maximum supported size.');
+        const parsed = parseClueCycleJson(text, context.file.name || entry.name);
         if (parsed) return parsed;
       }
       return null;
@@ -238,9 +256,15 @@ export const CYCLE_IMPORT_ADAPTERS = Object.freeze<CycleImportAdapter[]>([
       : context.kind === 'zip' && naturalCyclesArchiveEntries(context).length > 0,
     parse: async context => {
       if (context.kind === 'csv' || context.kind === 'text') return parseNaturalCyclesCsv(context.text!, context.file.name || 'tracking_data.csv');
+      const entries = naturalCyclesArchiveEntries(context);
+      if (entries.length > MAX_CYCLE_ZIP_ENTRIES) throw new Error('Natural Cycles archive contains too many files.');
       const files: Array<{ name: string | undefined; text: string }> = [];
-      for (const entry of naturalCyclesArchiveEntries(context)) {
-        files.push({ name: entry.name, text: await entry.async('text') });
+      let totalChars = 0;
+      for (const entry of entries) {
+        const text = await entry.async('text');
+        totalChars += text.length;
+        if (totalChars > MAX_CYCLE_TEXT_CHARS) throw new Error('Natural Cycles archive exceeds the maximum supported size.');
+        files.push({ name: entry.name, text });
       }
       return parseNaturalCyclesCsvBundle(files, context.file.name || 'natural-cycles-export.zip');
     },

@@ -37,11 +37,25 @@ export function createCompanionRequestHandler(
         if (Array.isArray(value)) headers.set(name, value.join(', '));
         else if (typeof value === 'string') headers.set(name, value);
       }
+      const currentPort = getPort();
+      const rawHost = String(headers.get('host') || '').trim().toLowerCase();
+      if (rawHost && rawHost !== `${host}:${currentPort}` && rawHost !== `localhost:${currentPort}` && rawHost !== `[::1]:${currentPort}`) {
+        outgoing.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+        outgoing.end('{"error":"host_not_allowed"}');
+        incoming.destroy();
+        return;
+      }
       const chunks: Buffer[] = [];
       let receivedBytes = 0;
-      const requestLimit = String(incoming.url || '').split('?')[0] === '/v1/uploads'
-        ? maxImageRequestBytes
-        : maxRequestBytes;
+      const pathname = String(incoming.url || '').split('?')[0];
+      const isUpload = pathname === '/v1/uploads';
+      if (isUpload && incoming.method === 'POST' && !/^Bearer\s+\S+/i.test(String(headers.get('authorization') || ''))) {
+        outgoing.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+        outgoing.end('{"error":"unauthorized"}');
+        incoming.destroy();
+        return;
+      }
+      const requestLimit = isUpload ? maxImageRequestBytes : maxRequestBytes;
       if (incoming.method !== 'GET' && incoming.method !== 'HEAD') {
         const declaredBytes = Number(incoming.headers['content-length'] || 0);
         if (Number.isFinite(declaredBytes) && declaredBytes > requestLimit) {

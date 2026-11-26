@@ -30,30 +30,34 @@ type OAuthFormConstructor = new (values: Record<string, unknown>) => URLSearchPa
 
 export function createOAuthTokenForm(
   input: OAuthTokenFields, grant: OAuthGrant, spec: OAuthTokenFormSpec,
-): ProxyValidation<{ form: URLSearchParams; clientId: unknown }> {
+): ProxyValidation<{ form: URLSearchParams; clientId: string }> {
   let values: Record<string, unknown>;
-  let clientId: unknown;
+  let clientId: string;
   let fields: readonly OAuthFormField[];
+  const asCleanString = (v: unknown) => (typeof v === 'string' && v.trim() && !/[\r\n]/.test(v)) ? v : '';
   if (grant === 'exchange') {
-    const { code, redirect_uri, client_id } = input;
-    if (!code || !redirect_uri || !client_id) {
+    const code = asCleanString(input?.code);
+    const redirect_uri = asCleanString(input?.redirect_uri);
+    const rawClientId = asCleanString(input?.client_id);
+    if (!code || !redirect_uri || !rawClientId) {
       return { ok: false, error: `${spec.provider}_token_exchange requires code, redirect_uri, client_id` };
     }
-    if (spec.clientId !== undefined && client_id !== spec.clientId) {
+    if (spec.clientId !== undefined && rawClientId !== spec.clientId) {
       return { ok: false, error: spec.clientMismatch };
     }
-    clientId = spec.clientId ?? client_id;
+    clientId = spec.clientId ?? rawClientId;
     values = { grant_type: 'authorization_code', code, redirect_uri, client_id: clientId, client_secret: spec.secret };
     fields = spec.exchangeFields || ['grant_type', 'code', 'redirect_uri', 'client_id', 'client_secret'];
   } else {
-    const { refresh_token, client_id } = input;
-    if (!refresh_token || !client_id) {
+    const refresh_token = asCleanString(input?.refresh_token);
+    const rawClientId = asCleanString(input?.client_id);
+    if (!refresh_token || !rawClientId) {
       return { ok: false, error: `${spec.provider}_token_refresh requires refresh_token, client_id` };
     }
-    if (spec.clientId !== undefined && client_id !== spec.clientId) {
+    if (spec.clientId !== undefined && rawClientId !== spec.clientId) {
       return { ok: false, error: spec.clientMismatch };
     }
-    clientId = spec.clientId ?? client_id;
+    clientId = spec.clientId ?? rawClientId;
     values = { grant_type: 'refresh_token', refresh_token, client_id: clientId, client_secret: spec.secret };
     fields = spec.refreshFields || ['grant_type', 'refresh_token', 'client_id', 'client_secret'];
   }

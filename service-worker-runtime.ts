@@ -248,6 +248,10 @@ function installServiceWorkerRuntime({
 
   function cacheResponse(request: RequestInfo | URL, response: Response) {
     if (response.status === 206 || !response.ok) return Promise.resolve();
+    const reqHeaders = typeof request === 'object' && request !== null && 'headers' in request ? (request as Request).headers : null;
+    if (reqHeaders && typeof reqHeaders.has === 'function' && reqHeaders.has('authorization')) return Promise.resolve();
+    const cacheControl = response.headers?.get?.('cache-control') || '';
+    if (/\bprivate\b/i.test(cacheControl)) return Promise.resolve();
     const clone = response.clone();
     return resolveCacheName()
       .then((name) => caches.open(name))

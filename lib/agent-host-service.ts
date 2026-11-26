@@ -397,6 +397,13 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
       const uploadId = randomUUID();
       const path = join(workspaceRoot, `image-${uploadId}.${extension}`);
       await writeFile(path, bytes, { mode: 0o600, flag: 'wx' });
+      while (pendingUploads.size >= 24) {
+        const oldestKey = pendingUploads.keys().next().value;
+        if (!oldestKey) break;
+        const oldest = pendingUploads.get(oldestKey);
+        pendingUploads.delete(oldestKey);
+        if (oldest) { clearTimeout(oldest.timer); cleanupUploads([oldest]); }
+      }
       const timer = setTimeout(() => {
         const expired = pendingUploads.get(uploadId);
         if (!expired) return;
@@ -468,8 +475,16 @@ export function createAgentHostService(options: AgentHostServiceOptions) {
     }
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
     if (!prompt || prompt.length > AGENT_HOST_MAX_PROMPT_CHARS) return jsonResponse({ error: 'invalid_prompt' }, 400, cors);
-    const model = typeof body.model === 'string' && body.model.trim() ? body.model.trim().slice(0, 160) : null;
-    const effort = typeof body.effort === 'string' && body.effort.trim() ? body.effort.trim().slice(0, 40) : null;
+    const rawModel = typeof body.model === 'string' ? body.model.trim() : '';
+    const rawEffort = typeof body.effort === 'string' ? body.effort.trim() : '';
+    if (rawModel && (rawModel.length > 160 || rawModel.startsWith('-') || /[\s\0-\x1f\x7f]/.test(rawModel))) {
+      return jsonResponse({ error: 'invalid_model' }, 400, cors);
+    }
+    if (rawEffort && (rawEffort.length > 40 || rawEffort.startsWith('-') || !/^[A-Za-z0-9._-]+$/.test(rawEffort))) {
+      return jsonResponse({ error: 'invalid_effort' }, 400, cors);
+    }
+    const model = rawModel || null;
+    const effort = rawEffort || null;
     const requestedInstructions = typeof body.instructions === 'string'
       ? body.instructions.trim().slice(0, MAX_REQUESTED_INSTRUCTIONS_CHARS)
       : '';

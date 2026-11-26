@@ -17,8 +17,10 @@ import type { ScoreOptions } from './biology-score-types.js';
 // synchronously and restore both settings before any render, write or await.
 export function computeBiologyScoreView(data: BiologyData, view: unknown, options: ScoreOptions = {}) {
   const previous = { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter };
+  const next = view && typeof view === 'object' ? view as { rangeMode?: typeof state.rangeMode; dateRangeFilter?: typeof state.dateRangeFilter } : null;
   try {
-    Object.assign(state, view);
+    if (next && 'rangeMode' in next) state.rangeMode = next.rangeMode!;
+    if (next && 'dateRangeFilter' in next) state.dateRangeFilter = next.dateRangeFilter!;
     return computeBiologyScores((filterDatesByRange as (data: BiologyData, options: Parameters<typeof filterDatesByRange>[1]) => BiologyData)(data, { fallbackToAll: false }), options);
   } finally { Object.assign(state, previous); }
 }

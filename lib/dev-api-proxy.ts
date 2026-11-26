@@ -13,6 +13,11 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from './proxy-policy.js';
+import {
+  capReadableStream,
+  fetchWithValidatedRedirects,
+  readResponseTextWithCap,
+} from './proxy-upstream.js';
 
 type DevCorsHeaders = (req: IncomingMessage) => Record<string, string>;
 interface DevProxyOptions {
@@ -419,13 +424,14 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
 
       if (operation === 'google-health-exchange' || operation === 'google-health-refresh') {
         const secret = env.GOOGLE_HEALTH_CLIENT_SECRET;
-        const clientId = env.GOOGLE_HEALTH_CLIENT_ID;
+        const clientId = typeof env.GOOGLE_HEALTH_CLIENT_ID === 'string' ? env.GOOGLE_HEALTH_CLIENT_ID.trim() : '';
         if (env.GOOGLE_HEALTH_ENABLED !== 'true' || !secret || !clientId) {
           writeJson(req, res, corsHeaders, 503, { error: 'Google Health is disabled — set GOOGLE_HEALTH_ENABLED=true and configure both Google OAuth credentials' });
           return;
         }
         relayDevOAuthToken(payload, operation === 'google-health-exchange' ? 'exchange' : 'refresh', req, res, corsHeaders, {
           provider: 'google_health', secret,
+          clientId, clientMismatch: 'Google Health client_id does not match this deployment',
           endpoint: 'https://oauth2.googleapis.com/token',
           errorPrefix: 'Google Health token endpoint unreachable',
         });
@@ -523,7 +529,10 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
             res.end(Buffer.concat(chunks, bytesPiped));
           });
           camsRes.on('error', () => fail('CAMS upstream response failed'));
+          camsRes.on('aborted', () => fail('CAMS upstream response aborted'));
+          camsRes.on('close', () => { if (!finished) fail('CAMS upstream connection closed prematurely'); });
         });
+        req.once('aborted', () => camsReq.destroy());
         boundUpstreamTimeout(camsReq, req, res, corsHeaders);
         camsReq.on('error', error => {
           writeJson(req, res, corsHeaders, 502, { error: `CAMS upstream unreachable: ${errorMessage(error)}` });
@@ -542,8 +551,6 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
         writeJson(req, res, corsHeaders, 403, '{"error":"URL not allowed"}');
         return;
       }
-      const parsedUrl = new URL(targetUrl);
-      const transport = parsedUrl.protocol === 'https:' ? https : http;
       const fetchMethod = normalizeProxyMethod(upstreamMethod);
       if (!fetchMethod) {
         writeJson(req, res, corsHeaders, 405, '{"error":"Proxy method not allowed"}');
@@ -557,17 +564,58 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
       const requestHeaders = { ...safeHeaders.headers };
       const hasContentType = Object.keys(requestHeaders).some(key => key.toLowerCase() === 'content-type');
       if (fetchMethod !== 'GET' && !hasContentType) requestHeaders['Content-Type'] = 'application/json';
-      const proxyReq = transport.request(targetUrl, { method: fetchMethod, headers: requestHeaders }, proxyRes => {
-        _sendCappedProxyResponse(req, res, proxyRes, corsHeaders);
-      });
-      boundUpstreamTimeout(proxyReq, req, res, corsHeaders);
-      proxyReq.on('error', error => {
-        writeJson(req, res, corsHeaders, 502, { error: `Upstream error: ${errorMessage(error)}` });
-      });
+      const abortController = new AbortController();
+      req.once('aborted', () => abortController.abort());
+      res.once('close', () => { if (!res.writableEnded) abortController.abort(); });
+      const fetchOpts: { method: string; headers: Record<string, string>; body?: string } = {
+        method: fetchMethod,
+        headers: requestHeaders,
+      };
       if (fetchMethod !== 'GET' && forwardBody) {
-        proxyReq.write(typeof forwardBody === 'string' ? forwardBody : JSON.stringify(forwardBody));
+        fetchOpts.body = typeof forwardBody === 'string' ? forwardBody : JSON.stringify(forwardBody);
       }
-      proxyReq.end();
+      void (async () => {
+        try {
+          const upstreamRes = await fetchWithValidatedRedirects(targetUrl, fetchOpts, { signal: abortController.signal });
+          const contentType = upstreamRes.headers.get('content-type') || 'application/json';
+          const isStream = contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson');
+          const baseHeaders = {
+            ...corsHeaders(req),
+            'Content-Type': contentType,
+            'X-Content-Type-Options': 'nosniff',
+            'Content-Security-Policy': "default-src 'none'; sandbox",
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+          };
+          if (!isStream) {
+            const responseBody = await readResponseTextWithCap(upstreamRes, PROXY_MAX_RESPONSE_BYTES);
+            if (!res.headersSent) res.writeHead(upstreamRes.status, baseHeaders);
+            res.end(responseBody);
+            return;
+          }
+          if (!res.headersSent) {
+            res.writeHead(upstreamRes.status, { ...baseHeaders, 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+          }
+          const capped = capReadableStream(upstreamRes.body, PROXY_MAX_RESPONSE_BYTES);
+          if (capped) {
+            const reader = capped.getReader();
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (!res.writableEnded) res.write(value);
+              }
+            } finally {
+              try { await reader.cancel(); } catch {}
+            }
+          }
+          if (!res.writableEnded) res.end();
+        } catch (error) {
+          const code = (error as { code?: unknown } | null)?.code;
+          const status = code === 'PROXY_DNS_BLOCKED' ? 403 : code === 'PROXY_UPSTREAM_TIMEOUT' ? 504 : 502;
+          writeJson(req, res, corsHeaders, status, { error: `Upstream error: ${errorMessage(error)}` });
+        }
+      })();
     } catch (error) {
       writeJson(req, res, corsHeaders, 400, { error: `Invalid JSON: ${errorMessage(error)}` });
     }

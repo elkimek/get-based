@@ -270,4 +270,10 @@ describe('private native conversation source links', () => {
     const root = renderIntoDom(`[Source](${url})`), link = root.querySelector('a')!;
     expect(link.dataset.chatMessageAction).toBeUndefined(); expect(link.getAttribute('href')).toBe('#'); expect(root.querySelector('[onclick]')).toBeNull();
   });
+
+  it('preserves asterisks in Markdown link URLs without corrupting href with emphasis tags', () => {
+    const root = renderIntoDom('[**Lab** guide](https://example.com/a*b*c?x=**1**)'), link = root.querySelector('a')!;
+    expect(link.getAttribute('href')).toBe('https://example.com/a*b*c?x=**1**');
+    expect(link.querySelector('strong')?.textContent).toBe('Lab');
+  });
 });

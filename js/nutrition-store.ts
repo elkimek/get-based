@@ -1,13 +1,13 @@
-import { readNutritionMealRows } from './nutrition-store-reads.js';
+import { readNutritionMealRows, unwrapNutritionEnvelope, wrapNutritionEnvelope } from './nutrition-store-reads.js';
 import { queueNutritionOperation } from './nutrition-operation-lock.js';
 import type { ProfileData } from '../types/app-state.js';
 import type { StoredNutritionMeal } from './nutrition-sync-sanitize.js';
-import type { DeviceLocalEnvelope } from './wearable-storage-types.js';
+import type { DeviceLocalEnvelope, PassphraseEnvelope } from './wearable-storage-types.js';
 
 // Storage readers retain opaque extensions; these fields are not validation results.
 type MealReader = Record<string, unknown> & { id?: unknown; eatenAt?: unknown; updatedAt?: unknown; createdAt?: unknown };
 type NormalizedMeal = MealReader & { id: string; eatenAt: string; updatedAt: string };
-type MealEnvelope = Partial<DeviceLocalEnvelope> | null | undefined;
+type MealEnvelope = Partial<DeviceLocalEnvelope> | PassphraseEnvelope | null | undefined;
 type StoredMealRow = MealReader & { _devicePayload?: MealEnvelope };
 type NutritionSurface = Parameters<typeof mergeNutritionOperationSurface>[1];
 type NutritionProfile = Omit<NutritionSurface, 'nutritionMeals'> & Partial<Pick<ProfileData, 'nutritionMeals'>> & {
@@ -236,10 +236,11 @@ async function encryptPayload(profileId: unknown, value: unknown) {
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
   const plaintext = encoder.encode(JSON.stringify(value));
   const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
-  return { version: 1, iv, ciphertext };
+  return wrapNutritionEnvelope({ version: 1, iv, ciphertext });
 }
 
-async function decryptPayload(profileId: unknown, envelope: MealEnvelope, readKey?: () => Promise<unknown>): Promise<Record<string, unknown> | null> {
+async function decryptPayload(profileId: unknown, rawEnvelope: MealEnvelope, readKey?: () => Promise<unknown>): Promise<Record<string, unknown> | null> {
+  const envelope = await unwrapNutritionEnvelope(rawEnvelope);
   if (envelope?.version !== 1 || !envelope.iv || !envelope.ciphertext) return null;
   const key = await (readKey ? readKey() : readMeta(profileId, DEVICE_KEY_META));
   if (!isAesKey(key)) return null;

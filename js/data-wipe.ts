@@ -144,7 +144,12 @@ export async function eraseAllLocalAppData() {
   const profileIds = collectKnownProfileIds(errors);
   const localKeys = collectStorageKeys(
     globalThis.localStorage,
-    key => key.startsWith('labcharts') || key === SHARE_MANAGEMENT_KEY || key.startsWith(SHARE_MANAGEMENT_KEY + ':'),
+    key => key.startsWith('labcharts')
+      || key === SHARE_MANAGEMENT_KEY
+      || key.startsWith(SHARE_MANAGEMENT_KEY + ':')
+      || key.startsWith('meteo:')
+      || key.startsWith('meteo-cache-')
+      || key === 'cashu-fee-proofs',
     'local storage',
     errors,
   );

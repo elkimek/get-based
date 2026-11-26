@@ -152,6 +152,32 @@ function splitHermesModel(model: string) {
     : { provider: '', model };
 }
 
+const MAX_HERMES_JSON_BYTES = 1_000_000;
+const MAX_HERMES_TRACKED_SESSIONS = 128;
+
+async function readBoundedJson(response: Response, maxBytes = MAX_HERMES_JSON_BYTES): Promise<unknown> {
+  const declared = Number(response.headers?.get?.('content-length') || 0);
+  if (Number.isFinite(declared) && declared > maxBytes) throw new Error('Hermes gateway response exceeded size cap.');
+  if (!response.body?.getReader) {
+    const text = await response.text();
+    if (Buffer.byteLength(text, 'utf8') > maxBytes) throw new Error('Hermes gateway response exceeded size cap.');
+    return JSON.parse(text);
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) throw new Error('Hermes gateway response exceeded size cap.');
+      chunks.push(value);
+    }
+  } finally { try { await reader.cancel(); } catch {} }
+  return JSON.parse(Buffer.concat(chunks, total).toString('utf8'));
+}
+
 export class HermesGatewayClient {
   constructor(options: HermesGatewayOptions) {
     this.baseUrl = normalizeHermesGatewayBaseUrl(options.baseUrl);
@@ -274,7 +300,7 @@ export class HermesGatewayClient {
       headers: { 'X-Hermes-Session-Token': this.token },
     });
     if (!response.ok) throw new Error(`${this.label} could not load the ${this.profile} model catalog.`);
-    const catalog = normalizeHermesGatewayModelCatalog(await response.json());
+    const catalog = normalizeHermesGatewayModelCatalog(await readBoundedJson(response));
     if (!catalog.length) throw new Error(`${this.label} has no configured models for ${this.profile}.`);
     return catalog;
   }
@@ -303,6 +329,10 @@ export class HermesGatewayClient {
     const runtimeSessionId = cleanText(created?.session_id, 200);
     if (!runtimeSessionId) throw new Error(`${this.label} did not create a Hermes session.`);
     const state = { runtimeSessionId, model, effort };
+    if (this.sessions.size >= MAX_HERMES_TRACKED_SESSIONS) {
+      const oldest = this.sessions.keys().next().value;
+      if (oldest) this.sessions.delete(oldest);
+    }
     this.sessions.set(externalSessionId, state);
     return state;
   }
@@ -476,7 +506,7 @@ export function createHermesGatewayRouteProvider(options: HermesGatewayProviderO
             headers: { 'X-Hermes-Session-Token': token },
           });
           if (!response.ok) throw new Error('gateway rejected the profile request');
-          const payload = await response.json() as { profiles?: unknown } | null;
+          const payload = await readBoundedJson(response) as { profiles?: unknown } | null;
           const discovered = Array.isArray(payload?.profiles) ? (payload.profiles as (HermesProfile | null | undefined)[]).filter(item => cleanText(item?.name, 100)) : [];
           if (discovered.length) profiles = discovered as HermesProfile[];
           knownProfiles.set(connectionId, { baseUrl, token, profiles });

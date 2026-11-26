@@ -96,6 +96,8 @@ export class ClaudeAgentClient {
       ]);
       for (const result of writes) if (result.status === 'rejected') throw result.reason;
       assertAgentNotAborted(options.signal);
+      const safeModel = options.model && !options.model.startsWith('-') && !/[\s\0-\x1f\x7f]/.test(options.model) ? options.model : null;
+      const safeEffort = options.effort && /^[A-Za-z0-9._-]+$/.test(options.effort) && !options.effort.startsWith('-') ? options.effort : null;
       const args = [
         ...this.args,
         '-p', '--input-format', 'stream-json', '--output-format', 'stream-json',
@@ -104,8 +106,8 @@ export class ClaudeAgentClient {
         '--permission-mode', 'dontAsk', '--permission-prompts', 'none', '--tools', '',
         '--system-prompt-file', systemPromptPath,
         ...(options.allowedToolNames.length ? ['--allowedTools', options.allowedToolNames.map(name => `mcp__getbased__${name}`).join(',')] : []),
-        ...(options.model ? ['--model', options.model] : []),
-        ...(options.effort ? ['--effort', options.effort] : []),
+        ...(safeModel ? ['--model', safeModel] : []),
+        ...(safeEffort ? ['--effort', safeEffort] : []),
         ...(options.outputSchema ? ['--json-schema', JSON.stringify(options.outputSchema)] : []),
         ...(options.sessionId ? ['--resume', sessionId] : ['--session-id', sessionId]),
       ];

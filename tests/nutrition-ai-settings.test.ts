@@ -442,3 +442,19 @@ it('keeps an unavailable dedicated model selected until its confirmed catalog re
   expect(recovered.selectedValue).toBe(missing.selectedValue);
   expect(recovered.groups.some(group => group.label === 'Saved choice unavailable')).toBe(false);
 });
+it('hides non-private vision models when PPQ Private Mode is active', () => {
+  localStorage.clear();
+  updateKeyCache('labcharts-ppq-key', 'sk-ppq-test');
+  localStorage.setItem('labcharts-ppq-private-mode', 'on');
+  localStorage.setItem('labcharts-ppq-model', 'private/qwen-vl-private');
+  localStorage.setItem('labcharts-ppq-models', JSON.stringify([
+    { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+  ]));
+  localStorage.setItem('labcharts-ppq-private-models', JSON.stringify([
+    { id: 'private/qwen-vl-private', name: 'Private Vision' },
+  ]));
+  localStorage.setItem('labcharts-ppq-vision-models', JSON.stringify(['anthropic/claude-opus-5']));
+  localStorage.setItem('labcharts-ppq-private-vision-models', JSON.stringify(['private/qwen-vl-private']));
+  const models = listNutritionVisionModels().filter(m => m.provider === 'ppq');
+  expect(models.map(m => m.model)).toEqual(['private/qwen-vl-private']);
+});

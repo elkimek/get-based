@@ -29,15 +29,12 @@ export function createDataCore(ports: DataCorePorts) {
   // ═══════════════════════════════════════════════
   function _getCyclePhase(dateStr: string, mc: CycleMetadata | null | undefined): DrawPhase | null {
     if (!mc || !mc.periods || mc.periods.length === 0) return null;
-    const target = new Date(dateStr + 'T00:00:00');
+    const targetMs = Date.parse(dateStr + 'T00:00:00Z');
+    if (!Number.isFinite(targetMs)) return null;
     const sorted = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
-    let periodStart: string | null = null;
-    for (const p of sorted) {
-      if (new Date(p.startDate + 'T00:00:00') <= target) { periodStart = p.startDate; break; }
-    }
+    const periodStart = sorted.find(p => Date.parse(p.startDate + 'T00:00:00Z') <= targetMs)?.startDate || null;
     if (!periodStart) return null;
-    const startDate = new Date(periodStart + 'T00:00:00');
-    const cycleDay = Math.floor((target.getTime() - startDate.getTime()) / 86400000) + 1;
+    const cycleDay = Math.floor((targetMs - Date.parse(periodStart + 'T00:00:00Z')) / 86400000) + 1;
     const cycleLen = mc.cycleLength || 28;
     if (cycleDay > cycleLen + 7) return null;
     const periodLen = mc.periodLength || 5;
@@ -426,8 +423,8 @@ export function createDataCore(ports: DataCorePorts) {
     }
     const ENTRY_CONTEXT_KEYS = ['specimen', 'method', 'sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
     for (const [index, entry] of entries.entries()) {
-      if (!entryLookup[entry.date]) entryLookup[entry.date] = {};
-      Object.assign(entryLookup[entry.date]!, entry.markers);
+      const targetDay = entryLookup[entry.date] || (entryLookup[entry.date] = {});
+      for (const [k, v] of Object.entries(entry.markers || {})) if (v != null || !(k in targetDay)) targetDay[k] = v;
       const context = { ...(entry.context || {}) };
       for (const key of ENTRY_CONTEXT_KEYS) {
         if (entry[key] !== undefined && context[key] === undefined) context[key] = entry[key];
@@ -470,15 +467,18 @@ export function createDataCore(ports: DataCorePorts) {
     // Cycle phase gating — shared by phase labels (charts) and phase-specific ref ranges
     const isFemale = ports.state.profileSex === 'female';
     const mc = (ports.state.importedData && ports.state.importedData.menstrualCycle) as CycleMetadata | null;
-    const _hormonalContraceptives = ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection'];
-    const _isHormonalBC = mc?.contraceptive && _hormonalContraceptives.some(h => mc.contraceptive!.toLowerCase().includes(h));
+    const _bcRaw = String(mc?.contraceptive || '').toLowerCase();
+    const _isHormonalBC = Boolean(_bcRaw) && !/(?:copper|non[-\s]hormonal)/.test(_bcRaw) && /\b(?:ocp|pill|patch|(?:nuva|annovera|vaginal\s+)?ring|implant|mirena|hormonal\s+iud|depo|injection)\b/.test(_bcRaw);
     const _hasActiveNaturalCycle = isFemale && !_isHormonalBC && (!mc?.cycleStatus || mc.cycleStatus === 'regular');
     const _hasPredictableCycle = _hasActiveNaturalCycle && mc?.periods?.length! > 0
       && (!mc?.regularity || mc.regularity === 'regular');
     const drawPhases = sortedDates.map(d => {
-      const recorded = _getRecordedDrawCyclePhase(entryContextByDate[d]);
-      if (recorded && _hasActiveNaturalCycle) return recorded;
-      return _hasPredictableCycle ? _getCyclePhase(d, mc) : null;
+      let recorded = _getRecordedDrawCyclePhase(entryContextByDate[d]);
+      if (!recorded && labCollections[d]) {
+        const uniq = new Map(Object.values(labCollections[d]!).map(c => _getRecordedDrawCyclePhase(c.context)).filter((p): p is DrawPhase => Boolean(p)).map(p => [`${p.phase}|${p.cycleDay ?? ''}|${p.phaseDetailName ?? ''}`, p]));
+        if (uniq.size === 1) recorded = [...uniq.values()][0]!;
+      }
+      return recorded && _hasActiveNaturalCycle ? recorded : (_hasPredictableCycle ? _getCyclePhase(d, mc) : null);
     });
     const _hasCyclePhases = drawPhases.some(Boolean);
 

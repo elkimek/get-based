@@ -279,7 +279,7 @@ export function getTrend(values: readonly (number | null | undefined)[], refMin?
     if (curr === 0) return {arrow:"Stable",cls:"trend-stable",label:"Stable versus previous result"};
     return {arrow:"Changed",cls:"trend-stable",label:"Changed versus previous result; percentage unavailable because the previous value was zero"};
   }
-  const pct = ((curr-prev)/prev)*100;
+  const pct = ((curr - prev) / Math.abs(prev)) * 100;
   if (Math.abs(pct)<STABLE_TREND_PCT) {
     return {arrow:"Stable",cls:"trend-stable",label:`Stable versus previous result (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`};
   }

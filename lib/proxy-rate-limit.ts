@@ -76,8 +76,12 @@ function markerWindowStart(pathname: unknown, prefix: string) {
   return Number(relative.split('/')[0]?.replace(/\.json$/, ''));
 }
 
+const MAX_CLEANUP_PAGES_PER_REQUEST = 2;
+const inFlightCleanups = new Map<number, Promise<void>>();
+
 async function deleteExpiredPrefix(prefix: string, currentWindowStart: number, token: string, abortSignal: AbortSignal) {
   let cursor: string | undefined;
+  let pages = 0;
   do {
     // The SDK omits an undefined cursor from its query; preserve the original options object.
     const page = await listBlobs({ prefix, cursor, limit: 1_000, token, abortSignal } as Parameters<typeof listBlobs>[0]);
@@ -90,10 +94,12 @@ async function deleteExpiredPrefix(prefix: string, currentWindowStart: number, t
     }
     if (stale.length) await deleteBlobs(stale, { token, abortSignal });
     cursor = page.hasMore ? page.cursor : undefined;
-  } while (cursor);
+    pages++;
+  } while (cursor && pages < MAX_CLEANUP_PAGES_PER_REQUEST);
+  return !cursor;
 }
 
-async function cleanupExpiredMarkers(currentWindowStart: number, token: string, abortSignal: AbortSignal) {
+async function runCleanupExpiredMarkers(currentWindowStart: number, token: string, abortSignal: AbortSignal) {
   const completionPath = cleanupLeasePath(currentWindowStart);
   const completion = await listBlobs({
     prefix: completionPath,
@@ -105,22 +111,21 @@ async function cleanupExpiredMarkers(currentWindowStart: number, token: string, 
     return;
   }
 
-  // Write the completion marker only after both global sweeps succeed.
-  // Concurrent first requests may duplicate the idempotent sweep, but a
-  // failed/aborted cleaner cannot leave a poisoned lease that suppresses
-  // cleanup for the rest of the window.
-  await deleteExpiredPrefix(
+  // Write the completion marker only after both global sweeps completely drain.
+  // Bounding pages per request avoids 5s fail-closed outages under traffic spikes.
+  const markersDrained = await deleteExpiredPrefix(
     RATE_LIMIT_PREFIX,
     currentWindowStart,
     token,
     abortSignal,
   );
-  await deleteExpiredPrefix(
+  const cleanupDrained = await deleteExpiredPrefix(
     RATE_LIMIT_CLEANUP_PREFIX,
     currentWindowStart,
     token,
     abortSignal,
   );
+  if (!markersDrained || !cleanupDrained) return;
   try {
     await putBlob(completionPath, '{}', {
       access: 'private',
@@ -134,6 +139,18 @@ async function cleanupExpiredMarkers(currentWindowStart: number, token: string, 
   } catch (error) {
     if (!isSlotConflict(error)) throw error;
   }
+}
+
+async function cleanupExpiredMarkers(currentWindowStart: number, token: string, abortSignal: AbortSignal) {
+  const existing = inFlightCleanups.get(currentWindowStart);
+  if (existing) {
+    await existing;
+    return;
+  }
+  const sweep = runCleanupExpiredMarkers(currentWindowStart, token, abortSignal)
+    .finally(() => { if (inFlightCleanups.get(currentWindowStart) === sweep) inFlightCleanups.delete(currentWindowStart); });
+  inFlightCleanups.set(currentWindowStart, sweep);
+  await sweep;
 }
 
 async function enforceDistributedRateLimit(

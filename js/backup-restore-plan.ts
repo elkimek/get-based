@@ -1,6 +1,7 @@
 import { LENS_CONFIG_STORAGE_KEY } from './lens-config-store.js';
 import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
 import { profileStorageKey } from './profile-storage-key.js';
+import { canonicalRoutstrUrl } from './url-safety.js';
 
 type BackupRestoreView = Record<string, unknown>;
 export const isEncryptedValue = (v: unknown) => typeof v === 'string' && v.startsWith('v1:');
@@ -11,7 +12,7 @@ export const GLOBAL_SETTINGS_KEYS = [
   'labcharts-custom-key', 'labcharts-custom-url', 'labcharts-custom-model', 'labcharts-custom-models',
   'labcharts-ai-provider',
   'labcharts-ppq-credit-id',
-  'labcharts-venice-model', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model',
+  'labcharts-venice-model', 'labcharts-venice-e2ee', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model', 'labcharts-ppq-private-mode',
   'labcharts-ollama', 'labcharts-ollama-model',
   'labcharts-ollama-pii-url', 'labcharts-ollama-pii-key', 'labcharts-ollama-pii-model',
   'labcharts-nutrition-ai-route',
@@ -30,6 +31,7 @@ export const PER_PROFILE_PREF_SUFFIXES = [
 const DESTINATION_SETTINGS = [
   ['labcharts-custom-url', 'labcharts-custom-key'], ['labcharts-ollama-pii-url', 'labcharts-ollama-pii-key'],
   ['labcharts-voice-local-server-url', 'labcharts-voice-local-server-key'], [LENS_CONFIG_STORAGE_KEY, 'labcharts-lens-key'],
+  ['labcharts-routstr-node', 'labcharts-routstr-key'],
 ] as const;
 
 function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: string) => boolean): Record<string, string> {
@@ -41,6 +43,12 @@ function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: stri
     if (typeof value !== 'string') throw new Error('Invalid backup setting value.');
     // Legacy cleartext credentials cannot establish ownership of a destination.
     if (isCredentialKey(key) && (!backup.encrypted || !value.startsWith('v1:'))) continue;
+    if (key === 'labcharts-routstr-node') {
+      const canonical = canonicalRoutstrUrl(value);
+      if (!canonical) continue;
+      values[key] = canonical;
+      continue;
+    }
     values[key] = value;
   }
   for (const [url, credential] of DESTINATION_SETTINGS) {

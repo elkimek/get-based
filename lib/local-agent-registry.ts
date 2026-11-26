@@ -2,7 +2,7 @@
 
 import { execFile, execFileSync } from 'node:child_process';
 import { delimiter, isAbsolute, posix, win32 } from 'node:path';
-import { accessSync, constants, existsSync, readFileSync, readdirSync } from 'node:fs';
+import { accessSync, constants, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 
 export interface LocalAgentSpec {
   id: string;
@@ -90,7 +90,12 @@ export function findAgentExecutable(command: string, env: NodeJS.ProcessEnv = pr
   for (const directory of String(env.PATH || '').split(pathDelimiter).filter(Boolean)) {
     for (const extension of extensions) {
       const candidate = `${directory}${platform === 'win32' ? '\\' : '/'}${command}${extension}`;
-      if (existsSync(candidate)) return candidate;
+      if (!existsSync(candidate)) continue;
+      try {
+        if (!statSync(candidate).isFile()) continue;
+        if (platform !== 'win32') accessSync(candidate, constants.X_OK);
+        return candidate;
+      } catch { continue; }
     }
   }
   return '';
@@ -162,6 +167,7 @@ export function resolveAgentLaunch(command: string, options: LocalAgentDiscovery
 
 export function detectLocalAgents(options: LocalAgentDiscoveryOptions = {}): DetectedLocalAgent[] {
   const env = options.env || process.env;
+  const childEnv = buildLocalAgentEnvironment(env);
   const platform = options.platform || process.platform;
   const run = options.execFileSyncImpl || execFileSync;
   return LOCAL_AGENT_SPECS.flatMap<DetectedLocalAgent>(spec => {
@@ -182,7 +188,7 @@ export function detectLocalAgents(options: LocalAgentDiscoveryOptions = {}): Det
     let version = '';
     try {
       version = normalizeAgentVersion(spec.id, run(launch.command, [...launch.args, '--version'], {
-        encoding: 'utf8', env, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
+        encoding: 'utf8', env: childEnv, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
       }));
     } catch { /* a resolvable executable is still useful */ }
     let status = 'available';
@@ -190,7 +196,7 @@ export function detectLocalAgents(options: LocalAgentDiscoveryOptions = {}): Det
     if (spec.id === 'claude') {
       try {
         const auth = readCommandJson<{ loggedIn?: unknown } | null>(() => run(launch.command, [...launch.args, 'auth', 'status', '--json'], {
-          encoding: 'utf8', env, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
+          encoding: 'utf8', env: childEnv, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
         }));
         if (auth?.loggedIn !== true) {
           status = 'login_required';

@@ -37,8 +37,10 @@ describe('marker context range helpers', () => {
   it('parses common collection times and rejects ambiguous prose', () => {
     expect(parseSampleHour('08:30')).toBe(8);
     expect(parseSampleHour('2:15 p.m.')).toBe(14);
+    expect(parseSampleHour('2025-05-01T14:30:00Z')).toBe(14);
     expect(parseSampleHour('morning')).toBe(8);
     expect(parseSampleHour('sample time unknown')).toBeNull();
+    expect(parseSampleHour('routine examination')).toBeNull();
   });
 
   it('resolves exact age at draw and age/sex bands', () => {

@@ -38,7 +38,8 @@ export function renderConciseReportBody(report: ReportDataSnapshot | JSONDetache
   const appendices = new Set(options.appendixSections || []);
   const parts: { id: string; title: string; content: string }[] = [];
   const add = (id: string, title: string, content: string) => {
-    parts.push({ id, title, content: `<section id="report-${id}" class="report-summary-section"><h2>${esc(title)}</h2>${content}</section>` });
+    const safeId = esc(id);
+    parts.push({ id, title, content: `<section id="report-${safeId}" class="report-summary-section"><h2>${esc(title)}</h2>${content}</section>` });
   };
   const appendixHint = (id: string | undefined) => appendices.has(id!) ? '<p class="report-note">Individual records and extended context are in the <a href="#report-appendix">appendix</a>.</p>' : '';
   const labs = report.labs;
@@ -102,6 +103,6 @@ export function renderConciseReportBody(report: ReportDataSnapshot | JSONDetache
   return `<div class="report-preview-toolbar"><button type="button" class="report-print-btn" data-report-print-action="print">Print / Save PDF</button></div><header class="report-header" id="report-top"><div class="report-brand">getbased · ${esc(options.presetLabel)}</div><h1>${esc(report.profile.name)} health report</h1>${renderReportOriginNotice(options.aiSummary)}<p class="report-deck">Personal records summary · Generated ${esc(new Date(report.generatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))}</p><dl class="report-meta">${meta.map(fact => `<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('')}</dl></header>
     <section class="report-purpose"><h2>Reason for sharing / questions</h2><p>${cell(options.purpose || 'Not provided. Use this report to discuss the selected recorded findings and their context.')}</p></section>
     <p class="report-note">${labs ? `Latest lab date: ${esc(labs.dates.at(-1) || 'not recorded')}. ` : 'Lab results not selected. '}${coverage ? esc(coverage) + '. ' : ''}Source-specific coverage is shown below; unlogged days are unknown.</p>
-    <nav class="report-contents" aria-label="Report contents">${parts.map(part => `<a href="#report-${part.id}">${esc(part.title.split(' — ')[0]!)}</a>`).join(' · ')}${appendices.size ? ' · <a href="#report-appendix">Appendix</a>' : ''}</nav>
+    <nav class="report-contents" aria-label="Report contents">${parts.map(part => `<a href="#report-${esc(part.id)}">${esc(part.title.split(' — ')[0]!)}</a>`).join(' · ')}${appendices.size ? ' · <a href="#report-appendix">Appendix</a>' : ''}</nav>
     ${aiHTML}${parts.map(part => part.content).join('')}`;
 }

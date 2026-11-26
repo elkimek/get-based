@@ -804,6 +804,31 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveR
       && pickerViewSrc.includes('...DASHBOARD_WIDGET_SOURCE_ORDER,'));
 
   // =======================================
+  // 10b. Audit regressions: negative-to-positive getTrend & unrated-date skipping
+  // =======================================
+  {
+    const t = getTrend([ -0.5, 0.5 ], -0.3, 0.24);
+    assert('getTrend divides by |prev| for negative-to-positive transitions',
+      t != null && t.arrow === '\u2191 +200.0%' && t.cls === 'trend-up trend-bad',
+      JSON.stringify(t));
+    const alertsUnrated = (detectTrendAlerts as FixtureTrendCall)({
+      dates: ['2024-01-15', '2024-06-15'],
+      categories: {
+        biochemistry: {
+          label: 'Biochemistry', singlePoint: false,
+          markers: {
+            unrated: {
+              name: 'Unrated', unit: 'U', values: [1, 10],
+              refMin: null, refMax: null, optimalMin: null, optimalMax: null,
+            },
+          },
+        },
+      },
+    });
+    assert('detectTrendAlerts skips markers with null ref bounds without throwing or firing', alertsUnrated.length === 0, JSON.stringify(alertsUnrated));
+  }
+
+  // =======================================
   // Summary
   // =======================================
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

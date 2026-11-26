@@ -26,7 +26,8 @@ import { isAppExtensionSyncEncryptedStorageKey } from './app-extension-runtime.j
 import { state } from './state.js';
 import { queueProfileDataWrite, profileDataBaseline, rebaseLiveProfileData, adoptProfileData, rememberProfileData } from './profile-data-writes.js';
 import { profileStorageKey } from './profile-storage-key.js';
-import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
+import { getBlob, getBlobKeys, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
+import { configureNutritionStoreCrypto, migrateNutritionProfileDB } from './nutrition-store-reads.js';
 import { ensureImportedArray } from './data-merge.js';
 import { clearKeyCache, updateKeyCache } from './crypto-key-cache.js';
 import {
@@ -211,8 +212,8 @@ export function isCredentialKey(key: string) {
 
 export async function decryptKeyCache() {
   clearKeyCache();
-  for (let index = 0; index < localStorage.length; index++) {
-    const lsKey = localStorage.key(index);
+  const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
+  for (const lsKey of keys) {
     if (!lsKey || !isCredentialKey(lsKey)) continue;
     const raw = localStorage.getItem(lsKey);
     if (raw === null) continue;
@@ -337,6 +338,7 @@ export const getCashuWalletStoreCryptoDeps = () => ({
 });
 configureCycleStoreCrypto(indexedDBCryptoDeps);
 configureWearablesStoreCrypto(indexedDBCryptoDeps);
+configureNutritionStoreCrypto(indexedDBCryptoDeps);
 
 // TEST-ONLY: injects a freshly-derived key so behavioral tests can drive
 // the encrypt/decrypt round-trip without going through the passphrase
@@ -544,7 +546,11 @@ async function sensitiveBlobKeys() {
   for (const profileId of await migrationProfileIds()) {
     keys.add(profileStorageKey(profileId, 'imported'));
     keys.add(profileStorageKey(profileId, 'imported-corrupt'));
+    keys.add(profileStorageKey(profileId, 'agent-draft-claims'));
   }
+  try {
+    for (const key of await getBlobKeys()) if (isSensitiveKey(key)) keys.add(key);
+  } catch {}
   return [...keys];
 }
 
@@ -552,8 +558,8 @@ async function migrateSensitiveKeys() {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
   await recoverAllPersonaStorage();
   const blobKeys = await sensitiveBlobKeys();
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
+  const lsKeys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+  for (const key of lsKeys) {
     if (!key || !isSensitiveKey(key)) continue;
     const raw = localStorage.getItem(key);
     if (raw === null || isEncryptedValue(raw)) continue; // already encrypted
@@ -576,8 +582,8 @@ async function decryptAllSensitiveKeys() {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
   await recoverAllPersonaStorage();
   const blobKeys = await sensitiveBlobKeys();
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
+  const lsKeys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+  for (const key of lsKeys) {
     if (!key || !isSensitiveKey(key)) continue;
     const raw = localStorage.getItem(key);
     if (raw === null || !isEncryptedValue(raw)) continue;
@@ -666,7 +672,7 @@ async function migrateLocalIDB(mode: StorageMode) {
     await upsertDailyBatchRaw(profileId, wearableRows);
     await upsertCycleObservationBatchRaw(profileId, cycleRows);
     await upsertCycleImportMetaBatchRaw(profileId, importRows);
-    migrated += wearableRows.length + cycleRows.length + importRows.length;
+    migrated += wearableRows.length + cycleRows.length + importRows.length + await migrateNutritionProfileDB(profileId, mode);
   }
   return migrated;
 }
@@ -690,15 +696,17 @@ async function unlockEncryption(passphrase: string) {
 }
 
 async function prepareEncryption(passphrase: string) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  _sessionKey = await deriveKey(passphrase, salt);
-  localStorage.setItem(ENCRYPTION_MANIFEST_KEY, toBase64(salt));
+  const dek = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  const manifest = await wrapDataKey(passphrase, dek);
+  _sessionKey = await openDataKey(passphrase, manifest);
+  localStorage.setItem(ENCRYPTION_MANIFEST_KEY, manifest);
   localStorage.setItem('labcharts-encryption-enabled', 'true');
 }
 
 async function migrateEncryptionStorage() {
   await migrateSensitiveKeys();
   await migrateLocalIDB('encrypted');
+  await purgePlaintextAutoBackups();
   await decryptKeyCache();
 }
 
@@ -722,8 +730,6 @@ async function changeEncryptionPassphrase(oldPassphrase: string, newPassphrase: 
     const manifest = await wrapDataKey(newPassphrase, dataKey);
     const session = await openDataKey(newPassphrase, manifest);
     if (localStorage.getItem(ENCRYPTION_MANIFEST_KEY) !== previous) throw new Error('Encryption settings changed in another tab.');
-    // Publish one record after verifying the new wrapper. The encrypted data
-    // remains usable through interruption and by writes already in flight.
     localStorage.setItem(ENCRYPTION_MANIFEST_KEY, manifest);
     _sessionKey = session;
   };
@@ -732,29 +738,18 @@ async function changeEncryptionPassphrase(oldPassphrase: string, newPassphrase: 
 }
 
 globalThis.addEventListener?.('storage', event => {
-  if ((event as StorageEvent).key === ENCRYPTION_MANIFEST_KEY) {
-    _sessionKey = null;
-    clearKeyCache();
-  }
+  const key = (event as StorageEvent).key;
+  if (key === ENCRYPTION_MANIFEST_KEY || key === null) { _sessionKey = null; clearKeyCache(); }
 });
 
-import { buildBackupSnapshot, configureBackupRuntimeDeps, scheduleAutoBackup, openBackupDB, initFolderBackup } from './backup.js';
+import { buildBackupSnapshot, configureBackupRuntimeDeps, scheduleAutoBackup, openBackupDB, initFolderBackup, purgePlaintextAutoBackups } from './backup.js';
 export { buildBackupSnapshot, scheduleAutoBackup, openBackupDB, initFolderBackup };
 
-configureBackupRuntimeDeps({
-  encryptedGetItem,
-  encryptedSetItem: encryptedSetCredentialItem,
-  getEncryptionEnabled,
-  isCredentialKey,
-});
+configureBackupRuntimeDeps({ encryptedGetItem, encryptedSetItem: encryptedSetCredentialItem, getEncryptionEnabled, isCredentialKey });
 configureCryptoUi({
   changeEncryptionPassphrase,
-  clearEncryptionSession: () => { _sessionKey = null; },
-  disableEncryptionStorage,
-  getEncryptionEnabled,
-  migrateEncryptionStorage,
-  prepareEncryption,
-  unlockEncryption,
+  clearEncryptionSession: () => { _sessionKey = null; clearKeyCache(); },
+  disableEncryptionStorage, getEncryptionEnabled, migrateEncryptionStorage, prepareEncryption, unlockEncryption,
 });
 
 // ═══════════════════════════════════════════════

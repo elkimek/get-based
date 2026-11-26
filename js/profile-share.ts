@@ -248,7 +248,8 @@ export async function decryptProfileShareEnvelope(envelope: unknown, secret: unk
   if (!envelope || (envelope as ShareEnvelopeReader).schema !== PROFILE_SHARE_SCHEMA || (envelope as ShareEnvelopeReader).version !== PROFILE_SHARE_VERSION) {
     throw new Error('Invalid shared profile link.');
   }
-  if (Date.parse(((envelope as ShareEnvelopeReader).expiresAt || '') as string) <= Date.now()) {
+  const expiresAtMs = Date.parse(((envelope as ShareEnvelopeReader).expiresAt || '') as string);
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
     throw new Error('This shared profile link has expired.');
   }
   const kdf = ((envelope as ShareEnvelopeReader).kdf || {}) as NonNullable<ShareEnvelopeReader['kdf']>;
@@ -258,6 +259,9 @@ export async function decryptProfileShareEnvelope(envelope: unknown, secret: unk
   }
   const salt = base64UrlToBytes(kdf.salt);
   const iv = base64UrlToBytes(cipher.iv);
+  if (salt.length < 16 || iv.length !== 12) {
+    throw new Error('Invalid shared profile encryption settings.');
+  }
   const ciphertext = base64UrlToBytes((envelope as ShareEnvelopeReader).ciphertext);
   const iterations = Number(kdf.iterations);
   if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS || iterations > PROFILE_SHARE_KDF_ITERATIONS) throw new Error('Invalid shared profile encryption settings.');

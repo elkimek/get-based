@@ -350,6 +350,13 @@ export async function loadProfile(profileId: string, options: ProfileLoadOptions
   }
 }
 
+const SAFE_PROFILE_AVATAR_RE = /^data:image\/(?:png|jpe?g|webp|gif|avif);base64,[A-Za-z0-9+/]+={0,2}$/i;
+const MAX_PROFILE_AVATAR_CHARS = 512_000;
+
+export function sanitizeProfileAvatar(value: unknown): string | null {
+  return typeof value === 'string' && value.length <= MAX_PROFILE_AVATAR_CHARS && SAFE_PROFILE_AVATAR_RE.test(value) ? value : null;
+}
+
 export async function createProfile(name: string, opts: CreateProfileOptions = {}) {
   const id = await mutateProfiles(profiles => {
     let candidate: string;
@@ -371,7 +378,7 @@ export async function createProfile(name: string, opts: CreateProfileOptions = {
       tags: opts.tags || [],
       notes: opts.notes || '',
       status: opts.status || 'active',
-      avatar: opts.avatar || null,
+      avatar: sanitizeProfileAvatar(opts.avatar),
       height: opts.height || null,
       heightUnit: opts.heightUnit || 'cm',
       createdAt: now,
@@ -433,7 +440,7 @@ export async function updateProfileMeta(profileId: string, updates: ProfileMetaU
     return profileEdit(profileId, profile => {
       for (const [key, val] of Object.entries(updates)) {
         if (key === 'id' || key === 'createdAt') continue;
-        profile[key] = val;
+        profile[key] = key === 'avatar' ? sanitizeProfileAvatar(val) : val;
       }
     })(profiles);
   });

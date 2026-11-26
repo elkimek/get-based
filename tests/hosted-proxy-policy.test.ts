@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyHostedProxyRequest,
   isAllowedProxyCallerOrigin,
+  isProxyHostBlocked,
   normalizeCamsRelayPayload,
+  proxyCorsHeaders,
+  sanitizeProxyHeaders,
 } from '../lib/proxy-policy.js';
 
 const bearer = { Authorization: 'Bearer wearable-token' };
@@ -122,5 +125,40 @@ describe('getbased-operated proxy allowlist', () => {
     expect(normalizeCamsRelayPayload({
       meteo: 'cams', latitude: 50.1, longitude: 14.4, time: 'not-a-time',
     }).ok).toBe(false);
+  });
+
+  it('blocks compressed IPv6 tunnel ranges, trailing-dot localhost, and IANA special-use IPv4', () => {
+    for (const host of [
+      'localhost.',
+      'LOCALHOST.',
+      '127.0.0.1.',
+      '192.0.2.1',
+      '198.18.0.1',
+      '[2002:7f00::1]',
+      '[2001:0::1]',
+      '[::ffff:169.254.169.254]',
+      '[2001:db8::1]',
+    ]) {
+      expect(isProxyHostBlocked(host), host).toBe(true);
+    }
+    expect(isProxyHostBlocked('api.ouraring.com')).toBe(false);
+  });
+
+  it('restricts public-page reads to port 443, rejects duplicate headers, and attaches sandbox headers', () => {
+    expect(classifyHostedProxyRequest({
+      purpose: 'public-page',
+      url: 'https://shop.example:8443/product',
+      method: 'GET',
+      headers: { Accept: 'text/html' },
+    }).ok).toBe(false);
+    expect(sanitizeProxyHeaders({ Authorization: 'a', authorization: 'b' }).ok).toBe(false);
+    expect(isAllowedProxyCallerOrigin(new Request('https://selfhosted.example/api/proxy', {
+      headers: { Origin: 'https://app.getbased.health' },
+    }))).toBe(false);
+    const cors = proxyCorsHeaders(new Request('https://integrations.getbased.health/api/proxy', {
+      headers: { Origin: 'https://app.getbased.health' },
+    }));
+    expect(cors['X-Content-Type-Options']).toBe('nosniff');
+    expect(cors['Content-Security-Policy']).toBe("default-src 'none'; sandbox");
   });
 });
