@@ -187,13 +187,15 @@ export class CodexAppServerClient extends EventEmitter {
     child.stdin.end();
     if (child.exitCode === null && child.signalCode === null) {
       child.kill('SIGTERM');
-      const forceKill = setTimeout(() => {
-        if (child.exitCode === null && child.signalCode === null) {
-          try { child.kill('SIGKILL'); } catch {}
-        }
-      }, 2_000);
-      forceKill.unref?.();
-      child.once('exit', () => clearTimeout(forceKill));
+      if (typeof child.pid === 'number' && child.pid > 0) {
+        const forceKill = setTimeout(() => {
+          if (child.exitCode === null && child.signalCode === null) {
+            try { child.kill('SIGKILL'); } catch {}
+          }
+        }, 2_000);
+        forceKill.unref?.();
+        child.once('exit', () => clearTimeout(forceKill));
+      }
     }
   }
 }

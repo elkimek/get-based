@@ -7,8 +7,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { createProfileShareServer } from '../server/profile-share-server.js';
 const servers: Server[]=[];
 afterEach(async()=>{vi.unstubAllEnvs();for(const server of servers.splice(0)){server.closeAllConnections();await new Promise<Error | undefined>(resolve=>server.close(resolve));}});
-async function fixture(handler: ProfileShareHandler = () => new Response('ok'), store: ServerOptions['store'] = {} as NonNullable<ServerOptions['store']>) {
- const {server}=createProfileShareServer({handler,store,maxRequestBytes:65536}); servers.push(server);
+async function fixture(handler: ProfileShareHandler = () => new Response('ok'), store: ServerOptions['store'] = {} as NonNullable<ServerOptions['store']>, extra: Partial<ServerOptions> = {}) {
+ const {server}=createProfileShareServer({handler,store,maxRequestBytes:65536,...extra}); servers.push(server);
  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
  return {server,url:`http://127.0.0.1:${(server.address() as AddressInfo).port}`};
 }
@@ -37,10 +37,10 @@ it.each(['declared','chunked'])('rejects an oversized %s body without invoking t
  expect(result.status).toBe(413);expect(result.headers.connection).toBe('close');expect(result.body).toContain('too large');expect(handler).not.toHaveBeenCalled();
 });
 it('rejects invalid forwarded origins without dispatching the handler',async()=>{
- const handler=vi.fn();const f=await fixture(handler);const response=await fetch(f.url+'/api/share',{headers:{'x-forwarded-host':'['}});expect(response.status).toBe(500);expect(handler).not.toHaveBeenCalled();
+ const handler=vi.fn();const f=await fixture(handler,undefined,{trustForwarded:true});const response=await fetch(f.url+'/api/share',{headers:{'x-forwarded-host':'['}});expect(response.status).toBe(500);expect(handler).not.toHaveBeenCalled();
 });
 it('preserves first forwarded origin and last forwarded client identity',async()=>{
- let captured: Request | undefined;const f=await fixture(request=>{captured=request;return new Response('ok');});
+ let captured: Request | undefined;const f=await fixture(request=>{captured=request;return new Response('ok');},undefined,{trustForwarded:true});
  await fetch(f.url+'/api/share?id=fixture',{headers:{'x-forwarded-host':'first.test, second.test','x-forwarded-proto':'https, http','x-forwarded-for':'spoofed, ,198.51.100.4, '}});
  expect(captured!.url).toBe('https://first.test/api/share?id=fixture');expect(captured!.headers.get('x-forwarded-for')).toBe('198.51.100.4');
 });

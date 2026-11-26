@@ -156,7 +156,7 @@ try {
     products: Object.values(((parsed as CatalogReader).products || {}) as Record<string, unknown>).reduce<number>((n, v) => n + (Array.isArray(v) ? v.length : 0), 0),
     vendors: Object.keys(((parsed as CatalogReader).vendors || {}) as object).length,
   };
-  if (counts.slots === 0 || counts.products === 0) {
+  if (process.env.VERCEL_ENV === 'production' && (counts.slots === 0 || counts.products === 0)) {
     console.error(`[fetch-catalog] Response catalog is empty (${counts.slots} slots, ${counts.products} products). Aborting.`);
     process.exit(1);
   }

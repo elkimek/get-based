@@ -310,14 +310,14 @@ export function detectCycleIronAlerts(mc: CycleProfileInput | null | undefined, 
   const recentHeavy = sorted.slice(0, 3).filter(p => p.flow === 'heavy');
   if (recentHeavy.length === 0) return [];
 
-  // Check iron-related markers (respecting custom category placements)
+  // Check iron-related markers (preserve hematology lookup order, then canonical iron & custom categories)
   const ironMarkers = [
-    { cat: 'iron', key: 'ferritin', label: 'Ferritin' },
-    { cat: 'hematology', key: 'hemoglobin', label: 'Hemoglobin' },
-    { cat: 'iron', key: 'iron', label: 'Iron' }
+    { cat: 'hematology', altCat: 'iron', key: 'ferritin', label: 'Ferritin' },
+    { cat: 'hematology', altCat: null, key: 'hemoglobin', label: 'Hemoglobin' },
+    { cat: 'hematology', altCat: 'iron', key: 'iron', label: 'Iron' }
   ];
-  const findIronMarker = (cat: string, key: string) => {
-    const direct = data.categories[cat]?.markers[key];
+  const findIronMarker = (cat: string, altCat: string | null, key: string) => {
+    const direct = data.categories[cat]?.markers[key] || (altCat ? data.categories[altCat]?.markers[key] : undefined);
     if (direct) return direct;
     for (const category of Object.values(data.categories)) {
       if (category?.markers?.[key]) return category.markers[key];
@@ -326,7 +326,7 @@ export function detectCycleIronAlerts(mc: CycleProfileInput | null | undefined, 
   };
 
   for (const im of ironMarkers) {
-    const marker = findIronMarker(im.cat, im.key);
+    const marker = findIronMarker(im.cat, im.altCat, im.key);
     if (!marker) continue;
     const latestIdx = marker.values.findLastIndex(v => v !== null);
     if (latestIdx === -1) continue;
@@ -353,7 +353,7 @@ export function detectCycleIronAlerts(mc: CycleProfileInput | null | undefined, 
 
   // Alert if iron markers are missing entirely with heavy flow
   const hasAnyIron = ironMarkers.some(im => {
-    const m = findIronMarker(im.cat, im.key);
+    const m = findIronMarker(im.cat, im.altCat, im.key);
     return m && m.values.some(v => v !== null);
   });
   if (!hasAnyIron && recentHeavy.length >= 2) {

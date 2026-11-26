@@ -46,6 +46,8 @@ const ALLOWED_CALLER_ORIGINS = new Set([
   'https://www.getbased.health',
   'https://beta.getbased.health',
   'https://get-based.vercel.app',
+]);
+const MANAGED_PREVIEW_CALLER_ORIGINS = new Set([
   'https://get-based-managed-subscription-v2.vercel.app',
 ]);
 export const OFFICIAL_WEARABLE_CLIENT_IDS = Object.freeze({
@@ -119,7 +121,8 @@ export function isAllowedProxyCallerOrigin(req: ProxyCaller) {
     const caller = new URL(origin);
     const requestUrl = new URL(req.url);
     if (caller.origin === requestUrl.origin) return true;
-    return isGetbasedOperatedRelayHost(req) && ALLOWED_CALLER_ORIGINS.has(caller.origin);
+    if (ALLOWED_CALLER_ORIGINS.has(caller.origin)) return true;
+    return isGetbasedOperatedRelayHost(req) && MANAGED_PREVIEW_CALLER_ORIGINS.has(caller.origin);
   } catch {
     return false;
   }
@@ -132,8 +135,6 @@ export function proxyCorsHeaders(req: ProxyCaller) {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'no-store',
     'Vary': 'Origin',
-    'X-Content-Type-Options': 'nosniff',
-    'Content-Security-Policy': "default-src 'none'; sandbox",
   };
   if (isAllowedProxyCallerOrigin(req)) headers['Access-Control-Allow-Origin'] = origin;
   return headers;

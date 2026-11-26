@@ -22,10 +22,11 @@ export interface CompanionRequestHandlerOptions {
   getPort: () => number;
   maxRequestBytes: number;
   maxImageRequestBytes: number;
+  canAcceptUpload?: (headers: Headers) => boolean;
 }
 
 export function createCompanionRequestHandler(
-  { handleRequest, host, getPort, maxRequestBytes, maxImageRequestBytes }: CompanionRequestHandlerOptions,
+  { handleRequest, host, getPort, maxRequestBytes, maxImageRequestBytes, canAcceptUpload }: CompanionRequestHandlerOptions,
 ): (incoming: CompanionIncomingRequest, outgoing: CompanionOutgoingResponse) => Promise<void> {
   return async (incoming, outgoing) => {
     try {
@@ -49,7 +50,7 @@ export function createCompanionRequestHandler(
       let receivedBytes = 0;
       const pathname = String(incoming.url || '').split('?')[0];
       const isUpload = pathname === '/v1/uploads';
-      if (isUpload && incoming.method === 'POST' && !/^Bearer\s+\S+/i.test(String(headers.get('authorization') || ''))) {
+      if (isUpload && incoming.method === 'POST' && canAcceptUpload && !canAcceptUpload(headers)) {
         outgoing.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
         outgoing.end('{"error":"unauthorized"}');
         incoming.destroy();

@@ -144,7 +144,7 @@ describe('getbased-operated proxy allowlist', () => {
     expect(isProxyHostBlocked('api.ouraring.com')).toBe(false);
   });
 
-  it('restricts public-page reads to port 443, rejects duplicate headers, and attaches sandbox headers', () => {
+  it('restricts public-page reads to port 443, rejects duplicate headers, and scopes preview origins to operated hosts', () => {
     expect(classifyHostedProxyRequest({
       purpose: 'public-page',
       url: 'https://shop.example:8443/product',
@@ -153,12 +153,12 @@ describe('getbased-operated proxy allowlist', () => {
     }).ok).toBe(false);
     expect(sanitizeProxyHeaders({ Authorization: 'a', authorization: 'b' }).ok).toBe(false);
     expect(isAllowedProxyCallerOrigin(new Request('https://selfhosted.example/api/proxy', {
-      headers: { Origin: 'https://app.getbased.health' },
+      headers: { Origin: 'https://get-based-managed-subscription-v2.vercel.app' },
     }))).toBe(false);
     const cors = proxyCorsHeaders(new Request('https://integrations.getbased.health/api/proxy', {
       headers: { Origin: 'https://app.getbased.health' },
     }));
-    expect(cors['X-Content-Type-Options']).toBe('nosniff');
-    expect(cors['Content-Security-Policy']).toBe("default-src 'none'; sandbox");
+    expect(cors['Access-Control-Allow-Origin']).toBe('https://app.getbased.health');
+    expect(cors['Cache-Control']).toBe('no-store');
   });
 });

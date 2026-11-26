@@ -306,6 +306,8 @@ export async function handler(req: Request) {
         status: upstreamRes.status,
         headers: {
           ...corsHeaders(req),
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': "default-src 'none'; sandbox",
           'Content-Type': contentType || 'application/json',
         },
       });
@@ -316,6 +318,8 @@ export async function handler(req: Request) {
       status: upstreamRes.status,
       headers: {
         ...corsHeaders(req),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
         'Content-Type': contentType,
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
@@ -365,6 +369,8 @@ async function relayGuardedText(
       status: response.status,
       headers: {
         ...corsHeaders(req),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
         'Content-Type': response.headers.get('content-type') || 'application/json',
       },
     });
@@ -388,7 +394,7 @@ function relayOAuthTokenRequest(
   if (!result.ok) return proxyJsonResponse(req, 400, { error: result.error });
   const headers: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
   if (spec.basicAuth) {
-    if (String(result.clientId).includes(':')) return proxyJsonResponse(req, 400, { error: `Invalid ${spec.provider} client_id` });
+    if (/[:\r\n]/.test(String(result.clientId))) return proxyJsonResponse(req, 400, { error: `Invalid ${spec.provider} client_id` });
     headers.Accept = 'application/json;charset=UTF-8';
     headers.Authorization = 'Basic ' + Buffer.from(`${result.clientId}:${spec.secret}`, 'utf8').toString('base64');
   }

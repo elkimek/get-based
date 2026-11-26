@@ -19,7 +19,15 @@ export function requestUrl(incoming: IncomingMessage, trustForwarded = true) {
 }
 
 export function nodeRelayHeaders(incoming: IncomingMessage, trustForwarded: boolean) {
-  const headers = new Headers(incoming.headers as HeadersInit);
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(incoming.headers)) {
+    if (value == null) continue;
+    if (Array.isArray(value)) {
+      for (const item of value) headers.append(name, item);
+    } else {
+      headers.set(name, value);
+    }
+  }
   const forwarded = (headers.get('x-forwarded-for') || '').split(',').map(item => item.trim()).filter(Boolean).at(-1);
   for (const name of ['x-forwarded-for', 'x-vercel-forwarded-for', 'x-real-ip', 'cf-connecting-ip']) headers.delete(name);
   if (!trustForwarded) {

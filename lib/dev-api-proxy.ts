@@ -13,11 +13,6 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from './proxy-policy.js';
-import {
-  capReadableStream,
-  fetchWithValidatedRedirects,
-  readResponseTextWithCap,
-} from './proxy-upstream.js';
 
 type DevCorsHeaders = (req: IncomingMessage) => Record<string, string>;
 interface DevProxyOptions {
@@ -142,7 +137,12 @@ export function _sendCappedProxyResponse(
     if (finished) return;
     finished = true;
     if (res.writableEnded || res.destroyed) return;
-    res.writeHead(proxyRes.statusCode || 200, { 'Content-Type': contentType, ...proxyCorsHeaders });
+    res.writeHead(proxyRes.statusCode || 200, {
+      'Content-Type': contentType,
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+      ...proxyCorsHeaders,
+    });
     res.end(Buffer.concat(chunks, responseBytes));
   });
   proxyRes.on('aborted', () => fail('Upstream response interrupted'));
@@ -551,6 +551,8 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
         writeJson(req, res, corsHeaders, 403, '{"error":"URL not allowed"}');
         return;
       }
+      const parsedUrl = new URL(targetUrl);
+      const transport = parsedUrl.protocol === 'https:' ? https : http;
       const fetchMethod = normalizeProxyMethod(upstreamMethod);
       if (!fetchMethod) {
         writeJson(req, res, corsHeaders, 405, '{"error":"Proxy method not allowed"}');
@@ -564,62 +566,19 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
       const requestHeaders = { ...safeHeaders.headers };
       const hasContentType = Object.keys(requestHeaders).some(key => key.toLowerCase() === 'content-type');
       if (fetchMethod !== 'GET' && !hasContentType) requestHeaders['Content-Type'] = 'application/json';
-      const abortController = new AbortController();
-      req.once('aborted', () => abortController.abort());
-      res.once('close', () => { if (!res.writableEnded) abortController.abort(); });
-      const fetchOpts: { method: string; headers: Record<string, string>; body?: string } = {
-        method: fetchMethod,
-        headers: requestHeaders,
-      };
+      const proxyReq = transport.request(targetUrl, { method: fetchMethod, headers: requestHeaders }, proxyRes => {
+        _sendCappedProxyResponse(req, res, proxyRes, corsHeaders);
+      });
+      req.once?.('aborted', () => proxyReq.destroy());
+      res.once?.('close', () => { if (!res.writableEnded) proxyReq.destroy(); });
+      boundUpstreamTimeout(proxyReq, req, res, corsHeaders);
+      proxyReq.on('error', error => {
+        writeJson(req, res, corsHeaders, 502, { error: `Upstream error: ${errorMessage(error)}` });
+      });
       if (fetchMethod !== 'GET' && forwardBody) {
-        fetchOpts.body = typeof forwardBody === 'string' ? forwardBody : JSON.stringify(forwardBody);
+        proxyReq.write(typeof forwardBody === 'string' ? forwardBody : JSON.stringify(forwardBody));
       }
-      void (async () => {
-        try {
-          const upstreamRes = await fetchWithValidatedRedirects(targetUrl, fetchOpts, { signal: abortController.signal });
-          const contentType = upstreamRes.headers.get('content-type') || 'application/json';
-          const isStream = contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson');
-          const baseHeaders = {
-            ...corsHeaders(req),
-            'Content-Type': contentType,
-            'X-Content-Type-Options': 'nosniff',
-            'Content-Security-Policy': "default-src 'none'; sandbox",
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-          };
-          if (!isStream) {
-            const responseBody = await readResponseTextWithCap(upstreamRes, PROXY_MAX_RESPONSE_BYTES);
-            if (!res.headersSent) res.writeHead(upstreamRes.status, baseHeaders);
-            res.end(responseBody);
-            return;
-          }
-          if (!res.headersSent) {
-            res.writeHead(upstreamRes.status, { ...baseHeaders, 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
-          }
-          const capped = capReadableStream(upstreamRes.body, PROXY_MAX_RESPONSE_BYTES);
-          if (capped) {
-            const reader = capped.getReader();
-            try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                if (!res.writableEnded) res.write(value);
-              }
-            } finally {
-              try { await reader.cancel(); } catch {}
-            }
-          }
-          if (!res.writableEnded) res.end();
-        } catch (error) {
-          if (res.headersSent) {
-            if (!res.destroyed) res.destroy();
-            return;
-          }
-          const code = (error as { code?: unknown } | null)?.code;
-          const status = code === 'PROXY_DNS_BLOCKED' ? 403 : code === 'PROXY_UPSTREAM_TIMEOUT' ? 504 : 502;
-          writeJson(req, res, corsHeaders, status, { error: `Upstream error: ${errorMessage(error)}` });
-        }
-      })();
+      proxyReq.end();
     } catch (error) {
       writeJson(req, res, corsHeaders, 400, { error: `Invalid JSON: ${errorMessage(error)}` });
     }
