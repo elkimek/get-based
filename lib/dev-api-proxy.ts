@@ -611,6 +611,10 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
           }
           if (!res.writableEnded) res.end();
         } catch (error) {
+          if (res.headersSent) {
+            if (!res.destroyed) res.destroy();
+            return;
+          }
           const code = (error as { code?: unknown } | null)?.code;
           const status = code === 'PROXY_DNS_BLOCKED' ? 403 : code === 'PROXY_UPSTREAM_TIMEOUT' ? 504 : 502;
           writeJson(req, res, corsHeaders, status, { error: `Upstream error: ${errorMessage(error)}` });

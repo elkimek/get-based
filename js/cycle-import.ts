@@ -215,7 +215,56 @@ export function isAppleHealthCycleFile(file: Parameters<typeof cycleFileKind>[0]
 }
 
 const MAX_CYCLE_ZIP_ENTRIES = 100;
-const MAX_CYCLE_TEXT_CHARS = 20 * 1024 * 1024;
+const MAX_CYCLE_TEXT_BYTES = 20 * 1024 * 1024;
+const MAX_APPLE_HEALTH_CYCLE_XML_BYTES = 2.5 * 1024 * 1024 * 1024;
+
+async function readBoundedCycleZipBytes(entry: CycleZipEntry, maxBytes: number, errorMessage: string): Promise<BlobPart[]> {
+  if (typeof entry.internalStream === 'function') {
+    return new Promise<BlobPart[]>((resolve, reject) => {
+      const parts: BlobPart[] = [];
+      let total = 0;
+      let settled = false;
+      const stream = entry.internalStream!('uint8array');
+      stream
+        .on('data', chunk => {
+          if (settled) return;
+          total += chunk.byteLength;
+          if (total > maxBytes) {
+            settled = true;
+            try { stream.pause?.(); } catch {}
+            reject(new Error(errorMessage));
+            return;
+          }
+          parts.push(new Uint8Array(chunk));
+        })
+        .on('end', () => { if (!settled) { settled = true; resolve(parts); } })
+        .on('error', err => { if (!settled) { settled = true; reject(err); } })
+        .resume();
+    });
+  }
+  const blob = await entry.async('blob');
+  if (blob.size > maxBytes) throw new Error(errorMessage);
+  return [blob];
+}
+
+async function readBoundedCycleZipText(entry: CycleZipEntry, budget: { remaining: number }, errorMessage: string): Promise<string> {
+  if (budget.remaining <= 0) throw new Error(errorMessage);
+  if (typeof entry.internalStream === 'function') {
+    const parts = await readBoundedCycleZipBytes(entry, budget.remaining, errorMessage);
+    let total = 0;
+    for (const part of parts) total += (part as Uint8Array).byteLength;
+    budget.remaining -= total;
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const part of parts) { const u8 = part as Uint8Array; out.set(u8, offset); offset += u8.byteLength; }
+    return new TextDecoder('utf-8').decode(out);
+  }
+  const text = await entry.async('text');
+  const size = new TextEncoder().encode(text).byteLength;
+  if (size > budget.remaining) throw new Error(errorMessage);
+  budget.remaining -= size;
+  return text;
+}
 
 export const CYCLE_IMPORT_ADAPTERS = Object.freeze<CycleImportAdapter[]>([
   {
@@ -223,7 +272,16 @@ export const CYCLE_IMPORT_ADAPTERS = Object.freeze<CycleImportAdapter[]>([
     sourceLabel: 'Apple Health',
     detect: context => context.kind === 'xml' || !!appleHealthArchiveEntry(context),
     parse: async context => {
-      const blob = context.kind === 'xml' ? context.file : await appleHealthArchiveEntry(context)?.async('blob');
+      let blob: Blob | null = null;
+      if (context.kind === 'xml') {
+        blob = context.file;
+      } else {
+        const entry = appleHealthArchiveEntry(context);
+        if (entry) {
+          const parts = await readBoundedCycleZipBytes(entry, MAX_APPLE_HEALTH_CYCLE_XML_BYTES, 'Apple Health export.xml exceeds the maximum supported size.');
+          blob = new Blob(parts, { type: 'text/xml' });
+        }
+      }
       return blob ? parseAppleHealthCycleBlob(blob, context.file.name || 'apple-health-export.xml') : null;
     },
   },
@@ -237,11 +295,9 @@ export const CYCLE_IMPORT_ADAPTERS = Object.freeze<CycleImportAdapter[]>([
       if (context.kind === 'json') return parseClueCycleJson(context.text, context.file.name || 'clue-data.json');
       const entries = clueArchiveEntries(context);
       if (entries.length > MAX_CYCLE_ZIP_ENTRIES) throw new Error('Clue archive contains too many files.');
-      let totalChars = 0;
+      const budget = { remaining: MAX_CYCLE_TEXT_BYTES };
       for (const entry of entries) {
-        const text = await entry.async('text');
-        totalChars += text.length;
-        if (totalChars > MAX_CYCLE_TEXT_CHARS) throw new Error('Clue archive exceeds the maximum supported size.');
+        const text = await readBoundedCycleZipText(entry, budget, 'Clue archive exceeds the maximum supported size.');
         const parsed = parseClueCycleJson(text, context.file.name || entry.name);
         if (parsed) return parsed;
       }
@@ -259,11 +315,9 @@ export const CYCLE_IMPORT_ADAPTERS = Object.freeze<CycleImportAdapter[]>([
       const entries = naturalCyclesArchiveEntries(context);
       if (entries.length > MAX_CYCLE_ZIP_ENTRIES) throw new Error('Natural Cycles archive contains too many files.');
       const files: Array<{ name: string | undefined; text: string }> = [];
-      let totalChars = 0;
+      const budget = { remaining: MAX_CYCLE_TEXT_BYTES };
       for (const entry of entries) {
-        const text = await entry.async('text');
-        totalChars += text.length;
-        if (totalChars > MAX_CYCLE_TEXT_CHARS) throw new Error('Natural Cycles archive exceeds the maximum supported size.');
+        const text = await readBoundedCycleZipText(entry, budget, 'Natural Cycles archive exceeds the maximum supported size.');
         files.push({ name: entry.name, text });
       }
       return parseNaturalCyclesCsvBundle(files, context.file.name || 'natural-cycles-export.zip');

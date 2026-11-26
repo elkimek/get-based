@@ -25,7 +25,7 @@ export function parseSampleHour(value: unknown): number | null {
   if (clockMatch) return parseMatch(clockMatch);
   const meridiemMatch = (hasAm || hasPm) ? stripped.match(/(?:^|[^0-9])(\d{1,2})\s*(?:a\.?m\.?|p\.?m\.?)(?=$|[^a-z])/) : null;
   if (meridiemMatch) return parseMatch(meridiemMatch);
-  const bareMatch = stripped.match(/^\d{1,2}$/) || (stripped.includes('morning') ? stripped.match(/(?:^|[^0-9])(\d{1,2})(?=$|[^0-9])/) : null);
+  const bareMatch = stripped.match(/^(\d{1,2})$/) || (stripped.includes('morning') ? stripped.match(/(?:^|[^0-9])(\d{1,2})(?=$|[^0-9])/) : null);
   if (bareMatch) return parseMatch(bareMatch);
   if (stripped.includes('morning')) return 8;
   if (stripped.includes('afternoon')) return 14;

@@ -4,11 +4,19 @@ import { getErrorMessage } from './caught-error.js';
 
 const appWindow = (typeof window !== 'undefined' ? window : {}) as { JSZip?: CycleZipReader };
 
+export interface CycleZipStream {
+  on(event: 'data', cb: (chunk: Uint8Array) => void): CycleZipStream;
+  on(event: 'end', cb: () => void): CycleZipStream;
+  on(event: 'error', cb: (err: unknown) => void): CycleZipStream;
+  pause?(): void;
+  resume(): void;
+}
 export interface CycleZipEntry {
   name?: string;
   dir?: boolean;
   async(type: 'blob'): Promise<Blob>;
   async(type: 'string' | 'text'): Promise<string>;
+  internalStream?(type: 'uint8array'): CycleZipStream;
 }
 interface CycleZipArchive { files?: Record<string, CycleZipEntry> }
 interface CycleZipReader { loadAsync(file: File): Promise<CycleZipArchive> }

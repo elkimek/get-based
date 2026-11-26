@@ -31,7 +31,6 @@ export const PER_PROFILE_PREF_SUFFIXES = [
 const DESTINATION_SETTINGS = [
   ['labcharts-custom-url', 'labcharts-custom-key'], ['labcharts-ollama-pii-url', 'labcharts-ollama-pii-key'],
   ['labcharts-voice-local-server-url', 'labcharts-voice-local-server-key'], [LENS_CONFIG_STORAGE_KEY, 'labcharts-lens-key'],
-  ['labcharts-routstr-node', 'labcharts-routstr-key'],
 ] as const;
 
 function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: string) => boolean): Record<string, string> {
@@ -66,6 +65,15 @@ function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: stri
       // A destination from a file cannot inherit this device's existing key.
       if (localStorage.getItem(credential) || typeof (source as Record<string, unknown>)[credential] === 'string') delete values[url];
     }
+  }
+  // Routstr sessions are node-bound in labcharts-routstr-sessions; keep canonical node selection
+  // on fresh restores while preventing a backup from redirecting an unmigrated legacy routstr-key.
+  const prevRoutstrNode = localStorage.getItem('labcharts-routstr-node');
+  const nextRoutstrNode = values['labcharts-routstr-node'];
+  if (!nextRoutstrNode || nextRoutstrNode !== prevRoutstrNode) {
+    delete values['labcharts-routstr-key'];
+    const hasNodeBoundSessions = Boolean(values['labcharts-routstr-sessions'] || localStorage.getItem('labcharts-routstr-sessions'));
+    if (!hasNodeBoundSessions && localStorage.getItem('labcharts-routstr-key')) delete values['labcharts-routstr-node'];
   }
   return values;
 }

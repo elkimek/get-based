@@ -36,6 +36,8 @@ afterEach(() => {
 describe('marker context range helpers', () => {
   it('parses common collection times and rejects ambiguous prose', () => {
     expect(parseSampleHour('08:30')).toBe(8);
+    expect(parseSampleHour('8')).toBe(8);
+    expect(parseSampleHour('14')).toBe(14);
     expect(parseSampleHour('2:15 p.m.')).toBe(14);
     expect(parseSampleHour('2025-05-01T14:30:00Z')).toBe(14);
     expect(parseSampleHour('morning')).toBe(8);
@@ -143,5 +145,27 @@ describe('dated clinical-wellness ranges in the data pipeline', () => {
     expect(getEffectiveRangeForDate(hormones.testosterone!, 0, 'optimal')).toEqual({ min: 11, max: 17 });
     expect(OPTIMAL_RANGES['calculatedRatios.tygIndex']).toEqual({ optimalMin: null, optimalMax: 8.6 });
     expect(getEffectiveRangeForDate(tyg!, 0, 'optimal')).toEqual({ min: null, max: null });
+  });
+
+  it('retains earlier panel collection context when a later same-date panel has a null marker entry', () => {
+    const data = useProfile({
+      dob: '1987-06-15',
+      sex: 'female',
+      entries: [
+        {
+          date: '2025-06-15',
+          context: { sampleTime: '08:30' },
+          markers: { 'hormones.cortisol': 400 },
+        },
+        {
+          date: '2025-06-15',
+          context: { sampleTime: '15:00' },
+          markers: { 'hormones.cortisol': null, 'biochemistry.glucose': 5.0 },
+        },
+      ],
+    });
+    const cortisol = data.categories.hormones!.markers.cortisol!;
+    expect(cortisol.values[0]).toBe(400);
+    expect(cortisol.contextRefRanges![0]).toEqual({ min: 193.1, max: 689.7 });
   });
 });

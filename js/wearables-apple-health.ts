@@ -163,8 +163,31 @@ async function extractExportXmlBlob(zipFile: Blob, onProgress?: AppleHealthProgr
     const names = entryNames.filter(n => n.toLowerCase().endsWith('.xml')).slice(0, 5);
     throw new Error(`export.xml not found in ZIP. Found XMLs: ${names.join(', ') || '(none)'}`);
   }
-  // Return decompressed bytes as a Blob (not a string). A 2 GB XML hits V8's
-  // ~512 MB max-string-length limit if requested as 'text'; bytes don't.
+  // Stream-count expanded bytes so a zip bomb aborts before exhausting memory.
+  if (typeof entry.internalStream === 'function') {
+    const chunks = await new Promise<BlobPart[]>((resolve, reject) => {
+      const parts: BlobPart[] = [];
+      let total = 0;
+      let settled = false;
+      const stream = entry!.internalStream!('uint8array');
+      stream
+        .on('data', chunk => {
+          if (settled) return;
+          total += chunk.byteLength;
+          if (total > MAX_APPLE_HEALTH_XML_BYTES) {
+            settled = true;
+            try { stream.pause?.(); } catch {}
+            reject(new Error('Apple Health export.xml exceeds the maximum supported size.'));
+            return;
+          }
+          parts.push(new Uint8Array(chunk));
+        })
+        .on('end', () => { if (!settled) { settled = true; resolve(parts); } })
+        .on('error', err => { if (!settled) { settled = true; reject(err); } })
+        .resume();
+    });
+    return new Blob(chunks, { type: 'text/xml' });
+  }
   const blob = await entry.async('blob');
   if (blob.size > MAX_APPLE_HEALTH_XML_BYTES) {
     throw new Error('Apple Health export.xml exceeds the maximum supported size.');

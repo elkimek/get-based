@@ -424,7 +424,8 @@ export function createDataCore(ports: DataCorePorts) {
     const ENTRY_CONTEXT_KEYS = ['specimen', 'method', 'sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cyclePhaseDetail', 'cyclePhaseSource', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
     for (const [index, entry] of entries.entries()) {
       const targetDay = entryLookup[entry.date] || (entryLookup[entry.date] = {});
-      for (const [k, v] of Object.entries(entry.markers || {})) if (v != null || !(k in targetDay)) targetDay[k] = v;
+      const wonKeys: string[] = [];
+      for (const [k, v] of Object.entries(entry.markers || {})) if (v != null || !(k in targetDay)) { targetDay[k] = v; wonKeys.push(k); }
       const context = { ...(entry.context || {}) };
       for (const key of ENTRY_CONTEXT_KEYS) {
         if (entry[key] !== undefined && context[key] === undefined) context[key] = entry[key];
@@ -432,7 +433,7 @@ export function createDataCore(ports: DataCorePorts) {
       const day = labCollections[entry.date];
       if (day) {
         const collection = { index, context };
-        for (const key of Object.keys(entry.markers || {})) day[key] = collection;
+        for (const key of wonKeys) day[key] = collection;
       } else if (Object.keys(context).length) entryContextByDate[entry.date] = context;
     }
     if (Object.keys(labCollections).length) data.labCollections = labCollections;

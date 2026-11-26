@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 2104 |
-| Internal import edges | 7107 |
+| Internal import edges | 7108 |
 | Dynamic internal edges | 224 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -3941,7 +3941,7 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-review-ui.ts`](js/nutrition-review-ui.ts) → [`js/components/NutritionAnalysisProgress.svelte`](js/components/NutritionAnalysisProgress.svelte), [`js/components/NutritionEditableIngredients.svelte`](js/components/NutritionEditableIngredients.svelte), [`js/components/NutritionEditorFeedback.svelte`](js/components/NutritionEditorFeedback.svelte), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-review-model.ts`](js/nutrition-editor-review-model.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts)
 - [`js/nutrition-route-controls.ts`](js/nutrition-route-controls.ts) → [`js/nutrition-ai-route-commands.ts`](js/nutrition-ai-route-commands.ts), [`js/nutrition-ai-route-store.ts`](js/nutrition-ai-route-store.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/profile.ts`](js/profile.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts) *(dynamic)*, [`js/state.ts`](js/state.ts), [`shared/meal-route-control-contract.ts`](shared/meal-route-control-contract.ts)
 - [`js/nutrition-storage-permission.ts`](js/nutrition-storage-permission.ts) → no in-scope imports
-- [`js/nutrition-store-reads.ts`](js/nutrition-store-reads.ts) → [`js/base64.ts`](js/base64.ts)
+- [`js/nutrition-store-reads.ts`](js/nutrition-store-reads.ts) → [`js/base64.ts`](js/base64.ts), [`js/nutrition-operation-lock.ts`](js/nutrition-operation-lock.ts)
 - [`js/nutrition-store.ts`](js/nutrition-store.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts) *(dynamic)*, [`js/nutrition-operation-lock.ts`](js/nutrition-operation-lock.ts), [`js/nutrition-storage-permission.ts`](js/nutrition-storage-permission.ts), [`js/nutrition-store-reads.ts`](js/nutrition-store-reads.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts), [`js/state.ts`](js/state.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
 - [`js/nutrition-summary-context.ts`](js/nutrition-summary-context.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts)
 - [`js/nutrition-summary-runtime.ts`](js/nutrition-summary-runtime.ts) → [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts)

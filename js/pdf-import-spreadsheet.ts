@@ -222,7 +222,6 @@ function extractWorksheetRows(worksheetXml: string, sharedStrings: string[], dat
   const doc = parseXmlDocument(worksheetXml, 'Excel worksheet');
   const rows: string[][] = [];
   for (const row of getXmlElements(doc, 'row')) {
-    if (rows.length >= MAX_XLSX_ROWS_PER_SHEET) break;
     const cellMap = new Map<number, string>();
     let maxCol = -1;
     let fallbackColumn = 0;
@@ -238,6 +237,9 @@ function extractWorksheetRows(worksheetXml: string, sharedStrings: string[], dat
       }
     }
     if (maxCol >= 0) {
+      if (rows.length >= MAX_XLSX_ROWS_PER_SHEET) {
+        throw new Error(`Excel worksheet exceeds the ${MAX_XLSX_ROWS_PER_SHEET.toLocaleString('en-US')} row import limit`);
+      }
       const normalized = new Array<string>(maxCol + 1).fill('');
       for (const [col, val] of cellMap) normalized[col] = val;
       rows.push(normalized);
@@ -268,14 +270,19 @@ async function getWorkbookSheets(zip: SpreadsheetZipArchive, workbookDoc: Docume
     if (!sheet.path || seenPaths.has(sheet.path)) return false;
     seenPaths.add(sheet.path);
     return true;
-  }).slice(0, MAX_XLSX_SHEETS);
+  });
+  if (sheets.length > MAX_XLSX_SHEETS) {
+    throw new Error(`Excel workbook exceeds the ${MAX_XLSX_SHEETS} sheet import limit`);
+  }
 
   if (sheets.length > 0) return sheets;
-  return Object.keys(zip.files || {})
+  const fallbackSheets = Object.keys(zip.files || {})
     .filter(path => /^xl\/worksheets\/sheet\d+\.xml$/i.test(path))
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-    .slice(0, MAX_XLSX_SHEETS)
-    .map((path, index) => ({ name: `Sheet ${index + 1}`, path }));
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  if (fallbackSheets.length > MAX_XLSX_SHEETS) {
+    throw new Error(`Excel workbook exceeds the ${MAX_XLSX_SHEETS} sheet import limit`);
+  }
+  return fallbackSheets.map((path, index) => ({ name: `Sheet ${index + 1}`, path }));
 }
 
 export async function extractXLSXText(file: Pick<File, 'name' | 'arrayBuffer'> & { size?: number }) {

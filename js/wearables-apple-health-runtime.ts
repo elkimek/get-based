@@ -2,7 +2,17 @@
 
 import type { AppleHealthProgressCallback } from './wearables-apple-health-parser.js';
 
-export interface AppleHealthZipEntry { async(type: 'blob'): Promise<Blob> }
+export interface AppleHealthZipStream {
+  on(event: 'data', cb: (chunk: Uint8Array) => void): AppleHealthZipStream;
+  on(event: 'end', cb: () => void): AppleHealthZipStream;
+  on(event: 'error', cb: (err: unknown) => void): AppleHealthZipStream;
+  pause?(): void;
+  resume(): void;
+}
+export interface AppleHealthZipEntry {
+  async(type: 'blob'): Promise<Blob>;
+  internalStream?(type: 'uint8array'): AppleHealthZipStream;
+}
 export interface AppleHealthZipReader {
   loadAsync(file: Blob, options: { onUpdate: (event: { percent: number }) => void }): Promise<{ files: Record<string, AppleHealthZipEntry> }>;
 }

@@ -558,25 +558,24 @@ export async function getAutoBackupSnapshots(): Promise<AutoBackupRecord[]> {
 
 export async function purgePlaintextAutoBackups(): Promise<number> {
   if (typeof indexedDB === 'undefined') return 0;
-  try {
-    const db = await openBackupDB();
-    const tx = db.transaction(BACKUP_STORE, 'readwrite');
-    let removed = 0;
-    await new Promise<void>((resolve, reject) => {
-      const req = tx.objectStore(BACKUP_STORE).openCursor();
-      req.onsuccess = () => {
-        const cursor = req.result;
-        if (!cursor) return;
-        const val = cursor.value as AutoBackupRecord | null;
-        if (!val?.encrypted && !val?.snapshot?.encrypted) { cursor.delete(); removed++; }
-        cursor.continue();
-      };
-      req.onerror = () => reject(req.error);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-    return removed;
-  } catch { return 0; }
+  const db = await openBackupDB();
+  const tx = db.transaction(BACKUP_STORE, 'readwrite');
+  let removed = 0;
+  await new Promise<void>((resolve, reject) => {
+    const req = tx.objectStore(BACKUP_STORE).openCursor();
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) return;
+      const val = cursor.value as AutoBackupRecord | null;
+      if (!val?.encrypted && !val?.snapshot?.encrypted) { cursor.delete(); removed++; }
+      cursor.continue();
+    };
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Plaintext auto-backup purge aborted.'));
+  });
+  return removed;
 }
 
 export async function restoreAutoBackup(id: IDBValidKey) {
