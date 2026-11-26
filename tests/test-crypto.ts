@@ -817,5 +817,56 @@ try {
   assert('buildBackupSnapshot', false, (e as {message?: unknown}).message);
 }
 
+console.log('28. prepareBackupRestore Routstr destination safety');
+try {
+  const { prepareBackupRestore } = await import('../js/backup-restore-plan.js');
+  const isCred = (k: string) => k === 'labcharts-routstr-key' || k === 'labcharts-routstr-sessions';
+  const manifest = btoa('0123456789abcdef');
+  const makeEncryptedBackup = (settings: Record<string, string>) => ({
+    encrypted: true,
+    encryptionSalt: manifest,
+    profileList: 'v1:profiles',
+    profiles: [],
+    settings,
+  });
+
+  localStorage.removeItem('labcharts-routstr-node');
+  localStorage.removeItem('labcharts-routstr-key');
+  localStorage.removeItem('labcharts-routstr-sessions');
+  const freshPlan = prepareBackupRestore(makeEncryptedBackup({
+    'labcharts-routstr-node': 'https://api.routstr.com/',
+    'labcharts-routstr-sessions': 'v1:sessions',
+    'labcharts-routstr-key': 'v1:empty',
+  }), isCred);
+  assert('Fresh encrypted restore preserves canonical Routstr node and sessions while dropping legacy key',
+    freshPlan.values['labcharts-routstr-node'] === 'https://api.routstr.com'
+    && freshPlan.values['labcharts-routstr-sessions'] === 'v1:sessions'
+    && !Object.hasOwn(freshPlan.values, 'labcharts-routstr-key'));
+
+  localStorage.setItem('labcharts-routstr-node', 'https://api.routstr.com');
+  localStorage.setItem('labcharts-routstr-key', 'd1:local-legacy-key');
+  const craftedPlan = prepareBackupRestore(makeEncryptedBackup({
+    'labcharts-routstr-node': 'https://attacker.example',
+    'labcharts-routstr-sessions': 'v1:invalid',
+  }), isCred);
+  assert('Crafted backup cannot redirect an unmigrated local legacy Routstr key',
+    !Object.hasOwn(craftedPlan.values, 'labcharts-routstr-node'));
+
+  localStorage.setItem('labcharts-routstr-sessions', 'v1:existing-sessions');
+  const migratedPlan = prepareBackupRestore(makeEncryptedBackup({
+    'labcharts-routstr-node': 'https://other.routstr.example',
+    'labcharts-routstr-sessions': 'v1:new-sessions',
+  }), isCred);
+  assert('Migrated Routstr node switch clears any retired legacy key slot',
+    migratedPlan.values['labcharts-routstr-node'] === 'https://other.routstr.example'
+    && migratedPlan.values['labcharts-routstr-key'] === null);
+
+  localStorage.removeItem('labcharts-routstr-node');
+  localStorage.removeItem('labcharts-routstr-key');
+  localStorage.removeItem('labcharts-routstr-sessions');
+} catch (e) {
+  assert('prepareBackupRestore Routstr destination safety', false, (e as {message?: unknown}).message);
+}
+
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

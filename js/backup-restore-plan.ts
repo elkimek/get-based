@@ -33,10 +33,10 @@ const DESTINATION_SETTINGS = [
   ['labcharts-voice-local-server-url', 'labcharts-voice-local-server-key'], [LENS_CONFIG_STORAGE_KEY, 'labcharts-lens-key'],
 ] as const;
 
-function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: string) => boolean): Record<string, string> {
+function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: string) => boolean): Record<string, string | null> {
   const source = backup.settings || {};
   if (typeof source !== 'object' || Array.isArray(source)) throw new Error('Invalid backup settings.');
-  const values: Record<string, string> = {};
+  const values: Record<string, string | null> = {};
   for (const [key, value] of Object.entries(source)) {
     if (!GLOBAL_SETTINGS_KEYS.includes(key)) continue;
     if (typeof value !== 'string') throw new Error('Invalid backup setting value.');
@@ -67,13 +67,19 @@ function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: stri
     }
   }
   // Routstr sessions are node-bound in labcharts-routstr-sessions; keep canonical node selection
-  // on fresh restores while preventing a backup from redirecting an unmigrated legacy routstr-key.
+  // on fresh/migrated restores while never letting a backup redirect a local legacy routstr-key.
   const prevRoutstrNode = localStorage.getItem('labcharts-routstr-node');
   const nextRoutstrNode = values['labcharts-routstr-node'];
   if (!nextRoutstrNode || nextRoutstrNode !== prevRoutstrNode) {
     delete values['labcharts-routstr-key'];
-    const hasNodeBoundSessions = Boolean(values['labcharts-routstr-sessions'] || localStorage.getItem('labcharts-routstr-sessions'));
-    if (!hasNodeBoundSessions && localStorage.getItem('labcharts-routstr-key')) delete values['labcharts-routstr-node'];
+    const hasLocalLegacyKey = Boolean(localStorage.getItem('labcharts-routstr-key'));
+    const hasLocalSessions = Boolean(localStorage.getItem('labcharts-routstr-sessions'));
+    if (hasLocalLegacyKey && !hasLocalSessions) {
+      delete values['labcharts-routstr-node'];
+    } else if (hasLocalLegacyKey && nextRoutstrNode) {
+      // Clear any retired legacy slot so a malformed sessions payload cannot fall back to it.
+      values['labcharts-routstr-key'] = null;
+    }
   }
   return values;
 }

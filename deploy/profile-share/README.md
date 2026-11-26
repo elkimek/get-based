@@ -19,6 +19,10 @@ JavaScript and does not require a compiler or ignored developer outputs.
 3. Copy `.env.example` to `.env`, set a freshly generated
    `PROFILE_SHARE_RATE_LIMIT_KEY`, and set the file mode to `0600`.
 4. Build and start with Docker Compose from `deploy/profile-share`.
+   Compose sets `PROFILE_SHARE_TRUST_PROXY=1` because the container listens only
+   on `127.0.0.1:8790` behind Caddy; direct non-proxied launches leave
+   `PROFILE_SHARE_TRUST_PROXY` unset so client-supplied `X-Forwarded-*` headers
+   are ignored.
 5. Point `shares.getbased.health` at the VPS, then expose only the loopback
    listener through that dedicated HTTPS origin and exact API path:
 

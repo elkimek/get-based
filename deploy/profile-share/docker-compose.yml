@@ -18,6 +18,7 @@ services:
     environment:
       - PROFILE_SHARE_BIND=0.0.0.0
       - PROFILE_SHARE_PORT=8790
+      - PROFILE_SHARE_TRUST_PROXY=1
       - PROFILE_SHARE_SQLITE_PATH=/data/profile-shares.sqlite
       - PROFILE_SHARE_DATABASE_MAX_BYTES=536870912
     cap_drop:
