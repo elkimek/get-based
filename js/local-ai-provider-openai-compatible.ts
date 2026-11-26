@@ -4,12 +4,14 @@ import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 import { LOCAL_AI_FIRST_TOKEN_STALL_MS } from './api-transport.js';
 import {
   createLocalAiHeaders,
+  expandLocalAiOutputTokensForReasoning,
   isLikelyEmbeddingModel,
   localAiDiscoveryError,
   localAiFetchFailure,
   localAiResult,
   LOCAL_AI_DISCOVERY_TIMEOUT_MS,
   parseOpenAICompatibleModel,
+  resolveLocalAiReasoningPlan,
   unavailableLocalAiResult,
 } from './local-ai-provider-shared.js';
 
@@ -19,7 +21,13 @@ import type { LocalAiRequestOptions } from './api-local.js';
 interface UnslothStatus { active_model?: unknown; model_identifier?: unknown; loaded?: unknown; context_length?: unknown; is_vision?: unknown }
 interface CompatibleModel { owned_by?: unknown }
 interface DiscoveryOptions { baseUrl: string; apiKey?: unknown; timeoutMs?: number }
-interface InferenceContext { modelDetail?: LocalAiModel | null; config: { url: string; apiKey?: unknown }; model: unknown; opts: LocalAiRequestOptions; plan: { maxTokens: number } }
+interface InferenceContext {
+  modelDetail?: LocalAiModel | null;
+  config: { url: string; apiKey?: unknown };
+  model: unknown;
+  opts: LocalAiRequestOptions;
+  plan: { maxTokens: number; availableOutputTokens?: number | null };
+}
 
 export const openAICompatibleProviderAdapter = Object.freeze({
   id: 'openai-compatible',
@@ -114,23 +122,43 @@ export async function discoverOpenAICompatibleProvider({
   }
 }
 
-export async function inferWithOpenAICompatibleProvider({ config, model, opts, plan }: InferenceContext) {
+export async function inferWithOpenAICompatibleProvider({ config, model, opts, plan, modelDetail }: InferenceContext) {
   const url = String(config.url || '').replace(/\/+$/, '');
+  const resolvedReasoning = resolveLocalAiReasoningPlan(opts, modelDetail);
   const extraBody: { reasoning_effort?: string; temperature?: number } = {};
-  if (opts.jsonMode || opts.reasoningEffort === 'none') extraBody.reasoning_effort = 'none';
+  if (resolvedReasoning.reasoningEffort) extraBody.reasoning_effort = resolvedReasoning.reasoningEffort;
   if (opts.jsonMode || opts.temperature === 0) extraBody.temperature = 0;
-  // "on" is a native boolean-model choice, not an OpenAI reasoning_effort
-  // value. Omitting it preserves the model/server's enabled default.
-  const requestOpts = opts.reasoningEffort === 'on' ? { ...opts, reasoningEffort: undefined } : opts;
-  const result = await callOpenAICompatibleAPI(
+  // Pass resolved reasoning_effort and forced jsonMode temperature via
+  // extraBody only, so callOpenAICompatibleAPI cannot overwrite them with
+  // caller defaults (for example jsonMode: true paired with reasoningEffort: 'low').
+  const requestOpts: LocalAiRequestOptions = {
+    ...opts,
+    reasoningEffort: undefined,
+    ...(extraBody.temperature !== undefined ? { temperature: undefined } : {}),
+  };
+  const sendRequest = (maxTokens: number) => callOpenAICompatibleAPI(
     `${url}/v1/chat/completions`,
     config.apiKey,
     model,
     'Local AI',
-    { ...requestOpts, maxTokens: plan.maxTokens },
+    { ...requestOpts, maxTokens },
     {},
     { useProxy: false, extraBody, firstReadStallMs: LOCAL_AI_FIRST_TOKEN_STALL_MS },
   );
+  let result;
+  try {
+    result = await sendRequest(plan.maxTokens);
+  } catch (error) {
+    const canRetryWithReasoningBudget = (error as { code?: unknown } | null | undefined)?.code === 'local_reasoning_budget_exhausted'
+      && !opts.signal?.aborted
+      && opts.requestCurrent?.() !== false
+      && (opts.jsonMode || plan.maxTokens >= 256);
+    const expandedMaxTokens = canRetryWithReasoningBudget
+      ? expandLocalAiOutputTokensForReasoning(plan.maxTokens, plan.availableOutputTokens)
+      : plan.maxTokens;
+    if (!canRetryWithReasoningBudget || expandedMaxTokens <= plan.maxTokens) throw error;
+    result = await sendRequest(expandedMaxTokens);
+  }
   return {
     ...result,
     diagnostics: {

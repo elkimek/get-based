@@ -40,7 +40,7 @@ const REQUEST_CHARS = AGENT_HOST_MAX_PROMPT_CHARS - 4_096;
 const BATCH_CHARS = 24_000;
 const BATCH_SCORES = 4;
 export function biologyAIRequestOptions() {
-  return { reasoningEffort: 'low', strictTokenLimit: true, requestRetries: 0,
+  return { reasoningEffort: 'low', strictTokenLimit: true, preferNativeContext: true, requestRetries: 0,
     requestTimeoutMs: 120_000, forceNonStream: true, signal: AbortSignal.timeout(120_000) };
 }
 const incompleteMessage = 'The AI response was incomplete. Saved insights are unchanged; update missing insights to retry.';

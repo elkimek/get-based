@@ -4,6 +4,7 @@ import { getOllamaConfig, getOllamaMainModel } from './api-provider-storage.js';
 import { prepareLocalAiRuntimeHandoff, rememberLocalAiRuntimeUse } from './local-ai-lifecycle.js';
 import { getLocalAiProviderAdapter } from './local-ai-provider-registry.js';
 import { discoverLocalAI, getCachedLocalAiModelDetail, markCachedLocalAiModelLoaded } from './local-ai-discovery.js';
+import { expandLocalAiOutputTokensForReasoning, resolveLocalAiReasoningPlan } from './local-ai-provider-shared.js';
 
 import type { OllamaInferenceOptions } from './local-ai-provider-ollama.js';
 import type { LocalAiModel } from './local-ai-provider-shared.js';
@@ -39,11 +40,21 @@ export function estimateLocalAiPromptTokens({ system, messages, promptCharsPerTo
   return Math.ceil(contentTokens) + messageOverhead;
 }
 
+function plannedRequestedOutputTokens(opts: LocalAiRequestOptions, modelDetail: LocalAiModel | null | undefined) {
+  const requestedMaxTokens = Math.max(1, Number(opts.maxTokens) || 4096);
+  const reasoningPlan = resolveLocalAiReasoningPlan(opts, modelDetail);
+  if (reasoningPlan.mandatoryReasoning && (opts.jsonMode || requestedMaxTokens >= 256)) {
+    return expandLocalAiOutputTokensForReasoning(requestedMaxTokens);
+  }
+  return requestedMaxTokens;
+}
+
 export function planLocalAiRequest(opts: LocalAiRequestOptions, modelDetail: LocalAiModel | null | undefined) {
   const requestedMaxTokens = Math.max(1, Number(opts.maxTokens) || 4096);
+  const targetOutputTokens = plannedRequestedOutputTokens(opts, modelDetail);
   const estimatedPromptTokens = estimateLocalAiPromptTokens(opts);
   const contextLength = Number(modelDetail?.contextLength) || 0;
-  let maxTokens = requestedMaxTokens;
+  let maxTokens = targetOutputTokens;
   let availableOutputTokens: number | null = null;
   if (contextLength > 0) {
     const safetyTokens = Math.max(256, Math.ceil(contextLength * 0.04));
@@ -54,10 +65,11 @@ export function planLocalAiRequest(opts: LocalAiRequestOptions, modelDetail: Loc
       const maxHint = maxContext > contextLength ? ` This model supports up to ${maxContext.toLocaleString()} tokens.` : '';
       throw new Error(`Local AI context is too small for this request: about ${estimatedPromptTokens.toLocaleString()} prompt tokens plus output, but ${modelDetail?.name || 'the model'} is loaded with ${contextLength.toLocaleString()}.${maxHint} Reload it with a larger context or use a smaller/chunked input.`);
     }
-    maxTokens = Math.min(requestedMaxTokens, availableOutputTokens);
+    maxTokens = Math.min(targetOutputTokens, availableOutputTokens);
   }
   return {
     maxTokens,
+    availableOutputTokens,
     diagnostics: {
       estimatedPromptTokens,
       requestedMaxTokens,
@@ -117,15 +129,16 @@ export async function callOpenAICompatibleLocalAPI(opts: LocalAiRequestOptions) 
   const url = config.url.replace(/\/+$/, '');
   await prepareLocalAiRuntimeHandoff({ baseUrl: url, model });
   let modelDetail = getCachedLocalAiModelDetail(url, model, config.apiKey);
-  // Routine chat avoids provider probes before its first token. Imports opt in
-  // because adapters need exact context and native capability metadata.
-  if (!modelDetail && opts.preferNativeContext) {
+  // Routine chat avoids provider probes before its first token. Imports and
+  // structured JSON features opt in so adapters know exact context and
+  // reasoning capability metadata before planning output budgets.
+  if (!modelDetail && (opts.preferNativeContext || opts.jsonMode)) {
     const discovery = await discoverLocalAI(url, config.apiKey);
     modelDetail = discovery.modelDetails?.find(detail => detail.name === model) || null;
   }
 
   const estimatedPromptTokens = estimateLocalAiPromptTokens(opts);
-  const requestedOutput = Math.max(1, Number(opts.maxTokens) || 4096);
+  const requestedOutput = plannedRequestedOutputTokens(opts, modelDetail);
   const requiredContext = estimatedPromptTokens
     + requestedOutput
     + Math.max(512, Math.ceil((estimatedPromptTokens + requestedOutput) * 0.04));
@@ -208,7 +221,7 @@ export async function callOpenAICompatibleLocalAPI(opts: LocalAiRequestOptions) 
   let result;
   try {
     assertCurrent();
-    result = await compatibleAdapter.infer({ config, model, opts, plan, modelDetail });
+    result = await compatibleAdapter.infer({ config, model, opts, plan, modelDetail: effectiveModelDetail });
   } finally {
     rememberLocalAiRuntimeUse({ baseUrl: config.url, providerId: runtimeProviderId, model });
   }
