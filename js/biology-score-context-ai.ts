@@ -335,8 +335,15 @@ async function requestBiologyScoreContextReview(data: ReviewData): Promise<Biolo
   const allowedFlags = applicableFlagKeys();
   const identity = getAssistantFeatureIdentity();
   const prompt = buildReviewContext(data);
-  const { contextSystem } = await import('./biology-score-ai-protocol.js');
-  const result = await biologyScoreContextAIDeps.callClaudeAPI({ system: contextSystem(allowedFlags), messages: [{ role: 'user', content: prompt }], maxTokens: 1800, ...biologyAIRequestOptions() }) as { text: string; usage?: unknown };
+  const { contextSystem, contextSchema } = await import('./biology-score-ai-protocol.js');
+  const result = await biologyScoreContextAIDeps.callClaudeAPI({
+    system: contextSystem(allowedFlags),
+    messages: [{ role: 'user', content: prompt }],
+    jsonMode: true,
+    jsonSchema: contextSchema(allowedFlags),
+    maxTokens: 1800,
+    ...biologyAIRequestOptions(),
+  }) as { text: string; usage?: unknown };
   const review = { ...parseReview(result.text, allowedFlags), ...material, profileId, generation: { provider: identity.provider, modelId: identity.modelId, generatedAt: Date.now(), ...(result.usage ? { usage: result.usage } : {}) } };
   reviewBases.set(review, baseData);
   return review;

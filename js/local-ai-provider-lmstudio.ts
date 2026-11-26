@@ -11,6 +11,7 @@ import {
   LOCAL_AI_DISCOVERY_TIMEOUT_MS,
   parseOpenAICompatibleModel,
   redactApiSecretText,
+  resolveLocalAiReasoningPlan,
   unavailableLocalAiResult,
 } from './local-ai-provider-shared.js';
 
@@ -255,11 +256,11 @@ export async function inferWithLMStudioNativeProvider({ config, model, opts, pla
   const reasoningOptions = Array.isArray(modelDetail?.reasoning?.allowedOptions)
     ? modelDetail.reasoning.allowedOptions
     : [];
-  const requestedReasoning = ['none', 'off'].includes(opts.reasoningEffort as string) ? 'off' : opts.reasoningEffort;
-  const reasoning = opts.jsonMode && reasoningOptions.includes('off')
-    ? 'off'
-    : requestedReasoning && reasoningOptions.includes(requestedReasoning)
-      ? requestedReasoning
+  const reasoningPlan = resolveLocalAiReasoningPlan(opts, modelDetail);
+  const reasoning = reasoningPlan.reasoningEffort === 'none'
+    ? (reasoningOptions.includes('off') ? 'off' : undefined)
+    : reasoningPlan.reasoningEffort && reasoningOptions.includes(reasoningPlan.reasoningEffort)
+      ? reasoningPlan.reasoningEffort
       : undefined;
   const requestInit = {
     method: 'POST',

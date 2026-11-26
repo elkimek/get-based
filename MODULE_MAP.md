@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 2104 |
-| Internal import edges | 7100 |
+| Internal import edges | 7101 |
 | Dynamic internal edges | 224 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -220,7 +220,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>api</code> family — 14 modules</summary>
 
 - [`js/api-custom.ts`](js/api-custom.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/caught-error.ts`](js/caught-error.ts)
-- [`js/api-local.ts`](js/api-local.ts) → [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/local-ai-lifecycle.ts`](js/local-ai-lifecycle.ts), [`js/local-ai-provider-registry.ts`](js/local-ai-provider-registry.ts)
+- [`js/api-local.ts`](js/api-local.ts) → [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/local-ai-lifecycle.ts`](js/local-ai-lifecycle.ts), [`js/local-ai-provider-registry.ts`](js/local-ai-provider-registry.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts)
 - [`js/api-models.ts`](js/api-models.ts) → [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/api-openai-compatible.ts`](js/api-openai-compatible.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-runtime.ts`](js/api-runtime.ts), [`js/api-transport.ts`](js/api-transport.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts), [`js/utils.ts`](js/utils.ts), [`shared/ai-tool-protocol.ts`](shared/ai-tool-protocol.ts)
 - [`js/api-openrouter-oauth.ts`](js/api-openrouter-oauth.ts) → [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api-runtime.ts`](js/api-runtime.ts)

@@ -738,6 +738,198 @@ describe('AI provider request contracts', () => {
     expect(body.reasoning_effort).toBe('none');
   });
 
+  it('keeps jsonMode reasoning disabled on Local AI even when a caller defaults to low reasoning', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('qwen/qwen3.8-27b');
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
+      if (init.method !== 'POST') {
+        if (href.endsWith('/api/v1/models')) {
+          return jsonResponse({
+            models: [lmStudioModel(
+              'qwen/qwen3.8-27b',
+              [{ id: 'qwen/qwen3.8-27b', config: { context_length: 131072 } }],
+              { max_context_length: 262144, capabilities: { reasoning: { allowed_options: ['off', 'low', 'medium', 'xhigh', 'on'], default: 'xhigh' } } },
+            )],
+          });
+        }
+        if (href.endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'qwen/qwen3.8-27b' }] });
+        return jsonResponse({}, { status: 404 });
+      }
+      return chatCompletionResponse('{"summary":"ok","explanation":"done"}');
+    });
+
+    await callClaudeAPI(baseChatOptions({
+      jsonMode: true,
+      jsonSchema: { type: 'object', properties: { summary: { type: 'string' } } },
+      maxTokens: 700,
+      reasoningEffort: 'low',
+      strictTokenLimit: true,
+      preferNativeContext: true,
+      temperature: 0.7,
+    }));
+
+    const postCalls = (globalThis.fetch as Mock<FixtureFetch>).mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(postCalls).toHaveLength(1);
+    const body = JSON.parse(postCalls[0]![1].body!);
+    expect(body.reasoning_effort).toBe('none');
+    expect(body.temperature).toBe(0);
+    expect(body.max_tokens).toBe(700);
+  });
+
+  it('uses the lowest supported effort and expands Local AI output headroom for mandatory-reasoning LM Studio models', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('meta/muse-glimmer');
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
+      if (init.method !== 'POST') {
+        if (href.endsWith('/api/v1/models')) {
+          return jsonResponse({
+            models: [lmStudioModel(
+              'meta/muse-glimmer',
+              [{ id: 'meta/muse-glimmer', config: { context_length: 131072 } }],
+              { max_context_length: 131072, capabilities: { reasoning: { allowed_options: ['low', 'medium', 'high', 'xhigh'], default: 'high' } } },
+            )],
+          });
+        }
+        if (href.endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'meta/muse-glimmer' }] });
+        return jsonResponse({}, { status: 404 });
+      }
+      return chatCompletionResponse('{"summary":"ok","explanation":"done"}');
+    });
+
+    await callClaudeAPI(baseChatOptions({
+      jsonMode: true,
+      jsonSchema: { type: 'object', properties: { summary: { type: 'string' } } },
+      maxTokens: 700,
+      reasoningEffort: 'low',
+      strictTokenLimit: true,
+      preferNativeContext: true,
+    }));
+
+    const postCalls = (globalThis.fetch as Mock<FixtureFetch>).mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(postCalls).toHaveLength(1);
+    const body = JSON.parse(postCalls[0]![1].body!);
+    expect(body.reasoning_effort).toBe('low');
+    expect(body.max_tokens).toBe(4096);
+  });
+
+  it('caps optional mandatory-reasoning headroom to model maxContextLength instead of rejecting fitting requests', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('meta/muse-glimmer');
+    let loadedCtx = 4096;
+    const postUrls: string[] = [];
+    const postBodies: Array<Record<string, unknown>> = [];
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
+      if (init.method === 'POST') {
+        postUrls.push(href);
+        const parsed = JSON.parse(init.body!);
+        postBodies.push(parsed);
+        if (href.endsWith('/api/v1/models/unload')) {
+          loadedCtx = 0;
+          return jsonResponse({ ok: true });
+        }
+        if (href.endsWith('/api/v1/models/load')) {
+          loadedCtx = parsed.context_length;
+          return jsonResponse({ ok: true });
+        }
+        return chatCompletionResponse('{"summary":"ok","explanation":"done"}');
+      }
+      if (href.endsWith('/api/v1/models')) {
+        return jsonResponse({
+          models: [lmStudioModel(
+            'meta/muse-glimmer',
+            loadedCtx > 0 ? [{ id: 'meta/muse-glimmer', config: { context_length: loadedCtx } }] : [],
+            { max_context_length: 8192, capabilities: { reasoning: { allowed_options: ['low', 'medium', 'high', 'xhigh'], default: 'high' } } },
+          )],
+        });
+      }
+      if (href.endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'meta/muse-glimmer' }] });
+      return jsonResponse({}, { status: 404 });
+    });
+
+    await expect(callClaudeAPI(baseChatOptions({
+      messages: [{ role: 'user', content: 'x'.repeat(17_500) }],
+      jsonMode: true,
+      maxTokens: 700,
+      reasoningEffort: 'low',
+      strictTokenLimit: true,
+      preferNativeContext: true,
+    }))).resolves.toMatchObject({ text: '{"summary":"ok","explanation":"done"}' });
+
+    const loadIndex = postUrls.findIndex(href => href.endsWith('/api/v1/models/load'));
+    expect(loadIndex).toBeGreaterThanOrEqual(0);
+    expect(postBodies[loadIndex]).toMatchObject({ model: 'meta/muse-glimmer', context_length: 8192 });
+    const chatBody = postBodies.at(-1)!;
+    expect(chatBody.reasoning_effort).toBe('low');
+    expect(chatBody.max_tokens).toBeGreaterThan(700);
+    expect(chatBody.max_tokens).toBeLessThan(4096);
+  });
+
+  it('retries once with expanded Local AI output headroom when an endpoint ignores reasoning_effort and exhausts max_tokens on thinking', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('unknown-thinker');
+    const postBodies: Array<Record<string, unknown>> = [];
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
+      if (init.method !== 'POST') {
+        if (href.endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'unknown-thinker' }] });
+        return jsonResponse({}, { status: 404 });
+      }
+      postBodies.push(JSON.parse(init.body!));
+      if (postBodies.length === 1) {
+        return jsonResponse({
+          choices: [{ message: { content: '', reasoning_content: 'cut off mid-thought' }, finish_reason: 'length' }],
+          usage: { prompt_tokens: 5200, completion_tokens: 700 },
+        });
+      }
+      return chatCompletionResponse('{"summary":"ok","explanation":"done"}');
+    });
+
+    await expect(callClaudeAPI(baseChatOptions({
+      jsonMode: true,
+      maxTokens: 700,
+      reasoningEffort: 'low',
+      strictTokenLimit: true,
+    }))).resolves.toMatchObject({
+      text: '{"summary":"ok","explanation":"done"}',
+      usage: { inputTokens: 5211, outputTokens: 713 },
+    });
+
+    expect(postBodies).toHaveLength(2);
+    expect(postBodies[0]!.reasoning_effort).toBe('none');
+    expect(postBodies[0]!.max_tokens).toBe(700);
+    expect(postBodies[1]!.reasoning_effort).toBe('none');
+    expect(postBodies[1]!.max_tokens).toBe(4096);
+  });
+
+  it('surfaces the reasoning-budget error if the Local AI retry still exhausts output on thinking', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('endless-thinker');
+    let postCount = 0;
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
+      if (init.method !== 'POST') {
+        if (href.endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'endless-thinker' }] });
+        return jsonResponse({}, { status: 404 });
+      }
+      postCount++;
+      return jsonResponse({
+        choices: [{ message: { content: '', reasoning_content: 'still thinking' }, finish_reason: 'length' }],
+        usage: { prompt_tokens: 5200, completion_tokens: 700 },
+      });
+    });
+
+    await expect(callClaudeAPI(baseChatOptions({
+      jsonMode: true,
+      maxTokens: 700,
+      reasoningEffort: 'low',
+      strictTokenLimit: true,
+    }))).rejects.toThrow('Local AI returned reasoning but no final answer');
+    expect(postCount).toBe(2);
+  });
+
   it('can remove both unsupported schema and reasoning controls in validation-only retries', async () => {
     setAIProvider('ollama');
     setOllamaMainModel('llama3.2');
@@ -1373,6 +1565,29 @@ describe('AI provider request contracts', () => {
     expect(requestFromLastFetch().body).toMatchObject({
       model: 'reasoning-model',
       reasoning: 'high',
+    });
+  });
+
+  it('selects the lowest supported native LM Studio reasoning effort for mandatory-reasoning JSON requests', async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({
+      output: [{ type: 'message', content: '{"summary":"ok"}' }],
+      stats: { input_tokens: 5, total_output_tokens: 7 },
+    }));
+
+    await inferWithLMStudioNativeProvider({
+      config: { url: 'http://localhost:1234', apiKey: '' },
+      model: 'meta/muse-glimmer',
+      opts: baseChatOptions({ jsonMode: true, reasoningEffort: 'none' }),
+      plan: { maxTokens: 4096 },
+      contextLength: 16384,
+      modelDetail: {
+        reasoning: { allowedOptions: ['low', 'medium', 'high', 'xhigh'], default: 'high' },
+      },
+    });
+
+    expect(requestFromLastFetch().body).toMatchObject({
+      model: 'meta/muse-glimmer',
+      reasoning: 'low',
     });
   });
 
