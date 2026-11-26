@@ -123,8 +123,10 @@ export function getRoutstrNodeUrl() {
 }
 
 function _requireNodeUrl() {
-  const url = canonicalRoutstrUrl(getRoutstrNodeUrl());
-  if (!url) throw new Error('No valid Routstr node selected. Pick a node in Settings -> Routstr.');
+  const raw = getRoutstrNodeUrl();
+  if (!raw) throw new Error('No Routstr node selected. Pick a node in Settings -> Routstr.');
+  const url = canonicalRoutstrUrl(raw);
+  if (!url) throw new Error('Invalid Routstr node URL. Pick a node in Settings -> Routstr.');
   return url;
 }
 

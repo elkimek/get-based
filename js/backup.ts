@@ -186,7 +186,7 @@ function restoreBackupEncryptionSettings(backup: BackupRestoreView) {
 async function collectWearableIDB(profileIds: Iterable<string>) {
   const out: WearableBackup = {};
   for (const pid of profileIds) {
-    // Read raw rows so encrypted envelopes stay encrypted; omit device-key-only WHOOP/Google rows.
+    // Read raw rows so encrypted envelopes stay encrypted; WHOOP and Google Health raw rows use an always-on device key and are omitted.
     const perProfile: Record<string, StoredWearableRow[]> = {};
     for (const src of BACKUP_WEARABLE_SOURCES) {
       const srcRows = await getDailyRangeRaw(pid, src, '', '\uffff');

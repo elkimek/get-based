@@ -36,7 +36,8 @@ export async function mergeArrayRowsIntoImported(
   const legacyVersions = readLegacyArrayVersions(options.profileId, arrayName);
   // Read/write the target array via getAt/setAt so both flat and dotted paths
   // enforce prototype-pollution segment guards.
-  const readArr = () => getAt(imported, arrayName) as Record<string, unknown>[];
+  const isNested = arrayName.includes('.');
+  const readArr = () => (isNested ? getAt(imported, arrayName) : getAt(imported, arrayName)) as Record<string, unknown>[];
   const writeArr = (v: unknown) => setAt(imported, arrayName, v);
   let curArr = readArr();
   if (!Array.isArray(curArr)) { curArr = []; writeArr(curArr); }
