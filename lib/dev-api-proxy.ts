@@ -593,6 +593,7 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
       ) => {
         const parsedCurrent = new URL(currentUrl);
         const transport = parsedCurrent.protocol === 'https:' ? https : http;
+        let redirected = false;
         const proxyReq = transport.request(
           currentUrl,
           { method: currentMethod, headers: currentHeaders, lookup: devProxyDnsLookup },
@@ -601,7 +602,9 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
             const rawLocation = proxyRes.headers?.location;
             const location = Array.isArray(rawLocation) ? rawLocation[0] : rawLocation;
             if (DEV_PROXY_REDIRECT_STATUSES.has(status) && location) {
-              try { proxyRes.resume?.(); } catch {}
+              redirected = true;
+              try { proxyRes.destroy?.(); } catch {}
+              try { proxyReq.destroy?.(); } catch {}
               if (redirects >= DEV_PROXY_MAX_REDIRECTS) {
                 writeJson(req, res, corsHeaders, 502, { error: 'Proxy redirect limit exceeded' });
                 return;
@@ -644,6 +647,7 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
         res.once?.('close', () => { if (!res.writableEnded) proxyReq.destroy(); });
         boundUpstreamTimeout(proxyReq, req, res, corsHeaders);
         proxyReq.on('error', error => {
+          if (redirected) return;
           const code = (error as { code?: unknown } | null)?.code;
           writeJson(
             req, res, corsHeaders,
