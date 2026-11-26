@@ -27,11 +27,17 @@ export function isTokenLimitFinish(reason: unknown) {
     || r.includes('max token');
 }
 
-function localReasoningBudgetExhaustedError(finishReason: unknown) {
+function localReasoningBudgetExhaustedError(
+  finishReason: unknown,
+  usage?: { inputTokens: number; outputTokens: number },
+) {
   const error = new Error(
     'Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.',
-  ) as Error & { code?: string };
-  if (isTokenLimitFinish(finishReason)) error.code = 'local_reasoning_budget_exhausted';
+  ) as Error & { code?: string; usage?: { inputTokens: number; outputTokens: number } };
+  if (isTokenLimitFinish(finishReason)) {
+    error.code = 'local_reasoning_budget_exhausted';
+    if (usage) error.usage = usage;
+  }
   return error;
 }
 
@@ -347,7 +353,7 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
     if (toolCalls.length && !tools?.length) throw new Error('The provider returned unrequested tool calls.');
     if (!fullText && reasoningBuf && !toolCalls.length) {
       if (providerName === 'Local AI') {
-        throw localReasoningBudgetExhaustedError(finishReason);
+        throw localReasoningBudgetExhaustedError(finishReason, { inputTokens, outputTokens });
       }
       fullText = reasoningBuf;
       onStream!(fullText);
@@ -377,7 +383,10 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
   const reasoningText = msg?.reasoning_content || msg?.reasoning || '';
   if (!text && reasoningText && !toolCalls.length) {
     if (providerName === 'Local AI') {
-      throw localReasoningBudgetExhaustedError(finishReason);
+      throw localReasoningBudgetExhaustedError(finishReason, {
+        inputTokens: usage.prompt_tokens || 0,
+        outputTokens: usage.completion_tokens || 0,
+      });
     }
     text = reasoningText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   }

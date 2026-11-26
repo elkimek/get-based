@@ -40,6 +40,12 @@ export function estimateLocalAiPromptTokens({ system, messages, promptCharsPerTo
   return Math.ceil(contentTokens) + messageOverhead;
 }
 
+function requiredContextForOutput(estimatedPromptTokens: number, outputTokens: number) {
+  return estimatedPromptTokens
+    + outputTokens
+    + Math.max(512, Math.ceil((estimatedPromptTokens + outputTokens) * 0.04));
+}
+
 function plannedRequestedOutputTokens(opts: LocalAiRequestOptions, modelDetail: LocalAiModel | null | undefined) {
   const requestedMaxTokens = Math.max(1, Number(opts.maxTokens) || 4096);
   const reasoningPlan = resolveLocalAiReasoningPlan(opts, modelDetail);
@@ -138,10 +144,16 @@ export async function callOpenAICompatibleLocalAPI(opts: LocalAiRequestOptions) 
   }
 
   const estimatedPromptTokens = estimateLocalAiPromptTokens(opts);
-  const requestedOutput = plannedRequestedOutputTokens(opts, modelDetail);
-  const requiredContext = estimatedPromptTokens
-    + requestedOutput
-    + Math.max(512, Math.ceil((estimatedPromptTokens + requestedOutput) * 0.04));
+  const baseRequestedOutput = Math.max(1, Number(opts.maxTokens) || 4096);
+  const targetRequestedOutput = plannedRequestedOutputTokens(opts, modelDetail);
+  const baseRequiredContext = requiredContextForOutput(estimatedPromptTokens, baseRequestedOutput);
+  const targetRequiredContext = requiredContextForOutput(estimatedPromptTokens, targetRequestedOutput);
+  const maxContext = Number(modelDetail?.maxContextLength) || 0;
+  // Optional reasoning headroom may request a larger context step when it fits,
+  // but must never turn a request that fits maxContext into a hard rejection.
+  const requiredContext = maxContext > 0 && targetRequiredContext > maxContext
+    ? (baseRequiredContext <= maxContext ? maxContext : baseRequiredContext)
+    : targetRequiredContext;
   const providerAdapter = getLocalAiProviderAdapter(modelDetail?.source || 'openai-compatible');
   const runtimeProviderId = modelDetail?.source
     || (['lmstudio', 'ollama', 'unsloth'].includes(config.mode as string) ? config.mode : 'openai-compatible');

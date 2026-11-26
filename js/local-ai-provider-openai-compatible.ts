@@ -149,7 +149,8 @@ export async function inferWithOpenAICompatibleProvider({ config, model, opts, p
   try {
     result = await sendRequest(plan.maxTokens);
   } catch (error) {
-    const canRetryWithReasoningBudget = (error as { code?: unknown } | null | undefined)?.code === 'local_reasoning_budget_exhausted'
+    const budgetError = error as { code?: unknown; usage?: { inputTokens?: number; outputTokens?: number } } | null | undefined;
+    const canRetryWithReasoningBudget = budgetError?.code === 'local_reasoning_budget_exhausted'
       && !opts.signal?.aborted
       && opts.requestCurrent?.() !== false
       && (opts.jsonMode || plan.maxTokens >= 256);
@@ -158,6 +159,15 @@ export async function inferWithOpenAICompatibleProvider({ config, model, opts, p
       : plan.maxTokens;
     if (!canRetryWithReasoningBudget || expandedMaxTokens <= plan.maxTokens) throw error;
     result = await sendRequest(expandedMaxTokens);
+    if (budgetError?.usage) {
+      result = {
+        ...result,
+        usage: {
+          inputTokens: (budgetError.usage.inputTokens || 0) + (result.usage?.inputTokens || 0),
+          outputTokens: (budgetError.usage.outputTokens || 0) + (result.usage?.outputTokens || 0),
+        },
+      };
+    }
   }
   return {
     ...result,

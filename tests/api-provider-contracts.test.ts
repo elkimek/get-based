@@ -814,6 +814,59 @@ describe('AI provider request contracts', () => {
     expect(body.max_tokens).toBe(4096);
   });
 
+  it('caps optional mandatory-reasoning headroom to model maxContextLength instead of rejecting fitting requests', async () => {
+    setAIProvider('ollama');
+    setOllamaMainModel('meta/muse-glimmer');
+    let loadedCtx = 4096;
+    const postUrls: string[] = [];
+    const postBodies: Array<Record<string, unknown>> = [];
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const href = String(url);
+      if (init.method === 'POST') {
+        postUrls.push(href);
+        const parsed = JSON.parse(init.body!);
+        postBodies.push(parsed);
+        if (href.endsWith('/api/v1/models/unload')) {
+          loadedCtx = 0;
+          return jsonResponse({ ok: true });
+        }
+        if (href.endsWith('/api/v1/models/load')) {
+          loadedCtx = parsed.context_length;
+          return jsonResponse({ ok: true });
+        }
+        return chatCompletionResponse('{"summary":"ok","explanation":"done"}');
+      }
+      if (href.endsWith('/api/v1/models')) {
+        return jsonResponse({
+          models: [lmStudioModel(
+            'meta/muse-glimmer',
+            loadedCtx > 0 ? [{ id: 'meta/muse-glimmer', config: { context_length: loadedCtx } }] : [],
+            { max_context_length: 8192, capabilities: { reasoning: { allowed_options: ['low', 'medium', 'high', 'xhigh'], default: 'high' } } },
+          )],
+        });
+      }
+      if (href.endsWith('/v1/models')) return jsonResponse({ data: [{ id: 'meta/muse-glimmer' }] });
+      return jsonResponse({}, { status: 404 });
+    });
+
+    await expect(callClaudeAPI(baseChatOptions({
+      messages: [{ role: 'user', content: 'x'.repeat(17_500) }],
+      jsonMode: true,
+      maxTokens: 700,
+      reasoningEffort: 'low',
+      strictTokenLimit: true,
+      preferNativeContext: true,
+    }))).resolves.toMatchObject({ text: '{"summary":"ok","explanation":"done"}' });
+
+    const loadIndex = postUrls.findIndex(href => href.endsWith('/api/v1/models/load'));
+    expect(loadIndex).toBeGreaterThanOrEqual(0);
+    expect(postBodies[loadIndex]).toMatchObject({ model: 'meta/muse-glimmer', context_length: 8192 });
+    const chatBody = postBodies.at(-1)!;
+    expect(chatBody.reasoning_effort).toBe('low');
+    expect(chatBody.max_tokens).toBeGreaterThan(700);
+    expect(chatBody.max_tokens).toBeLessThan(4096);
+  });
+
   it('retries once with expanded Local AI output headroom when an endpoint ignores reasoning_effort and exhausts max_tokens on thinking', async () => {
     setAIProvider('ollama');
     setOllamaMainModel('unknown-thinker');
@@ -839,7 +892,10 @@ describe('AI provider request contracts', () => {
       maxTokens: 700,
       reasoningEffort: 'low',
       strictTokenLimit: true,
-    }))).resolves.toMatchObject({ text: '{"summary":"ok","explanation":"done"}' });
+    }))).resolves.toMatchObject({
+      text: '{"summary":"ok","explanation":"done"}',
+      usage: { inputTokens: 5211, outputTokens: 713 },
+    });
 
     expect(postBodies).toHaveLength(2);
     expect(postBodies[0]!.reasoning_effort).toBe('none');
