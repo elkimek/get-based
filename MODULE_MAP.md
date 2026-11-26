@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 2104 |
-| Internal import edges | 7107 |
+| Internal import edges | 7108 |
 | Dynamic internal edges | 224 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -5784,7 +5784,7 @@ Node-only policy and transport code shared by hosted runtimes.
 <details><summary><code>dev</code> family — 4 modules</summary>
 
 - [`lib/dev-agent-host.ts`](lib/dev-agent-host.ts) → [`lib/agent-host-storage.ts`](lib/agent-host-storage.ts), [`lib/local-agent-registry.ts`](lib/local-agent-registry.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts), [`shared/agent-tool-contract.ts`](shared/agent-tool-contract.ts)
-- [`lib/dev-api-proxy.ts`](lib/dev-api-proxy.ts) → [`lib/oauth-token-form.ts`](lib/oauth-token-form.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
+- [`lib/dev-api-proxy.ts`](lib/dev-api-proxy.ts) → [`lib/oauth-token-form.ts`](lib/oauth-token-form.ts), [`lib/proxy-network.ts`](lib/proxy-network.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
 - [`lib/dev-catalog.ts`](lib/dev-catalog.ts) → no in-scope imports
 - [`lib/dev-url-fetch.ts`](lib/dev-url-fetch.ts) → [`lib/error-utils.ts`](lib/error-utils.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts), [`lib/proxy-upstream.ts`](lib/proxy-upstream.ts)
 

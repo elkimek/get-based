@@ -5,6 +5,7 @@ import type { ProxyValidation } from './proxy-policy.js';
 
 import http from 'node:http';
 import https from 'node:https';
+import type { LookupFunction } from 'node:net';
 import {
   PROXY_MAX_REQUEST_BYTES,
   PROXY_MAX_RESPONSE_BYTES,
@@ -13,6 +14,21 @@ import {
   normalizeProxyMethod,
   sanitizeProxyHeaders,
 } from './proxy-policy.js';
+import { createPinnedProxyLookup, resolveProxyAddresses } from './proxy-network.js';
+
+const DEV_PROXY_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const DEV_PROXY_MAX_REDIRECTS = 5;
+
+const devProxyDnsLookup: LookupFunction = (hostname, options, callback) => {
+  void resolveProxyAddresses(hostname).then(
+    addresses => createPinnedProxyLookup(addresses)(
+      hostname,
+      typeof options === 'object' ? options : { family: options },
+      callback as Parameters<ReturnType<typeof createPinnedProxyLookup>>[2],
+    ),
+    error => (callback as (err: NodeJS.ErrnoException | null) => void)(error as NodeJS.ErrnoException),
+  );
+};
 
 type DevCorsHeaders = (req: IncomingMessage) => Record<string, string>;
 interface DevProxyOptions {
@@ -551,8 +567,6 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
         writeJson(req, res, corsHeaders, 403, '{"error":"URL not allowed"}');
         return;
       }
-      const parsedUrl = new URL(targetUrl);
-      const transport = parsedUrl.protocol === 'https:' ? https : http;
       const fetchMethod = normalizeProxyMethod(upstreamMethod);
       if (!fetchMethod) {
         writeJson(req, res, corsHeaders, 405, '{"error":"Proxy method not allowed"}');
@@ -566,19 +580,82 @@ export function handleDevApiProxy(req: IncomingMessage, res: ServerResponse, opt
       const requestHeaders = { ...safeHeaders.headers };
       const hasContentType = Object.keys(requestHeaders).some(key => key.toLowerCase() === 'content-type');
       if (fetchMethod !== 'GET' && !hasContentType) requestHeaders['Content-Type'] = 'application/json';
-      const proxyReq = transport.request(targetUrl, { method: fetchMethod, headers: requestHeaders }, proxyRes => {
-        _sendCappedProxyResponse(req, res, proxyRes, corsHeaders);
-      });
-      req.once?.('aborted', () => proxyReq.destroy());
-      res.once?.('close', () => { if (!res.writableEnded) proxyReq.destroy(); });
-      boundUpstreamTimeout(proxyReq, req, res, corsHeaders);
-      proxyReq.on('error', error => {
-        writeJson(req, res, corsHeaders, 502, { error: `Upstream error: ${errorMessage(error)}` });
-      });
-      if (fetchMethod !== 'GET' && forwardBody) {
-        proxyReq.write(typeof forwardBody === 'string' ? forwardBody : JSON.stringify(forwardBody));
-      }
-      proxyReq.end();
+      const initialBody = fetchMethod !== 'GET' && forwardBody
+        ? (typeof forwardBody === 'string' ? forwardBody : JSON.stringify(forwardBody))
+        : undefined;
+
+      const sendProxyRequest = (
+        currentUrl: string,
+        currentMethod: string,
+        currentHeaders: Record<string, string>,
+        currentBody: string | undefined,
+        redirects: number,
+      ) => {
+        const parsedCurrent = new URL(currentUrl);
+        const transport = parsedCurrent.protocol === 'https:' ? https : http;
+        const proxyReq = transport.request(
+          currentUrl,
+          { method: currentMethod, headers: currentHeaders, lookup: devProxyDnsLookup },
+          proxyRes => {
+            const status = proxyRes.statusCode || 200;
+            const rawLocation = proxyRes.headers?.location;
+            const location = Array.isArray(rawLocation) ? rawLocation[0] : rawLocation;
+            if (DEV_PROXY_REDIRECT_STATUSES.has(status) && location) {
+              try { proxyRes.resume?.(); } catch {}
+              if (redirects >= DEV_PROXY_MAX_REDIRECTS) {
+                writeJson(req, res, corsHeaders, 502, { error: 'Proxy redirect limit exceeded' });
+                return;
+              }
+              let nextUrl: string;
+              try { nextUrl = new URL(location, currentUrl).toString(); } catch {
+                writeJson(req, res, corsHeaders, 403, { error: 'Proxy redirect target not allowed' });
+                return;
+              }
+              if (!isAllowedProxyUrl(nextUrl)) {
+                writeJson(req, res, corsHeaders, 403, { error: 'Proxy redirect target not allowed' });
+                return;
+              }
+              let nextMethod = currentMethod;
+              let nextBody = currentBody;
+              const nextHeaders = { ...currentHeaders };
+              if (nextMethod !== 'HEAD' && (status === 303 || ((status === 301 || status === 302) && nextMethod === 'POST'))) {
+                nextMethod = 'GET';
+                nextBody = undefined;
+                for (const name of Object.keys(nextHeaders)) {
+                  if (['content-length', 'content-type'].includes(name.toLowerCase())) delete nextHeaders[name];
+                }
+              }
+              if (new URL(nextUrl).origin !== parsedCurrent.origin) {
+                for (const name of Object.keys(nextHeaders)) {
+                  if (['api-key', 'authorization', 'x-api-key', 'xi-api-key'].includes(name.toLowerCase())) delete nextHeaders[name];
+                }
+                if (nextBody !== undefined) {
+                  writeJson(req, res, corsHeaders, 403, { error: 'Cross-origin proxy redirects with a request body are not allowed' });
+                  return;
+                }
+              }
+              sendProxyRequest(nextUrl, nextMethod, nextHeaders, nextBody, redirects + 1);
+              return;
+            }
+            _sendCappedProxyResponse(req, res, proxyRes, corsHeaders);
+          },
+        );
+        req.once?.('aborted', () => proxyReq.destroy());
+        res.once?.('close', () => { if (!res.writableEnded) proxyReq.destroy(); });
+        boundUpstreamTimeout(proxyReq, req, res, corsHeaders);
+        proxyReq.on('error', error => {
+          const code = (error as { code?: unknown } | null)?.code;
+          writeJson(
+            req, res, corsHeaders,
+            code === 'PROXY_DNS_BLOCKED' ? 403 : 502,
+            { error: code === 'PROXY_DNS_BLOCKED' ? 'URL not allowed' : `Upstream error: ${errorMessage(error)}` },
+          );
+        });
+        if (currentBody !== undefined) proxyReq.write(currentBody);
+        proxyReq.end();
+      };
+
+      sendProxyRequest(targetUrl, fetchMethod, requestHeaders, initialBody, 0);
     } catch (error) {
       writeJson(req, res, corsHeaders, 400, { error: `Invalid JSON: ${errorMessage(error)}` });
     }
