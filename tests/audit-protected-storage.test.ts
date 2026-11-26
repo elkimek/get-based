@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { webcrypto } from 'node:crypto';
+import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bytesToBase64 } from '../js/base64.js';
 import type { PassphraseServices } from '../js/passphrase-controller.js';
@@ -87,6 +88,36 @@ describe('protected storage audit regressions', () => {
       localStorage.clear();
       vi.unstubAllGlobals();
       configureSyncMessenger({ getAppOwner: () => null });
+    }
+  });
+
+  it('purges legacy plaintext auto-backups when unlocking an already-encrypted profile', async () => {
+    vi.stubGlobal('indexedDB', new IDBFactory());
+    const settings = await import('../js/crypto.js');
+    const backup = await import('../js/backup.js');
+    const fixture = window as typeof window & { __WEARABLES_TEST?: boolean };
+    fixture.__WEARABLES_TEST = true;
+    const passphrase = 'fictional existing passphrase';
+    const salt = await settings._setTestSessionKey(passphrase);
+    const services = dialog.services!;
+    try {
+      localStorage.setItem('labcharts-encryption-enabled', 'true');
+      localStorage.setItem('labcharts-encryption-salt', bytesToBase64(salt!));
+      await settings.encryptedSetItem('labcharts-profiles', '[{"name":"Synthetic"}]');
+      const db = await backup.openBackupDB();
+      const tx = db.transaction('snapshots', 'readwrite');
+      tx.objectStore('snapshots').add({ createdAt: '2025-01-01T00:00:00Z', encrypted: false, snapshot: { encrypted: false } });
+      tx.objectStore('snapshots').add({ createdAt: '2026-01-01T00:00:00Z', encrypted: true, snapshot: { encrypted: true } });
+      await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+      await settings._setTestSessionKey(null);
+      await services.unlockEncryption!(passphrase);
+      const remaining = await backup.getAutoBackupSnapshots();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.encrypted).toBe(true);
+    } finally {
+      localStorage.clear();
+      await settings._setTestSessionKey(null);
+      delete fixture.__WEARABLES_TEST;
     }
   });
 });

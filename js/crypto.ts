@@ -515,6 +515,7 @@ export async function initEncryption() {
   });
   await migrateSensitiveKeys();
   await migrateLocalIDB('encrypted');
+  await purgePlaintextAutoBackups().catch(() => {});
   await decryptKeyCache();
 }
 
@@ -693,6 +694,7 @@ async function unlockEncryption(passphrase: string) {
   await verifyDataKey(key);
   if (localStorage.getItem(ENCRYPTION_MANIFEST_KEY) !== manifest) throw new Error('Encryption settings changed in another tab.');
   _sessionKey = key;
+  if (getEncryptionEnabled()) await purgePlaintextAutoBackups().catch(() => {});
 }
 
 async function prepareEncryption(passphrase: string) {
