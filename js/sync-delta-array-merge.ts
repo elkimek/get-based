@@ -34,11 +34,11 @@ export async function mergeArrayRowsIntoImported(
 ) {
   const committedVersions = readArrayVersions(options.profileId, arrayName);
   const legacyVersions = readLegacyArrayVersions(options.profileId, arrayName);
-  // Read/write the target array: flat top-level for most surfaces, dotted-path
-  // walk via getAt/setAt for nested ones (e.g. `lightEnvironment.rooms`).
+  // Read/write the target array via getAt/setAt so both flat and dotted paths
+  // enforce prototype-pollution segment guards.
   const isNested = arrayName.includes('.');
-  const readArr = () => (isNested ? getAt(imported, arrayName) : imported[arrayName]) as Record<string, unknown>[];
-  const writeArr = (v: unknown) => isNested ? setAt(imported, arrayName, v) : (imported[arrayName] = v);
+  const readArr = () => (isNested ? getAt(imported, arrayName) : getAt(imported, arrayName)) as Record<string, unknown>[];
+  const writeArr = (v: unknown) => setAt(imported, arrayName, v);
   let curArr = readArr();
   if (!Array.isArray(curArr)) { curArr = []; writeArr(curArr); }
   // Same itemId derivation push side used. For arrays without `.id`

@@ -301,18 +301,26 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
             if (!(state.importedData as ImportedDataOperations).refOverrides![key]) (state.importedData as ImportedDataOperations).refOverrides![key] = ovr;
           }
         }
+function assignSafeRecord(target: Record<string, unknown>, source: unknown) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return;
+  for (const [k, v] of Object.entries(source)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+    target[k] = v;
+  }
+}
+
         // Import category label/icon overrides
-        if (json.categoryLabels && typeof json.categoryLabels === 'object') {
+        if (json.categoryLabels && typeof json.categoryLabels === 'object' && !Array.isArray(json.categoryLabels)) {
           if (!(state.importedData as ImportedDataOperations).categoryLabels) (state.importedData as ImportedDataOperations).categoryLabels = {};
-          Object.assign((state.importedData as ImportedDataOperations).categoryLabels!, json.categoryLabels);
+          assignSafeRecord((state.importedData as ImportedDataOperations).categoryLabels!, json.categoryLabels);
         }
-        if (json.categoryIcons && typeof json.categoryIcons === 'object') {
+        if (json.categoryIcons && typeof json.categoryIcons === 'object' && !Array.isArray(json.categoryIcons)) {
           if (!(state.importedData as ImportedDataOperations).categoryIcons) (state.importedData as ImportedDataOperations).categoryIcons = {};
-          Object.assign((state.importedData as ImportedDataOperations).categoryIcons!, json.categoryIcons);
+          assignSafeRecord((state.importedData as ImportedDataOperations).categoryIcons!, json.categoryIcons);
         }
-        if (json.markerLabels && typeof json.markerLabels === 'object') {
+        if (json.markerLabels && typeof json.markerLabels === 'object' && !Array.isArray(json.markerLabels)) {
           if (!(state.importedData as ImportedDataOperations).markerLabels) (state.importedData as ImportedDataOperations).markerLabels = {};
-          Object.assign((state.importedData as ImportedDataOperations).markerLabels!, json.markerLabels);
+          assignSafeRecord((state.importedData as ImportedDataOperations).markerLabels!, json.markerLabels);
         }
         // Import menstrual cycle
         if (json.menstrualCycle && typeof json.menstrualCycle === 'object') {
@@ -382,19 +390,19 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
           }
         }
         // Import marker notes
-        if (json.markerNotes && typeof json.markerNotes === 'object') {
+        if (json.markerNotes && typeof json.markerNotes === 'object' && !Array.isArray(json.markerNotes)) {
           if (!(state.importedData as ImportedDataOperations).markerNotes) (state.importedData as ImportedDataOperations).markerNotes = {};
-          Object.assign((state.importedData as ImportedDataOperations).markerNotes!, json.markerNotes);
+          assignSafeRecord((state.importedData as ImportedDataOperations).markerNotes!, json.markerNotes);
         }
         // Import per-value notes (keyed "category.markerKey:date")
-        if (json.markerValueNotes && typeof json.markerValueNotes === 'object') {
+        if (json.markerValueNotes && typeof json.markerValueNotes === 'object' && !Array.isArray(json.markerValueNotes)) {
           if (!(state.importedData as ImportedDataOperations).markerValueNotes) (state.importedData as ImportedDataOperations).markerValueNotes = {};
-          Object.assign((state.importedData as ImportedDataOperations).markerValueNotes!, json.markerValueNotes);
+          assignSafeRecord((state.importedData as ImportedDataOperations).markerValueNotes!, json.markerValueNotes);
         }
         // Import manual value flags
-        if (json.manualValues && typeof json.manualValues === 'object') {
+        if (json.manualValues && typeof json.manualValues === 'object' && !Array.isArray(json.manualValues)) {
           if (!(state.importedData as ImportedDataOperations).manualValues) (state.importedData as ImportedDataOperations).manualValues = {};
-          Object.assign((state.importedData as ImportedDataOperations).manualValues!, json.manualValues);
+          assignSafeRecord((state.importedData as ImportedDataOperations).manualValues!, json.manualValues);
         }
         // Manual wearable deletions are privacy state. Merge by the newest
         // deletion clock so importing an older backup cannot resurrect a

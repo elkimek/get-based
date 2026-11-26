@@ -186,13 +186,7 @@ function restoreBackupEncryptionSettings(backup: BackupRestoreView) {
 async function collectWearableIDB(profileIds: Iterable<string>) {
   const out: WearableBackup = {};
   for (const pid of profileIds) {
-    // CRITICAL: read RAW (no decrypt). When encryption-at-rest is on, the
-    // rows on disk are AES-GCM-wrapped envelopes. getDailyRange would
-    // decrypt them into plaintext for the snapshot — silently downgrading
-    // the at-rest guarantee. getDailyRangeRaw returns rows as-stored.
-    // WHOOP and Google Health raw rows use an always-on device key.
-    // These keys are non-exportable, so omit those rows rather than creating
-    // undecryptable or downgraded backups; reconnecting can fetch them again.
+    // Read raw rows so encrypted envelopes stay encrypted; WHOOP and Google Health raw rows use an always-on device key and are omitted.
     const perProfile: Record<string, StoredWearableRow[]> = {};
     for (const src of BACKUP_WEARABLE_SOURCES) {
       const srcRows = await getDailyRangeRaw(pid, src, '', '\uffff');
@@ -210,13 +204,10 @@ async function restoreBackupSideStores(backup: SideStoreSnapshot, profileIds: st
   const operations = profileIds.flatMap(id => {
     const writes: Promise<void>[] = [];
     if (backup.wearableIDB) writes.push(replaceWearableBackupRows(id, BACKUP_WEARABLE_SOURCES, Object.values(backup.wearableIDB[id] || {}).flat()));
-    if (backup.cycleIDB || backup.cycleImportMeta) writes.push(replaceCycleBackup(id,
-      backup.cycleIDB ? backup.cycleIDB[id] || {} : null,
-      backup.cycleImportMeta ? backup.cycleImportMeta[id] || [] : null));
+    if (backup.cycleIDB || backup.cycleImportMeta) writes.push(replaceCycleBackup(id, backup.cycleIDB ? backup.cycleIDB[id] || {} : null, backup.cycleImportMeta ? backup.cycleImportMeta[id] || [] : null));
     return writes;
   });
-  const results = await Promise.allSettled(operations);
-  const failed = results.find(result => result.status === 'rejected');
+  const failed = (await Promise.allSettled(operations)).find(result => result.status === 'rejected');
   if (failed?.status === 'rejected') throw new Error('Backup restore incomplete.', { cause: failed.reason });
 }
 
@@ -563,6 +554,28 @@ export async function getAutoBackupSnapshots(): Promise<AutoBackupRecord[]> {
       req.onerror = () => resolve([]);
     });
   } catch { return []; }
+}
+
+export async function purgePlaintextAutoBackups(): Promise<number> {
+  if (typeof indexedDB === 'undefined') return 0;
+  const db = await openBackupDB();
+  const tx = db.transaction(BACKUP_STORE, 'readwrite');
+  let removed = 0;
+  await new Promise<void>((resolve, reject) => {
+    const req = tx.objectStore(BACKUP_STORE).openCursor();
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) return;
+      const val = cursor.value as AutoBackupRecord | null;
+      if (!val?.encrypted && !val?.snapshot?.encrypted) { cursor.delete(); removed++; }
+      cursor.continue();
+    };
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Plaintext auto-backup purge aborted.'));
+  });
+  return removed;
 }
 
 export async function restoreAutoBackup(id: IDBValidKey) {

@@ -4,7 +4,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ProfileShareObjectStore, ProfileShareHandler } from '../lib/profile-share-service.js';
 
-import { boundedInteger, requestUrl } from '../lib/node-request-routing.js';
+import { boundedInteger, nodeRelayHeaders, requestUrl } from '../lib/node-request-routing.js';
 
 import { createServer } from 'node:http';
 import { resolve as resolvePath } from 'node:path';
@@ -23,6 +23,7 @@ export interface ServerOptions {
   };
   handler?: ProfileShareHandler;
   maxRequestBytes?: number;
+  trustForwarded?: boolean;
 }
 
 const DEFAULT_BIND_HOST = '0.0.0.0';
@@ -30,32 +31,6 @@ const DEFAULT_PORT = 8790;
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_REQUEST_BYTES = 4 * 1024 * 1024;
 const MAINTENANCE_INTERVAL_MS = 60 * 60 * 1000;
-const UNTRUSTED_CLIENT_IDENTITY_HEADERS = new Set([
-  'x-forwarded-for',
-  'x-real-ip',
-  'x-vercel-forwarded-for',
-  'cf-connecting-ip',
-]);
-
-function lastForwardedValue(value: unknown) {
-  return String(value || '').split(',').map(item => item.trim()).filter(Boolean).at(-1) || '';
-}
-
-function trustedHeaders(incoming: IncomingMessage) {
-  const headers = new Headers();
-  for (const [name, value] of Object.entries(incoming.headers)) {
-    if (value == null || UNTRUSTED_CLIENT_IDENTITY_HEADERS.has(name.toLowerCase())) continue;
-    if (Array.isArray(value)) {
-      for (const item of value) headers.append(name, item);
-    } else {
-      headers.set(name, value);
-    }
-  }
-  const clientAddress = lastForwardedValue(incoming.headers['x-forwarded-for'])
-    || String(incoming.socket.remoteAddress || 'unknown-client');
-  headers.set('x-forwarded-for', clientAddress.slice(0, 128));
-  return headers;
-}
 
 class RequestTooLargeError extends Error {}
 
@@ -88,17 +63,17 @@ async function readRequestBody(incoming: IncomingMessage, maxBytes: number) {
   });
 }
 
-async function webRequest(incoming: IncomingMessage, maxBytes: number) {
+async function webRequest(incoming: IncomingMessage, maxBytes: number, trustForwarded: boolean) {
   const method = String(incoming.method || 'GET').toUpperCase();
   const init: RequestInit = {
     method,
-    headers: trustedHeaders(incoming),
+    headers: nodeRelayHeaders(incoming, trustForwarded),
   };
   if (method !== 'GET' && method !== 'HEAD') {
     const body = await readRequestBody(incoming, maxBytes);
     if (body.byteLength) init.body = body;
   }
-  return new Request(requestUrl(incoming), init);
+  return new Request(requestUrl(incoming, trustForwarded), init);
 }
 
 async function writeWebResponse(outgoing: ServerResponse, response: Response) {
@@ -122,6 +97,7 @@ function jsonResponse(status: number, body: unknown) {
 }
 
 export function createProfileShareServer(options: ServerOptions = {}) {
+  const trustForwarded = options.trustForwarded ?? process.env.PROFILE_SHARE_TRUST_PROXY === '1';
   const store = options.store || createSqliteProfileShareStore({
     databasePath: process.env.PROFILE_SHARE_SQLITE_PATH || '',
     rateLimitHmacKey: process.env.PROFILE_SHARE_RATE_LIMIT_KEY || '',
@@ -147,7 +123,7 @@ export function createProfileShareServer(options: ServerOptions = {}) {
         await writeWebResponse(outgoing, jsonResponse(404, { error: 'Not found' }));
         return;
       }
-      const request = await webRequest(incoming, maxRequestBytes);
+      const request = await webRequest(incoming, maxRequestBytes, trustForwarded);
       await writeWebResponse(outgoing, await handler(request, store));
     } catch (error) {
       if (!outgoing.headersSent) {

@@ -12,7 +12,7 @@ import { prepareCompanionAgentCommands, requireSafeAbsolutePath, installPosixCom
 export const LINUX_COMPANION_SERVICE = 'getbased-companion.service';
 
 function systemdQuote(value: string) {
-  return `"${String(value).replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('%', '%%').replace(/[\r\n]/g, '')}"`;
+  return `"${String(value).replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll('%', '%%').replaceAll('$', '$$').replace(/[\r\n]/g, '')}"`;
 }
 
 export { findExecutable } from './companion-install-support.js';

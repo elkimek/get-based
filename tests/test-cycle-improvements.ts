@@ -380,6 +380,42 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('Uses _getCyclePhase for phaseLabels', src.includes('_getCyclePhase(d, mc)'));
   }
 
+  // ── Section 21: Audit regressions — iron-category alerts & non-hormonal contraception ──
+  console.log('Section 21: Audit regressions');
+  {
+    const { detectCycleIronAlerts } = await import('../js/cycle.js');
+    const { isHormonalContraception } = await import('../js/cycle-summary.js');
+    const ironAlerts = detectCycleIronAlerts(
+      {
+        periods: [
+          { startDate: '2025-03-01', flow: 'heavy' },
+          { startDate: '2025-04-01', flow: 'heavy' },
+        ],
+      } as Parameters<typeof detectCycleIronAlerts>[0],
+      {
+        categories: {
+          iron: {
+            label: 'Iron',
+            icon: '',
+            markers: {
+              ferritin: { name: 'Ferritin', unit: 'ug/L', values: [45, 20], refMin: 15, refMax: 150 },
+              iron: { name: 'Iron', unit: 'umol/L', values: [18, 8], refMin: 9, refMax: 30 },
+            },
+          },
+        },
+      } as unknown as Parameters<typeof detectCycleIronAlerts>[1],
+    );
+    assert('detectCycleIronAlerts detects ferritin/iron drops in iron category',
+      ironAlerts.some(a => a.marker === 'Ferritin') && ironAlerts.some(a => a.marker === 'Iron'),
+      JSON.stringify(ironAlerts));
+    assert('isHormonalContraception rejects copper / non-hormonal and substrings like during',
+      !isHormonalContraception('copper IUD') &&
+      !isHormonalContraception('non-hormonal ring') &&
+      !isHormonalContraception('natural during tracking') &&
+      isHormonalContraception('NuvaRing') &&
+      isHormonalContraception('Mirena IUD'));
+  }
+
   // ── Summary ──
 console.log('\n' + results.join('\n'));
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

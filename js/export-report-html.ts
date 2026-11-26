@@ -4,7 +4,7 @@ import { getCachedSnpCatalog } from './dna-evidence.js';
 import { renderConciseReportBody, renderReportOriginNotice } from './export-report-summary-html.js';
 import { buildReportDataSnapshot, buildReportGenetics, selectReportGenomeFindings, getSupplementDosageParts } from './export-report-data.js';
 import { state } from './state.js';
-import { getStatus, formatValue, getTrend, showNotification, escapeAttr } from './utils.js';
+import { getStatus, formatValue, getTrend, showNotification, escapeAttr, escapeHTML } from './utils.js';
 import { resolveMarkerRangeContext, getAllFlaggedMarkers } from './marker-analysis.js';
 import { getUnitProfileLabel } from './unit-profiles.js';
 import { getSupplementPeriods, getSupplementStatus } from './supplement-medication-domain.js';
@@ -375,7 +375,7 @@ export function buildReportHTML(profileName: string, sexLabel: string, data: Rep
     <p class="disclaimer">This report is for informational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional for interpretation of lab results.</p>
   </div>`;
 
-  function esc(s: unknown) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function esc(s: unknown) { return escapeHTML(s == null ? '' : String(s)); }
 
   function renderContextBody(text: unknown) {
     const lines = String(text || '').split(/\n+/).map(line => line.trim()).filter(Boolean);

@@ -194,7 +194,7 @@ function preferredVeniceModelId(models: StoredProviderModel[], savedId: string |
 
 export function syncVeniceModelSelection(regularModels: StoredProviderModel[], e2eeModels: StoredProviderModel[]) {
   const current = getVeniceModel();
-  const e2eeOn = getVeniceE2EE();
+  const e2eeOn = getVeniceE2EE() || isE2EEModel(current);
   if (e2eeOn) {
     if (e2eeModels.length) {
       if (!modelListHasId(e2eeModels, current)) {
@@ -344,7 +344,7 @@ export function isPpqPrivateModeActive() {
 }
 export function syncPpqModelSelection(regularModels: StoredProviderModel[], privateModels: StoredProviderModel[]) {
   const current = getPpqModel();
-  const privateOn = getPpqPrivateMode();
+  const privateOn = getPpqPrivateMode() || isPpqPrivateModel(current);
   if (privateOn) {
     if (privateModels.length && !modelListHasId(privateModels, current)) {
       const saved = localStorage.getItem('labcharts-ppq-model-private');

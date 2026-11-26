@@ -1517,5 +1517,15 @@ assert('out-of-range potassium triggers clinical guardrail',
 const severeContext = (buildBiologyScoresAIContext as unknown as FixtureBiologyCall<typeof buildBiologyScoresAIContext>)({ dates: ['2026-06-01'], categories: { proteins: { label: 'Proteins', markers: { hsCRP: marker('hs-CRP', 'mg/l', 0, 3, 30) } }, biochemistry: { label: 'Biochemistry', markers: { ggt: marker('GGT', 'ukat/l', 0.17, 1.19, 3.5) } } } });
 assert('AI context describes low range fit without implying clinical severity', !severeContext.includes('undefined') && /Inflammatory Load: 0\/100, Far from range/.test(severeContext), severeContext);
 
+{
+  const { scoreAgainstRange } = await import('../js/biology-score-engine.js');
+  const negLow = scoreAgainstRange(-1.2, { min: -1.0, max: 0.2 });
+  assert('scoreAgainstRange preserves negative lowFloor below negative min',
+    negLow != null && negLow > 0 && negLow < 100,
+    String(negLow));
+  assert('scoreAgainstRange returns null for inverted range (min > max)',
+    scoreAgainstRange(5, { min: 10, max: 2 }) === null);
+}
+
 console.log(`\nBiology Scores tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

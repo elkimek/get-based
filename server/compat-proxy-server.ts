@@ -35,6 +35,8 @@ function webRequest(incoming: IncomingMessage, trustForwarded: boolean) {
 async function writeWebResponse(outgoing: ServerResponse, response: Response) {
   outgoing.statusCode = response.status;
   response.headers.forEach((value, name) => outgoing.setHeader(name, value));
+  if (!outgoing.hasHeader('x-content-type-options')) outgoing.setHeader('X-Content-Type-Options', 'nosniff');
+  if (!outgoing.hasHeader('content-security-policy')) outgoing.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
   if (!response.body) {
     outgoing.end();
     return;

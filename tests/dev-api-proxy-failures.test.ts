@@ -140,3 +140,41 @@ it.each([
   expect(res.writeHead.mock.calls[0]![0]).toBe(504); expect(upstream.request.destroy).toHaveBeenCalledOnce();
   expect(res.end).toHaveBeenCalledOnce();
 });
+
+it('pins public DNS lookup and validates redirects on generic dev proxy requests', () => {
+  const calls: Array<{ url: unknown; options: { headers: Record<string, unknown>; lookup?: unknown }; respond: (headers?: Record<string, unknown>, statusCode?: number) => UpstreamResponse }> = [];
+  (vi.spyOn(https, 'request').mockImplementation as unknown as (implementation: TransportCall) => Mock<TransportCall>)((url, options, callback) => {
+    const request = new EventEmitter() as UpstreamRequest;
+    request.write = vi.fn(); request.end = vi.fn(); request.setTimeout = vi.fn(); request.destroy = vi.fn();
+    calls.push({
+      url,
+      options,
+      respond(headers = {}, statusCode = 200) {
+        const response = new EventEmitter() as UpstreamResponse;
+        response.headers = headers; response.statusCode = statusCode; response.destroy = vi.fn();
+        callback(response); return response;
+      },
+    });
+    return request;
+  });
+
+  const res = incoming({ url: 'https://shop.example/item', method: 'GET', headers: { Authorization: 'Bearer secret' } });
+  expect(calls).toHaveLength(1);
+  expect(typeof calls[0]!.options.lookup).toBe('function');
+
+  calls[0]!.respond({ location: 'https://www.shop.example/item' }, 301);
+  expect(calls).toHaveLength(2);
+  expect(calls[1]!.url).toBe('https://www.shop.example/item');
+  expect(calls[1]!.options.headers.Authorization).toBeUndefined();
+
+  const finalRes = calls[1]!.respond({ 'content-type': 'text/html' }, 200);
+  finalRes.emit('data', Buffer.from('<html>ok</html>'));
+  finalRes.emit('end');
+  expect(res.writeHead.mock.calls[0]![0]).toBe(200);
+  expect(res.body).toBe('<html>ok</html>');
+
+  const blockedRes = incoming({ url: 'https://shop.example/item', method: 'GET' });
+  calls[2]!.respond({ location: 'http://127.0.0.1/admin' }, 302);
+  expect(blockedRes.writeHead.mock.calls[0]![0]).toBe(403);
+  expect(bodyOf(blockedRes).error).toBe('Proxy redirect target not allowed');
+});

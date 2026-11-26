@@ -578,9 +578,10 @@ assert('loopback socket helper rejects LAN peers',
 assert('host origin match accepts http/https exact host',
   _isHostOriginMatch(reqWith({ host: 'phone.tailnet.ts.net:8000', origin: 'http://phone.tailnet.ts.net:8000' })) &&
   _isHostOriginMatch(reqWith({ host: 'phone.tailnet.ts.net:8000', origin: 'https://phone.tailnet.ts.net:8000' })));
-assert('host origin match rejects missing and mismatched headers',
+assert('host origin match rejects missing, mismatched, and non-allowlisted DNS-rebound headers',
   !_isHostOriginMatch(reqWith({ origin: LOOPBACK_ORIGIN })) &&
-  !_isHostOriginMatch(reqWith({ host: `127.0.0.1:${DEV_SERVER_PORT}`, origin: 'https://evil.example' })));
+  !_isHostOriginMatch(reqWith({ host: `127.0.0.1:${DEV_SERVER_PORT}`, origin: 'https://evil.example' })) &&
+  !_isHostOriginMatch(reqWith({ host: 'evil.example:8000', origin: 'http://evil.example:8000' })));
 
 {
   const headers = corsHeaders(reqWith({ origin: LOOPBACK_ORIGIN }));

@@ -1,6 +1,7 @@
 import { LENS_CONFIG_STORAGE_KEY } from './lens-config-store.js';
 import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
 import { profileStorageKey } from './profile-storage-key.js';
+import { canonicalRoutstrUrl } from './url-safety.js';
 
 type BackupRestoreView = Record<string, unknown>;
 export const isEncryptedValue = (v: unknown) => typeof v === 'string' && v.startsWith('v1:');
@@ -11,7 +12,7 @@ export const GLOBAL_SETTINGS_KEYS = [
   'labcharts-custom-key', 'labcharts-custom-url', 'labcharts-custom-model', 'labcharts-custom-models',
   'labcharts-ai-provider',
   'labcharts-ppq-credit-id',
-  'labcharts-venice-model', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model',
+  'labcharts-venice-model', 'labcharts-venice-e2ee', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model', 'labcharts-ppq-private-mode',
   'labcharts-ollama', 'labcharts-ollama-model',
   'labcharts-ollama-pii-url', 'labcharts-ollama-pii-key', 'labcharts-ollama-pii-model',
   'labcharts-nutrition-ai-route',
@@ -32,15 +33,21 @@ const DESTINATION_SETTINGS = [
   ['labcharts-voice-local-server-url', 'labcharts-voice-local-server-key'], [LENS_CONFIG_STORAGE_KEY, 'labcharts-lens-key'],
 ] as const;
 
-function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: string) => boolean): Record<string, string> {
+function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: string) => boolean): Record<string, string | null> {
   const source = backup.settings || {};
   if (typeof source !== 'object' || Array.isArray(source)) throw new Error('Invalid backup settings.');
-  const values: Record<string, string> = {};
+  const values: Record<string, string | null> = {};
   for (const [key, value] of Object.entries(source)) {
     if (!GLOBAL_SETTINGS_KEYS.includes(key)) continue;
     if (typeof value !== 'string') throw new Error('Invalid backup setting value.');
     // Legacy cleartext credentials cannot establish ownership of a destination.
     if (isCredentialKey(key) && (!backup.encrypted || !value.startsWith('v1:'))) continue;
+    if (key === 'labcharts-routstr-node') {
+      const canonical = canonicalRoutstrUrl(value);
+      if (!canonical) continue;
+      values[key] = canonical;
+      continue;
+    }
     values[key] = value;
   }
   for (const [url, credential] of DESTINATION_SETTINGS) {
@@ -57,6 +64,21 @@ function portableSettings(backup: BackupRestoreView, isCredentialKey: (key: stri
       delete values[credential];
       // A destination from a file cannot inherit this device's existing key.
       if (localStorage.getItem(credential) || typeof (source as Record<string, unknown>)[credential] === 'string') delete values[url];
+    }
+  }
+  // Routstr sessions are node-bound in labcharts-routstr-sessions; keep canonical node selection
+  // on fresh/migrated restores while never letting a backup redirect a local legacy routstr-key.
+  const prevRoutstrNode = localStorage.getItem('labcharts-routstr-node');
+  const nextRoutstrNode = values['labcharts-routstr-node'];
+  if (!nextRoutstrNode || nextRoutstrNode !== prevRoutstrNode) {
+    delete values['labcharts-routstr-key'];
+    const hasLocalLegacyKey = Boolean(localStorage.getItem('labcharts-routstr-key'));
+    const hasLocalSessions = Boolean(localStorage.getItem('labcharts-routstr-sessions'));
+    if (hasLocalLegacyKey && !hasLocalSessions) {
+      delete values['labcharts-routstr-node'];
+    } else if (hasLocalLegacyKey && nextRoutstrNode) {
+      // Clear any retired legacy slot so a malformed sessions payload cannot fall back to it.
+      values['labcharts-routstr-key'] = null;
     }
   }
   return values;

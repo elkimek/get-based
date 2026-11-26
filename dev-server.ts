@@ -340,10 +340,27 @@ export function _isPrivateApiPeerAllowed(req: { socket?: { remoteAddress?: unkno
 // for security purposes. Used as an escape hatch for tailscale-served
 // phone tabs where the host the user typed isn't in the static
 // ALLOWED_ORIGINS allowlist.
+const EXTRA_ALLOWED_DEV_HOSTS = new Set(
+  String(process.env.DEV_ALLOWED_HOSTS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean),
+);
+function _isAllowedDevHostHeader(host: string) {
+  const lower = String(host || '').trim().toLowerCase();
+  if (!lower || /[\s/\\@]/.test(lower)) return false;
+  const hostname = lower.startsWith('[')
+    ? lower.slice(0, lower.indexOf(']') + 1)
+    : lower.split(':')[0]!;
+  return hostname === 'localhost'
+    || hostname === '127.0.0.1'
+    || hostname === '[::1]'
+    || hostname.endsWith('.ts.net')
+    || EXTRA_ALLOWED_DEV_HOSTS.has(hostname)
+    || EXTRA_ALLOWED_DEV_HOSTS.has(lower);
+}
+
 export function _isHostOriginMatch(req: Pick<IncomingMessage, 'headers'>) {
   const host = req.headers.host;
   const origin = req.headers.origin;
-  if (!host || !origin) return false;
+  if (!host || !origin || !_isAllowedDevHostHeader(host)) return false;
   // Two valid forms: http://<host> and https://<host>. tailscale serve
   // terminates TLS so phone tabs use https; localhost dev uses http.
   return origin === `http://${host}` || origin === `https://${host}`;
@@ -474,6 +491,7 @@ const server = http.createServer((req, res) => {
   try {
     url = new URL(req.url || '/', `http://localhost:${PORT}`);
     pathname = decodeURIComponent(url.pathname);
+    if (/[\r\n\0]/.test(pathname)) throw new Error('Control character in request path');
   } catch {
     res.writeHead(400); res.end('Invalid request path'); return;
   }

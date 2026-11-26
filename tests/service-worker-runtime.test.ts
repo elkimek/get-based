@@ -613,3 +613,25 @@ it.each(['data:text/plain,synthetic', 'file:///synthetic/not-an-app-file'])('doe
   const event = makeFetchEvent(url); listeners.get('fetch')!(event);
   expect(event.response()).toBeNull(); await event.done(); expect(fetchImpl).not.toHaveBeenCalled(); expect(cache.match).not.toHaveBeenCalled();
 });
+
+it('does not cache authenticated requests or Cache-Control: private responses', async () => {
+  const fetchImpl = vi.fn(async (request: string | Request) => {
+    const href = typeof request === 'string' ? request : request.url;
+    if (href.endsWith('/api/commit')) return jsonResponse({ sha: 'deadbeefcafebabe' });
+    if (href.includes('private.json')) return new Response('secret', { status: 200, headers: { 'Cache-Control': 'private, max-age=60' } });
+    return new Response('ok', { status: 200 });
+  });
+  const { listeners, cache } = await loadServiceWorker({ fetchImpl });
+
+  const privateEvent = makeFetchEvent('https://preview.getbased.health/data/private.json');
+  listeners.get('fetch')!(privateEvent);
+  expect(await (await privateEvent.response()!).text()).toBe('secret');
+  await privateEvent.done();
+
+  const authEvent = makeFetchEvent('https://preview.getbased.health/data/auth.json', { headers: { Authorization: 'Bearer secret' } });
+  listeners.get('fetch')!(authEvent);
+  expect(await (await authEvent.response()!).text()).toBe('ok');
+  await authEvent.done();
+
+  expect(cache.put).not.toHaveBeenCalled();
+});

@@ -46,6 +46,8 @@ const ALLOWED_CALLER_ORIGINS = new Set([
   'https://www.getbased.health',
   'https://beta.getbased.health',
   'https://get-based.vercel.app',
+]);
+const MANAGED_PREVIEW_CALLER_ORIGINS = new Set([
   'https://get-based-managed-subscription-v2.vercel.app',
 ]);
 export const OFFICIAL_WEARABLE_CLIENT_IDS = Object.freeze({
@@ -94,6 +96,7 @@ function isGetbasedOperatedHostname(value: string) {
 }
 
 export function isGetbasedOperatedRelayHost(req: ProxyCaller) {
+  if (typeof process !== 'undefined' && process.env?.GETBASED_OPERATED_RELAY === '1') return true;
   const productionUrl = typeof process !== 'undefined'
     ? String(process.env?.VERCEL_PROJECT_PRODUCTION_URL || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
     : '';
@@ -117,7 +120,9 @@ export function isAllowedProxyCallerOrigin(req: ProxyCaller) {
   try {
     const caller = new URL(origin);
     const requestUrl = new URL(req.url);
-    return caller.origin === requestUrl.origin || ALLOWED_CALLER_ORIGINS.has(caller.origin);
+    if (caller.origin === requestUrl.origin) return true;
+    if (ALLOWED_CALLER_ORIGINS.has(caller.origin)) return true;
+    return isGetbasedOperatedRelayHost(req) && MANAGED_PREVIEW_CALLER_ORIGINS.has(caller.origin);
   } catch {
     return false;
   }
@@ -195,9 +200,49 @@ export function normalizeCamsRelayPayload(
   };
 }
 
+function parseIPv6Words(raw: string): number[] | null {
+  let addr = raw.toLowerCase();
+  const zoneIdx = addr.indexOf('%');
+  if (zoneIdx !== -1) addr = addr.slice(0, zoneIdx);
+  const v4Tail = addr.match(/:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  let tailWords: number[] = [];
+  if (v4Tail) {
+    const octets = v4Tail[1]!.split('.');
+    if (octets.length !== 4 || octets.some(o => (o.length > 1 && o[0] === '0') || Number(o) > 255)) return null;
+    tailWords = [(Number(octets[0]) << 8) | Number(octets[1]), (Number(octets[2]) << 8) | Number(octets[3])];
+    addr = addr.slice(0, addr.length - v4Tail[1]!.length - 1);
+    if (addr.endsWith(':')) addr += ':'; // preserve '::' when v4 followed '::'
+  }
+  const halves = addr.split('::');
+  if (halves.length > 2) return null;
+  const parsePart = (part: string) => {
+    if (!part) return [];
+    const segs = part.split(':');
+    const out: number[] = [];
+    for (const seg of segs) {
+      if (!/^[0-9a-f]{1,4}$/.test(seg)) return null;
+      out.push(parseInt(seg, 16));
+    }
+    return out;
+  };
+  const left = parsePart(halves[0]!);
+  const right = halves.length === 2 ? parsePart(halves[1]!) : [];
+  if (!left || !right) return null;
+  const total = left.length + right.length + tailWords.length;
+  if (halves.length === 1) return total === 8 ? [...left, ...tailWords] : null;
+  if (total > 7) return null;
+  return [...left, ...new Array<number>(8 - total).fill(0), ...right, ...tailWords];
+}
+
+function ipv4FromWords(hi: number, lo: number) {
+  return `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`;
+}
+
 export function isProxyHostBlocked(host: string | null | undefined): boolean {
   if (!host) return true;
-  const h = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+  const raw = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+  const h = raw.toLowerCase().replace(/\.+$/, '');
+  if (!h) return true;
   if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true;
   if ([
     '.home',
@@ -211,36 +256,20 @@ export function isProxyHostBlocked(host: string | null | undefined): boolean {
   ].some(suffix => h.endsWith(suffix))) return true;
   if (h === '168.63.129.16') return true;
   if (h.includes(':')) {
-    const lower = h.toLowerCase();
-    if (lower === '::' || lower === '0:0:0:0:0:0:0:0') return true;
-    if (/^fc[0-9a-f]{2}:/.test(lower) || /^fd[0-9a-f]{2}:/.test(lower)) return true;
-    if (/^fe[89ab][0-9a-f]:/.test(lower)) return true;
-    const v4Embed = lower.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-    if (v4Embed) return isProxyHostBlocked(v4Embed[1]!);
-    if (lower.startsWith('::ffff:')) {
-      const tail = lower.slice(7);
-      const groups = tail.split(':');
-      if (groups.length === 2 && groups.every(g => /^[0-9a-f]{1,4}$/.test(g))) {
-        const g0 = parseInt(groups[0]!, 16);
-        const g1 = parseInt(groups[1]!, 16);
-        const a = (g0 >> 8) & 0xff;
-        const b = g0 & 0xff;
-        const c = (g1 >> 8) & 0xff;
-        const d = g1 & 0xff;
-        return isProxyHostBlocked(`${a}.${b}.${c}.${d}`);
-      }
+    const words = parseIPv6Words(h);
+    if (!words) return true;
+    const [w0, w1, w2, w3, w4, w5, w6, w7] = words as [number, number, number, number, number, number, number, number];
+    // IPv4-mapped (::ffff:0:0/96) or IPv4-compatible (::/96)
+    if (w0 === 0 && w1 === 0 && w2 === 0 && w3 === 0 && w4 === 0 && (w5 === 0xffff || w5 === 0)) {
+      if (w5 === 0 && w6 === 0 && (w7 === 0 || w7 === 1)) return true;
+      return isProxyHostBlocked(ipv4FromWords(w6, w7));
     }
-    const sixToFour = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/.exec(lower);
-    if (sixToFour) {
-      const g0 = parseInt(sixToFour[1]!, 16);
-      const g1 = parseInt(sixToFour[2]!, 16);
-      const a = (g0 >> 8) & 0xff;
-      const b = g0 & 0xff;
-      const c = (g1 >> 8) & 0xff;
-      const d = g1 & 0xff;
-      return isProxyHostBlocked(`${a}.${b}.${c}.${d}`);
-    }
-    return !/^[23][0-9a-f]{3}:/.test(lower);
+    // 6to4 (2002::/16) — always validate embedded IPv4 (handles compressed 2002:7f00::1 too)
+    if (w0 === 0x2002) return isProxyHostBlocked(ipv4FromWords(w1, w2));
+    // Teredo (2001:0000::/32), Benchmarking (2001:0002::/48), ORCHID (2001:0010::/28, 2001:0020::/28), Documentation (2001:0db8::/32)
+    if (w0 === 0x2001 && (w1 === 0x0000 || w1 === 0x0002 || w1 === 0x0db8 || (w1 >= 0x0010 && w1 <= 0x002f))) return true;
+    // Allow only global unicast 2000::/3 (0x2000..0x3fff)
+    return w0 < 0x2000 || w0 > 0x3fff;
   }
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
   if (!m) return false;
@@ -250,14 +279,17 @@ export function isProxyHostBlocked(host: string | null | undefined): boolean {
     const n = +octet;
     if (n > 255) return true;
   }
-  const a = +m[1]!, b = +m[2]!;
-  if (a === 10) return true;
-  if (a === 127) return true;
+  const a = +m[1]!, b = +m[2]!, c = +m[3]!;
+  if (a === 0 || a === 10 || a === 127) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true;
   if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true;
-  if (a === 0) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  if (a === 198 && b === 51 && c === 100) return true;
+  if (a === 203 && b === 0 && c === 113) return true;
+  if (a >= 224) return true;
   return false;
 }
 
@@ -268,7 +300,6 @@ export function isAllowedProxyUrl(url: unknown): url is string {
     if (u.protocol !== 'https:') return false;
     if (u.username || u.password) return false;
     if (isProxyHostBlocked(u.hostname)) return false;
-    if (PROXY_ALLOWED_URL_PREFIXES.some(prefix => u.href.startsWith(prefix))) return true;
     return true;
   } catch {
     return false;
@@ -286,11 +317,13 @@ export function sanitizeProxyHeaders(headers: unknown = {}): ProxyValidation<{ h
     return { ok: false, error: 'Proxy headers must be an object' };
   }
   const out: Record<string, string> = {};
+  const seenLower = new Set<string>();
   for (const [rawName, rawValue] of Object.entries(headers as Record<string, unknown>)) {
     if (rawValue == null) continue;
     const name = String(rawName || '').trim();
     const lower = name.toLowerCase();
     if (!name || !HEADER_NAME_RE.test(name)) return { ok: false, error: `Proxy header not allowed: ${name || '(empty)'}` };
+    if (seenLower.has(lower)) return { ok: false, error: `Duplicate proxy header not allowed: ${name}` };
     if (PROXY_BLOCKED_HEADER_NAMES.has(lower) || lower.startsWith('x-forwarded-')) {
       return { ok: false, error: `Proxy header not allowed: ${name}` };
     }
@@ -299,6 +332,7 @@ export function sanitizeProxyHeaders(headers: unknown = {}): ProxyValidation<{ h
     }
     const value = String(rawValue);
     if (/[\r\n]/.test(value)) return { ok: false, error: `Proxy header has invalid value: ${name}` };
+    seenLower.add(lower);
     out[name] = value;
   }
   return { ok: true, headers: out };
@@ -483,9 +517,10 @@ export function classifyHostedProxyRequest(
   }
 
   // Product/device URL import needs an arbitrary public page, but never user
-  // credentials or a request body. Redirect and DNS validation still apply.
+  // credentials, a request body, or non-standard ports. Redirect and DNS validation still apply.
   if (purpose === 'public-page'
       && method === 'GET'
+      && (!url.port || url.port === '443')
       && hasNoBody(body)
       && onlyHeaderNames(headers, new Set(['accept']))) {
     return { ok: true, operation: 'public-page' };

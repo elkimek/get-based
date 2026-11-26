@@ -5,7 +5,7 @@ import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js'
 // sync-delta-merge.js - Pull-side per-row delta merge overlay.
 
 import { resetPullDeltaSnapshot } from './sync-delta-pull-snapshot.js';
-import { DELTA_MAPS, DELTA_SCALARS } from './sync-delta-surfaces.js';
+import { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-surfaces.js';
 import { getAt } from './data-merge.js';
 import { profileDataValuesEqual } from './profile-data-writes.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
@@ -142,6 +142,7 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
   // counts for arrays still present in the relay's row set so a profile
   // switch doesn't carry stale counts forward.
   resetPullDeltaSnapshot(profileId);
+  const _DELTA_ARRAYS_SET = new Set<string>(DELTA_ARRAYS);
   const _DELTA_MAPS_SET = new Set(DELTA_MAPS);
   const _DELTA_SCALARS_SET = new Set(DELTA_SCALARS);
   // Lifecycle state precedes transport deletes and metadata, independently of
@@ -159,6 +160,7 @@ export async function _mergeItemRowsIntoImported<Data extends DeltaImportedData>
       }});
       continue;
     }
+    if (!arrayName || !_DELTA_ARRAYS_SET.has(arrayName)) continue;
     const baselineItems = options.baselineImported
       ? getAt(options.baselineImported, arrayName)
       : null;

@@ -324,7 +324,12 @@ export async function sanitizeWithOllamaStreaming(pdfText: string, onChunk: (chu
     } else {
       probeSignal = timeoutSig;
     }
-    const probe = await fetch(`${baseUrl}/v1/models`, { headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}, signal: probeSignal as AbortSignal | null });
+    const probe = await fetch(`${baseUrl}/v1/models`, {
+      redirect: 'error',
+      credentials: 'omit',
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      signal: probeSignal as AbortSignal | null,
+    });
     if (!probe.ok) throw new Error(`HTTP ${probe.status}`);
   } catch (e) {
     throw new Error(`Local PII server unreachable at ${baseUrl} — falling back to regex obfuscation. (${getErrorMessage(e)})`);

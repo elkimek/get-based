@@ -501,9 +501,16 @@ export function recentCyclePeriods(mc: { periods?: unknown } | null | undefined,
   return normalizeCyclePeriods(mc?.periods || []).sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, count);
 }
 
+const NON_HORMONAL_CONTRACEPTION_TERMS = ['copper', 'copper iud', 'non-hormonal', 'non hormonal'];
+const HORMONAL_CONTRACEPTION_PATTERNS = [
+  /\bocp\b/, /\bpill\b/, /\bpatch\b/, /\b(?:nuva|annovera|vaginal\s+)?ring\b/, /\bimplant\b/,
+  /\bmirena\b/, /\bhormonal\s+iud\b/, /\bdepo\b/, /\binjection\b/,
+];
+
 export function isHormonalContraception(value: unknown) {
+  if (value === true) return true;
   const raw = String(value || '').toLowerCase();
   if (!raw) return false;
-  return ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection']
-    .some(term => raw.includes(term));
+  if (NON_HORMONAL_CONTRACEPTION_TERMS.some(term => raw.includes(term))) return false;
+  return HORMONAL_CONTRACEPTION_PATTERNS.some(pattern => pattern.test(raw));
 }

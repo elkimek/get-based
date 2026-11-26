@@ -38,7 +38,7 @@ function _buildTypeToCanonical() {
   // (no overlap with rhr's RestingHeartRate), so it routes directly into a
   // bucket from which the day-window aggregator will read.
   const adapter = adapterById('apple_health');
-  const typeToCanonical: AppleHealthTypeMap = {};
+  const typeToCanonical = Object.create(null) as AppleHealthTypeMap;
   for (const [canonId, m] of Object.entries(adapter?.metrics || {})) {
     if (!m?.hkType) continue;
     if (m.window && typeToCanonical[m.hkType]) continue;
@@ -50,12 +50,13 @@ function _buildTypeToCanonical() {
 // Match both self-closing <Record …/> and open <Record …>.
 const _RECORD_RE = /<Record\b([^>]*?)\/?>/g;
 const _ATTR_RE = /(\w+)="([^"]*)"/g;
+const MAX_PENDING_TAG_CHARS = 65_536;
 
 function _processRecordAttrs(attrsRaw: string, typeToCanonical: AppleHealthTypeMap, byDayByMetric: AppleHealthDays) {
   // Fast path: skip records we don't care about before parsing attributes.
   if (!/type="HK/.test(attrsRaw)) return;
 
-  const attrs: Record<string, string> = {};
+  const attrs = Object.create(null) as Record<string, string>;
   let a;
   _ATTR_RE.lastIndex = 0;
   while ((a = _ATTR_RE.exec(attrsRaw)) !== null) attrs[a[1]!] = a[2]!;
@@ -110,7 +111,12 @@ export async function parseAppleHealthBlob(blob: Blob, onProgress?: AppleHealthP
       consumed = _RECORD_RE.lastIndex;
     }
     const open = buffer.lastIndexOf('<');
-    buffer = open >= consumed && buffer.indexOf('>', open) < 0 ? buffer.slice(open) : '';
+    if (open >= consumed && buffer.indexOf('>', open) < 0) {
+      const tail = buffer.slice(open);
+      buffer = tail.length <= MAX_PENDING_TAG_CHARS ? tail : '';
+    } else {
+      buffer = '';
+    }
     if (totalSize && onProgress) {
       // Parse phase claims 40-80% of the progress bar.
       onProgress({ stage: 'parsing', pct: Math.round((bytesRead / totalSize) * 40 + 40) });

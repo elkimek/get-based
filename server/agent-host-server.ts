@@ -163,7 +163,11 @@ const service = createAgentHostService({
 const server = createServer(createCompanionRequestHandler({
   handleRequest: request => service.handleRequest(request),
   host, getPort: () => port, maxRequestBytes, maxImageRequestBytes,
+  canAcceptUpload: headers => /^Bearer\s+\S+/i.test(String(headers.get('authorization') || '')),
 }));
+server.headersTimeout = 10_000;
+server.keepAliveTimeout = 5_000;
+server.requestTimeout = 300_000;
 
 function listen() {
   server.listen(port, host);

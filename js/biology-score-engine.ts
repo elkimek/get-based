@@ -85,10 +85,10 @@ export function scoreAgainstRange(value: number, range: ScoreRange | null | unde
     return Math.round(clamp(lerp(clamp(value, min - buffer, min), min - buffer, min, 0, 99), 0, 99));
   }
 
-  if (min == null || max == null) return null;
+  if (min == null || max == null || min > max) return null;
   if (value >= min && value <= max) return 100;
   const span = Math.abs(max - min) || Math.abs(max) * 0.5 || Number.EPSILON;
-  const lowFloor = Math.max(0, min - span);
+  const lowFloor = min > 0 ? Math.max(0, min - span) : min - span;
   const highCeil = max + span;
   if (value < min) return Math.round(clamp(lerp(clamp(value, lowFloor, min), lowFloor, min, 0, 99), 0, 99));
   return Math.round(clamp(lerp(clamp(value, max, highCeil), max, highCeil, 99, 0), 0, 99));

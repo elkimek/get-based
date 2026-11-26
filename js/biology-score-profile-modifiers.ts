@@ -17,7 +17,10 @@ const HORMONE_THERAPY_CONTEXT_PATHS = new Set([
   'hormones.estradiol', 'hormones.progesterone', 'hormones.lh', 'hormones.fsh',
   'hormones.dht', 'hormones.androstenedione', 'hormones.fai', 'hormones.shbg',
 ]);
-const HORMONAL_CONTRACEPTION_TERMS = ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection', 'contraceptive pill', 'birth control pill'];
+const HORMONAL_CONTRACEPTION_PATTERNS = [
+  /\bocp\b/, /\bpill\b/, /\bpatch\b/, /\b(?:nuva|annovera|vaginal\s+)?ring\b/, /\bimplant\b/,
+  /\bmirena\b/, /\bhormonal\s+iud\b/, /\bdepo\b/, /\binjection\b/,
+];
 const NON_HORMONAL_CONTRACEPTION_TERMS = ['copper', 'copper iud', 'non-hormonal', 'non hormonal'];
 
 function contextOnly(flag: string, weightScale = 1): ProfileScoreModifier {
@@ -46,7 +49,7 @@ function isHormonalContraception(value: unknown) {
   const text = String(value || '').toLowerCase();
   if (!text) return false;
   if (NON_HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term))) return false;
-  return HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term));
+  return HORMONAL_CONTRACEPTION_PATTERNS.some(pattern => pattern.test(text));
 }
 
 function isCyclingFemale(profileContext: ScoreProfileContext | null | undefined, entryContext: LabCollectionContext) {

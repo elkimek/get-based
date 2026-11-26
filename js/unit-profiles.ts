@@ -188,6 +188,8 @@ function conversionForInputUnit(dotKey: string, unit: unknown) {
   const comparable = comparableUnit(unit);
   const us = usProfileConversion(dotKey);
   if (us && comparable === comparableUnit(us.unit)) return us;
+  const eu = EU_UNIT_OVERRIDES[dotKey];
+  if (eu && comparable === comparableUnit(eu.unit)) return eu;
   const anz = ANZ_UNIT_OVERRIDES[dotKey];
   if (anz && comparable === comparableUnit(anz.unit)) return anz;
   for (const secondary of SECONDARY_UNIT_CONVERSIONS[dotKey] || []) {
@@ -238,6 +240,8 @@ export function getMarkerInputUnits(dotKey: string, unitProfile: unknown, canoni
   const units = [resolved.unit, resolved.canonicalUnit];
   const usUnit = usProfileConversion(dotKey)?.unit;
   if (usUnit) units.push(usUnit);
+  const euUnit = EU_UNIT_OVERRIDES[dotKey]?.unit;
+  if (euUnit) units.push(euUnit);
   const anzUnit = ANZ_UNIT_OVERRIDES[dotKey]?.unit;
   if (anzUnit) units.push(anzUnit);
   for (const secondary of SECONDARY_UNIT_CONVERSIONS[dotKey] || []) {

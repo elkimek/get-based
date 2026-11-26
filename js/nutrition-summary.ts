@@ -498,7 +498,11 @@ export function computeNutritionHistory(meals: unknown, { rangeKey = '30d', now 
 
 export function computeNutritionSummary(meals: unknown, { now = new Date(), sleepIntervals = [] }: { now?: Date; sleepIntervals?: unknown } = {}) {
   const validMeals = (Array.isArray(meals) ? meals as Array<SummaryMeal | null | undefined> : []).filter(meal => mealDayKey(meal)) as SummaryMeal[];
-  const sorted = [...validMeals].sort((a, b) => new Date(b.eatenAt as DateInput).getTime() - new Date(a.eatenAt as DateInput).getTime());
+  const sorted = [...validMeals].sort((a, b) => {
+    const bt = new Date((b.eatenAt || `${b.localDate || ''}T00:00:00Z`) as DateInput).getTime();
+    const at = new Date((a.eatenAt || `${a.localDate || ''}T00:00:00Z`) as DateInput).getTime();
+    return (Number.isFinite(bt) ? bt : -Infinity) - (Number.isFinite(at) ? at : -Infinity);
+  });
   const previous23 = windowSummary(validMeals, 23, now, [], 7);
   const previous83 = windowSummary(validMeals, 83, now, [], 7);
   const summary = {

@@ -22,7 +22,7 @@ it.each(['js/feature.ts','js/components/Card.svelte','css/app.css','package.json
 });
 it('does not version generated outputs, local journals or dependency caches',async()=>{
  const root=await fixture();await put(root,'js/feature.ts');const before=await identity(root);
- for(const file of ['.local-notes/run.json','.svelte-check/config.json','.svelte-kit/output/a.json','node_modules/pkg/package.json','tooling/svelte/node_modules/pkg/package.json','artifacts/report.json','coverage/report.json','dist/app.html','build/app.html','test-results/result.json','playwright-report/report.html','.git/config.json','js/feature.js'])await put(root,file);
+ for(const file of ['.local-notes/run.json','.svelte-check/config.json','.svelte-kit/output/a.json','node_modules/pkg/package.json','tooling/svelte/node_modules/pkg/package.json','artifacts/report.json','coverage/report.json','dist/app.html','build/app.html','test-results/result.json','playwright-report/report.html','.git/config.json','js/feature.js','js/svelte-compatibility.generated.json'])await put(root,file);
  expect(await identity(root)).toEqual(before);
 });
 it('deduplicates Git and filesystem discovery and ignores deleted tracked inputs',async()=>{

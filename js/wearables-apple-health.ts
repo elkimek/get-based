@@ -140,12 +140,19 @@ function loadJSZip() {
   return _jszipLoad;
 }
 
+const MAX_APPLE_HEALTH_ZIP_ENTRIES = 50_000;
+const MAX_APPLE_HEALTH_XML_BYTES = 2.5 * 1024 * 1024 * 1024;
+
 async function extractExportXmlBlob(zipFile: Blob, onProgress?: AppleHealthProgressCallback | null) {
   const JSZip = await loadJSZip();
   const zip = await JSZip.loadAsync(zipFile, {
     // Progress for large exports — Apple zips can be 500 MB+ compressed.
     onUpdate: m => onProgress?.({ stage: 'unzipping', pct: Math.round(m.percent * 0.4) }),
   });
+  const entryNames = Object.keys(zip.files);
+  if (entryNames.length > MAX_APPLE_HEALTH_ZIP_ENTRIES) {
+    throw new Error(`Apple Health ZIP contains too many entries (${entryNames.length}).`);
+  }
   // Apple's path is canonical; we accept a few known variants just in case.
   const candidates = ['apple_health_export/export.xml', 'export.xml', 'apple_health_export/Export.xml'];
   let entry: Awaited<ReturnType<AppleHealthZipReader['loadAsync']>>['files'][string] | null = null;
@@ -153,10 +160,37 @@ async function extractExportXmlBlob(zipFile: Blob, onProgress?: AppleHealthProgr
     if (zip.files[p]) { entry = zip.files[p]; break; }
   }
   if (!entry) {
-    const names = Object.keys(zip.files).filter(n => n.toLowerCase().endsWith('.xml')).slice(0, 5);
+    const names = entryNames.filter(n => n.toLowerCase().endsWith('.xml')).slice(0, 5);
     throw new Error(`export.xml not found in ZIP. Found XMLs: ${names.join(', ') || '(none)'}`);
   }
-  // Return decompressed bytes as a Blob (not a string). A 2 GB XML hits V8's
-  // ~512 MB max-string-length limit if requested as 'text'; bytes don't.
-  return entry.async('blob');
+  // Stream-count expanded bytes so a zip bomb aborts before exhausting memory.
+  if (typeof entry.internalStream === 'function') {
+    const chunks = await new Promise<BlobPart[]>((resolve, reject) => {
+      const parts: BlobPart[] = [];
+      let total = 0;
+      let settled = false;
+      const stream = entry!.internalStream!('uint8array');
+      stream
+        .on('data', chunk => {
+          if (settled) return;
+          total += chunk.byteLength;
+          if (total > MAX_APPLE_HEALTH_XML_BYTES) {
+            settled = true;
+            try { stream.pause?.(); } catch {}
+            reject(new Error('Apple Health export.xml exceeds the maximum supported size.'));
+            return;
+          }
+          parts.push(new Uint8Array(chunk));
+        })
+        .on('end', () => { if (!settled) { settled = true; resolve(parts); } })
+        .on('error', err => { if (!settled) { settled = true; reject(err); } })
+        .resume();
+    });
+    return new Blob(chunks, { type: 'text/xml' });
+  }
+  const blob = await entry.async('blob');
+  if (blob.size > MAX_APPLE_HEALTH_XML_BYTES) {
+    throw new Error('Apple Health export.xml exceeds the maximum supported size.');
+  }
+  return blob;
 }

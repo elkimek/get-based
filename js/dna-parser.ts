@@ -299,7 +299,13 @@ function formatSourceName(format: string) {
   return names[format] || format;
 }
 
-export async function parseDNAFileWithTable(file: Pick<File, 'slice' | 'text'>, snpTable: SnpCatalog | null | undefined) {
+const MAX_DNA_ANNOTATED_BYTES = 25 * 1024 * 1024;
+const MAX_DNA_RAW_BYTES = 250 * 1024 * 1024;
+
+export async function parseDNAFileWithTable(file: Pick<File, 'slice' | 'text'> & { size?: number }, snpTable: SnpCatalog | null | undefined) {
+  if (typeof file.size === 'number' && file.size > MAX_DNA_RAW_BYTES) {
+    throw new Error('DNA file exceeds the maximum supported size (250 MB).');
+  }
   const snpIds = Object.keys(snpTable || {}).filter(k => k.startsWith('rs'));
 
   const headerChunk = await file.slice(0, 1000).text();
@@ -308,6 +314,9 @@ export async function parseDNAFileWithTable(file: Pick<File, 'slice' | 'text'>, 
 
   let result: WorkerParseResult;
   if (format === 'annotated-snp-report') {
+    if (typeof file.size === 'number' && file.size > MAX_DNA_ANNOTATED_BYTES) {
+      throw new Error('Annotated SNP report exceeds the maximum supported size (25 MB).');
+    }
     result = parseAnnotatedSnpReport(await file.text(), snpTable);
   } else {
     const worker = createWorker();

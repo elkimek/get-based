@@ -29,6 +29,7 @@ export const AI_SETTINGS_KEYS = [
   'labcharts-venice-model',
   'labcharts-routstr-model',
   'labcharts-ppq-model',
+  'labcharts-ppq-private-mode',
   'labcharts-venice-e2ee',
   'labcharts-ollama-model',
   'labcharts-ollama-pii-url',

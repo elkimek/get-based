@@ -73,14 +73,15 @@ if (!url) {
 }
 
 if (!token) {
+  if (process.env.VERCEL_ENV === 'production') {
+    console.error('[fetch-catalog] CATALOG_FETCH_TOKEN is required for production builds (VERCEL_ENV=production). Aborting.');
+    process.exit(1);
+  }
   // Vercel doesn't expose secrets to feature-branch / PR builds by
   // default (security guard against fork-author exfiltration). The
   // URL var is project-level config, so it lands; the TOKEN is
   // secret, so it doesn't. Without it we can't auth the catalog
-  // fetch — but a PR preview doesn't NEED the real catalog, the
-  // example stub is enough for the preview deploy to succeed and
-  // surface UI changes. Production builds (main / VERCEL_ENV=
-  // production) have both env vars set and never reach this branch.
+  // fetch — a PR preview can use the example stub to surface UI changes.
   const stub = path.join(ROOT, 'data', 'recommendations.example.json');
   if (fs.existsSync(stub)) {
     const stubContent = fs.readFileSync(stub);
@@ -106,14 +107,34 @@ if (rawMatch) {
   console.log(`[fetch-catalog] Rewrote raw.githubusercontent.com URL to GitHub Contents API (works with private-repo PATs).`);
 }
 
+async function fetchWithRetry(targetUrl: string): Promise<Response> {
+  const maxAttempts = 2;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(targetUrl, {
+        headers: {
+          [headerName]: headerValue,
+          // GitHub Contents API returns the file body when this Accept header is sent.
+          'Accept': 'application/vnd.github.v3.raw, application/vnd.github.raw, application/octet-stream',
+        },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (res.status >= 500 && attempt < maxAttempts) {
+        await res.arrayBuffer().catch(() => {});
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxAttempts) continue;
+    }
+  }
+  throw lastErr;
+}
+
 try {
-  const res = await fetch(effectiveUrl, {
-    headers: {
-      [headerName]: headerValue,
-      // GitHub Contents API returns the file body when this Accept header is sent.
-      'Accept': 'application/vnd.github.v3.raw, application/vnd.github.raw, application/octet-stream',
-    },
-  });
+  const res = await fetchWithRetry(effectiveUrl);
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     console.error(`[fetch-catalog] HTTP ${res.status} from ${effectiveUrl} — ${body.slice(0, 200)}`);
@@ -130,12 +151,16 @@ try {
     console.error('[fetch-catalog] Response missing required catalog shape (slots / products keys).');
     process.exit(1);
   }
-  _replaceTarget(text);
   const counts = {
     slots: Object.keys(((parsed as CatalogReader).slots || {}) as object).length,
     products: Object.values(((parsed as CatalogReader).products || {}) as Record<string, unknown>).reduce<number>((n, v) => n + (Array.isArray(v) ? v.length : 0), 0),
     vendors: Object.keys(((parsed as CatalogReader).vendors || {}) as object).length,
   };
+  if (process.env.VERCEL_ENV === 'production' && (counts.slots === 0 || counts.products === 0)) {
+    console.error(`[fetch-catalog] Response catalog is empty (${counts.slots} slots, ${counts.products} products). Aborting.`);
+    process.exit(1);
+  }
+  _replaceTarget(text);
   console.log(`[fetch-catalog] OK — ${text.length} bytes, ${counts.slots} slots, ${counts.products} products, ${counts.vendors} vendors → ${TARGET}`);
 } catch (e) {
   console.error(`[fetch-catalog] Network / runtime error: ${(e as ErrorReader).message}`);

@@ -135,20 +135,27 @@ function flowClass(flow: unknown) {
   if (flow === 'light') return 'severity-minor';
   return 'severity-mild';
 }
+function localIsoDate(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function addUtcDays(iso: string, days: number) {
+  return new Date(Date.parse(iso + 'T00:00:00Z') + days * 86400000).toISOString().slice(0, 10);
+}
 export function getCyclePhase(dateStr: string, mc: CycleProfileInput | null | undefined): PredictedCyclePhase | null {
   if (!mc || !mc.periods || mc.periods.length === 0) return null;
-  const target = new Date(dateStr + 'T00:00:00');
+  const targetMs = Date.parse(dateStr + 'T00:00:00Z');
+  if (!Number.isFinite(targetMs)) return null;
   const sorted = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
   let basisPeriod: CyclePeriodInput | null = null;
   for (const p of sorted) {
-    if (new Date(p.startDate + 'T00:00:00') <= target) {
+    if (Date.parse(p.startDate + 'T00:00:00Z') <= targetMs) {
       basisPeriod = p;
       break;
     }
   }
   if (!basisPeriod) return null;
-  const startDate = new Date(basisPeriod.startDate + 'T00:00:00');
-  const cycleDay = Math.floor((target.getTime() - startDate.getTime()) / 86400000) + 1;
+  const startMs = Date.parse(basisPeriod.startDate + 'T00:00:00Z');
+  const cycleDay = Math.floor((targetMs - startMs) / 86400000) + 1;
   const cycleLen = (mc.cycleLength || 28) as number;
   if (cycleDay > cycleLen + 7) return null; // too far from any known period
   const periodLen = (mc.periodLength || 5) as number;
@@ -177,35 +184,33 @@ export function getCyclePhase(dateStr: string, mc: CycleProfileInput | null | un
 export function getNextBestDrawDate(mc: CycleProfileInput | null | undefined) {
   if (!mc || !mc.periods || mc.periods.length === 0) return null;
   const sorted = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
-  const lastStart = new Date(sorted[0]!.startDate + 'T00:00:00');
-  const cycleLen = (mc.cycleLength || 28) as number;
-  const today = new Date(); today.setHours(0,0,0,0);
-  // Find the most recent predicted period start (on or before today)
-  let currentPeriodStart = new Date(lastStart.getTime());
-  while (currentPeriodStart.getTime() + cycleLen * 86400000 <= today.getTime()) {
-    currentPeriodStart = new Date(currentPeriodStart.getTime() + cycleLen * 86400000);
+  const cycleLen = Math.max(1, Number(mc.cycleLength) || 28);
+  const todayIso = localIsoDate();
+  const todayMs = Date.parse(todayIso + 'T00:00:00Z');
+  // Find the most recent predicted period start (on or before today) in UTC calendar days.
+  let currentPeriodStart = sorted[0]!.startDate;
+  while (Date.parse(addUtcDays(currentPeriodStart, cycleLen) + 'T00:00:00Z') <= todayMs) {
+    currentPeriodStart = addUtcDays(currentPeriodStart, cycleLen);
   }
-  // Check if today falls within the current cycle's draw window (days 3-5)
-  const currentDrawStart = new Date(currentPeriodStart.getTime() + 2 * 86400000);
-  const currentDrawEnd = new Date(currentPeriodStart.getTime() + 4 * 86400000);
-  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  if (today >= currentDrawStart && today <= currentDrawEnd) {
-    const dayInCycle = Math.floor((today.getTime() - currentPeriodStart.getTime()) / 86400000) + 1;
+  const currentDrawStart = addUtcDays(currentPeriodStart, 2);
+  const currentDrawEnd = addUtcDays(currentPeriodStart, 4);
+  const fmt = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  if (todayIso >= currentDrawStart && todayIso <= currentDrawEnd) {
+    const dayInCycle = Math.floor((todayMs - Date.parse(currentPeriodStart + 'T00:00:00Z')) / 86400000) + 1;
     return {
-      startDate: currentDrawStart.toISOString().slice(0, 10),
-      endDate: currentDrawEnd.toISOString().slice(0, 10),
+      startDate: currentDrawStart,
+      endDate: currentDrawEnd,
       description: `Now is ideal! Today is day ${dayInCycle} (early follicular)`
     };
   }
-  // Otherwise recommend the next cycle's window
-  if (today > currentDrawEnd) {
-    currentPeriodStart = new Date(currentPeriodStart.getTime() + cycleLen * 86400000);
+  if (todayIso > currentDrawEnd) {
+    currentPeriodStart = addUtcDays(currentPeriodStart, cycleLen);
   }
-  const drawStart = new Date(currentPeriodStart.getTime() + 2 * 86400000);
-  const drawEnd = new Date(currentPeriodStart.getTime() + 4 * 86400000);
+  const drawStart = addUtcDays(currentPeriodStart, 2);
+  const drawEnd = addUtcDays(currentPeriodStart, 4);
   return {
-    startDate: drawStart.toISOString().slice(0, 10),
-    endDate: drawEnd.toISOString().slice(0, 10),
+    startDate: drawStart,
+    endDate: drawEnd,
     description: `~${fmt(drawStart)}-${fmt(drawEnd)} (days 3-5, early follicular)`
   };
 }
@@ -305,15 +310,23 @@ export function detectCycleIronAlerts(mc: CycleProfileInput | null | undefined, 
   const recentHeavy = sorted.slice(0, 3).filter(p => p.flow === 'heavy');
   if (recentHeavy.length === 0) return [];
 
-  // Check iron-related markers
+  // Check iron-related markers (preserve hematology lookup order, then canonical iron & custom categories)
   const ironMarkers = [
-    { cat: 'hematology', key: 'ferritin', label: 'Ferritin' },
-    { cat: 'hematology', key: 'hemoglobin', label: 'Hemoglobin' },
-    { cat: 'hematology', key: 'iron', label: 'Iron' }
+    { cat: 'hematology', altCat: 'iron', key: 'ferritin', label: 'Ferritin' },
+    { cat: 'hematology', altCat: null, key: 'hemoglobin', label: 'Hemoglobin' },
+    { cat: 'hematology', altCat: 'iron', key: 'iron', label: 'Iron' }
   ];
+  const findIronMarker = (cat: string, altCat: string | null, key: string) => {
+    const direct = data.categories[cat]?.markers[key] || (altCat ? data.categories[altCat]?.markers[key] : undefined);
+    if (direct) return direct;
+    for (const category of Object.values(data.categories)) {
+      if (category?.markers?.[key]) return category.markers[key];
+    }
+    return null;
+  };
 
   for (const im of ironMarkers) {
-    const marker = data.categories[im.cat]?.markers[im.key];
+    const marker = findIronMarker(im.cat, im.altCat, im.key);
     if (!marker) continue;
     const latestIdx = marker.values.findLastIndex(v => v !== null);
     if (latestIdx === -1) continue;
@@ -321,16 +334,17 @@ export function detectCycleIronAlerts(mc: CycleProfileInput | null | undefined, 
     const r = { min: marker.refMin, max: marker.refMax };
     if (r.min == null) continue;
 
-    // Alert if low or in bottom 25% of range
-    const threshold = r.min + ((r.max as number) - r.min) * 0.25;
-    if (v <= threshold) {
-      const severity = v < r.min ? 'critical' : 'warning';
+    // Alert if low or in bottom 25% of range (when upper bound exists)
+    const threshold = r.max != null && r.max > r.min ? r.min + (r.max - r.min) * 0.25 : r.min;
+    const isBelowMin = v < r.min;
+    if (isBelowMin || (r.max != null && r.max > r.min && v <= threshold)) {
+      const severity = isBelowMin ? 'critical' : 'warning';
       alerts.push({
         marker: im.label,
         value: v,
         unit: marker.unit,
         severity,
-        message: v < r.min
+        message: isBelowMin
           ? `${im.label} is below range (${v} ${marker.unit}) with recent heavy flow \u2014 discuss iron supplementation with your provider`
           : `${im.label} is in the low range (${v} ${marker.unit}) with recent heavy flow \u2014 monitor closely`
       });
@@ -339,7 +353,7 @@ export function detectCycleIronAlerts(mc: CycleProfileInput | null | undefined, 
 
   // Alert if iron markers are missing entirely with heavy flow
   const hasAnyIron = ironMarkers.some(im => {
-    const m = data.categories[im.cat]?.markers[im.key];
+    const m = findIronMarker(im.cat, im.altCat, im.key);
     return m && m.values.some(v => v !== null);
   });
   if (!hasAnyIron && recentHeavy.length >= 2) {
@@ -372,8 +386,8 @@ export function openMenstrualCycleEditor(): void | false | Promise<void | false>
     deleteAriaLabel: `Delete period starting ${fmtCycleDate(p.startDate)}`,
     flowClass: flowClass(p.flow), flow: p.flowKnown === false ? 'flow not reported' : p.flow, symptoms: p.symptoms, notes: p.notes,
   }));
-  const today = new Date().toISOString().slice(0, 10);
-  const defaultEnd = new Date(Date.now() + (((mc.periodLength || 5) as number) - 1) * 86400000).toISOString().slice(0, 10);
+  const today = localIsoDate();
+  const defaultEnd = addUtcDays(today, Math.max(0, ((mc.periodLength || 5) as number) - 1));
   modal.innerHTML = renderCycleEditorPresentation({view: projectCycleEditorPresentation({
     profile: mc, stats, activeCycle, periods: periodViews, today, defaultEnd, symptoms: PERIOD_SYMPTOMS,
     coverage, showClear: Boolean(state.importedData!.menstrualCycle),
