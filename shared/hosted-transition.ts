@@ -1,8 +1,9 @@
-// Public rollout state. Activate only after the release, recovery, docs and demo
-// are verified. announcedAt is the actual public announcement timestamp.
+// Public rollout state. announcedAt is the actual public announcement timestamp.
 export interface HostedTransitionPolicy {announcedAt: string | null; announcementUrl: string | null; demoUrl: string | null}
 export const HOSTED_TRANSITION_POLICY: Readonly<HostedTransitionPolicy> = Object.freeze({
-  announcedAt: null, announcementUrl: null, demoUrl: null,
+  announcedAt: '2026-11-27T10:00:00Z',
+  announcementUrl: 'https://getbased.health/self-hosting',
+  demoUrl: 'https://getbased-demo.vercel.app',
 });
 export const HOSTED_NOTICE_DAYS = 30;
 const HOSTED_ORIGINS = new Set(['https://app.getbased.health', 'https://getbased.health', 'https://www.getbased.health', 'https://get-based.vercel.app',

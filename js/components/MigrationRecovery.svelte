@@ -17,7 +17,7 @@
 <main class="gb:protection:max-w-[760px] gb:protection:mx-auto gb:protection:p-4 gb:protection:text-ink gb:protection:[font-family:inherit]" data-migration-view aria-busy={view.busy}>
   <a href="https://github.com/elkimek/get-based/fork" target="_blank" rel="noreferrer">Fork to self-host</a>
   · <a href="https://docs.getbased.health/guides/self-hosting" target="_blank" rel="noreferrer">Self-hosting guide</a>
-  {#if !view.pending} · <a href="/app">Back to getbased</a>{/if}
+  {#if view.recoveryOnly} · <a href="https://getbased-demo.vercel.app" target="_blank" rel="noreferrer">Try the read-only demo</a>{:else if !view.pending} · <a href="/app">Back to getbased</a>{/if}
   <h1>{view.recoveryOnly ? 'Recover your hosted records' : 'Move your getbased data'}</h1>
   <p>Keep this browser's data until you have restored your migration file and checked the records at your new address.</p>
   <p role="status" aria-live="polite">{view.status}</p>

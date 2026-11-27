@@ -1,10 +1,19 @@
 import {expect, it} from 'vitest';
 import {getHostedTransition, HOSTED_TRANSITION_POLICY, HOSTED_NOTICE_DAYS} from '../shared/hosted-transition.js';
 const policy = {announcedAt: '2026-11-12T15:00:00.000Z', announcementUrl: 'https://getbased.health/updates', demoUrl: 'https://demo.getbased.health'};
-it('keeps the rollout inactive before its actual published announcement', () => {
-  expect(HOSTED_TRANSITION_POLICY.announcedAt).toBeNull();
-  expect(getHostedTransition('https://app.getbased.health', Date.parse(policy.announcedAt))).toBeNull();
-  expect(getHostedTransition('https://app.getbased.health', Date.parse(policy.announcedAt)-1, policy)).toBeNull();
+it('publishes the active rollout policy and stays inactive before the announcement timestamp', () => {
+  expect(HOSTED_TRANSITION_POLICY.announcedAt).toBe('2026-11-27T10:00:00Z');
+  expect(HOSTED_TRANSITION_POLICY.announcementUrl).toBe('https://getbased.health/self-hosting');
+  expect(HOSTED_TRANSITION_POLICY.demoUrl).toBe('https://getbased-demo.vercel.app');
+  const announced = Date.parse(HOSTED_TRANSITION_POLICY.announcedAt!);
+  expect(getHostedTransition('https://app.getbased.health', announced - 1)).toBeNull();
+  expect(getHostedTransition('https://app.getbased.health', announced)).toMatchObject({
+    phase: 'notice',
+    announcementUrl: 'https://getbased.health/self-hosting',
+    demoUrl: 'https://getbased-demo.vercel.app',
+  });
+  expect(getHostedTransition('https://app.getbased.health', Date.parse(policy.announcedAt), {announcedAt: null, announcementUrl: null, demoUrl: null})).toBeNull();
+  expect(getHostedTransition('https://app.getbased.health', Date.parse(policy.announcedAt) - 1, policy)).toBeNull();
 });
 it('gives exactly 30 days and retains recovery at the boundary and afterward', () => {
   const start = Date.parse(policy.announcedAt), cutoff = start + 30*24*60*60*1000;
