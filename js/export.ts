@@ -28,7 +28,7 @@ import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
 import { addDemoNutrition } from './demo-nutrition.js';
-import { isPublicDemoMode, isPublicDemoSeeding, notifyPublicDemoBlocked } from './public-demo-mode.js';
+import { isPublicDemoMode, isPublicDemoSeeding, notifyPublicDemoBlocked, withPublicDemoSeeding } from './public-demo-mode.js';
 import {
   buildReportAgentContext as buildReportAgentContextImpl,
   collectReportData as collectReportDataImpl,
@@ -435,9 +435,29 @@ export async function clearAllData() {
   }
 }
 
+let activeDemoLoadPromise: Promise<void> | null = null;
+
 export async function loadDemoData(sex: string = 'male') {
+  if (activeDemoLoadPromise) return activeDemoLoadPromise;
+  const done = runLoadDemoData(sex).finally(() => {
+    if (activeDemoLoadPromise === done) activeDemoLoadPromise = null;
+  });
+  activeDemoLoadPromise = done;
+  return done;
+}
+
+async function runLoadDemoData(sex: string) {
+  if (isPublicDemoMode()) {
+    const normalizedSex = sex === 'female' ? 'female' : 'male';
+    const existing = getProfiles().find(p => Array.isArray(p.tags) && p.tags.includes('demo') && p.sex === normalizedSex);
+    if (existing) {
+      if (state.currentProfile !== existing.id) await switchProfile(existing.id);
+      return;
+    }
+  }
   // Cancel the empty dashboard's welcome timer before any download/import wait.
   document.body.classList.remove('chat-autostart-reserved');
+  return withPublicDemoSeeding(async () => {
   try {
     const file = sex === 'female' ? 'data/demo-female.json' : 'data/demo-male.json';
     const resp = await fetch(file);
@@ -560,4 +580,5 @@ export async function loadDemoData(sex: string = 'male') {
     clearDemoLoadingProfile();
     showNotification('Could not load demo data: ' + getErrorMessage(err), 'error');
   }
+  });
 }

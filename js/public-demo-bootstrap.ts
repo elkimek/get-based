@@ -1,6 +1,10 @@
-import {getActiveProfileId, getProfiles, saveProfiles, switchProfile} from './profile.js';
+import {getActiveProfileId, getProfiles, switchProfile} from './profile.js';
 import {loadDemoData} from './export-loader.js';
-import {isPublicDemoMode, withPublicDemoSeeding} from './public-demo-mode.js';
+import {isPublicDemoMode} from './public-demo-mode.js';
+
+const PUBLIC_DEMO_STATE_VERSION_KEY = 'getbased-public-demo-v';
+const PUBLIC_DEMO_STATE_VERSION = '2';
+let pendingDemoSelect: Promise<void> | null = null;
 
 function isDemoProfile(profile: {tags?: unknown}): boolean {
   return Array.isArray(profile.tags) && profile.tags.includes('demo');
@@ -8,6 +12,20 @@ function isDemoProfile(profile: {tags?: unknown}): boolean {
 
 function findDemoProfile(sex: 'female' | 'male') {
   return getProfiles().find(profile => isDemoProfile(profile) && profile.sex === sex) || null;
+}
+
+export function resetLegacyPublicDemoStateIfNeeded(): void {
+  if (!isPublicDemoMode()) return;
+  try {
+    if (localStorage.getItem(PUBLIC_DEMO_STATE_VERSION_KEY) === PUBLIC_DEMO_STATE_VERSION) return;
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && /^(?:labcharts-|getbased-)/.test(key)) toRemove.push(key);
+    }
+    for (const key of toRemove) localStorage.removeItem(key);
+    localStorage.setItem(PUBLIC_DEMO_STATE_VERSION_KEY, PUBLIC_DEMO_STATE_VERSION);
+  } catch { /* ignore storage errors */ }
 }
 
 function syncPublicDemoBannerState(): void {
@@ -30,29 +48,24 @@ function syncPublicDemoBannerState(): void {
   }
 }
 
-export async function ensurePublicDemoProfiles(): Promise<void> {
-  if (!isPublicDemoMode()) return;
-  const existing = getProfiles();
-  const hasFemale = existing.some(profile => isDemoProfile(profile) && profile.sex === 'female');
-  const hasMale = existing.some(profile => isDemoProfile(profile) && profile.sex === 'male');
-  const hasNonDemo = existing.some(profile => !isDemoProfile(profile));
-  if (hasFemale && hasMale && !hasNonDemo) {
+export function selectPublicDemoProfile(sex: 'female' | 'male'): Promise<void> {
+  if (!isPublicDemoMode()) return Promise.resolve();
+  if (pendingDemoSelect) return pendingDemoSelect;
+  const done = (async () => {
+    const existing = findDemoProfile(sex);
+    if (existing) {
+      if (getActiveProfileId() !== existing.id) {
+        await switchProfile(existing.id);
+      }
+    } else {
+      await loadDemoData(sex);
+    }
     syncPublicDemoBannerState();
-    return;
-  }
-  await withPublicDemoSeeding(async () => {
-    if (!hasMale) await loadDemoData('male');
-    if (!hasFemale) await loadDemoData('female');
-    const cleaned = getProfiles().filter(profile => isDemoProfile(profile));
-    if (cleaned.length !== getProfiles().length && cleaned.length > 0) {
-      await saveProfiles(cleaned);
-    }
-    const sarah = findDemoProfile('female') || cleaned[0] || null;
-    if (sarah && getActiveProfileId() !== sarah.id) {
-      await switchProfile(sarah.id);
-    }
+  })().finally(() => {
+    if (pendingDemoSelect === done) pendingDemoSelect = null;
   });
-  syncPublicDemoBannerState();
+  pendingDemoSelect = done;
+  return done;
 }
 
 export function mountPublicDemoBanner(): void {
@@ -77,7 +90,7 @@ export function mountPublicDemoBanner(): void {
   const text = document.createElement('span');
   const strong = document.createElement('strong');
   strong.textContent = 'Interactive demo — ';
-  text.append(strong, 'exploring fictional profiles (Demo Sarah & Demo Alex). Creating profiles, imports, and live AI are disabled.');
+  text.append(strong, 'choose Demo Sarah or Demo Alex to explore. Creating profiles, imports, and live AI are disabled.');
 
   const switcher = document.createElement('div');
   switcher.className = 'public-demo-switcher';
@@ -90,9 +103,7 @@ export function mountPublicDemoBanner(): void {
     button.dataset.publicDemoSwitch = sex;
     button.textContent = label;
     button.addEventListener('click', () => {
-      const target = findDemoProfile(sex);
-      if (!target) return;
-      void Promise.resolve(switchProfile(target.id)).then(() => syncPublicDemoBannerState());
+      void selectPublicDemoProfile(sex);
     });
     return button;
   };

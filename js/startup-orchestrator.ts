@@ -10,11 +10,13 @@ import { showNotification } from './utils.js';
 import { restorePendingImportReviewDraft } from './import-loader.js';
 import { configureStartupSync } from './sync-startup.js';
 import { runAppExtensionStartup } from './app-extension-runtime.js';
-import { ensurePublicDemoProfiles } from './public-demo-bootstrap.js';
+import { resetLegacyPublicDemoStateIfNeeded } from './public-demo-bootstrap.js';
 
 let appStarted = false;
 
 async function runStartupSequence() {
+  resetLegacyPublicDemoStateIfNeeded();
+
   await initializeStartupFoundation();
 
   await initializeProfileData();
@@ -25,8 +27,6 @@ async function runStartupSequence() {
 
   // A saved route may need its first module/styles before its controls exist.
   await renderStartupUI();
-
-  await ensurePublicDemoProfiles();
 
   // Edition-specific maintenance runs after the public shell is usable and
   // never delays core startup. The public build has a safe no-op adapter.

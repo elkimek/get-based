@@ -396,7 +396,7 @@ function _handleClientClick(event: MouseEvent) {
   const action = actionEl.dataset.clAction;
   const id = actionEl.dataset.clProfileId || '';
   if (action === 'select-profile' && event.target instanceof Element && event.target.closest('.cl-row-actions')) return;
-  if (isPublicDemoMode() && action !== 'close' && action !== 'select-profile' && action !== 'tag-filter') {
+  if (isPublicDemoMode() && action !== 'close' && action !== 'select-profile' && action !== 'tag-filter' && action !== 'load-demo') {
     notifyPublicDemoBlocked('Managing custom profiles');
     event.preventDefault();
     return;

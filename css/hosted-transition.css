@@ -26,6 +26,7 @@
 body.public-demo-mode [data-shell-action="trigger-import"],
 body.public-demo-mode [data-shell-action="share-profile"],
 body.public-demo-mode [data-shell-action="open-feedback"],
+body.public-demo-mode .welcome-primary-panel,
 body.public-demo-mode .cl-new-btn,
 body.public-demo-mode .cl-tools-wrap,
 body.public-demo-mode .cl-row-actions {display:none !important}
