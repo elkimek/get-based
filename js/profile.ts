@@ -316,11 +316,14 @@ export function sanitizeProfileAvatar(value: unknown): string | null {
   return typeof value === 'string' && value.length <= MAX_PROFILE_AVATAR_CHARS && SAFE_PROFILE_AVATAR_RE.test(value) ? value : null;
 }
 
+function guardDemoCreate(): void {
+  if (!isPublicDemoMode() || isPublicDemoSeeding()) return;
+  notifyPublicDemoBlocked('Creating profiles');
+  throw new Error('Creating profiles is disabled in the public demo.');
+}
+
 export async function createProfile(name: string, opts: CreateProfileOptions = {}) {
-  if (isPublicDemoMode() && !isPublicDemoSeeding()) {
-    notifyPublicDemoBlocked('Creating profiles');
-    throw new Error('Creating profiles is disabled in the public demo.');
-  }
+  guardDemoCreate();
   const id = await mutateProfiles(profiles => {
     let candidate: string;
     if (opts.restoredId) {
