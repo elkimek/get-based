@@ -8,14 +8,16 @@
   let file: File | null = $state(null);
   let fileInput: HTMLInputElement | undefined = $state();
   let consent = $state(false);
+  let allowWithoutSyncIdentity = $state(false);
   const inputClass = 'gb:protection:block gb:protection:w-full gb:protection:box-border gb:protection:min-h-11 gb:protection:mt-1 gb:protection:mb-4 gb:protection:px-3 gb:protection:py-2 gb:protection:rounded-control gb:protection:border gb:protection:border-line gb:protection:bg-surface gb:protection:text-ink gb:protection:[font-family:inherit]';
   const sectionClass = 'gb:protection:mt-6 gb:protection:p-5 gb:protection:rounded-control gb:protection:border gb:protection:border-line gb:protection:bg-surface';
   export function update(next: MigrationViewState) {view = next;}
-  export function clearSecrets() {password = ''; confirm = ''; original = ''; importPassword = ''; importOriginal = ''; file = null; consent = false; if (fileInput) fileInput.value = '';}
+  export function clearSecrets() {password = ''; confirm = ''; original = ''; importPassword = ''; importOriginal = ''; file = null; consent = false; allowWithoutSyncIdentity = false; if (fileInput) fileInput.value = '';}
 </script>
 <main class="gb:protection:max-w-[760px] gb:protection:mx-auto gb:protection:p-4 gb:protection:text-ink gb:protection:[font-family:inherit]" data-migration-view aria-busy={view.busy}>
-  <a href="https://docs.getbased.health/guides/self-hosting" target="_blank" rel="noreferrer">Installation guide</a>
-  {#if !view.pending}<a href="/app">Back to getbased</a>{/if}
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based" target="_blank" rel="noreferrer">Deploy your own copy</a>
+  · <a href="https://docs.getbased.health/guides/self-hosting" target="_blank" rel="noreferrer">Self-hosting guide</a>
+  {#if !view.pending} · <a href="/app">Back to getbased</a>{/if}
   <h1>{view.recoveryOnly ? 'Recover your hosted records' : 'Move your getbased data'}</h1>
   <p>Keep this browser's data until you have restored your migration file and checked the records at your new address.</p>
   <p role="status" aria-live="polite">{view.status}</p>
@@ -43,8 +45,11 @@
         <input class={inputClass} id="migration-password" type="password" autocomplete="new-password" bind:value={password} disabled={view.busy}/>
         <label for="migration-confirm">Repeat migration file password</label>
         <input class={inputClass} id="migration-confirm" type="password" autocomplete="new-password" bind:value={confirm} disabled={view.busy}/>
-        <button type="button" class={PROTECTION_PRIMARY} disabled={view.busy || password.length < 12 || password !== confirm} onclick={async () => {try {await actions.export(password, original);} finally {password = ''; confirm = ''; original = '';}}}>Prepare migration file</button>
-        <p>The password protects all archived data, including credentials and wallet recovery records. Keep it separately from the file. Wearable logins, Companion pairing, backup folder permissions and downloaded models need setup again.</p>
+        {#if view.recoveryOnly && view.legacySyncBlocked}
+          <label><input type="checkbox" bind:checked={allowWithoutSyncIdentity} disabled={view.busy}/> Export all local health records without legacy Sync recovery words (you can set up Sync again after restoring).</label>
+        {/if}
+        <button type="button" class={PROTECTION_PRIMARY} disabled={view.busy || password.length < 12 || password !== confirm || (view.recoveryOnly && view.legacySyncBlocked && !allowWithoutSyncIdentity)} onclick={async () => {try {await actions.export(password, original, {allowMissingLegacySync: allowWithoutSyncIdentity});} finally {password = ''; confirm = ''; original = '';}}}>Prepare migration file</button>
+        <p>The password protects all archived data, including credentials and wallet recovery records. Keep it separately from the file. Wearable OAuth logins (which require provider callback configuration on a custom domain), Companion pairing, backup folder permissions and downloaded models need setup again.</p>
       </section>
     {/if}
     {#if !view.recoveryOnly}<section class={sectionClass}>

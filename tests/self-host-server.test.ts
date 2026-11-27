@@ -16,6 +16,8 @@ beforeEach(async () => {
     'version.js': 'self.APP_BUILD_ID = "synthetic";',
     'service-worker.js': 'self.addEventListener("fetch", () => {});',
     'build-metrics.json': '{}',
+    '_headers': '/*\n  X-Content-Type-Options: nosniff\n',
+    '_redirects': '/app /index.html 200\n',
     '.env': 'synthetic-private-value',
     'style.css': 'body { color: red; }',
   })) await fs.writeFile(path.join(directory, name), body);
@@ -81,7 +83,7 @@ it('supports HEAD and refuses mutation methods without changing the public file'
 
 it('refuses hidden files, traversal, missing assets and unavailable integration APIs', async () => {
   await start();
-  for (const name of ['/.env', '/.private/key.json', '/%2eenv', '/%2eprivate/key.json', '/..%2fpackage.json', '/%2e%2e%5cpackage.json', '/api/proxy', '/missing.js', '/app/missing']) {
+  for (const name of ['/.env', '/.private/key.json', '/_headers', '/_redirects', '/%2eenv', '/%2eprivate/key.json', '/..%2fpackage.json', '/%2e%2e%5cpackage.json', '/api/proxy', '/missing.js', '/app/missing']) {
     const response = await rawRequest(name);
     expect(response.status, name).toBe(404); expect(response.text).toBe('Not found');
   }

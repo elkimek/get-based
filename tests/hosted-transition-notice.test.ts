@@ -57,3 +57,30 @@ it('keeps failed saves and in-flight images in the recovery-only dialog with ret
   expect(dialog.querySelector<HTMLButtonElement>('[data-cutoff-continue]')!.disabled).toBe(true);
   expect(dialog.querySelector<HTMLButtonElement>('[data-cutoff-retry]')!.disabled).toBe(false);
 });
+
+it('captures dirty open modal editors at cutoff and prevents retry from discarding them', async () => {
+  mockDialog();
+  const revoke = vi.fn();
+  vi.stubGlobal('URL', class extends URL {
+    static override createObjectURL() {return 'blob:synthetic-editor-copy';}
+    static override revokeObjectURL = revoke;
+  });
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay show';
+  modal.innerHTML = '<h2>Edit Lab Sample</h2><label for="lab-date">Sample date</label><input id="lab-date" value="2026-01-01"/><label for="lab-glucose">Glucose</label><input id="lab-glucose" value=""/>';
+  document.body.append(modal);
+  const dateInput = document.getElementById('lab-date') as HTMLInputElement;
+  dateInput.value = '2026-02-14';
+  const glucoseInput = document.getElementById('lab-glucose') as HTMLInputElement;
+  glucoseInput.value = '5.4';
+  await showHostedRecoveryCutoff();
+  const dialog = document.querySelector<HTMLDialogElement>('#hosted-cutoff-dialog')!;
+  const links = [...dialog.querySelectorAll<HTMLAnchorElement>('a[download]')];
+  expect(links.map(link => link.download)).toEqual(['getbased-unsaved-editor-drafts.txt']);
+  expect(dialog.querySelector<HTMLButtonElement>('[data-cutoff-continue]')!.disabled).toBe(true);
+  // Clicking retry must NOT navigate away while open editor drafts remain unconfirmed
+  dialog.querySelector<HTMLButtonElement>('[data-cutoff-retry]')!.click();
+  await Promise.resolve(); await Promise.resolve();
+  expect(state.migrate).not.toHaveBeenCalled();
+  expect(revoke).toHaveBeenCalledWith('blob:synthetic-editor-copy');
+});

@@ -36,6 +36,31 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     await fs.mkdir(staticRoot, { recursive: true });
     await buildCompanionBundle({ outputRoot: staticRoot });
     await copyStaticPublicMetadata(ROOT,staticRoot);
+    const deployment = JSON.parse(await fs.readFile(path.join(ROOT, 'vercel.json'), 'utf8')) as {
+      routes?: Array<{headers?: Record<string, string>}>;
+    };
+    const staticHeaderNames = [
+      'Content-Security-Policy', 'X-Content-Type-Options', 'X-Frame-Options',
+      'Referrer-Policy', 'Cross-Origin-Opener-Policy', 'Cross-Origin-Embedder-Policy',
+    ] as const;
+    const staticHeaderLines = staticHeaderNames.map(name => {
+      const value = deployment.routes?.map(route => route.headers?.[name]).find(Boolean);
+      if (typeof value !== 'string' || /[\r\n]/.test(value)) throw new Error('Missing static deployment security header: ' + name);
+      return `  ${name}: ${value}`;
+    });
+    await fs.writeFile(path.join(staticRoot, '_headers'), [
+      '/*',
+      ...staticHeaderLines,
+      '',
+      '/_app/immutable/*',
+      '  Cache-Control: public, max-age=31536000, immutable',
+      '',
+      '/getbased-companion.mjs',
+      '  Cache-Control: no-store',
+      '  Content-Type: text/javascript; charset=utf-8',
+      '',
+    ].join('\n'));
+    await fs.writeFile(path.join(staticRoot, '_redirects'), '/app /index.html 200\n/app/ /index.html 200\n');
     const [index, worker, workerAssets] = await Promise.all([
       fs.readFile(path.join(ROOT, 'index.html'), 'utf8'), fs.readFile(path.join(ROOT, 'service-worker.js'), 'utf8'),
       fs.readFile(path.join(ROOT, 'service-worker-assets.js'), 'utf8'),

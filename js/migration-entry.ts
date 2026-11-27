@@ -23,7 +23,7 @@ function summary(archive: MigrationArchive) {
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob), anchor = document.createElement('a');
   try {anchor.href = url; anchor.download = name; document.body.appendChild(anchor); anchor.click();}
-  finally {anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);}
+  finally {anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);}
 }
 async function run(operation: () => Promise<void>) {
   if (state.busy) return;
@@ -33,10 +33,22 @@ async function run(operation: () => Promise<void>) {
   finally {update({busy: false});}
 }
 const actions: MigrationActions = {
-  export: (password, original) => run(async () => {
-    const blob = await buildMigrationArchive(password, original, status => update({status}));
-    preparedDownload = {blob, name: 'getbased-migration-' + new Date().toISOString().slice(0, 10) + '.json'};
-    update({downloadKind: 'migration', status: 'Your encrypted migration file is ready. Choose Download migration file to save it.'});
+  export: (password, original, options) => run(async () => {
+    const recoveryOnly = getHostedTransition(location.origin)?.phase === 'recovery';
+    const allowMissingLegacySync = !!(recoveryOnly && options?.allowMissingLegacySync);
+    try {
+      const blob = await buildMigrationArchive(password, original, status => update({status}), {allowMissingLegacySync});
+      preparedDownload = {blob, name: 'getbased-migration-' + new Date().toISOString().slice(0, 10) + '.json'};
+      update({legacySyncBlocked: false, downloadKind: 'migration', status: allowMissingLegacySync
+        ? 'Your encrypted migration file is ready (without legacy Sync recovery words). Choose Download migration file to save it.'
+        : 'Your encrypted migration file is ready. Choose Download migration file to save it.'});
+    } catch (error) {
+      if (recoveryOnly && error instanceof Error && error.message.includes('finish Sync identity recovery')) {
+        update({legacySyncBlocked: true});
+        throw new Error('Legacy Sync recovery words were not migrated before the hosted cutoff. You can still export all local health records by confirming below.');
+      }
+      throw error;
+    }
   }),
   download: () => {
     if (!preparedDownload || state.busy) return;
@@ -86,7 +98,7 @@ void run(async () => {
   const pending = await getPendingMigration();
   const recoveryOnly = getHostedTransition(location.origin)?.phase === 'recovery';
   if (pending && recoveryOnly) preparedDownload = {blob: pending.blob, name: 'getbased-pending-migration.json'};
-  const databases = await indexedDB.databases();
+  const databases = typeof indexedDB.databases === 'function' ? await indexedDB.databases() : [];
   if (databases.some(database => database.name === 'labcharts-backups')) {
     snapshots = await migrationSnapshotCatalog();
   }

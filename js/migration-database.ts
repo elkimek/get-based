@@ -1,7 +1,7 @@
 export interface MigrationIndex { name: string; keyPath: string | string[]; unique: boolean; multiEntry: boolean }
 export interface MigrationRecord {
   key: IDBValidKey; value: unknown;
-  protection?: 'wearable-row' | 'wearable-meta' | 'nutrition' | 'nutrition-meta'; passphraseWrapped?: boolean;
+  protection?: 'wearable-row' | 'wearable-meta' | 'nutrition' | 'nutrition-meta' | 'evolu-identity'; passphraseWrapped?: boolean;
 }
 export interface MigrationStore {
   name: string; keyPath: string | string[] | null; autoIncrement: boolean;
@@ -11,14 +11,17 @@ export interface MigrationDatabase { name: string; version: number; stores: Migr
 export const MIGRATION_PENDING_KEY = 'labcharts-migration-pending';
 export const MIGRATION_DATABASE = 'getbased-migration';
 
-export function migrationDatabaseContract(name: string): {version: number; stores: string[]} | null {
-  if (name === 'labcharts-blobs') return {version: 1, stores: ['kv']};
-  if (name === 'labcharts-backups') return {version: 2, stores: ['snapshots', 'folder-handle']};
-  if (name === 'getbased-cashu') return {version: 2, stores: ['proofs', 'meta', 'fee-proofs']};
-  if (name === 'getbased-evolu8-identity') return {version: 1, stores: ['identity']};
-  if (/^labcharts-wearables-[A-Za-z0-9_-]{1,128}$/.test(name)) return {version: 1, stores: ['daily-metrics', 'meta']};
-  if (/^labcharts-cycle-[A-Za-z0-9_-]{1,128}$/.test(name)) return {version: 2, stores: ['daily-observations', 'imports', 'meta']};
-  if (/^getbased-nutrition-[A-Za-z0-9_-]{1,128}$/.test(name)) return {version: 3, stores: ['meals', 'meta']};
+export interface MigrationDatabaseContract {
+  version: number; minVersion: number; stores: string[]; legacyStores?: string[];
+}
+export function migrationDatabaseContract(name: string): MigrationDatabaseContract | null {
+  if (name === 'labcharts-blobs') return {version: 1, minVersion: 1, stores: ['kv']};
+  if (name === 'labcharts-backups') return {version: 2, minVersion: 1, stores: ['snapshots', 'folder-handle']};
+  if (name === 'getbased-cashu') return {version: 2, minVersion: 1, stores: ['proofs', 'meta', 'fee-proofs']};
+  if (name === 'getbased-evolu8-identity') return {version: 1, minVersion: 1, stores: ['identity']};
+  if (/^labcharts-wearables-[A-Za-z0-9_-]{1,128}$/.test(name)) return {version: 1, minVersion: 1, stores: ['daily-metrics', 'meta']};
+  if (/^labcharts-cycle-[A-Za-z0-9_-]{1,128}$/.test(name)) return {version: 2, minVersion: 1, stores: ['daily-observations', 'imports', 'meta']};
+  if (/^getbased-nutrition-[A-Za-z0-9_-]{1,128}$/.test(name)) return {version: 3, minVersion: 1, stores: ['meals', 'meta'], legacyStores: ['food-cache']};
   return null;
 }
 export async function existingMigrationDatabases(): Promise<string[]> {
@@ -43,16 +46,76 @@ export function openExistingMigrationDatabase(name: string): Promise<IDBDatabase
   });
 }
 
+function normalizeMigrationDatabase(name: string, version: number, stores: MigrationStore[], contract: MigrationDatabaseContract): MigrationDatabase {
+  if (version === contract.version) return {name, version, stores};
+  const byName = new Map(stores.map(store => [store.name, store]));
+  const ordered = (list: MigrationStore[]) => ({
+    name, version: contract.version,
+    stores: list.map(store => ({...store, indexes: [...store.indexes].sort((a, b) => a.name.localeCompare(b.name))}))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  });
+  const empty = (storeName: string, keyPath: string | string[] | null, indexes: MigrationIndex[] = []): MigrationStore =>
+    ({name: storeName, keyPath, autoIncrement: false, indexes, records: []});
+  if (name === 'labcharts-backups') {
+    const snapshots = byName.get('snapshots') ?? {name: 'snapshots', keyPath: 'id', autoIncrement: true, indexes: [], records: []};
+    const handles = byName.get('folder-handle') ?? empty('folder-handle', null);
+    return ordered([snapshots, handles]);
+  }
+  if (name === 'getbased-cashu') {
+    const proofs = byName.get('proofs') ?? empty('proofs', 'secret');
+    const meta = byName.get('meta') ?? empty('meta', 'key');
+    const fees = byName.get('fee-proofs') ?? empty('fee-proofs', 'secret');
+    return ordered([proofs, meta, fees]);
+  }
+  if (name.startsWith('labcharts-cycle-')) {
+    const legacyDaily = byName.get('daily-observations');
+    const dailyRecords: MigrationRecord[] = [];
+    for (const entry of legacyDaily?.records ?? []) {
+      const row = entry.value as Record<string, unknown> | null;
+      if (!row || typeof row !== 'object' || Array.isArray(row) || typeof row.source !== 'string' || typeof row.date !== 'string') {
+        throw new Error('A legacy cycle record has an unsupported shape.');
+      }
+      const importId = String(row.importId || '').trim() || `legacy:${row.date || 'unknown'}`;
+      const normalized = row.importId === importId ? row : {...row, importId};
+      dailyRecords.push({key: [row.source, row.date, importId], value: normalized});
+    }
+    const daily: MigrationStore = {
+      name: 'daily-observations', keyPath: ['source', 'date', 'importId'], autoIncrement: false,
+      indexes: [
+        {name: 'by_source', keyPath: 'source', unique: false, multiEntry: false},
+        {name: 'by_source_date', keyPath: ['source', 'date'], unique: false, multiEntry: false},
+        {name: 'by_date', keyPath: 'date', unique: false, multiEntry: false},
+        {name: 'by_import', keyPath: 'importId', unique: false, multiEntry: false},
+      ],
+      records: dailyRecords,
+    };
+    const imports = byName.get('imports') ?? empty('imports', 'importId', [{name: 'by_source', keyPath: 'source', unique: false, multiEntry: false}]);
+    const meta = byName.get('meta') ?? empty('meta', 'k');
+    return ordered([daily, imports, meta]);
+  }
+  if (name.startsWith('getbased-nutrition-')) {
+    const meals = byName.get('meals') ?? empty('meals', 'id', [{name: 'by_eaten_at', keyPath: 'eatenAt', unique: false, multiEntry: false}]);
+    const meta = byName.get('meta') ?? empty('meta', 'k');
+    return ordered([meals, meta]);
+  }
+  throw new Error('The saved database schema needs a newer recovery tool: ' + name);
+}
+
 export async function readMigrationDatabase(name: string): Promise<MigrationDatabase> {
   const contract = migrationDatabaseContract(name);
   if (!contract) throw new Error('Unsupported migration database.');
   const db = await openExistingMigrationDatabase(name);
   try {
-    if (db.version !== contract.version || [...db.objectStoreNames].some(store => !contract.stores.includes(store))) {
+    const allowedStores = db.version < contract.version && contract.legacyStores
+      ? [...contract.stores, ...contract.legacyStores]
+      : contract.stores;
+    if (db.version < contract.minVersion || db.version > contract.version
+      || [...db.objectStoreNames].some(store => !allowedStores.includes(store))) {
       throw new Error('The saved database schema needs a newer recovery tool: ' + name);
     }
-    const names = [...db.objectStoreNames];
-    return await new Promise<MigrationDatabase>((resolve, reject) => {
+    const names = [...db.objectStoreNames].filter(store => contract.stores.includes(store));
+    if (!names.length) return normalizeMigrationDatabase(name, db.version, [], contract);
+    const raw = await new Promise<MigrationStore[]>((resolve, reject) => {
       const tx = db.transaction(names, 'readonly');
       const stores = names.map(storeName => {
         const store = tx.objectStore(storeName);
@@ -70,7 +133,7 @@ export async function readMigrationDatabase(name: string): Promise<MigrationData
             if (values.result.length !== keys.result.length) throw new Error('A saved database read was incomplete.');
             snapshot.records = keys.result.map((key, index) => ({key, value: values.result[index] as unknown}));
           }
-          resolve({name, version: db.version, stores: stores.map(store => store.snapshot)});
+          resolve(stores.map(store => store.snapshot));
         } catch (error) { reject(error); }
       };
       tx.onabort = () => reject(tx.error || new Error('A saved database read was interrupted.'));
@@ -78,6 +141,7 @@ export async function readMigrationDatabase(name: string): Promise<MigrationData
       // abort reports failure, including an abort after request success.
       tx.onerror = () => {};
     });
+    return normalizeMigrationDatabase(name, db.version, raw, contract);
   } finally { db.close(); }
 }
 

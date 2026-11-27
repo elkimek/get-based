@@ -466,6 +466,16 @@ describe('shipping SvelteKit production build', () => {
     }
   });
 
+  it('emits static hosting headers and /app redirects for Cloudflare Pages and Netlify without official onion pointers', async () => {
+    const headers = await fs.readFile(path.join(outputRoot, '_headers'), 'utf8');
+    const redirects = await fs.readFile(path.join(outputRoot, '_redirects'), 'utf8');
+    expect(headers).toContain('Cross-Origin-Opener-Policy: same-origin');
+    expect(headers).toContain('Cross-Origin-Embedder-Policy: credentialless');
+    expect(headers).toContain('Content-Security-Policy:');
+    expect(headers).not.toContain('Onion-Location');
+    expect(redirects).toContain('/app /index.html 200');
+  });
+
   it('keeps the cold Latin body font from repainting the mobile LCP text', async () => {
     const fonts = await fs.readFile('vendor/fonts/fonts.css', 'utf8');
     expect(fonts).toMatch(/font-weight: 400;\s+font-display: optional;\s+src: url\('\.\/inter-400-7\.woff2'\)/);

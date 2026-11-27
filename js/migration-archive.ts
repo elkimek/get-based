@@ -6,7 +6,7 @@ import {migrationDigest} from './migration-digest.js';
 import { sealMigration, openMigration } from './migration-crypto.js';
 import { requireSingleMigrationClient, withMigrationLock } from './migration-clients.js';
 import { LENS_LOCAL_STORAGE_LOCK } from './lens-local-lock.js';
-import type { MigrationPortableData } from './migration-portable.js';
+import type { MigrationPortableData, MigrationPortableOptions } from './migration-portable.js';
 import type { MigrationFile } from './migration-files.js';
 
 export interface MigrationArchive extends MigrationPortableData {
@@ -23,17 +23,22 @@ export function readMigrationLocal(): Record<string, string> {
   return Object.fromEntries(Array.from({length: localStorage.length}, (_, index) => localStorage.key(index)!)
     .filter(Boolean).sort().map(key => [key, localStorage.getItem(key)!]));
 }
-async function collect(passphrase: string) {
+async function collect(passphrase: string, options: MigrationPortableOptions = {}) {
   if (localStorage.getItem(MIGRATION_PENDING_KEY)) throw new Error('Finish or resume the pending destination recovery before creating another migration archive.');
   const local = readMigrationLocal();
   const databases = [];
   for (const name of await existingMigrationDatabases()) databases.push(await readMigrationDatabase(name));
   const files = await readMigrationFiles();
-  const portable = await makeMigrationPortable(local, databases, passphrase);
+  const portable = await makeMigrationPortable(local, databases, passphrase, options);
   return {...portable, files};
 }
 
-export async function buildMigrationArchive(password: string, originalPassphrase: string, progress: (text: string) => void = () => {}): Promise<Blob> {
+export async function buildMigrationArchive(
+  password: string,
+  originalPassphrase: string,
+  progress: (text: string) => void = () => {},
+  options: MigrationPortableOptions = {},
+): Promise<Blob> {
   if (!navigator.locks) throw new Error('Recovery requires HTTPS and browser-wide storage locks.');
   if (password.length < 12) throw new Error('Use a migration password with at least 12 characters.');
   progress('Checking recovery tools and other application windows…');
@@ -53,11 +58,11 @@ export async function buildMigrationArchive(password: string, originalPassphrase
         seal: async () => {throw new Error('Recovery protection is closed.');},
         open: async () => {throw new Error('Recovery protection is closed.');}});}
       progress('Reading saved records and browser-protected data…');
-      let first: Awaited<ReturnType<typeof collect>> | null = await collect(originalPassphrase);
-      if (!first.local['labcharts-profiles'] && !first.databases.some(db => db.stores.some(store => store.records.length)) && !first.files.length && !Object.keys(first.credentials).length) throw new Error('No saved application records were found at this address. Open the original browser profile or installed app before creating a migration file.');
+      let first: Awaited<ReturnType<typeof collect>> | null = await collect(originalPassphrase, options);
+      if (!first.local['labcharts-profiles'] && !first.local['labcharts-imported'] && !first.databases.some(db => db.stores.some(store => store.records.length)) && !first.files.length && !Object.keys(first.credentials).length) throw new Error('No saved application records were found at this address. Open the original browser profile or installed app before creating a migration file.');
       const firstDigest = await migrationDigest(first); first = null;
       progress('Checking that the source stayed unchanged…');
-      const second = await collect(originalPassphrase);
+      const second = await collect(originalPassphrase, options);
       await requireSingleMigrationClient();
       if (firstDigest !== await migrationDigest(second)) throw new Error('Saved data changed while it was being read. Close the other windows and retry. No migration file was created.');
       const archive: MigrationArchive = {format: 'getbased-migration-content', version: 1,
@@ -104,7 +109,7 @@ export function validateMigrationArchive(value: unknown): asserts value is Migra
         const serialized = encodeMigrationValue(entry.key);
         if (keys.has(serialized)) throw new Error('Duplicate migration record key.');
         keys.add(serialized);
-        if (entry.protection !== undefined && !['wearable-row', 'wearable-meta', 'nutrition', 'nutrition-meta'].includes(String(entry.protection))) throw new Error('Unsupported migration protection.');
+        if (entry.protection !== undefined && !['wearable-row', 'wearable-meta', 'nutrition', 'nutrition-meta', 'evolu-identity'].includes(String(entry.protection))) throw new Error('Unsupported migration protection.');
         if (entry.passphraseWrapped !== undefined && typeof entry.passphraseWrapped !== 'boolean') throw new Error('Invalid migration protection.');
         if (entry.protection) {
           const row = entry.value;
@@ -115,6 +120,7 @@ export function validateMigrationArchive(value: unknown): asserts value is Migra
           if (entry.protection === 'wearable-row' && (!wearable || store.name !== 'daily-metrics' || typeof row.source !== 'string' || !row.source || typeof row.date !== 'string' || !record(row._devicePayload))) throw new Error('Invalid protected wearable row.');
           if (entry.protection === 'nutrition-meta' && (!nutrition || store.name !== 'meta' || !record(row.value))) throw new Error('Invalid protected meal metadata.');
           if (entry.protection === 'wearable-meta' && (!wearable || store.name !== 'meta' || !record(row.v))) throw new Error('Invalid protected wearable metadata.');
+          if (entry.protection === 'evolu-identity' && (database.name !== 'getbased-evolu8-identity' || store.name !== 'identity' || typeof row.token !== 'string' || !row.token || typeof row.ownerId !== 'string' || !row.ownerId || typeof row.mnemonic !== 'string' || !row.mnemonic)) throw new Error('Invalid protected Sync identity record.');
         }
 
       }

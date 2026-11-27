@@ -114,7 +114,7 @@ async function currentSources(root: string, artifact: string, manifest: Pick<Art
   for (const file of metadataFiles) assert.deepEqual(await regular(path.join(artifact, file)), await regular(path.join(root, file)), 'Exact copied discovery metadata: ' + file);
   const nativeWorker = inlineServiceWorkerAssets((await regular(path.join(root, 'service-worker.js'))).toString(), (await regular(path.join(root, 'service-worker-assets.js'))).toString());
   const shipping = new Set(parseAppShellEntries((await regular(path.join(artifact, 'service-worker.js'))).toString()));
-  const rawModules = await productionRawModuleAssets();
+  let rawModules: ReadonlySet<string> | undefined;
   const assembled = new Set(['/app', '/index.html', '/version.js', '/service-worker-assets.js', '/getbased-companion.mjs']);
   for (const url of parseAppShellEntries(nativeWorker)) {
     if (assembled.has(url) || (sourceModuleURL(url) && !shipping.has(url))) continue;
@@ -122,7 +122,10 @@ async function currentSources(root: string, artifact: string, manifest: Pick<Art
     const supplied = await regular(path.join(artifact, url.slice(1))), canonical = await regular(path.join(root, url.slice(1)));
     if (url.startsWith('/vendor/evolu/') && url.endsWith('.js')
       && await verifyLegacyEvoluAsset(url.slice(1), canonical.toString(), supplied.toString())) continue;
-    if (rawModules.has(url)) {await verifyStaticRawModule(url, canonical.toString(), supplied.toString()); continue;}
+    if (sourceModuleURL(url)) {
+      rawModules ??= await productionRawModuleAssets();
+      if (rawModules.has(url)) {await verifyStaticRawModule(url, canonical.toString(), supplied.toString()); continue;}
+    }
     const expected = url.startsWith('/data/') && url.endsWith('.json') ? Buffer.from(compactStaticJsonBody(canonical.toString())) : canonical;
     assert.deepEqual(supplied, expected, 'Exact copied public body: ' + url);
   }

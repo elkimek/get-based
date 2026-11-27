@@ -125,7 +125,7 @@ type CompiledGroup = {files: Map<string, string | Uint8Array>; dependencies: Map
 
 // These public entries are read during native startup or directly by the
 // optimized worker. A standalone response preserves their request boundary.
-const STANDALONE_CLIENT = new Set(['AppShell', 'DisplaySettings']);
+const STANDALONE_CLIENT = new Set(['AppShell', 'DisplaySettings', 'MigrationRecovery']);
 const STANDALONE_HTML = new Set([
   'AnalyticsConsentBody', 'ChartLayersDropdown', 'DashboardGreeting', 'DashboardOnboarding', 'DashboardWelcome',
   'DropZoneResetPresentation', 'EmojiPicker', 'FeedbackPresentation', 'FooterCommitLink', 'HeaderDateSummary',

@@ -3,15 +3,16 @@ export interface MigrationSummary extends MigrationInventory { sourceOrigin: str
 export interface MigrationSavedSnapshot { index: number; date: string; encrypted: boolean }
 export interface MigrationViewState {
   recoveryOnly: boolean;
+  legacySyncBlocked: boolean;
   downloadKind: 'migration' | 'snapshot' | null;
   busy: boolean; status: string; error: string; pending: boolean; complete: boolean;
   sourceEncrypted: boolean; summary: MigrationSummary | null; snapshots: MigrationSavedSnapshot[];
 }
 export interface MigrationActions {
-  export(password: string, original: string): Promise<void>;
+  export(password: string, original: string, options?: {allowMissingLegacySync?: boolean}): Promise<void>;
   inspect(file: File | null, password: string): Promise<void>;
   restore(password: string, original: string): Promise<void>;
   download(): void; cancel(): void; snapshot(index: number): Promise<void>; recoveryWords(): Promise<void>;
 }
-export const initialMigrationView = (): MigrationViewState => ({recoveryOnly: false, downloadKind: null, busy: false, status: '', error: '', pending: false,
+export const initialMigrationView = (): MigrationViewState => ({recoveryOnly: false, legacySyncBlocked: false, downloadKind: null, busy: false, status: '', error: '', pending: false,
   complete: false, sourceEncrypted: false, summary: null, snapshots: []});

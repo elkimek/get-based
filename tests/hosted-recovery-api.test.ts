@@ -1,6 +1,7 @@
 import {afterEach, expect, it, vi} from 'vitest';
 vi.mock('../shared/hosted-transition.js', () => ({getHostedTransition: (origin: string) => origin === 'https://app.getbased.health' ? {phase: 'recovery'} : null}));
 import {handler} from '../api/proxy.js';
+import {createVercelProfileShareHandler} from '../api/share.js';
 afterEach(() => {vi.restoreAllMocks(); vi.unstubAllEnvs();});
 it.each(['https://app.getbased.health/api/proxy', 'https://integrations.getbased.health/api/proxy'])('refuses hosted personal operations at %s before reading the body or contacting an upstream', async url => {
   vi.stubEnv('VERCEL_PROJECT_PRODUCTION_URL', ''); const upstream = vi.spyOn(globalThis, 'fetch');
@@ -8,4 +9,16 @@ it.each(['https://app.getbased.health/api/proxy', 'https://integrations.getbased
   const response = await handler(request);
   expect(response.status).toBe(410); expect(await response.json()).toEqual({error: 'The hosted app is recovery-only. Use your self-hosted app for personal integrations.'});
   expect(request.bodyUsed).toBe(false); expect(upstream).not.toHaveBeenCalled(); expect(response.headers.get('access-control-allow-origin')).toBe('https://app.getbased.health');
+});
+
+it('refuses hosted profile sharing in recovery phase without blocking independent deployments', async () => {
+  vi.stubEnv('VERCEL_PROJECT_PRODUCTION_URL', '');
+  const shareHandler = createVercelProfileShareHandler({});
+  const hostedReq = new Request('https://app.getbased.health/api/share', {method: 'POST', headers: {Origin: 'https://app.getbased.health'}});
+  const hostedRes = await shareHandler(hostedReq);
+  expect(hostedRes.status).toBe(410);
+  expect(await hostedRes.json()).toEqual({error: 'The hosted app is recovery-only. Use your self-hosted app for profile sharing.'});
+  const selfHostedReq = new Request('https://my-personal-app.vercel.app/api/share', {method: 'GET'});
+  const selfHostedRes = await shareHandler(selfHostedReq);
+  expect(selfHostedRes.status).not.toBe(410);
 });

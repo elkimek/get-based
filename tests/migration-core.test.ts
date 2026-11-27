@@ -1,8 +1,10 @@
 import { IDBFactory, IDBObjectStore } from 'fake-indexeddb';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { bytesToBase64 } from '../js/base64.js';
+import { wrapDataKey } from '../js/crypto-passphrase-key.js';
 import { encodeMigrationValue, decodeMigrationValue } from '../js/migration-codec.js';
 import { sealMigration, openMigration, deriveMigrationKey, encryptMigrationDeviceValue, decryptMigrationDeviceValue } from '../js/migration-crypto.js';
+import { sealMigrationPassphraseObject, openMigrationPassphraseObject } from '../js/migration-portable.js';
 import { buildMigrationArchive, inspectMigrationArchive, validateMigrationArchive } from '../js/migration-archive.js';
 import { restoreMigrationArchive, getPendingMigration, requireEmptyMigrationDestination } from '../js/migration-restore.js';
 import { readMigrationDatabase, writeMigrationDatabase, MIGRATION_PENDING_KEY } from '../js/migration-database.js';
@@ -105,7 +107,7 @@ it('authenticates the format, version, ciphertext and password without exposing 
 });
 
 for (const encrypted of [false, true]) it('recovers ' + (encrypted ? 'passphrase-protected' : 'device-protected') + ' records into a fresh origin with new browser keys', async () => {
-  const {device} = await source(encrypted);
+  const {device, key} = await source(encrypted);
   const sourceStorage = localStorage, sourceFactory = indexedDB;
   const before = await readMigrationDatabase('getbased-cashu');
   const blob = await buildMigrationArchive(password, encrypted ? originalPassphrase : '');
@@ -131,8 +133,15 @@ for (const encrypted of [false, true]) it('recovers ' + (encrypted ? 'passphrase
   const nutrition = await readMigrationDatabase('getbased-nutrition-synthetic');
   const nutritionMeta = nutrition.stores.find(store => store.name === 'meta')!;
   const nutritionKey = (nutritionMeta.records.find(row => row.key === 'meal-device-key:v1')!.value as {value: CryptoKey}).value;
-  const comparison = (nutritionMeta.records.find(row => row.key === 'nutrition-comparison:v1')!.value as {value: unknown}).value;
-  expect(await decryptMigrationDeviceValue(nutritionKey, comparison)).toEqual({synthetic: 'Retain nutrition comparison'});
+  const comparisonRaw = (nutritionMeta.records.find(row => row.key === 'nutrition-comparison:v1')!.value as {value: unknown}).value;
+  const comparisonEnv = encrypted
+    ? await (async () => {
+      const inner = await openMigrationPassphraseObject(key, comparisonRaw) as {version: number; iv: string; ciphertext: string};
+      const {_base64ToBytes} = await import('../js/base64.js');
+      return {version: inner.version, iv: _base64ToBytes(inner.iv), ciphertext: _base64ToBytes(inner.ciphertext).buffer};
+    })()
+    : comparisonRaw;
+  expect(await decryptMigrationDeviceValue(nutritionKey, comparisonEnv)).toEqual({synthetic: 'Retain nutrition comparison'});
   expect(await readMigrationDatabase('getbased-cashu')).toEqual(before);
   expect(new TextDecoder().decode((await (await root.getDirectoryHandle('lens-local')).getFileHandle('_libraries.json')).bytes)).toContain('Knowledge Base registry');
   vi.stubGlobal('localStorage', sourceStorage); vi.stubGlobal('indexedDB', sourceFactory);
@@ -273,4 +282,179 @@ it('refuses legacy and corrupt local records before writing a profile index or r
     expect(localStorage.getItem(MIGRATION_PENDING_KEY)).toBeNull();
     expect(faults.writes).toBe(0);
   }
+});
+
+it('recovers v2 wrapped passphrase keys, encrypted Evolu 8 identity vaults, and passphrase-wrapped nutrition stores', async () => {
+  const device = await crypto.subtle.generateKey({name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+  const dataKey = await crypto.subtle.generateKey({name: 'AES-GCM', length: 256}, true, ['encrypt', 'decrypt']);
+  const manifest = await wrapDataKey(originalPassphrase, dataKey);
+  expect(manifest.startsWith('v2:')).toBe(true);
+  localStorage.setItem('labcharts-encryption-enabled', 'true');
+  localStorage.setItem('labcharts-encryption-salt', manifest);
+  localStorage.setItem('labcharts-profiles', await wrapString(dataKey, '[{"id":"v2prof","name":"Wrapped profile"}]'));
+  localStorage.setItem('labcharts-sync-enabled', 'true');
+  localStorage.setItem('labcharts-sync-evolu8-identity-token', 'v2-identity-token');
+  localStorage.setItem('labcharts-sync-relay', 'wss://relay.synthetic.invalid');
+  localStorage.setItem('labcharts-companion-pairing', 'device-only-pairing-secret');
+  const emptyStore = (name: string, keyPath: string | string[] | null) => ({name, keyPath, autoIncrement: false, indexes: [], records: []});
+  const sealedIdentity = await sealMigrationPassphraseObject(dataKey, {token: 'v2-identity-token', mnemonic: 'v2 sync recovery phrase'});
+  await writeMigrationDatabase({name: 'getbased-evolu8-identity', version: 1, stores: [
+    {...emptyStore('identity', null), records: [{key: 'app-owner', value: {version: 1, token: 'v2-identity-token', ownerId: 'v2-owner', envelope: sealedIdentity}}]},
+  ]});
+  const mealDevice = await encryptMigrationDeviceValue(device, {name: 'Wrapped meal'});
+  const mealOuter = await sealMigrationPassphraseObject(dataKey, {
+    version: 1, iv: bytesToBase64(mealDevice.iv), ciphertext: bytesToBase64(new Uint8Array(mealDevice.ciphertext)),
+  });
+  const summaryDevice = await encryptMigrationDeviceValue(device, {totalMeals: 1});
+  const summaryOuter = await sealMigrationPassphraseObject(dataKey, {
+    version: 1, iv: bytesToBase64(summaryDevice.iv), ciphertext: bytesToBase64(new Uint8Array(summaryDevice.ciphertext)),
+  });
+  await writeMigrationDatabase({name: 'getbased-nutrition-v2prof', version: 3, stores: [
+    {...emptyStore('meals', 'id'), records: [{key: 'meal-v2', value: {id: 'meal-v2', eatenAt: '2026-01-01', _devicePayload: mealOuter}}]},
+    {...emptyStore('meta', 'k'), records: [
+      {key: 'meal-device-key:v1', value: {k: 'meal-device-key:v1', value: device}},
+      {key: 'nutrition-summary:v1', value: {k: 'nutrition-summary:v1', value: summaryOuter}},
+    ]},
+  ]});
+  const blob = await buildMigrationArchive(password, originalPassphrase);
+  const inspected = await inspectMigrationArchive(blob, password);
+  expect(inspected.syncRecovery?.mnemonic).toBe('v2 sync recovery phrase');
+  expect(inspected.local['labcharts-companion-pairing']).toBeUndefined();
+  origin();
+  await restoreMigrationArchive(blob, password, originalPassphrase);
+  const restoredNutrition = await readMigrationDatabase('getbased-nutrition-v2prof');
+  const meta = restoredNutrition.stores.find(store => store.name === 'meta')!;
+  const newKey = (meta.records.find(row => row.key === 'meal-device-key:v1')!.value as {value: CryptoKey}).value;
+  expect(newKey).not.toBe(device);
+  const mealRow = restoredNutrition.stores.find(store => store.name === 'meals')!.records[0]!.value as {_devicePayload: unknown};
+  const innerMeal = await openMigrationPassphraseObject(dataKey, mealRow._devicePayload);
+  expect(innerMeal.version).toBe(1);
+  const restoredIdentity = await readMigrationDatabase('getbased-evolu8-identity');
+  const idRow = restoredIdentity.stores[0]!.records[0]!.value as {envelope: unknown};
+  expect((await openMigrationPassphraseObject(dataKey, idRow.envelope)).mnemonic).toBe('v2 sync recovery phrase');
+});
+
+it('re-encrypts d1 device-protected Evolu 8 identity vaults for the destination browser key', async () => {
+  const {device} = await source(false);
+  const env = await encryptMigrationDeviceValue(device, {storageKey: 'evolu-identity:synthetic-identity-token', plaintext: 'device protected sync words'});
+  const d1 = 'd1:' + bytesToBase64(env.iv) + ':' + bytesToBase64(new Uint8Array(env.ciphertext));
+  await writeMigrationDatabase({name: 'getbased-evolu8-identity', version: 1, stores: [
+    {name: 'identity', keyPath: null, autoIncrement: false, indexes: [], records: [
+      {key: 'app-owner', value: {version: 1, token: 'synthetic-identity-token', ownerId: 'synthetic-owner', envelope: d1}},
+    ]},
+  ]});
+  const blob = await buildMigrationArchive(password, '');
+  const inspected = await inspectMigrationArchive(blob, password);
+  expect(inspected.syncRecovery?.mnemonic).toBe('device protected sync words');
+  origin();
+  await restoreMigrationArchive(blob, password, '');
+  const vault = await readMigrationDatabase('labcharts-wearables-credential-vault');
+  const newKey = (vault.stores.find(store => store.name === 'meta')!.records.find(row => row.key === 'credential-vault-key:v1')!.value as {v: CryptoKey}).v;
+  expect(newKey).not.toBe(device);
+  const restoredIdentity = await readMigrationDatabase('getbased-evolu8-identity');
+  const restoredRow = restoredIdentity.stores[0]!.records[0]!.value as {envelope: string};
+  expect(restoredRow.envelope.startsWith('d1:')).toBe(true);
+  expect(restoredRow.envelope).not.toBe(d1);
+  const [, iv, ct] = restoredRow.envelope.split(':');
+  const { _base64ToBytes } = await import('../js/base64.js');
+  const plain = await decryptMigrationDeviceValue(newKey, {version: 1, iv: _base64ToBytes(iv!), ciphertext: _base64ToBytes(ct!)}) as {storageKey: string; plaintext: string};
+  expect(plain).toEqual({storageKey: 'evolu-identity:synthetic-identity-token', plaintext: 'device protected sync words'});
+});
+
+it('upgrades older IndexedDB schemas read-only during export and restores them cleanly', async () => {
+  const device = await crypto.subtle.generateKey({name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+  localStorage.setItem('labcharts-profiles', '[{"id":"legacy-db","name":"Legacy DB profile"}]');
+  // Seed v1 cycle DB (without importId compound key, imports, or meta)
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.open('labcharts-cycle-legacy-db', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('daily-observations', {keyPath: ['source', 'date']}); };
+    req.onsuccess = () => {
+      const db = req.result; const tx = db.transaction('daily-observations', 'readwrite');
+      tx.objectStore('daily-observations').put({source: 'manual', date: '2025-05-01', bleeding: 'light'});
+      tx.oncomplete = () => { db.close(); resolve(); }; tx.onabort = () => reject(tx.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+  // Seed v2 nutrition DB with legacy food-cache store
+  const meal = await encryptMigrationDeviceValue(device, {name: 'Legacy meal'});
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.open('getbased-nutrition-legacy-db', 2);
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore('meals', {keyPath: 'id'}).createIndex('by_eaten_at', 'eatenAt', {unique: false});
+      req.result.createObjectStore('meta', {keyPath: 'k'});
+      req.result.createObjectStore('food-cache', {keyPath: 'k'});
+    };
+    req.onsuccess = () => {
+      const db = req.result; const tx = db.transaction(['meals', 'meta', 'food-cache'], 'readwrite');
+      tx.objectStore('meals').put({id: 'm1', eatenAt: '2025-05-01', _devicePayload: meal});
+      tx.objectStore('meta').put({k: 'meal-device-key:v1', value: device});
+      tx.objectStore('food-cache').put({k: 'stale', v: 1});
+      tx.oncomplete = () => { db.close(); resolve(); }; tx.onabort = () => reject(tx.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+  // Seed v1 cashu DB (without fee-proofs) and v1 backups DB (without folder-handle)
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.open('getbased-cashu', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('proofs', {keyPath: 'secret'}); req.result.createObjectStore('meta', {keyPath: 'key'}); };
+    req.onsuccess = () => {
+      const db = req.result; const tx = db.transaction('proofs', 'readwrite');
+      tx.objectStore('proofs').put({secret: 's1', amount: 1});
+      tx.oncomplete = () => { db.close(); resolve(); }; tx.onabort = () => reject(tx.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.open('labcharts-backups', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('snapshots', {keyPath: 'id', autoIncrement: true}); };
+    req.onsuccess = () => { req.result.close(); resolve(); };
+    req.onerror = () => reject(req.error);
+  });
+  const blob = await buildMigrationArchive(password, '');
+  // Verify source v1 cycle DB was NOT mutated
+  const sourceVersion = await new Promise<number>((resolve, reject) => {
+    const req = indexedDB.open('labcharts-cycle-legacy-db');
+    req.onsuccess = () => { const v = req.result.version; req.result.close(); resolve(v); };
+    req.onerror = () => reject(req.error);
+  });
+  expect(sourceVersion).toBe(1);
+  origin();
+  await restoreMigrationArchive(blob, password, '');
+  const restoredCycle = await readMigrationDatabase('labcharts-cycle-legacy-db');
+  expect(restoredCycle.version).toBe(2);
+  expect(restoredCycle.stores.find(store => store.name === 'daily-observations')!.records).toEqual([
+    {key: ['manual', '2025-05-01', 'legacy:2025-05-01'], value: {source: 'manual', date: '2025-05-01', bleeding: 'light', importId: 'legacy:2025-05-01'}},
+  ]);
+  const restoredNutrition = await readMigrationDatabase('getbased-nutrition-legacy-db');
+  expect(restoredNutrition.version).toBe(3);
+  expect(restoredNutrition.stores.map(store => store.name)).toEqual(['meals', 'meta']);
+  expect((await readMigrationDatabase('getbased-cashu')).version).toBe(2);
+  expect((await readMigrationDatabase('labcharts-backups')).version).toBe(2);
+});
+
+it('exports and restores a legacy single-profile labcharts-imported install over a fresh default destination', async () => {
+  const legacyData = JSON.stringify({entries: [{date: '2020-01-01', markers: {'biochemistry.glucose': 5.1}}]});
+  localStorage.setItem('labcharts-imported', legacyData);
+  const blob = await buildMigrationArchive(password, '');
+  const inspected = await inspectMigrationArchive(blob, password);
+  expect(inspected.inventory.profiles).toBe(1);
+  origin();
+  // Simulate a destination that was opened once and created an empty default profile
+  localStorage.setItem('labcharts-profiles', JSON.stringify([{
+    id: 'default', name: 'Default', sex: null, dob: null, location: {country: '', zip: ''},
+    tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', pinned: false, createdAt: 1, lastUpdated: 1,
+  }]));
+  await restoreMigrationArchive(blob, password, '');
+  expect(localStorage.getItem('labcharts-imported')).toBe(legacyData);
+  expect(localStorage.getItem('labcharts-profiles')).toBeNull();
+});
+
+it('allows opting out of missing legacy Sync identity only when explicitly requested', async () => {
+  await source();
+  await writeMigrationDatabase({name: 'getbased-evolu8-identity', version: 1, stores: [{name: 'identity', keyPath: null, autoIncrement: false, indexes: [], records: []}]});
+  localStorage.removeItem('labcharts-sync-evolu8-identity-token');
+  const blob = await buildMigrationArchive(password, '', () => {}, {allowMissingLegacySync: true});
+  const inspected = await inspectMigrationArchive(blob, password);
+  expect(inspected.syncRecovery).toBeNull();
+  expect(inspected.inventory.profiles).toBe(1);
 });

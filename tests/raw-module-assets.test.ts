@@ -171,7 +171,7 @@ it('keeps precisely the genuine raw graph and public files while pruning bundled
   const raw = await productionRawModuleAssets();
   const recovery = [
     '/shared/hosted-transition.js',
-    '/js/backup-serialization.js', '/js/base64.js', '/js/blob-storage.js', '/js/components/MigrationRecovery.svelte.native.js',
+    '/js/backup-serialization.js', '/js/base64.js', '/js/blob-storage.js', '/js/components/MigrationRecovery.svelte.native.js', '/js/crypto-passphrase-key.js',
     '/js/migration-archive.js', '/js/migration-clients.js', '/js/migration-codec.js', '/js/migration-crypto.js',
     '/js/migration-database.js', '/js/migration-digest.js', '/js/migration-entry.js', '/js/migration-files.js',
     '/js/migration-portable.js', '/js/migration-restore.js', '/js/migration-snapshots.js', '/js/migration-view.js',

@@ -30,6 +30,7 @@ export async function readMigrationFiles(): Promise<MigrationFile[]> {
   await visit(directory, 'lens-local'); return files;
 }
 export async function writeMigrationFiles(files: readonly MigrationFile[]): Promise<void> {
+  if (!files.length) return;
   const root = await navigator.storage.getDirectory();
   for (const file of files) {
     if (!validMigrationFilePath(file.path)) throw new Error('Invalid migration file path.');

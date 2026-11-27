@@ -149,6 +149,12 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
       prepared.files = [];
       // The source settings are committed after every side store. The fence
       // keeps normal startup out until the following read-back succeeds.
+      // Clear empty-destination default profile keys when restoring a legacy
+      // pre-profile archive so migrateLegacyProfileStorage() runs on boot.
+      if (prepared.local['labcharts-imported'] && !prepared.local['labcharts-profiles']) {
+        localStorage.removeItem('labcharts-profiles');
+        localStorage.removeItem('labcharts-default-imported');
+      }
       for (const [key, value] of Object.entries(prepared.local)) localStorage.setItem(key, value);
       localStorage.setItem('labcharts-sync-enabled', 'false');
       progress('Verifying all restored records…');

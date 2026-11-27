@@ -1,10 +1,53 @@
 # Self-host getbased
 
-The production app can run on your own computer. This source-based setup needs
-[Git](https://git-scm.com/downloads), Node.js **24.20 or later within version 24**,
-npm and a current browser. Use a terminal on Linux or macOS, or PowerShell on Windows.
+`getbased` is designed as a pure local-first PWA: your health records stay in
+your own browser storage, not on a central server. The easiest way to run your
+own copy requires **no terminal** — deploy your own personal HTTPS instance on
+Vercel or Cloudflare Pages. If you prefer strictly local hosting on your own
+computer, you can also run the prebuilt Node.js package or build from source.
 
-## Prebuilt package
+## Option 1: One-click personal deploy on Vercel (recommended, no terminal)
+
+1. Open the [Vercel clone link](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based)
+   and sign in with your own GitHub and Vercel accounts.
+2. Create the project and wait about a minute for the build to complete.
+3. Open your permanent HTTPS address (for example `https://my-getbased.vercel.app/app`)
+   on your computer, phone and tablet, and install it as a PWA if desired.
+
+Why this is the smoothest PWA path:
+- **Zero terminal, zero Node.js, always online** across desktop, iOS and Android.
+- **Independent deployment:** official `getbased` analytics are automatically
+  disabled on non-official hosts, and your deployment is never treated as the
+  operated hosted origin.
+- **Built-in `/api/proxy`:** your own Vercel deployment automatically runs its
+  own same-origin compatibility proxy (for postal geocoding, NVIDIA attestation
+  and compatible provider requests) without extra server configuration.
+- **Wearable OAuth note:** providers such as Oura, WHOOP, Withings, Fitbit,
+  Polar and Google Health require OAuth redirect URLs to match a registered app.
+  Reconnecting OAuth wearables on your own domain requires registering your own
+  provider client credentials, or using CSV/manual import.
+
+## Option 2: Cloudflare Pages or Netlify (no terminal, static PWA)
+
+Connect your fork of `https://github.com/elkimek/get-based` in Cloudflare Pages
+or Netlify with:
+- **Build command:** `node scripts/fetch-catalog.mjs && npm run production:build`
+- **Output directory:** `dist`
+- **Node.js version:** `24` (24.20 or later within version 24)
+
+The production build writes `dist/_headers` (CSP, `Cross-Origin-Opener-Policy:
+same-origin`, `Cross-Origin-Embedder-Policy: credentialless` for OPFS/Sync, and
+cache headers) and `dist/_redirects` (`/app` → `/index.html`) automatically.
+Static-only hosting runs all local tracking, Knowledge Base, encrypted Sync and
+direct-CORS AI providers without `/api/proxy`.
+
+## Option 3: Local computer (Node.js package or source build)
+
+This local setup needs [Git](https://git-scm.com/downloads) (for source builds),
+Node.js **24.20 or later within version 24**, npm and a current browser. Use a
+terminal on Linux or macOS, or PowerShell on Windows.
+
+### Prebuilt package
 
 `npm run self-host:package -- --artifact dist --output artifacts` packages the
 qualified production app and a dependency-free Node server into an npm tarball

@@ -1,6 +1,7 @@
 import { _base64ToBytes, bytesToBase64 } from './base64.js';
+import { openDataKey } from './crypto-passphrase-key.js';
 import { parseProtectedStorageObject, serializeProtectedStorageObject } from './storage-object-codec.js';
-import { deriveMigrationKey, decryptMigrationSourceValue, decryptMigrationDeviceValue, encryptMigrationDeviceValue } from './migration-crypto.js';
+import { decryptMigrationSourceValue, decryptMigrationDeviceValue, encryptMigrationDeviceValue } from './migration-crypto.js';
 import type { MigrationDatabase, MigrationRecord } from './migration-database.js';
 
 export interface MigrationSyncRecovery { mnemonic: string; ownerId: string; relay: string | null }
@@ -12,26 +13,35 @@ export interface MigrationPortableData {
   local: Record<string, string>; databases: MigrationDatabase[]; credentials: Record<string, string>;
   syncRecovery: MigrationSyncRecovery | null; inventory: MigrationInventory;
 }
+export interface MigrationPortableOptions { allowMissingLegacySync?: boolean }
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('A saved record has an unsupported shape.');
   return value as Record<string, unknown>;
 };
+function isPassphraseEnvelope(value: unknown): boolean {
+  return !!value && typeof value === 'object' && !Array.isArray(value) && (value as Record<string, unknown>)._enc === 'v1';
+}
 export function excludedMigrationLocalKey(key: string): boolean {
   if (['labcharts-sync-evolu8-identity-token', 'labcharts-sync-relay'].includes(key)) return false;
   return key === 'labcharts-legal-acceptance' || key === 'labcharts-migration-pending'
-    || /^labcharts-(?:sync-|wearable-credential-|agent-host-token$)/.test(key)
+    || key === 'labcharts-companion-pairing'
+    || /^labcharts-(?:sync-|wearable-credential-|agent-host-token$|agent-access-revocation-)/.test(key)
     || /-(?:sync-(?:ts|dirty|cutover)|app-control-|agent-draft-claims)/.test(key);
 }
 export async function sourceMigrationKey(local: Record<string, string>, passphrase: string): Promise<CryptoKey | null> {
   if (local['labcharts-encryption-enabled'] !== 'true') return null;
   if (!passphrase) throw new Error('Enter the original application passphrase as well as the migration password.');
-  const salt = _base64ToBytes(local['labcharts-encryption-salt'] ?? '');
-  if (salt.length !== 16) throw new Error('The source encryption salt is missing or invalid. Keep the source browser and its saved backups.');
-  const key = await deriveMigrationKey(passphrase, salt);
+  const manifest = local['labcharts-encryption-salt'] ?? '';
+  if (!manifest) throw new Error('The source encryption salt is missing or invalid. Keep the source browser and its saved backups.');
+  let key: CryptoKey;
+  try { key = await openDataKey(passphrase, manifest); }
+  catch { throw new Error('The original application passphrase is incorrect or its encryption key manifest is damaged.'); }
   try {
     const profiles = local['labcharts-profiles'];
     if (profiles?.startsWith('v1:')) {
       if (!Array.isArray(JSON.parse(await decryptMigrationSourceValue(key, profiles)))) throw new Error('Invalid profiles.');
+    } else if (!profiles && local['labcharts-imported']?.startsWith('v1:')) {
+      JSON.parse(await decryptMigrationSourceValue(key, local['labcharts-imported']));
     }
   } catch { throw new Error('The original application passphrase is incorrect or its profile index is damaged.'); }
   return key;
@@ -58,32 +68,78 @@ async function deviceRead(key: CryptoKey | undefined, value: unknown) {
   return decryptMigrationDeviceValue(key, value);
 }
 
+async function decryptDeviceCredentialString(credentialDb: MigrationDatabase | undefined, storageKey: string, value: string): Promise<string> {
+  const parts = value.split(':');
+  if (parts.length !== 3 || parts[0] !== 'd1') throw new Error('A saved credential has invalid protection.');
+  const decrypted = object(await deviceRead(credentialDb ? wearableKey(credentialDb) : undefined,
+    {version: 1, iv: _base64ToBytes(parts[1]!), ciphertext: _base64ToBytes(parts[2]!)}));
+  if (decrypted.storageKey !== storageKey || typeof decrypted.plaintext !== 'string') throw new Error('A saved credential could not be verified.');
+  return decrypted.plaintext;
+}
+async function unwrapNutritionEnvelope(raw: unknown, sourceKey: CryptoKey | null): Promise<{envelope: unknown; wrapped: boolean}> {
+  if (!isPassphraseEnvelope(raw)) return {envelope: raw, wrapped: false};
+  const inner = await openMigrationPassphraseObject(sourceKey, raw);
+  if (inner.version !== 1 || typeof inner.iv !== 'string' || typeof inner.ciphertext !== 'string') {
+    throw new Error('Unsupported source nutrition protection.');
+  }
+  return {envelope: {version: 1, iv: _base64ToBytes(inner.iv), ciphertext: _base64ToBytes(inner.ciphertext).buffer}, wrapped: true};
+}
+async function wrapNutritionEnvelope(sourceKey: CryptoKey | null, deviceEnvelope: {version: number; iv: Uint8Array; ciphertext: ArrayBuffer}) {
+  if (!sourceKey) throw new Error('The original application passphrase is required.');
+  return sealMigrationPassphraseObject(sourceKey, {
+    version: 1, iv: bytesToBase64(deviceEnvelope.iv), ciphertext: bytesToBase64(new Uint8Array(deviceEnvelope.ciphertext)),
+  });
+}
+
 /** Transform only browser-bound protection. Passphrase ciphertext stays intact. */
-export async function makeMigrationPortable(localSource: Record<string, string>, databases: MigrationDatabase[], passphrase: string): Promise<MigrationPortableData> {
+export async function makeMigrationPortable(
+  localSource: Record<string, string>,
+  databases: MigrationDatabase[],
+  passphrase: string,
+  options: MigrationPortableOptions = {},
+): Promise<MigrationPortableData> {
   const sourceKey = await sourceMigrationKey(localSource, passphrase);
   const local = Object.fromEntries(Object.entries(localSource).filter(([key]) => !excludedMigrationLocalKey(key)));
   const credentials: Record<string, string> = {};
   const credentialKey = databases.find(db => db.name === 'labcharts-wearables-credential-vault');
   for (const [key, value] of Object.entries(local)) {
     if (value.startsWith('d1:')) {
-      const parts = value.split(':');
-      if (parts.length !== 3) throw new Error('A saved credential has invalid protection.');
-      const decrypted = object(await deviceRead(credentialKey ? wearableKey(credentialKey) : undefined,
-        {version: 1, iv: _base64ToBytes(parts[1]!), ciphertext: _base64ToBytes(parts[2]!)}));
-      if (decrypted.storageKey !== key || typeof decrypted.plaintext !== 'string') throw new Error('A saved credential could not be verified.');
-      credentials[key] = decrypted.plaintext; delete local[key];
+      credentials[key] = await decryptDeviceCredentialString(credentialKey, key, value);
+      delete local[key];
     }
     if (/persona.*(?:journal|fence|transaction)|persona-storage/.test(key)) throw new Error('Open the app to finish persona recovery, then return here.');
   }
   let syncRecovery: MigrationSyncRecovery | null = null;
   const identity = databases.find(db => db.name === 'getbased-evolu8-identity');
-  const identityValue = identity?.stores.find(store => store.name === 'identity')?.records.find(record => record.key === 'app-owner')?.value;
-  if (!identityValue && (localSource['labcharts-sync-evolu8-identity-token'] || localSource['labcharts-sync-enabled'] === 'true')) throw new Error('Open the app to finish Sync identity recovery, then return here.');
-  if (identityValue) {
+  const identityRecord = identity?.stores.find(store => store.name === 'identity')?.records.find(record => record.key === 'app-owner');
+  const identityValue = identityRecord?.value;
+  if (!identityValue && (localSource['labcharts-sync-evolu8-identity-token'] || localSource['labcharts-sync-enabled'] === 'true')) {
+    if (!options.allowMissingLegacySync) throw new Error('Open the app to finish Sync identity recovery, then return here.');
+    delete local['labcharts-sync-evolu8-identity-token'];
+  }
+  if (identityRecord && identityValue) {
     const saved = object(identityValue);
-    if (saved.token === localSource['labcharts-sync-evolu8-identity-token'] && typeof saved.mnemonic === 'string' && typeof saved.ownerId === 'string') {
-      syncRecovery = {mnemonic: saved.mnemonic, ownerId: saved.ownerId, relay: localSource['labcharts-sync-relay'] ?? null};
-    } else throw new Error('Open the app to finish Sync identity recovery, then return here.');
+    const token = localSource['labcharts-sync-evolu8-identity-token'];
+    if (saved.token !== token || typeof saved.token !== 'string' || !saved.token || typeof saved.ownerId !== 'string' || !saved.ownerId) {
+      throw new Error('Open the app to finish Sync identity recovery, then return here.');
+    }
+    let mnemonic: string;
+    if (typeof saved.envelope === 'string' && saved.envelope.startsWith('d1:')) {
+      mnemonic = await decryptDeviceCredentialString(credentialKey, `evolu-identity:${saved.token}`, saved.envelope);
+      identityRecord.value = {version: 1, token: saved.token, ownerId: saved.ownerId, mnemonic};
+      identityRecord.protection = 'evolu-identity';
+    } else if (isPassphraseEnvelope(saved.envelope)) {
+      const plain = await openMigrationPassphraseObject(sourceKey, saved.envelope);
+      if (plain.token !== saved.token || typeof plain.mnemonic !== 'string' || !plain.mnemonic) {
+        throw new Error('The stored Sync identity could not be verified.');
+      }
+      mnemonic = plain.mnemonic;
+    } else if (!saved.envelope && typeof saved.mnemonic === 'string' && saved.mnemonic) {
+      mnemonic = saved.mnemonic;
+    } else {
+      throw new Error('Open the app to finish Sync identity recovery, then return here.');
+    }
+    syncRecovery = {mnemonic, ownerId: saved.ownerId, relay: localSource['labcharts-sync-relay'] ?? null};
   }
   for (const database of databases) {
     if (database.name === 'labcharts-blobs') {
@@ -123,14 +179,18 @@ export async function makeMigrationPortable(localSource: Record<string, string>,
       const key = saved ? object(saved.value).value as CryptoKey : undefined;
       for (const record of database.stores.find(store => store.name === 'meals')?.records ?? []) {
         const row = object(record.value);
-        record.value = {...row, _devicePayload: await deviceRead(key, row._devicePayload)}; record.protection = 'nutrition';
+        const {envelope, wrapped} = await unwrapNutritionEnvelope(row._devicePayload, sourceKey);
+        record.value = {...row, _devicePayload: await deviceRead(key, envelope)};
+        record.protection = 'nutrition'; record.passphraseWrapped = wrapped || !!sourceKey;
       }
       if (meta) {
         for (const record of meta.records) {
           if (record.key === 'meal-device-key:v1') continue;
           const row = object(record.value), payload = row.value as Record<string, unknown> | null;
-          if (payload?.version === 1 && payload.iv && payload.ciphertext) {
-            record.value = {...row, value: await deviceRead(key, payload)}; record.protection = 'nutrition-meta';
+          if (isPassphraseEnvelope(payload) || (payload?.version === 1 && payload.iv && payload.ciphertext)) {
+            const {envelope, wrapped} = await unwrapNutritionEnvelope(payload, sourceKey);
+            record.value = {...row, value: await deviceRead(key, envelope)};
+            record.protection = 'nutrition-meta'; record.passphraseWrapped = wrapped || !!sourceKey;
           }
         }
         meta.records = meta.records.filter(record => record.key !== 'meal-device-key:v1');
@@ -148,7 +208,8 @@ export async function makeMigrationPortable(localSource: Record<string, string>,
   const count = (prefix: string, storeName: string) => databases.filter(db => db.name.startsWith(prefix))
     .reduce((total, db) => total + (db.stores.find(store => store.name === storeName)?.records.length ?? 0), 0);
   const inventory: MigrationInventory = {
-    profiles: profiles.length, meals: count('getbased-nutrition-', 'meals'), wearableRows: count('labcharts-wearables-', 'daily-metrics'),
+    profiles: profiles.length || (localSource['labcharts-imported'] ? 1 : 0),
+    meals: count('getbased-nutrition-', 'meals'), wearableRows: count('labcharts-wearables-', 'daily-metrics'),
     chatRecords: Object.keys(local).filter(key => /^labcharts-.+-(?:chat|chat-t_.+)$/.test(key)).length,
     textDrafts: Object.keys(local).filter(key => /^labcharts-.+-chatDraft_.+$/.test(key)).length,
     savedSnapshots: count('labcharts-backups', 'snapshots'), walletRecovery: databases.some(db => db.name === 'getbased-cashu') || !!local['labcharts-cashu-wallet-mnemonic'],
@@ -158,13 +219,18 @@ export async function makeMigrationPortable(localSource: Record<string, string>,
 
 export async function prepareMigrationDestination(data: MigrationPortableData, passphrase: string): Promise<void> {
   const sourceKey = await sourceMigrationKey(data.local, passphrase);
+  const needsIdentityVault = data.databases.some(db => db.name === 'getbased-evolu8-identity'
+    && db.stores.some(store => store.records.some(record => record.protection === 'evolu-identity')));
+  let destinationVaultKey: CryptoKey | undefined;
   for (const database of data.databases) {
     const nutrition = database.name.startsWith('getbased-nutrition-');
     const wearable = database.name.startsWith('labcharts-wearables-');
     const credentials = database.name === 'labcharts-wearables-credential-vault';
     if (!nutrition && !wearable) continue;
-    if (!database.stores.some(store => store.records.some(record => record.protection)) && !(credentials && Object.keys(data.credentials).length)) continue;
+    if (!database.stores.some(store => store.records.some(record => record.protection))
+      && !(credentials && (Object.keys(data.credentials).length || needsIdentityVault))) continue;
     const key = await crypto.subtle.generateKey({name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+    if (credentials) destinationVaultKey = key;
     const meta = database.stores.find(store => store.name === 'meta');
     if (!meta) throw new Error('The destination protection store is missing.');
     const keyName = nutrition ? 'meal-device-key:v1' : 'credential-vault-key:v1';
@@ -172,9 +238,15 @@ export async function prepareMigrationDestination(data: MigrationPortableData, p
     for (const store of database.stores) for (const record of store.records) {
       if (!record.protection) continue;
       const row = object(record.value);
-      if (record.protection === 'nutrition-meta') record.value = {...row, value: await encryptMigrationDeviceValue(key, row.value)};
-      else if (record.protection === 'wearable-meta') record.value = {...row, v: await encryptMigrationDeviceValue(key, row.v)};
-      else {
+      if (record.protection === 'nutrition-meta') {
+        const deviceEnv = await encryptMigrationDeviceValue(key, row.value);
+        record.value = {...row, value: record.passphraseWrapped ? await wrapNutritionEnvelope(sourceKey, deviceEnv) : deviceEnv};
+      } else if (record.protection === 'nutrition') {
+        const deviceEnv = await encryptMigrationDeviceValue(key, row._devicePayload);
+        record.value = {...row, _devicePayload: record.passphraseWrapped ? await wrapNutritionEnvelope(sourceKey, deviceEnv) : deviceEnv};
+      } else if (record.protection === 'wearable-meta') {
+        record.value = {...row, v: await encryptMigrationDeviceValue(key, row.v)};
+      } else {
         const protectedRow: Record<string, unknown> = {...row, _devicePayload: await encryptMigrationDeviceValue(key, row._devicePayload)};
         if (record.passphraseWrapped) {
           if (!sourceKey) throw new Error('The original application passphrase is required.');
@@ -187,6 +259,24 @@ export async function prepareMigrationDestination(data: MigrationPortableData, p
     if (credentials) for (const [storageKey, plaintext] of Object.entries(data.credentials)) {
       const envelope = await encryptMigrationDeviceValue(key, {storageKey, plaintext});
       data.local[storageKey] = 'd1:' + bytesToBase64(envelope.iv) + ':' + bytesToBase64(new Uint8Array(envelope.ciphertext));
+    }
+  }
+  if (needsIdentityVault) {
+    if (!destinationVaultKey) throw new Error('The destination credential vault is missing.');
+    for (const database of data.databases) {
+      if (database.name !== 'getbased-evolu8-identity') continue;
+      for (const store of database.stores) for (const record of store.records) {
+        if (record.protection !== 'evolu-identity') continue;
+        const row = object(record.value);
+        const envelope = await encryptMigrationDeviceValue(destinationVaultKey, {
+          storageKey: `evolu-identity:${String(row.token)}`, plaintext: String(row.mnemonic),
+        });
+        record.value = {
+          version: 1, token: row.token, ownerId: row.ownerId,
+          envelope: 'd1:' + bytesToBase64(envelope.iv) + ':' + bytesToBase64(new Uint8Array(envelope.ciphertext)),
+        };
+        delete record.protection; delete record.passphraseWrapped;
+      }
     }
   }
 }

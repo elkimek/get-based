@@ -51,6 +51,7 @@ export async function createSelfHostServer(options: {
   async function inventory(relative = ''): Promise<void> {
     for (const entry of await fs.readdir(path.join(directory, relative), {withFileTypes: true})) {
       if (entry.name.startsWith('.') && !(relative === '' && entry.name === '.well-known')) continue;
+      if (relative === '' && (entry.name === '_headers' || entry.name === '_redirects')) continue;
       if (entry.isSymbolicLink()) throw new Error('The public artifact must not contain symbolic links.');
       const name = relative ? relative + '/' + entry.name : entry.name;
       if (entry.isDirectory()) await inventory(name);
@@ -113,7 +114,8 @@ async function main(): Promise<void> {
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
 }
 
-if (process.argv[1] && await fs.realpath(process.argv[1]).catch(() => null) === fileURLToPath(import.meta.url)) {
+if (process.argv[1]
+  && await fs.realpath(process.argv[1]).catch(() => null) === await fs.realpath(fileURLToPath(import.meta.url)).catch(() => fileURLToPath(import.meta.url))) {
   void main().catch(error => {
     const code = (error as NodeJS.ErrnoException).code;
     console.error(code === 'EADDRINUSE'
