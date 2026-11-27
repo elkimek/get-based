@@ -117,6 +117,9 @@ export async function createSelfHostServer(options: {
       const real = await fs.realpath(file);
       if (real !== file) { response.writeHead(404); response.end('Not found'); return; }
       const body = await fs.readFile(real);
+      if (pathname === '/app/migration.html') {
+        response.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+      }
       response.setHeader('Content-Type', TYPES[path.extname(file)] ?? 'application/octet-stream');
       response.setHeader('Content-Length', body.length);
       response.end(request.method === 'HEAD' ? undefined : body);

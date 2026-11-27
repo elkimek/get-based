@@ -1,0 +1,13 @@
+{
+  "name": "get-based",
+  "compatibility_date": "2026-11-26",
+  "build": {
+    "command": "node scripts/fetch-catalog.mjs && npm run production:build"
+  },
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "none",
+    "not_found_handling": "single-page-application"
+  },
+  "previews": {}
+}

@@ -4,7 +4,7 @@
 wearables, light exposure, lifestyle context, notes and optional AI analysis into
 one browser-based workspace, with no account required.
 
-**[Live app](https://app.getbased.health)** · **[Self-host](#self-host)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
+**[Live demo](https://getbased-demo.vercel.app)** · **[Self-host](#self-host)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
 
 ![getbased Dashboard](dashboard.png)
 

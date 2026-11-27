@@ -1,6 +1,6 @@
 import {getHostedTransition} from '../shared/hosted-transition.js';
-import { existingMigrationDatabases, readMigrationDatabase, writeMigrationDatabase, MIGRATION_DATABASE, MIGRATION_PENDING_KEY } from './migration-database.js';
-import { readMigrationFiles, writeMigrationFiles } from './migration-files.js';
+import { deleteMigrationDatabase, existingMigrationDatabases, readMigrationDatabase, writeMigrationDatabase, MIGRATION_DATABASE, MIGRATION_PENDING_KEY } from './migration-database.js';
+import { clearMigrationFiles, readMigrationFiles, writeMigrationFiles } from './migration-files.js';
 import { inspectMigrationArchive, readMigrationLocal, validateMigrationArchive } from './migration-archive.js';
 import { prepareMigrationDestination, sourceMigrationKey, makeMigrationPortable } from './migration-portable.js';
 import {migrationDigest} from './migration-digest.js';
@@ -11,7 +11,7 @@ import { decryptMigrationSourceValue, decryptMigrationDeviceValue } from './migr
 import { LENS_LOCAL_STORAGE_LOCK } from './lens-local-lock.js';
 import type { MigrationArchive } from './migration-archive.js';
 
-export interface MigrationPending { id: string; blob: Blob; phase: string }
+export interface MigrationPending { id: string; blob: Blob; phase: string; handoff?: boolean; localKeys?: string[] }
 async function journalDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(MIGRATION_DATABASE, 1);
@@ -108,8 +108,9 @@ function verificationShape(data: {local: Record<string, string>; databases: unkn
   delete local['labcharts-migration-reviewed']; delete local['labcharts-sync-enabled'];
   return {local, databases: data.databases, files: data.files, credentials: data.credentials};
 }
-export async function restoreMigrationArchive(blob: Blob, password: string, originalPassphrase: string, progress: (text: string) => void = () => {}): Promise<MigrationArchive> {
+export async function restoreMigrationArchive(blob: Blob, password: string, originalPassphrase: string, progress: (text: string) => void = () => {}, options?: {handoff?: boolean}): Promise<MigrationArchive> {
   if (getHostedTransition(location.origin)?.phase === 'recovery') throw new Error('This hosted address is available for recovery only. Restore the migration file at your self-hosted address.');
+  const handoff = Boolean(options?.handoff);
   const archive = await inspectMigrationArchive(blob, password);
   const sourceKey = await sourceMigrationKey(archive.local, originalPassphrase);
   const storedProfiles = archive.local['labcharts-profiles'];
@@ -123,15 +124,32 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
       await requireSingleMigrationClient();
       const pending = await getPendingMigration();
       const fence = localStorage.getItem(MIGRATION_PENDING_KEY);
-      if ((pending && pending.id !== id) || (fence && fence !== id)) throw new Error('Another migration is pending. Resume it with its original file and password.');
-      if (pending && fence !== id) throw new Error('Recovery metadata is missing. Keep this file and recover into a fresh installation. Existing destination records were not changed.');
-      if (!pending) {
-        await requireEmptyMigrationDestination();
+      const replacingInterruptedHandoff = Boolean(pending?.handoff && fence === pending.id);
+      if (!replacingInterruptedHandoff) {
+        if ((pending && pending.id !== id) || (fence && fence !== id)) throw new Error('Another migration is pending. Resume it with its original file and password.');
+        if (pending && fence !== id) throw new Error('Recovery metadata is missing. Keep this file and recover into a fresh installation. Existing destination records were not changed.');
+      }
+      if (!pending || replacingInterruptedHandoff) {
+        if (replacingInterruptedHandoff) {
+          const trackedKeys = new Set(pending?.localKeys ?? []);
+          for (const key of Object.keys(readMigrationLocal())) {
+            if (key !== MIGRATION_PENDING_KEY && (/^(?:labcharts-|getbased-)/.test(key) || trackedKeys.has(key))) {
+              localStorage.removeItem(key);
+            }
+          }
+          localStorage.removeItem('labcharts-migration-completed');
+          localStorage.removeItem('labcharts-migration-reviewed');
+          for (const name of await existingMigrationDatabases()) await deleteMigrationDatabase(name);
+          await clearMigrationFiles();
+        } else {
+          await requireEmptyMigrationDestination();
+        }
         // Fence normal startup before retaining the encrypted file. If saving
         // the file fails, the user can reselect it without allowing app edits.
         localStorage.setItem(MIGRATION_PENDING_KEY, id);
         if (localStorage.getItem(MIGRATION_PENDING_KEY) !== id) throw new Error('The recovery fence could not be saved.');
-        await journal('readwrite', store => store.put({id, blob, phase: 'prepared'}, 'pending'));
+        const handoffMeta = handoff ? {handoff: true, localKeys: Object.keys(archive.local)} : {};
+        await journal('readwrite', store => store.put({id, blob, phase: 'prepared', ...handoffMeta}, 'pending'));
       }
       localStorage.setItem(MIGRATION_PENDING_KEY, id);
       if (localStorage.getItem(MIGRATION_PENDING_KEY) !== id) throw new Error('The recovery fence could not be saved. No records were restored.');
@@ -139,7 +157,8 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
       const prepared = archive;
       validateMigrationArchive(prepared);
       await prepareMigrationDestination(prepared, originalPassphrase);
-      await journal('readwrite', store => store.put({id, blob, phase: 'restoring'}, 'pending'));
+      const restoringMeta = handoff ? {handoff: true, localKeys: Object.keys(prepared.local)} : {};
+      await journal('readwrite', store => store.put({id, blob, phase: 'restoring', ...restoringMeta}, 'pending'));
       for (const database of prepared.databases) {
         progress('Restoring saved database ' + (prepared.databases.indexOf(database) + 1) + ' of ' + prepared.databases.length + '…');
         await writeMigrationDatabase(database);

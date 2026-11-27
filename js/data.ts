@@ -83,25 +83,11 @@ export {
 } from './data-view-controls.js';
 
 import { createDataCore } from './data-core.js';
+import { isPublicDemoMode, isPublicDemoSeeding, notifyPublicDemoBlocked } from './public-demo-mode.js';
 
 // Preserve browser-service initialization order while the full implementation is native.
 // Getters keep ESM bindings live across queued saves and service replacement.
-export const {
-  configureDataContextDependencies,
-  registerRefreshCallback,
-  _runRegisteredRefreshCallback,
-  invalidateActiveDataCache,
-  saveImportedData,
-  saveImportedDataForProfile,
-  notifyProfileDataContextChanged,
-  getFocusCardFingerprint,
-  getActiveData,
-  convertDisplayToSI,
-  applyUnitConversion,
-  filterDatesByRange,
-  recalculateHOMAIR,
-  getAllFlaggedMarkers
-} = createDataCore({
+const dataCore = createDataCore({
   labSampleIdentityRows,
   labDateDeletionState,
   get getConfiguredArrayItemId() { return getConfiguredArrayItemId; },
@@ -151,3 +137,34 @@ export const {
   get resolveAgeSexRange() { return resolveAgeSexRange; },
   get wholeAgeAtDate() { return wholeAgeAtDate; },
 });
+
+export const {
+  configureDataContextDependencies,
+  registerRefreshCallback,
+  _runRegisteredRefreshCallback,
+  invalidateActiveDataCache,
+  notifyProfileDataContextChanged,
+  getFocusCardFingerprint,
+  getActiveData,
+  convertDisplayToSI,
+  applyUnitConversion,
+  filterDatesByRange,
+  recalculateHOMAIR,
+  getAllFlaggedMarkers,
+} = dataCore;
+
+export const saveImportedData: typeof dataCore.saveImportedData = async (...args) => {
+  if (isPublicDemoMode() && !isPublicDemoSeeding()) {
+    notifyPublicDemoBlocked('Saving personal changes');
+    return false;
+  }
+  return dataCore.saveImportedData(...args);
+};
+
+export const saveImportedDataForProfile: typeof dataCore.saveImportedDataForProfile = async (...args) => {
+  if (isPublicDemoMode() && !isPublicDemoSeeding()) {
+    notifyPublicDemoBlocked('Saving personal changes');
+    return false;
+  }
+  return dataCore.saveImportedDataForProfile(...args);
+};

@@ -550,3 +550,47 @@ it('refuses export when a backup restore is pending and strips orphaned rollback
   const restoredBlobs = await readMigrationDatabase('labcharts-blobs');
   expect(restoredBlobs.stores.find(s => s.name === 'kv')!.records).toEqual([]);
 });
+
+it('recovers cleanly when an automatic handoff restore is interrupted mid-write and clears stale records on retry', async () => {
+  await source(false);
+  localStorage.setItem('labcharts-stale-chatDraft_main', 'stale draft from first attempt');
+  const firstHandoffBlob = await buildMigrationArchive('EphemeralFirstPass1234!', '');
+
+  // Source then changes before the user retries (removes stale key, KB file, and wearable/nutrition databases).
+  origin();
+  localStorage.setItem('labcharts-profiles', '[{"id":"fresh","name":"Fresh profile"}]');
+  const retryHandoffBlob = await buildMigrationArchive('EphemeralRetryPass5678!', '');
+
+  origin();
+  faults.writes = 0;
+  faults.failAt = 2;
+  await expect(restoreMigrationArchive(firstHandoffBlob, 'EphemeralFirstPass1234!', '', undefined, {handoff: true}))
+    .rejects.toThrow('Synthetic storage failure');
+  // Simulate partial localStorage/file remnants left from the interrupted first attempt,
+  // plus an unrelated same-origin key that retry cleanup must preserve.
+  localStorage.setItem('labcharts-stale-chatDraft_main', 'stale draft from first attempt');
+  localStorage.setItem('unrelated-origin-key', 'keep-me');
+  const staleDir = await root.getDirectoryHandle('lens-local', {create: true});
+  const staleFile = await staleDir.getFileHandle('stale.txt', {create: true});
+  staleFile.bytes = new TextEncoder().encode('stale');
+
+  const pending = await getPendingMigration();
+  expect(pending?.handoff).toBe(true);
+  expect(localStorage.getItem(MIGRATION_PENDING_KEY)).toBe(pending?.id);
+
+  // Re-sending a fresh automatic handoff clears stale keys, databases, and KB files
+  // from the interrupted attempt before writing and verifying the new archive.
+  faults.failAt = 0;
+  const restored = await restoreMigrationArchive(retryHandoffBlob, 'EphemeralRetryPass5678!', '', undefined, {handoff: true});
+  expect(restored.inventory.profiles).toBe(1);
+  expect(localStorage.getItem('labcharts-profiles')).toContain('Fresh profile');
+  expect(localStorage.getItem('labcharts-stale-chatDraft_main')).toBeNull();
+  expect(localStorage.getItem('unrelated-origin-key')).toBe('keep-me');
+  expect(await getPendingMigration()).toBeNull();
+  expect(localStorage.getItem(MIGRATION_PENDING_KEY)).toBeNull();
+  const remainingDbs = (await indexedDB.databases()).map(db => db.name).filter(name => name && name !== 'getbased-migration');
+  expect(remainingDbs).toEqual(['labcharts-blobs']);
+  const refreshedBlobs = await readMigrationDatabase('labcharts-blobs');
+  expect(refreshedBlobs.stores.find(s => s.name === 'kv')!.records).toEqual([]);
+  expect([...root.files.keys()]).toEqual([]);
+});

@@ -145,6 +145,16 @@ export async function readMigrationDatabase(name: string): Promise<MigrationData
   } finally { db.close(); }
 }
 
+export async function deleteMigrationDatabase(name: string): Promise<void> {
+  if (!migrationDatabaseContract(name)) throw new Error('Unsupported migration database.');
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(name);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error('A stale destination database could not be cleared.'));
+    request.onblocked = () => reject(new Error('Close other destination tabs and installed windows, then retry.'));
+  });
+}
+
 export async function writeMigrationDatabase(snapshot: MigrationDatabase): Promise<void> {
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(snapshot.name, snapshot.version);

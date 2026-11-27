@@ -173,7 +173,7 @@ it('keeps precisely the genuine raw graph and public files while pruning bundled
     '/shared/hosted-transition.js',
     '/js/backup-serialization.js', '/js/base64.js', '/js/blob-storage.js', '/js/components/MigrationRecovery.svelte.native.js', '/js/crypto-passphrase-key.js',
     '/js/migration-archive.js', '/js/migration-clients.js', '/js/migration-codec.js', '/js/migration-crypto.js',
-    '/js/migration-database.js', '/js/migration-digest.js', '/js/migration-entry.js', '/js/migration-files.js',
+    '/js/migration-database.js', '/js/migration-digest.js', '/js/migration-entry.js', '/js/migration-files.js', '/js/migration-handoff.js',
     '/js/migration-portable.js', '/js/migration-restore.js', '/js/migration-snapshots.js', '/js/migration-view.js',
     '/js/native-command-locks.js', '/js/persona-storage-transaction.js', '/js/profile-defaults.js', '/js/profile-sync-policy.js',
     '/js/settings-protection-classes.js', '/js/storage-object-codec.js', '/js/structured-value-codec.js',

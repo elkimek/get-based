@@ -16,30 +16,53 @@ concurrency:
 
 jobs:
   sync-fork:
-    if: github.repository != 'elkimek/get-based' && github.event.repository.fork == true
+    if: github.repository != 'elkimek/get-based'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Sync fork main branch with upstream
+      - name: Sync repository main branch with upstream
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          IS_FORK: ${{ github.event.repository.fork }}
         run: |
           set +e
-          output=$(gh api --method POST "/repos/${REPO}/merge-upstream" -f branch=main 2>&1)
-          status=$?
+          if [ "$IS_FORK" = "true" ]; then
+            output=$(gh api --method POST "/repos/${REPO}/merge-upstream" -f branch=main 2>&1)
+            status=$?
+            set -e
+            echo "$output"
+            if [ "$status" -eq 0 ]; then
+              echo "Fork main branch is up to date with upstream. Connected Vercel/Cloudflare deployments rebuild automatically." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if echo "$output" | grep -qi "workflow"; then
+              echo "Upstream includes a GitHub Actions workflow update that GitHub requires you to accept manually. Open your fork and click **Sync fork → Update branch**." >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            if echo "$output" | grep -qi "conflict"; then
+              echo "Your fork has custom changes that conflict with upstream. Review and sync manually on GitHub." >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            exit "$status"
+          fi
           set -e
-          echo "$output"
-          if [ "$status" -eq 0 ]; then
-            echo "Fork main branch is up to date with upstream. Connected Vercel/Cloudflare deployments rebuild automatically." >> "$GITHUB_STEP_SUMMARY"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git clone --branch main "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" repo
+          cd repo
+          git remote add upstream https://github.com/elkimek/get-based.git
+          git fetch upstream main
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Repository main branch is already up to date with upstream." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if echo "$output" | grep -qi "workflow"; then
-            echo "Upstream includes a GitHub Actions workflow update that GitHub requires you to accept manually. Open your fork and click **Sync fork → Update branch**." >> "$GITHUB_STEP_SUMMARY"
+          if ! git merge --ff-only upstream/main; then
+            echo "Fast-forward merge stopped because your repository has custom commits that diverge from upstream. Review and merge manually on GitHub." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          if echo "$output" | grep -qi "conflict"; then
-            echo "Your fork has custom changes that conflict with upstream. Review and sync manually on GitHub." >> "$GITHUB_STEP_SUMMARY"
+          if ! git push origin HEAD:main; then
+            echo "Push stopped (for example if upstream includes a GitHub Actions workflow update). Sync manually on GitHub." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          exit "$status"
+          echo "Repository main branch fast-forwarded to latest upstream. Connected Vercel/Cloudflare deployments rebuild automatically." >> "$GITHUB_STEP_SUMMARY"

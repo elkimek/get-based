@@ -250,9 +250,10 @@ function serveFile(req: IncomingMessage, res: ServerResponse, filePath: string) 
   fs.readFile(resolved, (err, data) => {
     if (err) { res.writeHead(404); res.end('Not found'); return; }
     const ext = path.extname(resolved).toLowerCase();
+    const isMigrationPage = resolved.endsWith(path.sep + 'app' + path.sep + 'migration.html');
     const headers = {
       'Content-Type': MIME[ext] || 'application/octet-stream',
-      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Opener-Policy': isMigrationPage ? 'unsafe-none' : 'same-origin',
       'Cross-Origin-Embedder-Policy': 'credentialless',
       // Dev-only — phones over Tailscale otherwise hit the PWA service
       // worker cache and never see code changes until the SW updates on

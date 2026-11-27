@@ -1,12 +1,19 @@
-// Public rollout state. Activate only after the release, recovery, docs and demo
-// are verified. announcedAt is the actual public announcement timestamp.
+// Public rollout state. Activate after live Vercel and Cloudflare deploys are verified.
 export interface HostedTransitionPolicy {announcedAt: string | null; announcementUrl: string | null; demoUrl: string | null}
 export const HOSTED_TRANSITION_POLICY: Readonly<HostedTransitionPolicy> = Object.freeze({
-  announcedAt: null, announcementUrl: null, demoUrl: null,
+  announcedAt: null,
+  announcementUrl: 'https://getbased.health/self-hosting',
+  demoUrl: 'https://getbased-demo.vercel.app',
 });
 export const HOSTED_NOTICE_DAYS = 30;
 const HOSTED_ORIGINS = new Set(['https://app.getbased.health', 'https://getbased.health', 'https://www.getbased.health', 'https://get-based.vercel.app',
   'http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion']);
+const PUBLIC_DEMO_ORIGINS = new Set(['https://getbased-demo.vercel.app', 'https://demo.getbased.health']);
+export function isPublicDemoOrigin(origin: string): boolean {
+  let canonical: string;
+  try {const url = new URL(origin); url.hostname = url.hostname.replace(/\.$/, ''); canonical = url.origin;} catch {return false;}
+  return PUBLIC_DEMO_ORIGINS.has(canonical);
+}
 export interface HostedTransition {phase: 'notice' | 'recovery'; announcedAt: number; cutoffAt: number; announcementUrl: string | null; demoUrl: string | null}
 export function getHostedTransition(origin: string, now = Date.now(), policy: Readonly<HostedTransitionPolicy> = HOSTED_TRANSITION_POLICY): HostedTransition | null {
   let canonical: string;

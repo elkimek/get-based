@@ -12,6 +12,11 @@
   const termsVersion = overlay.dataset.termsVersion || '';
   const privacyVersion = overlay.dataset.privacyVersion || '';
   const hostname = String(location.hostname || '').toLowerCase().replace(/\.$/, '');
+  const publicDemoHost = hostname === 'getbased-demo.vercel.app' || hostname === 'demo.getbased.health';
+  if (publicDemoHost) {
+    overlay.remove();
+    return;
+  }
   const officialHost = hostname === 'getbased.health'
     || hostname.endsWith('.getbased.health')
     || hostname === 'get-based.vercel.app'

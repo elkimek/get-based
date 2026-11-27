@@ -1,5 +1,6 @@
 // chat-loader.js - cached first-use boundary for the closed Chat composition.
 import { state } from './state.js';
+import { isPublicDemoMode, notifyPublicDemoBlocked } from './public-demo-mode.js';
 
 type ChatModule = typeof import('./app-ai-interaction-modules.js');
 
@@ -77,26 +78,31 @@ function callLoadedChatModule(name: keyof ChatModule, args: unknown[], fallback:
     : fallback;
 }
 
+function blockChatInPublicDemo(label: string) {
+  notifyPublicDemoBlocked(label);
+  return Promise.resolve(false);
+}
+
 export function openChatPanel(...args: unknown[]) { return callChatModule('openChatPanel', args, state.currentProfile); }
 export function toggleChatPanel(...args: unknown[]) { return callChatModule('toggleChatPanel', args, state.currentProfile); }
-export function createNewThread(...args: unknown[]) { return callChatModule('createNewThread', args); }
-export function createThreadProject(...args: unknown[]) { return callChatModule('createThreadProject', args); }
-export function clearChatHistory(...args: unknown[]) { return callChatModule('clearChatHistory', args); }
+export function createNewThread(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('createNewThread', args); }
+export function createThreadProject(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('createThreadProject', args); }
+export function clearChatHistory(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('clearChatHistory', args); }
 export function filterThreadList(...args: unknown[]) { return callChatModule('filterThreadList', args); }
-export function sendChatMessage(...args: unknown[]) { return callChatModule('sendChatMessage', args); }
+export function sendChatMessage(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('sendChatMessage', args); }
 export function setChatBackendFromUI(...args: unknown[]) { return callChatModule('setChatBackendFromUI', args); }
 export function setChatPersonality(...args: unknown[]) { return callChatModule('setChatPersonality', args); }
 export function setChatWebSearchEnabled(...args: unknown[]) { return callChatModule('setChatWebSearchEnabled', args); }
-export function startDiscussion(...args: unknown[]) { return callChatModule('startDiscussion', args); }
-export function summarizeThread(...args: unknown[]) { return callChatModule('summarizeThread', args); }
+export function startDiscussion(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('startDiscussion', args); }
+export function summarizeThread(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('summarizeThread', args); }
 export function setChatThreadSort(...args: unknown[]) { return callChatModule('setChatThreadSort', args); }
 export function toggleChatFullscreen(...args: unknown[]) { return callChatModule('toggleChatFullscreen', args); }
 export function togglePersonalityBar(...args: unknown[]) { return callChatModule('togglePersonalityBar', args); }
-export function toggleVoiceRecording(...args: unknown[]) { return callChatModule('toggleVoiceRecording', args); }
+export function toggleVoiceRecording(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Voice input') : callChatModule('toggleVoiceRecording', args); }
 export function toggleThreadRail(...args: unknown[]) { return callChatModule('toggleThreadRail', args); }
-export function useChatPrompt(...args: unknown[]) { return callChatModule('useChatPrompt', args); }
-export function askAIAboutCorrelations(...args: unknown[]) { return callChatModule('askAIAboutCorrelations', args); }
-export function askAIAboutMarker(...args: unknown[]) { return callChatModule('askAIAboutMarker', args); }
+export function useChatPrompt(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('useChatPrompt', args); }
+export function askAIAboutCorrelations(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('askAIAboutCorrelations', args); }
+export function askAIAboutMarker(...args: unknown[]) { return isPublicDemoMode() ? blockChatInPublicDemo('Live AI chat') : callChatModule('askAIAboutMarker', args); }
 
 export function closeChatPanel(...args: unknown[]) {
   return callLoadedChatModule('closeChatPanel', args, false);

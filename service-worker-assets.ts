@@ -10,7 +10,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/dashboard-light-widget-presentation.js', '/js/components/DashboardLightWidgetBody.svelte.html.js', '/version.js', '/service-worker-runtime.js',
   '/service-worker-assets.js', '/shared/agent-host-protocol.js', '/shared/agent-tool-contract.js', '/index.html',
   '/js/migration-navigation.js', '/js/migration-view.js', '/js/migration-archive.js', '/js/migration-restore.js', '/js/migration-database.js', '/js/migration-files.js', '/js/migration-portable.js', '/js/migration-codec.js', '/js/structured-value-codec.js', '/js/storage-object-codec.js', '/js/migration-crypto.js', '/js/migration-clients.js', '/js/profile-defaults.js', '/js/components/MigrationRecovery.svelte.native.js',
-  '/app/migration.html', '/js/sync-delta-reset.js', '/js/migration-digest.js', '/js/migration-snapshots.js', '/js/migration-entry.js',
+  '/app/migration.html', '/js/sync-delta-reset.js', '/js/migration-digest.js', '/js/migration-snapshots.js', '/js/migration-handoff.js', '/js/migration-entry.js',
   '/app', '/styles.css', '/css/app-shell.css', '/css/import.css',
   '/css/emf.css', '/css/modal-shared.css', '/css/dashboard-core.css', '/css/dashboard-widgets.css',
   '/css/dashboard-welcome.css', '/css/dashboard-data.css', '/css/category-views.css', '/css/context-profile.css',
@@ -35,7 +35,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/analytics-bootstrap.js', '/js/analytics-consent-rendering.js', '/js/components/AnalyticsConsentBody.svelte.html.js', '/js/legal-consent-bootstrap.js',
   '/js/service-worker-update.js', '/js/version-update-rendering.js', '/js/components/VersionUpdateBody.svelte.html.js', '/js/components/VersionUpdateCopy.svelte.html.js',
   '/css/hosted-transition.css', '/js/hosted-transition-notice.js',
-  '/js/hosted-transition-monitor.js', '/js/components/HostedTransitionBanner.svelte.html.js', '/js/main-runtime.js', '/shared/hosted-transition.js', '/js/main.js', '/js/ts-state-ui-inline-style-map.generated.js', '/js/ts-static-ui-inline-style-map.generated.js',
+  '/js/hosted-transition-monitor.js', '/js/components/HostedTransitionBanner.svelte.html.js', '/js/public-demo-mode.js', '/js/public-demo-bootstrap.js', '/js/main-runtime.js', '/shared/hosted-transition.js', '/js/main.js', '/js/ts-state-ui-inline-style-map.generated.js', '/js/ts-static-ui-inline-style-map.generated.js',
   // PRODUCTION_BUNDLE_ASSETS_START
   // PRODUCTION_BUNDLE_ASSETS_END
   '/js/shell-actions.js', '/js/action-attributes.js', '/js/app-extension-bootstrap.js', '/js/app-extension-runtime.js',

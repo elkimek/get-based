@@ -29,6 +29,12 @@ export async function readMigrationFiles(): Promise<MigrationFile[]> {
   };
   await visit(directory, 'lens-local'); return files;
 }
+export async function clearMigrationFiles(): Promise<void> {
+  if (!navigator.storage?.getDirectory) return;
+  const root = await navigator.storage.getDirectory();
+  try { await root.removeEntry('lens-local', {recursive: true}); }
+  catch (error) { if (error instanceof DOMException && error.name === 'NotFoundError') return; throw error; }
+}
 export async function writeMigrationFiles(files: readonly MigrationFile[]): Promise<void> {
   if (!files.length) return;
   const root = await navigator.storage.getDirectory();

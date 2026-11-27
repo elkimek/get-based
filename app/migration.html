@@ -6,13 +6,24 @@
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex">
   <title>Move your data · getbased</title>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <meta name="theme-color" content="#0a0a12" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <script src="/js/theme-bootstrap.js"></script>
+  <link rel="stylesheet" href="/vendor/fonts/fonts.css">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/data-protection.css">
   <link rel="stylesheet" href="/css/settings.css">
+  <link rel="stylesheet" href="/css/hosted-transition.css">
   <script src="/version.js"></script>
   <script type="module" src="/js/migration-entry.js"></script>
 </head>
-<body>
-  <div id="migration-root" data-protection-view="migration"><p>Loading recovery tools…</p></div>
-  <noscript>Enable JavaScript to recover the data saved in this browser. Do not clear this website's data.</noscript>
+<body class="mig-body">
+  <div id="migration-root" data-protection-view="migration">
+    <div class="mig-loading">Loading migration tools…</div>
+  </div>
+  <noscript>
+    <div class="mig-loading">Enable JavaScript to move or recover the data saved in this browser. Do not clear this website's data.</div>
+  </noscript>
 </body>
 </html>
