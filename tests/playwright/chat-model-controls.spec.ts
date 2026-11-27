@@ -197,6 +197,7 @@ test('OpenClaw chat groups only models from its own advertised sub-providers', a
 
 test('CLI chat keeps dictation enabled through the independent voice service', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.evaluate(async () => {
     const crypto = await import('/js/crypto.js');
     crypto.updateKeyCache('labcharts-agent-host-token', 'test-token');
@@ -228,6 +229,7 @@ test('CLI chat keeps dictation enabled through the independent voice service', a
 
 test('an existing chat immediately shows the newly selected CLI default model', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.evaluate(async () => {
     const stateModule = await import('/js/state.js');
     stateModule.state.currentThreadId = 'existing-thread';
