@@ -563,8 +563,8 @@ assert('Umami analytics bootstrap is external and self-hosted',
 assert('Umami analytics executable is integrity-pinned and anonymous-CORS fetched',
   analyticsBootstrapSrc.includes("script.integrity = 'sha384-")
   && analyticsBootstrapSrc.includes("script.crossOrigin = 'anonymous'"));
-assert('Umami blocked on file:// protocol',
-  /location\.protocol\s*!==\s*['"]file:['"]/.test(analyticsBootstrapSrc));
+assert('Umami blocked on file:// protocol and non-official origins',
+  /location\.protocol\s*===\s*['"]https:['"]\s*&&\s*officialHost/.test(analyticsBootstrapSrc));
 assert('Umami waits for offline PWA relaunches to reconnect',
   analyticsBootstrapSrc.includes("globalThis.addEventListener('online', loadUmami, { once: true })"));
 
