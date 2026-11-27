@@ -37,11 +37,13 @@
 .claude/
 *.pdf
 !data/import-benchmark-reference-us-v2.pdf
+!tests/fixtures/pdf-preflight/*.pdf
 test-data.json
 *.png
 !icon-192.png
 !icon-512.png
 !dashboard.png
+!er-mask.png
 # Build artifacts
 /getbased-companion.mjs
 artifacts/
