@@ -75,6 +75,7 @@
     "preperformance:native:check": "npm run typescript:build",
     "preself-host": "npm run typescript:build",
     "self-host": "node server/self-host-server.js",
+    "build": "node scripts/fetch-catalog.mjs && npm run production:build",
     "demo:build": "npm run typescript:build && node scripts/build-readonly-demo.mjs",
     "demo:app:build": "npm run production:build && node scripts/build-public-demo-deploy.mjs",
     "self-host:package": "node scripts/build-self-host-package.mjs",
