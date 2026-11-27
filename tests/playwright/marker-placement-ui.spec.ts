@@ -12,6 +12,7 @@ async function seedMarkerPlacementProfile(page: import('@playwright/test').Page)
     await page.locator('[data-legal-consent-action="accept"]').click();
     await expect(legalOverlay).toHaveCount(0);
   }
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const data = await import('/js/data.js');
