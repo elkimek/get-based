@@ -14,6 +14,7 @@ if (!target) throw new Error('Recovery surface is missing.');
 let state = initialMigrationView(), selected: Blob | null = null, inspected: MigrationArchive | null = null;
 let snapshots: MigrationSnapshotLabel[] = [];
 let preparedDownload: {blob: Blob; name: string} | null = null;
+let clipboardClearTimer: ReturnType<typeof setTimeout> | null = null;
 let view: {update(value: MigrationViewState): void; clearSecrets(): void};
 function update(patch: Partial<MigrationViewState>) {state = {...state, ...patch}; view.update(state); flushSync();}
 function summary(archive: MigrationArchive) {
@@ -88,8 +89,9 @@ const actions: MigrationActions = {
     const words = inspected?.syncRecovery?.mnemonic;
     if (!words) throw new Error('No Sync recovery words are available in this file.');
     await navigator.clipboard.writeText(words);
-    update({status: 'Sync recovery words copied. Join the same identity only after checking your recovered records.'});
-    setTimeout(() => {void navigator.clipboard.readText().then(value => value === words ? navigator.clipboard.writeText('') : undefined).catch(() => {});}, 60000);
+    update({status: 'Sync recovery words copied (clipboard will clear in 60s). Join the same identity only after checking your recovered records.'});
+    if (clipboardClearTimer !== null) clearTimeout(clipboardClearTimer);
+    clipboardClearTimer = setTimeout(() => {clipboardClearTimer = null; void navigator.clipboard.writeText('').catch(() => {});}, 60000);
   }),
 };
 target.replaceChildren();
