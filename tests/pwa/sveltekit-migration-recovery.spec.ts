@@ -1,19 +1,19 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import {test as base, expect, type BrowserContextOptions} from '@playwright/test';
-import {withNativeCocoaOpfsContext} from '../helpers/cocoa-opfs-context.js';
+import {withPersistentWebKitOpfsContext} from '../helpers/cocoa-opfs-context.js';
 import {startKitServer} from './kit-release-server.js';
 
 const test = base.extend({
   context: async ({context, playwright, browserName, launchOptions, headless, contextOptions,
     viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, serviceWorkers}, use, info) => {
-    if (process.platform !== 'darwin' || browserName !== 'webkit') {await use(context); return;}
+    if (!['darwin', 'linux'].includes(process.platform) || browserName !== 'webkit') {await use(context); return;}
     const device: BrowserContextOptions = {
       ...(viewport === undefined ? {} : {viewport}), ...(userAgent === undefined ? {} : {userAgent}),
       ...(deviceScaleFactor === undefined ? {} : {deviceScaleFactor}), ...(isMobile === undefined ? {} : {isMobile}),
       ...(hasTouch === undefined ? {} : {hasTouch}), ...(serviceWorkers === undefined ? {} : {serviceWorkers}),
     };
-    await withNativeCocoaOpfsContext({browserType: playwright.webkit, privateContext: context,
+    await withPersistentWebKitOpfsContext({browserType: playwright.webkit, privateContext: context,
       launchOptions: {...launchOptions, headless}, contextOptions: {...contextOptions, ...device}, info}, use);
   },
 });
@@ -21,9 +21,9 @@ const password = 'SyntheticMigration2!', original = 'SyntheticOriginal1!';
 for (const encrypted of [false, true]) test('shipping recovery preserves ' + (encrypted ? 'passphrase-protected' : 'plain') + ' records through offline resume and cold launch', async ({page, browser, context, browserName}) => {
   test.setTimeout(120000);
   const server = await startKitServer(process.env.GETBASED_KIT_ARTIFACT || path.resolve('dist'));
-  // Cocoa requires its qualified persistent store. Different origins still
-  // have completely separate application storage within that browser.
-  const destination = process.platform === 'darwin' && browserName === 'webkit' ? context : await browser.newContext({serviceWorkers: 'allow'});
+  // Persistent WebKit OPFS uses its qualified persistent store. Different
+  // origins still have completely separate application storage in that browser.
+  const destination = ['darwin', 'linux'].includes(process.platform) && browserName === 'webkit' ? context : await browser.newContext({serviceWorkers: 'allow'});
   try {
     await page.goto(server.origin + '/app/migration.html');
     await expect(page.locator('html[data-migration-ready]')).toBeAttached();
