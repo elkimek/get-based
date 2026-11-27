@@ -1,0 +1,45 @@
+name: Sync upstream updates
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Check daily on user forks. GitHub keeps scheduled workflows disabled on new
+    # forks until the fork owner explicitly clicks "Enable workflows" in Actions.
+    - cron: '0 6 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-updates
+  cancel-in-progress: false
+
+jobs:
+  sync-fork:
+    if: github.repository != 'elkimek/get-based' && github.event.repository.fork == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Sync fork main branch with upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+          output=$(gh api --method POST "/repos/${REPO}/merge-upstream" -f branch=main 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            echo "Fork main branch is up to date with upstream. Connected Vercel/Cloudflare deployments rebuild automatically." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if echo "$output" | grep -qi "workflow"; then
+            echo "Upstream includes a GitHub Actions workflow update that GitHub requires you to accept manually. Open your fork and click **Sync fork → Update branch**." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if echo "$output" | grep -qi "conflict"; then
+            echo "Your fork has custom changes that conflict with upstream. Review and sync manually on GitHub." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          exit "$status"

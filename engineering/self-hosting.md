@@ -6,16 +6,25 @@ own copy requires **no terminal** — deploy your own personal HTTPS instance on
 Vercel or Cloudflare Pages. If you prefer strictly local hosting on your own
 computer, you can also run the prebuilt Node.js package or build from source.
 
-## Option 1: One-click personal deploy on Vercel (recommended, no terminal)
+## Option 1: Personal deploy on Vercel (recommended, no terminal)
 
-1. Open the [Vercel clone link](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based)
-   and sign in with your own GitHub and Vercel accounts.
-2. Create the project and wait about a minute for the build to complete.
-3. Open your permanent HTTPS address (for example `https://my-getbased.vercel.app/app`)
-   on your computer, phone and tablet, and install it as a PWA if desired.
+1. **[Fork getbased on GitHub](https://github.com/elkimek/get-based/fork)** and
+   click **Create fork** (forking — rather than making a detached clone — keeps
+   one-click updates working).
+2. Open **[Vercel New Project](https://vercel.com/new)**, sign in with GitHub,
+   import your `get-based` fork and click **Deploy** (no environment variables
+   required).
+3. Wait a few minutes for the first build to complete, then open your permanent
+   HTTPS address (for example `https://my-getbased.vercel.app/app`) on your
+   computer, phone and tablet, and install it as a PWA if desired.
 
 Why this is the smoothest PWA path:
 - **Zero terminal, zero Node.js, always online** across desktop, iOS and Android.
+- **Easy updates:** open your fork on GitHub and click **Sync fork → Update
+  branch** whenever you want a new release — or enable the included
+  **Sync upstream updates** workflow in your fork's **Actions** tab once for
+  automatic daily updates. Vercel rebuilds to the exact same URL and your app
+  shows the normal in-app update banner.
 - **Independent deployment:** official `getbased` analytics are automatically
   disabled on non-official hosts, and your deployment is never treated as the
   operated hosted origin.
@@ -29,17 +38,19 @@ Why this is the smoothest PWA path:
 
 ## Option 2: Cloudflare Pages or Netlify (no terminal, static PWA)
 
-Connect your fork of `https://github.com/elkimek/get-based` in Cloudflare Pages
-or Netlify with:
-- **Build command:** `node scripts/fetch-catalog.mjs && npm run production:build`
-- **Output directory:** `dist`
-- **Node.js version:** `24` (24.20 or later within version 24)
+1. **[Fork getbased on GitHub](https://github.com/elkimek/get-based/fork)** and
+   click **Create fork**.
+2. Connect your fork in Cloudflare Pages or Netlify with:
+   - **Build command:** `node scripts/fetch-catalog.mjs && npm run production:build`
+   - **Output directory:** `dist`
+   - **Node.js version:** `24` (24.20 or later within version 24)
 
 The production build writes `dist/_headers` (CSP, `Cross-Origin-Opener-Policy:
 same-origin`, `Cross-Origin-Embedder-Policy: credentialless` for OPFS/Sync, and
 cache headers) and `dist/_redirects` (`/app` → `/index.html`) automatically.
 Static-only hosting runs all local tracking, Knowledge Base, encrypted Sync and
-direct-CORS AI providers without `/api/proxy`.
+direct-CORS AI providers without `/api/proxy`. Updating works the same way via
+GitHub **Sync fork** or the opt-in **Sync upstream updates** Actions workflow.
 
 ## Option 3: Local computer (Node.js package or source build)
 

@@ -15,7 +15,7 @@
   export function clearSecrets() {password = ''; confirm = ''; original = ''; importPassword = ''; importOriginal = ''; file = null; consent = false; allowWithoutSyncIdentity = false; if (fileInput) fileInput.value = '';}
 </script>
 <main class="gb:protection:max-w-[760px] gb:protection:mx-auto gb:protection:p-4 gb:protection:text-ink gb:protection:[font-family:inherit]" data-migration-view aria-busy={view.busy}>
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based" target="_blank" rel="noreferrer">Deploy your own copy</a>
+  <a href="https://github.com/elkimek/get-based/fork" target="_blank" rel="noreferrer">Fork to self-host</a>
   · <a href="https://docs.getbased.health/guides/self-hosting" target="_blank" rel="noreferrer">Self-hosting guide</a>
   {#if !view.pending} · <a href="/app">Back to getbased</a>{/if}
   <h1>{view.recoveryOnly ? 'Recover your hosted records' : 'Move your getbased data'}</h1>
