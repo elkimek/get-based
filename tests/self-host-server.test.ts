@@ -4,7 +4,7 @@ import os from 'node:os';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { createSelfHostServer, SELF_HOST_BIND, selfHostPort } from '../server/self-host-server.js';
+import { createSelfHostServer, isAllowedSelfHostHeader, SELF_HOST_BIND, selfHostPort } from '../server/self-host-server.js';
 
 let directory: string;
 let server: http.Server | undefined;
@@ -113,4 +113,35 @@ it('rejects public symlinks at startup and files replaced with symlinks after st
 it('validates a stable configured port rather than selecting a random origin', () => {
   expect(selfHostPort()).toBe(8000); expect(selfHostPort('8181')).toBe(8181);
   for (const value of ['0', '-1', '65536', '8000abc', '8.5', '']) expect(() => selfHostPort(value)).toThrow('GETBASED_SELF_HOST_PORT');
+});
+
+it('rejects untrusted Host headers while allowing loopback and Tailscale Serve hosts', async () => {
+  expect(isAllowedSelfHostHeader('127.0.0.1:8000', 8000)).toBe(true);
+  expect(isAllowedSelfHostHeader('localhost:8000', 8000)).toBe(true);
+  expect(isAllowedSelfHostHeader('[::1]:8000', 8000)).toBe(true);
+  expect(isAllowedSelfHostHeader('my-mac.tail1234.ts.net', 8000)).toBe(true);
+  expect(isAllowedSelfHostHeader('my-mac.tail1234.ts.net:443', 8000)).toBe(true);
+  expect(isAllowedSelfHostHeader('attacker.example:8000', 8000)).toBe(false);
+  expect(isAllowedSelfHostHeader('127.0.0.1:9999', 8000)).toBe(false);
+  expect(isAllowedSelfHostHeader('evil-ts.net:8000', 8000)).toBe(false);
+  expect(isAllowedSelfHostHeader('', 8000)).toBe(false);
+  expect(isAllowedSelfHostHeader(undefined, 8000)).toBe(false);
+  await start();
+  const address = server!.address() as AddressInfo;
+  const rejected = await new Promise<{status: number; text: string}>((resolve, reject) => {
+    const req = http.request({host: '127.0.0.1', port: address.port, path: '/app', headers: {Host: 'attacker.example:' + address.port}}, response => {
+      let text = ''; response.setEncoding('utf8'); response.on('data', chunk => { text += chunk; });
+      response.on('end', () => resolve({status: response.statusCode!, text}));
+    });
+    req.on('error', reject); req.end();
+  });
+  expect(rejected.status).toBe(421);
+  const tailscale = await new Promise<{status: number; text: string}>((resolve, reject) => {
+    const req = http.request({host: '127.0.0.1', port: address.port, path: '/app', headers: {Host: 'my-device.tailnet.ts.net'}}, response => {
+      let text = ''; response.setEncoding('utf8'); response.on('data', chunk => { text += chunk; });
+      response.on('end', () => resolve({status: response.statusCode!, text}));
+    });
+    req.on('error', reject); req.end();
+  });
+  expect(tailscale.status).toBe(200);
 });

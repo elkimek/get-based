@@ -26,6 +26,41 @@ export function selfHostPort(value = '8000'): number {
   return Number(value);
 }
 
+const TAILSCALE_HOST = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*\.ts\.net$/;
+
+export function isAllowedSelfHostHeader(hostHeader: string | undefined, boundPort: number | null): boolean {
+  if (typeof hostHeader !== 'string' || !hostHeader || /[\s/\\@]/.test(hostHeader)) return false;
+  const normalized = hostHeader.toLowerCase();
+  let hostname = normalized;
+  let port: number | null = null;
+  if (normalized.startsWith('[')) {
+    const close = normalized.indexOf(']');
+    if (close < 0) return false;
+    hostname = normalized.slice(0, close + 1);
+    const rest = normalized.slice(close + 1);
+    if (rest) {
+      if (!/^:\d{1,5}$/.test(rest)) return false;
+      port = Number(rest.slice(1));
+    }
+  } else {
+    const colon = normalized.lastIndexOf(':');
+    if (colon >= 0) {
+      const portPart = normalized.slice(colon + 1);
+      if (!/^\d{1,5}$/.test(portPart)) return false;
+      hostname = normalized.slice(0, colon);
+      port = Number(portPart);
+    }
+  }
+  if (port !== null && (port < 1 || port > 65535)) return false;
+  if (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]') {
+    return port === null || boundPort === null || port === boundPort;
+  }
+  if (TAILSCALE_HOST.test(hostname)) {
+    return port === null || port === 443 || (boundPort !== null && port === boundPort);
+  }
+  return false;
+}
+
 /** Serve the assembled public app only. This is not a data or integration API. */
 export async function createSelfHostServer(options: {
   artifactDirectory?: string; deploymentFile?: string;
@@ -59,10 +94,15 @@ export async function createSelfHostServer(options: {
     }
   }
   await inventory();
-  return http.createServer((request, response) => {
+  const server = http.createServer((request, response) => {
     void (async () => {
       for (const [name, value] of Object.entries(headers)) response.setHeader(name, value);
       response.setHeader('Cache-Control', 'no-store');
+      const addr = server.address();
+      const boundPort = addr && typeof addr === 'object' ? addr.port : null;
+      if (!isAllowedSelfHostHeader(request.headers.host, boundPort)) {
+        response.writeHead(421); response.end('Invalid host'); return;
+      }
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         response.setHeader('Allow', 'GET, HEAD'); response.writeHead(405); response.end('Method not allowed'); return;
       }
@@ -85,6 +125,7 @@ export async function createSelfHostServer(options: {
       response.end('Not found');
     });
   });
+  return server;
 }
 
 async function main(): Promise<void> {

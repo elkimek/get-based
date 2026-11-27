@@ -195,7 +195,7 @@ const COMPRESSIBLE_EXTENSIONS = new Set([
 ]);
 
 const APP_ASSETS = new Set([
-  '/index.html', '/manifest.json', '/service-worker.js', '/service-worker-runtime.js',
+  '/index.html', '/app/migration.html', '/manifest.json', '/service-worker.js', '/service-worker-runtime.js',
   '/service-worker-assets.js', '/version.js', '/styles.css', '/themes-extra.css',
   '/icon.svg', '/icon-192.png', '/icon-512.png', '/avatar.svg', '/banner.svg',
   '/dashboard.png', '/anti-tpo-unavailable.png', '/er.svg', '/er-mask.png',
