@@ -4,7 +4,7 @@
 wearables, light exposure, lifestyle context, notes and optional AI analysis into
 one browser-based workspace, with no account required.
 
-**[Live app](https://app.getbased.health)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
+**[Live app](https://app.getbased.health)** · **[Self-host](#self-host)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
 
 ![getbased Dashboard](dashboard.png)
 
@@ -38,9 +38,10 @@ health content is sent; an image import cannot be scrubbed of identifiers.
 Sync and profile sharing encrypt profile payloads in the browser. Compatibility
 relays can read the credentials and provider responses they forward.
 
-On the hosted app, cookieless anonymous pageview and outbound affiliate-click
-counts are enabled by default. They contain no health data and can be disabled
-in **Settings → Privacy**. For a strictly local setup, disable analytics, leave
+On the official hosted app, cookieless anonymous pageview and outbound
+affiliate-click counts are enabled by default. They contain no health data and
+can be disabled in **Settings → Privacy**. Official analytics are disabled
+automatically on all self-hosted deployments. For a strictly local setup, leave
 remote features off and use same-device AI if needed.
 
 Read the [optional integration guide](engineering/optional-integrations.md),
@@ -65,7 +66,62 @@ provider credentials and integration requirements; see the
 [profile-share service](deploy/profile-share/README.md) and
 [environment example](.env.local.example). Do not put credentials in browser source.
 
-## Run locally
+## Self-host
+
+**getbased** is a pure PWA: all health records stay in your own browser storage, and you can run your own private HTTPS copy with **no terminal required**.
+
+### Option 1: Personal deploy on Vercel (recommended, no terminal)
+
+1. **[Fork getbased on GitHub](https://github.com/elkimek/get-based/fork)** → click **Create fork**.
+2. Open **[Vercel New Project](https://vercel.com/new)**, sign in with GitHub, select your `get-based` fork and click **Deploy** (no environment variables required).
+3. Wait a few minutes for the first build to finish — you get your own permanent HTTPS address (for example `https://my-getbased.vercel.app`) that works 24/7 on desktop, iPhone, iPad and Android.
+4. Your deployment runs under your own account with official analytics automatically disabled and a built-in same-origin `/api/proxy`.
+
+### Option 2: Cloudflare Pages (no terminal, static PWA)
+
+1. **[Fork getbased on GitHub](https://github.com/elkimek/get-based/fork)** → click **Create fork**.
+2. Connect your fork in **Cloudflare Pages** with:
+   - **Build command:** `node scripts/fetch-catalog.mjs && npm run production:build`
+   - **Build output directory:** `dist`
+   - **Environment variable:** `NODE_VERSION=24`
+
+The production build emits `dist/_headers` (CSP, COOP/COEP for OPFS/Sync) and `dist/_redirects` (`/app` routing) automatically. Static-only hosting runs all local tracking, Knowledge Base, encrypted Sync and direct-CORS AI providers without a server `/api/proxy`.
+
+### Keeping your deployment up to date (no terminal)
+
+Because you deployed from your own GitHub fork, your URL and browser storage stay permanent across updates:
+
+- **Manual 1-click update:** Open your fork on GitHub and click **Sync fork → Update branch**. Vercel or Cloudflare Pages rebuilds automatically, and your devices show the normal in-app **Update available** banner. *(Tip: click **Watch → Custom → Releases** on this repository to get notified of new versions.)*
+- **Automatic daily updates (opt-in):** Open your fork's **Actions** tab on GitHub and enable the **Sync upstream updates** workflow once. Your fork checks daily for new upstream updates (never overwriting custom edits; if there is a conflict or a workflow change, it stops so you can review it on GitHub), triggers a rebuild automatically, and notifies you inside the app.
+
+### Moving existing data from `app.getbased.health`
+
+1. At the original address, open **Settings → Data → Backup & Restore → Start migration** (or `/app/migration.html`) and download your password-protected migration file. Your original browser data is not modified or erased.
+2. Open `/app/migration.html` at your new self-hosted HTTPS address, check the file summary, and restore it into a fresh browser profile or installed PWA.
+3. Open your self-hosted app, verify your profiles and records (Sync starts off so you can check first), and keep the original browser data until everything is verified.
+
+### Option 3: Local computer (Node.js + optional Tailscale Serve)
+
+If you prefer running strictly on your own computer instead of a personal cloud account, install **Node.js 24.20 or later within version 24**, download `getbased-self-host.tgz` from [Releases](https://github.com/elkimek/get-based/releases), and run:
+
+```bash
+npm install --global ./getbased-self-host.tgz
+getbased
+```
+
+Keep the terminal open (`http://127.0.0.1:8000/app`), or expose it privately to your other devices via [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) (`tailscale serve --bg http://127.0.0.1:8000`). To build from source instead:
+
+```bash
+git clone https://github.com/elkimek/get-based
+cd get-based
+npm ci
+npm run production:build
+npm run self-host
+```
+
+See the [self-hosting guide](engineering/self-hosting.md) and [online installation guide](https://docs.getbased.health/guides/self-hosting) for wearable OAuth callback notes, Sync, backups and optional services.
+
+## Develop locally
 
 Use **Node.js 24** and a modern browser:
 
@@ -97,7 +153,8 @@ npm run production:check   # validate a disposable static build
 ```
 
 Serve `dist/` with the `/app` document rewrite and the existing CSP and MIME
-contracts. Building locally does not publish the app. See
+contracts (`production:build` also emits `dist/_headers` and `dist/_redirects`
+for Cloudflare Pages and Netlify). Building locally does not publish the app. See
 [static distribution and acceptance](engineering/static-sveltekit.md) for hosting,
 PWA update/cache behavior and size-measurement boundaries. The source checkout's
 `index.html` alone is not the assembled production distribution.
@@ -129,7 +186,7 @@ The exhaustive browser and combined-coverage matrix belongs in CI by default.
 - [`css/`](css/) — authored Tailwind utilities/recipes and necessary custom CSS; build scripts preserve public stylesheet URLs.
 - [`tooling/svelte/`](tooling/svelte/) and [`scripts/`](scripts/) — component tooling, static assembly and verification.
 - [`tests/`](tests/) — unit, native-contract and browser tests.
-- [`api/`](api/), [`server/`](server/) and [`bin/`](bin/) — optional integrations and Companion entry points.
+- [`api/`](api/), [`server/`](server/) and [`bin/`](bin/) — optional integrations, the local self-host server and Companion entry points.
 - [Architecture](ARCHITECTURE.md), [generated module map](MODULE_MAP.md), [engineering guidance](engineering/README.md) and [brand guidance](brands/BRAND.md).
 
 Related repositories: [documentation](https://github.com/elkimek/getbased-docs),

@@ -16,6 +16,7 @@ import {planPrecacheFontAssets} from './font-assets.mjs';
 import {qualifyBrowserVendorAssets} from './browser-vendor-contracts.mjs';
 import {applySqliteAssetPrecache} from './sqlite-assets.mjs';
 import {measureSvelteKitResources,enforceSvelteKitResourceBudget} from './sveltekit-resource-budget.mjs';
+import {compactStaticRawModules} from './static-raw-encoding.mjs';
 import {compactLegacyEvoluAssets} from './legacy-evolu-compaction.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,6 +36,31 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     await fs.mkdir(staticRoot, { recursive: true });
     await buildCompanionBundle({ outputRoot: staticRoot });
     await copyStaticPublicMetadata(ROOT,staticRoot);
+    const deployment = JSON.parse(await fs.readFile(path.join(ROOT, 'vercel.json'), 'utf8')) as {
+      routes?: Array<{headers?: Record<string, string>}>;
+    };
+    const staticHeaderNames = [
+      'Content-Security-Policy', 'X-Content-Type-Options', 'X-Frame-Options',
+      'Referrer-Policy', 'Cross-Origin-Opener-Policy', 'Cross-Origin-Embedder-Policy',
+    ] as const;
+    const staticHeaderLines = staticHeaderNames.map(name => {
+      const value = deployment.routes?.map(route => route.headers?.[name]).find(Boolean);
+      if (typeof value !== 'string' || /[\r\n]/.test(value)) throw new Error('Missing static deployment security header: ' + name);
+      return `  ${name}: ${value}`;
+    });
+    await fs.writeFile(path.join(staticRoot, '_headers'), [
+      '/*',
+      ...staticHeaderLines,
+      '',
+      '/_app/immutable/*',
+      '  Cache-Control: public, max-age=31536000, immutable',
+      '',
+      '/getbased-companion.mjs',
+      '  Cache-Control: no-store',
+      '  Content-Type: text/javascript; charset=utf-8',
+      '',
+    ].join('\n'));
+    await fs.writeFile(path.join(staticRoot, '_redirects'), '/app /index.html 200\n/app/ /index.html 200\n');
     const [index, worker, workerAssets] = await Promise.all([
       fs.readFile(path.join(ROOT, 'index.html'), 'utf8'), fs.readFile(path.join(ROOT, 'service-worker.js'), 'utf8'),
       fs.readFile(path.join(ROOT, 'service-worker-assets.js'), 'utf8'),
@@ -55,13 +81,22 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
       await fs.mkdir(path.dirname(destination), { recursive: true });
       if (relative !== 'getbased-companion.mjs') await fs.copyFile(path.join(ROOT, relative), destination);
     }
+    const rawModuleEncoding = await compactStaticRawModules(staticRoot, rawAssets);
     const staticJson = await compactStaticJson(staticRoot, rawUrls);
     const legacyEvoluEncoding = await compactLegacyEvoluAssets(staticRoot);
     await vendors.assertCopiedAssets(staticRoot);
     // Keep all authored/build inputs and public assets in atomic cache identity.
     // Revision is separate provenance; test exclusion needs a complete asset graph.
-    const revision = execFileSync('git', ['--no-optional-locks', 'rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-    const inventory = execFileSync('git', ['--no-optional-locks', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: ROOT, encoding: 'utf8' }).split('\0');
+    // Source-tarball and platform builds (e.g. Vercel/Cloudflare without .git) fall back
+    // to platform commit env vars while keeping the complete filesystem input walk.
+    const envRevision = [process.env.VERCEL_GIT_COMMIT_SHA, process.env.CF_PAGES_COMMIT_SHA, process.env.COMMIT_REF, process.env.GITHUB_SHA]
+      .find((value): value is string => typeof value === 'string' && /^[a-f0-9]{40}$/i.test(value.trim()))?.trim().toLowerCase();
+    let revision = envRevision ?? '0'.repeat(40);
+    let inventory: string[] = [];
+    try {
+      revision = execFileSync('git', ['--no-optional-locks', 'rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      inventory = execFileSync('git', ['--no-optional-locks', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\0');
+    } catch { /* No .git directory in uploaded/archive builds; filesystem walk covers all authored inputs. */ }
     const {fingerprint,sourceFiles,verificationDigest} = await createStaticBuildFingerprint(ROOT,revision,buildTag,inventory);
     for (const file of await filesIn(staticRoot)) fingerprint.update(path.relative(staticRoot, file)).update(await fs.readFile(file));
     const buildId = fingerprint.digest('hex');
@@ -106,7 +141,7 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     const summary = { revision, buildId, sourceInputCount: sourceFiles.length, verificationDigest, framework: 'SvelteKit 3 / Svelte 5', static: true, javascriptFiles: jsFiles.length,
       javascriptDecodedBytes: bytes, appShellResources: shell.resources, appShellDecodedBytes: shell.decodedBytes,
       resourceBudget,
-      retryChunks, staticJson, legacyEvoluEncoding,
+      retryChunks, staticJson, legacyEvoluEncoding, rawModuleEncoding,
       legacyAppShellLimits: previousLimits.maximums,
       legacyLimitDelta: { resources: shell.resources - previousLimits.maximums.resources,
         decodedBytes: shell.decodedBytes - previousLimits.maximums.decodedBytes },

@@ -1,3 +1,4 @@
+import {isHostedRecoveryRequest} from '../lib/hosted-transition.js';
 import { createOAuthTokenForm } from '../lib/oauth-token-form.js';
 import type { OAuthTokenFields, OAuthTokenFormSpec } from '../lib/oauth-token-form.js';
 import { proxyJsonResponse } from '../lib/proxy-response.js';
@@ -65,6 +66,10 @@ export async function handler(req: Request) {
 
   if (req.method !== 'POST') {
     return proxyJsonResponse(req, 405, { error: 'Method not allowed. Use POST with {url, headers, body?, method?}' });
+  }
+
+  if (isHostedRecoveryRequest(req, operatedHost)) {
+    return proxyJsonResponse(req, 410, {error: 'The hosted app is recovery-only. Use your self-hosted app for personal integrations.'});
   }
 
   let rateLimit;

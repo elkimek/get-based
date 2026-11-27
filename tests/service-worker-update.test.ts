@@ -65,6 +65,16 @@ describe('service worker update prompt', () => {
     expect(shouldRegisterServiceWorker({ hostname: 'tauri.localhost', search: '' })).toBe(true);
   });
 
+  it('registers a pinned production build on local self-hosted addresses', () => {
+    const { shouldRegisterServiceWorker } = serviceWorkerUpdate!;
+    for (const hostname of ['localhost', '127.0.0.1', 'getbased.local']) {
+      const location = { hostname, search: '' };
+      expect(shouldRegisterServiceWorker(location, 'a'.repeat(64))).toBe(true);
+      expect(shouldRegisterServiceWorker(location, 'development')).toBe(false);
+      expect(shouldRegisterServiceWorker(location, 'a'.repeat(63))).toBe(false);
+    }
+  });
+
   it('waits for page load and browser idle time before registration', async () => {
     const { scheduleServiceWorkerRegistration } = serviceWorkerUpdate!;
     let onLoad: (() => void) | null = null;

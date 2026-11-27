@@ -1,3 +1,4 @@
+import {verifyStaticRawModule} from '../scripts/static-raw-encoding.mjs';
 import assert from 'node:assert/strict';
 import {STARTUP_DATA_MODULES} from '../scripts/startup-data-chunks.mjs';
 import {createHash} from 'node:crypto';
@@ -120,6 +121,7 @@ beforeAll(async () => {
       assert.equal(createHash('sha256').update(await fs.readFile(supplied)).digest('hex'), encoding[1], 'Exact complete compact encoding: ' + url);
       continue;
     }
+    if (rawAssets.has(url)) {await verifyStaticRawModule(url, canonical.toString(), await fs.readFile(supplied, 'utf8')); continue;}
     let expected = canonical;
     if (url.startsWith('/data/') && url.endsWith('.json')) {
       // Independent character scan, separate from the producer's regex.
@@ -348,9 +350,13 @@ describe('shipping SvelteKit production build', () => {
     const chunk = [...chunks][0]!;
     // Kit loads the actual application through its route boundary; its HTML
     // loader entry alone is not the application startup dependency graph.
-    const main = [...sourceMaps].filter(([, sources]) => sources.some(source => source.endsWith('/js/main.js'))).map(([url]) => url);
-    expect(main, 'One real application main owner').toHaveLength(1);
-    expect(closure(entryPoints, true).has(main[0]!), 'Kit reaches the real application').toBe(true);
+    const gate = [...sourceMaps].filter(([, sources]) => sources.some(source => source.endsWith('/js/main.js'))).map(([url]) => url);
+    const main = [...sourceMaps].filter(([, sources]) => sources.some(source => source.endsWith('/js/main-runtime.js'))).map(([url]) => url);
+    expect(gate, 'One pre-initialization application gate').toHaveLength(1);
+    expect(main, 'One real application startup owner').toHaveLength(1);
+    expect(closure(entryPoints, true).has(gate[0]!), 'Kit reaches the startup gate').toBe(true);
+    expect(closure(gate, true).has(main[0]!), 'The gate reaches the real application').toBe(true);
+    expect(closure(gate, false).has(main[0]!), 'Recovery is chosen before app initialization').toBe(false);
     expect(closure(main, false).has(chunk), 'Real application startup statically reaches the data group').toBe(true);
     const actual = sourceMaps.get(chunk)!.map(source => source.replace(/^.*?\/(js|shared)\//, '$1/'));
     expect(actual.sort()).toEqual([...owners].sort());
@@ -458,6 +464,16 @@ describe('shipping SvelteKit production build', () => {
       // every byte under the full-suite V8 profiler.
       assert.deepEqual(await fs.readFile(path.join(outputRoot, url.slice(1))), await fs.readFile(url.slice(1)), url);
     }
+  });
+
+  it('emits static hosting headers and /app redirects for Cloudflare Pages and Netlify without official onion pointers', async () => {
+    const headers = await fs.readFile(path.join(outputRoot, '_headers'), 'utf8');
+    const redirects = await fs.readFile(path.join(outputRoot, '_redirects'), 'utf8');
+    expect(headers).toContain('Cross-Origin-Opener-Policy: same-origin');
+    expect(headers).toContain('Cross-Origin-Embedder-Policy: credentialless');
+    expect(headers).toContain('Content-Security-Policy:');
+    expect(headers).not.toContain('Onion-Location');
+    expect(redirects).toContain('/app /index.html 200');
   });
 
   it('keeps the cold Latin body font from repainting the mobile LCP text', async () => {

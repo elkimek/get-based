@@ -51,6 +51,7 @@ function handleStartupSequenceError(error: unknown) {
 
 
 export function startApp() {
+  if (localStorage.getItem('labcharts-migration-pending')) { location.replace('/app/migration.html'); return; }
   if (appStarted) return;
   appStarted = true;
 

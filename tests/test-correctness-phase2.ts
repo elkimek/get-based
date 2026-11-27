@@ -327,7 +327,8 @@ assert('legal gate runs before changelog and resumes changelog only after accept
   && startupUiSrc.indexOf('const legalGateShown = maybeShowLegalConsentGate()') < startupUiSrc.indexOf('maybeShowChangelog()')
   && startupUiSrc.includes("startupRuntime().addEventListener('legal-consent-accepted'")
   && startupUiSrc.includes('return legalGateShown')
-  && startupUiSrc.includes("startupRuntime().addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true })")
+  && /const showReleaseNotices = \(\) => \{\s*const notice = showHostedTransitionNotice\(\);\s*if \(notice\)\s*void notice\.then\(\(\) => maybeShowChangelog\(\)\);\s*else\s*maybeShowChangelog\(\);\s*\};/.test(startupUiSrc)
+  && startupUiSrc.includes("startupRuntime().addEventListener('legal-consent-accepted', showReleaseNotices, { once: true })")
   && legalConsentSrc.includes("from './utils-runtime.js'")
   && legalConsentSrc.includes("dispatchUtilsRuntimeEvent('legal-consent-accepted')"));
 assert('legal gate is prerendered and interactive before the main module',

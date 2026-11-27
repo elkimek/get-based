@@ -127,6 +127,21 @@ test('static JSON import and downloaded backup restore preserve canonical record
     expect(backedUp).toBeDefined();
     expect(JSON.parse(backedUp!.keys.imported!)).toEqual(imported);
     await info.attach('synthetic-import-backup', { body: backupBytes, contentType: 'application/json' });
+    await page.evaluate(async snapshot => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('labcharts-backups', 2);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction('snapshots', 'readwrite');
+          tx.objectStore('snapshots').put({ id: 101, createdAt: snapshot.createdAt, encrypted: snapshot.encrypted, snapshot });
+          tx.oncomplete = () => resolve();
+          tx.onabort = () => reject(tx.error);
+        });
+      } finally { db.close(); }
+    }, backup);
     await page.locator('#settings-modal [data-settings-action="close"]').click();
 
     // Change the data through the same public import before restoring the
@@ -142,10 +157,21 @@ test('static JSON import and downloaded backup restore preserve canonical record
     expect(changed.contextNotes).toBe('Post-backup context that must be replaced.');
     expect(changed).not.toEqual(imported);
 
-    await openBackup(page); await chooseRestore(page, backupBytes);
+    await openBackup(page);
+    const lastManual = await page.evaluate(() => localStorage.getItem('labcharts-last-manual-backup'));
+    await page.locator('#backup-snapshots-toggle').click();
+    const snapshotDownloading = page.waitForEvent('download');
+    await page.locator('[data-crypto-action="export-auto-backup"][data-crypto-snapshot-id="101"]').click();
+    const snapshotDownload = await snapshotDownloading;
+    const snapshotBytes = await fs.readFile((await snapshotDownload.path())!);
+    expect(snapshotDownload.suggestedFilename()).toMatch(/^getbased-backup-snapshot-/);
+    expect(snapshotBytes).toEqual(backupBytes);
+    expect(await readProfile(page)).toEqual(changed);
+    expect(await page.evaluate(() => localStorage.getItem('labcharts-last-manual-backup'))).toBe(lastManual);
+    await chooseRestore(page, snapshotBytes);
     await page.locator('#confirm-cancel').click();
     expect(await readProfile(page)).toEqual(changed);
-    await chooseRestore(page, backupBytes);
+    await chooseRestore(page, snapshotBytes);
     const reloaded = page.waitForEvent('framenavigated', { predicate: frame => frame === page.mainFrame() });
     await page.locator('#confirm-ok').click();
     await reloaded; await ready(page);

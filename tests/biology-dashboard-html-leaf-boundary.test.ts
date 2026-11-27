@@ -248,6 +248,7 @@ interface GraphChunk {
   file: string;
   facadeModuleId?: string | null;
   imports: string[];
+  dynamicImports?: string[];
   modules: GraphModule[];
 }
 interface GraphReceipt extends ActualRetryGraph { chunks: GraphChunk[] }
@@ -255,8 +256,12 @@ interface GraphReceipt extends ActualRetryGraph { chunks: GraphChunk[] }
 function requireOptimizedGraph(graph: GraphReceipt, kind: 'native' | 'kit') {
   const byName = new Map(graph.chunks.map(chunk => [chunk.file, chunk]));
   expect(byName.size).toBe(graph.chunks.length);
-  const main = graph.chunks.filter(chunk => chunk.facadeModuleId?.endsWith('/js/main.js'));
+  const gate = graph.chunks.filter(chunk => chunk.facadeModuleId?.endsWith('/js/main.js'));
+  expect(gate).toHaveLength(1);
+  const main = graph.chunks.filter(chunk => chunk.facadeModuleId?.endsWith('/js/main-runtime.js'));
   expect(main).toHaveLength(1);
+  expect(gate[0]!.file).not.toBe(main[0]!.file);
+  expect(gate[0]!.dynamicImports).toContain(main[0]!.file);
   const seen = new Set<string>();
   function visit(file: string) {
     if (seen.has(file)) return;
