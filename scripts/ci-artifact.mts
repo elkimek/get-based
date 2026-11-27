@@ -122,7 +122,7 @@ async function currentSources(root: string, artifact: string, manifest: Pick<Art
     const supplied = await regular(path.join(artifact, url.slice(1))), canonical = await regular(path.join(root, url.slice(1)));
     if (url.startsWith('/vendor/evolu/') && url.endsWith('.js')
       && await verifyLegacyEvoluAsset(url.slice(1), canonical.toString(), supplied.toString())) continue;
-    if (sourceModuleURL(url)) {
+    if (url.endsWith('.js') || url.endsWith('.mjs')) {
       rawModules ??= await productionRawModuleAssets();
       if (rawModules.has(url)) {await verifyStaticRawModule(url, canonical.toString(), supplied.toString()); continue;}
     }
