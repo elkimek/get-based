@@ -284,6 +284,7 @@ test('automated one-click tab handoff transfers encrypted data across origins wi
 
   const popupPromise = page.waitForEvent('popup');
   await page.locator('#migration-destination').fill(targetOrigin);
+  await page.locator('[data-handoff-confirm]').check();
   await page.getByRole('button', {name: 'Move my data automatically →', exact: true}).click();
 
   const target = await popupPromise;

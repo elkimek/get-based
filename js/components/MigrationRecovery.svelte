@@ -2,10 +2,11 @@
   import { untrack } from 'svelte';
   import type { MigrationViewState, MigrationActions } from '../migration-view.js';
   import { PROTECTION_PRIMARY, PROTECTION_SECONDARY, PROTECTION_ACTIONS } from '../settings-protection-classes.js';
-  import { VERCEL_DEPLOY_URL, CLOUDFLARE_DEPLOY_URL } from '../migration-handoff.js';
+  import { VERCEL_DEPLOY_URL, CLOUDFLARE_DEPLOY_URL, normalizeDestinationOrigin } from '../migration-handoff.js';
   let {initial, actions}: {initial: MigrationViewState; actions: MigrationActions} = $props();
   let view = $state(untrack(() => initial));
   let destinationUrl = $state('');
+  let confirmDestinationOrigin = $state('');
   let autoOriginal = $state('');
   let password = $state(''), confirm = $state(''), original = $state(''), importPassword = $state(''), importOriginal = $state('');
   let showExportPassword = $state(false), showImportPassword = $state(false);
@@ -15,13 +16,18 @@
   let allowWithoutSyncIdentity = $state(false);
   const passwordReady = $derived(password.length >= 12);
   const passwordMismatch = $derived(confirm.length > 0 && password !== confirm);
+  const destinationCheck = $derived.by(() => {
+    if (!destinationUrl.trim()) return {origin: '', error: ''};
+    try { return {origin: normalizeDestinationOrigin(destinationUrl), error: ''}; }
+    catch (error) { return {origin: '', error: error instanceof Error ? error.message : 'Enter a valid self-hosted URL.'}; }
+  });
   const canPrepare = $derived(!view.busy && passwordReady && password === confirm && (!view.recoveryOnly || !view.legacySyncBlocked || allowWithoutSyncIdentity));
-  const canAutoTransfer = $derived(!view.busy && destinationUrl.trim().length > 0 && (!view.sourceEncrypted || autoOriginal.length > 0) && (!view.recoveryOnly || !view.legacySyncBlocked || allowWithoutSyncIdentity));
+  const canAutoTransfer = $derived(!view.busy && destinationCheck.origin.length > 0 && confirmDestinationOrigin === destinationCheck.origin && (!view.sourceEncrypted || autoOriginal.length > 0) && (!view.recoveryOnly || !view.legacySyncBlocked || allowWithoutSyncIdentity));
   const isIncomingHandoff = $derived(view.handoffMode === 'receiving' || view.handoffMode === 'ready');
   export function update(next: MigrationViewState) {
     view = next;
   }
-  export function clearSecrets() {password = ''; confirm = ''; original = ''; autoOriginal = ''; importPassword = ''; importOriginal = ''; showExportPassword = false; showImportPassword = false; file = null; consent = false; allowWithoutSyncIdentity = false; if (fileInput) fileInput.value = '';}
+  export function clearSecrets() {password = ''; confirm = ''; original = ''; autoOriginal = ''; confirmDestinationOrigin = ''; importPassword = ''; importOriginal = ''; showExportPassword = false; showImportPassword = false; file = null; consent = false; allowWithoutSyncIdentity = false; if (fileInput) fileInput.value = '';}
 </script>
 <header class="mig-topbar">
   <div class="mig-topbar-inner">
@@ -164,8 +170,16 @@
               <label class="mig-label" for="migration-destination">Your new getbased URL</label>
               <input class="mig-input" id="migration-destination" type="url" inputmode="url" placeholder="https://my-getbased.vercel.app" bind:value={destinationUrl} disabled={view.busy}/>
             </div>
-            <button type="button" class={`${PROTECTION_PRIMARY} mig-transfer-cta`} disabled={!canAutoTransfer} onclick={async () => {try {await actions.transfer(destinationUrl, autoOriginal, {allowMissingLegacySync: allowWithoutSyncIdentity});} finally {autoOriginal = '';}}}>Move my data automatically →</button>
+            <button type="button" class={`${PROTECTION_PRIMARY} mig-transfer-cta`} disabled={!canAutoTransfer} onclick={async () => {try {await actions.transfer(destinationCheck.origin, autoOriginal, {allowMissingLegacySync: allowWithoutSyncIdentity});} finally {autoOriginal = ''; confirmDestinationOrigin = '';}}}>Move my data automatically →</button>
           </div>
+          {#if destinationCheck.error}
+            <p class="mig-hint mig-hint-warn" role="alert">{destinationCheck.error}</p>
+          {:else if destinationCheck.origin}
+            <label class="mig-check">
+              <input type="checkbox" data-handoff-confirm checked={confirmDestinationOrigin === destinationCheck.origin} disabled={view.busy} onchange={event => {confirmDestinationOrigin = event.currentTarget.checked ? destinationCheck.origin : '';}}/>
+              <span>I deployed <strong>{destinationCheck.origin}</strong> myself and want to send all my getbased records to this address.</span>
+            </label>
+          {/if}
           {#if view.recoveryOnly && view.legacySyncBlocked}
             <label class="mig-check"><input type="checkbox" bind:checked={allowWithoutSyncIdentity} disabled={view.busy}/> <span>Transfer all local health records without legacy Sync recovery words (you can set up Sync again after restoring).</span></label>
           {/if}

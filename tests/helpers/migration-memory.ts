@@ -21,6 +21,9 @@ export class MigrationMemoryDirectory {
     if (!(entry instanceof MigrationMemoryFile)) throw new DOMException('Missing file', 'NotFoundError');
     return entry;
   }
+  async removeEntry(name: string) {
+    if (!this.files.delete(name)) throw new DOMException('Missing entry', 'NotFoundError');
+  }
 }
 export class MigrationMemoryFile {
   kind = 'file' as const;

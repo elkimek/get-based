@@ -1,6 +1,6 @@
 import {getHostedTransition} from '../shared/hosted-transition.js';
-import { existingMigrationDatabases, readMigrationDatabase, writeMigrationDatabase, MIGRATION_DATABASE, MIGRATION_PENDING_KEY } from './migration-database.js';
-import { readMigrationFiles, writeMigrationFiles } from './migration-files.js';
+import { deleteMigrationDatabase, existingMigrationDatabases, readMigrationDatabase, writeMigrationDatabase, MIGRATION_DATABASE, MIGRATION_PENDING_KEY } from './migration-database.js';
+import { clearMigrationFiles, readMigrationFiles, writeMigrationFiles } from './migration-files.js';
 import { inspectMigrationArchive, readMigrationLocal, validateMigrationArchive } from './migration-archive.js';
 import { prepareMigrationDestination, sourceMigrationKey, makeMigrationPortable } from './migration-portable.js';
 import {migrationDigest} from './migration-digest.js';
@@ -130,7 +130,17 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
         if (pending && fence !== id) throw new Error('Recovery metadata is missing. Keep this file and recover into a fresh installation. Existing destination records were not changed.');
       }
       if (!pending || replacingInterruptedHandoff) {
-        if (!replacingInterruptedHandoff) await requireEmptyMigrationDestination();
+        if (replacingInterruptedHandoff) {
+          for (const key of Object.keys(readMigrationLocal())) {
+            if (key !== MIGRATION_PENDING_KEY) localStorage.removeItem(key);
+          }
+          localStorage.removeItem('labcharts-migration-completed');
+          localStorage.removeItem('labcharts-migration-reviewed');
+          for (const name of await existingMigrationDatabases()) await deleteMigrationDatabase(name);
+          await clearMigrationFiles();
+        } else {
+          await requireEmptyMigrationDestination();
+        }
         // Fence normal startup before retaining the encrypted file. If saving
         // the file fails, the user can reselect it without allowing app edits.
         localStorage.setItem(MIGRATION_PENDING_KEY, id);
