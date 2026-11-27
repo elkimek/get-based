@@ -18,6 +18,13 @@ activation and cache protections. The small browser fixture is a protocol regres
 not whole-application release acceptance. Pre-protocol pages still require closing
 all app windows because their old script cannot handle the new worker messages.
 
+On first launch without a usable worker, the application can make one new
+registration attempt after rejection or a failed install. Failed precache
+responses release their bodies before retrying the resource. The deployed
+worker must verify the release and complete precaching before it can control
+the original document. [Static browser cases](../tests/pwa/sveltekit.spec.ts)
+also require a closed-client launch with the server offline after recovery.
+
 Same-build worker reinstall attempts must leave the active build cache intact
 until deployment metadata, required resources and producer proofs pass. Failed
 checks remove only the candidate; invalid existing producer proofs still reject
@@ -151,13 +158,13 @@ reuses those full gates and adds separate real-model and container runtime check
 
 The [native Knowledge Base acceptance](../tests/pwa/sveltekit-knowledge-base.spec.ts)
 requires real Worker transport and OPFS persistence on Chromium, Firefox, desktop
-WebKit and mobile WebKit. Its WebKit cases run on macOS Cocoa because the pinned
-Linux WPE engine does not implement the required synchronous file-handle backend.
-The Cocoa cases use isolated persistent profiles because the pinned private data
-store exposes OPFS but cannot initialize its filesystem. A required native Worker
-control verifies exact write, flush and read bytes across a complete browser
-restart before the unchanged application acceptance runs; private-store behavior
-is recorded only as a diagnostic. Standard UI shards for both shipping WebKit
+WebKit and mobile WebKit. Its shipping WebKit cases run on macOS Cocoa. Local
+Linux WebKit diagnostics use isolated persistent profiles because the pinned
+private stores can expose OPFS and fail to initialize the filesystem. A native
+Worker must write, flush and recover the exact bytes across a complete browser
+restart before the application acceptance runs. The Linux WPE diagnostic also
+restarts the browser from that profile after closing the last tab, while the
+application server stays stopped. Standard UI shards for both shipping WebKit
 projects also run on Cocoa; Chromium and Firefox shipping acceptance and all native
 suites retain their Linux placement. The planner preserves the same global case
 inventory and disjoint standard/OPFS partitions; the full aggregate rejects
@@ -218,7 +225,9 @@ static-PWA coverage in
 [`sveltekit-chat-onboarding-optional.spec.ts`](../tests/pwa/sveltekit-chat-onboarding-optional.spec.ts).
 [`context-notes-ownership.test.ts`](../tests/context-notes-ownership.test.ts)
 checks captured-profile writes, commit confirmation, ordered revisions, retry drafts,
-retired controls, missing baselines and failed reads. The actual-storage headless
+retired controls, missing baselines and failed reads. A retry binds to the
+button state the user received, even when the click itself hydrates the view.
+The actual-storage headless
 [`context-notes-owned.spec.ts`](../tests/playwright/context-notes-owned.spec.ts)
 checks profile changes, simultaneous authored catalogs, unique labels, textarea
 identity/focus preservation during hydration and updates, rebuilds, actual IndexedDB write
@@ -314,7 +323,10 @@ queued work across profile/root/epoch changes and shared daily deduplication.
 checks original geometry, six themes, two widths, foreground contrast, focus and
 coarse targets. [`sveltekit-light-review-ai.spec.ts`](../tests/pwa/sveltekit-light-review-ai.spec.ts)
 opens actual cached reviews offline and checks full canonical profile equality
-over two cold launches. These focused checks do not establish whole-app acceptance.
+over two cold launches. [`sveltekit-light-chat-editing.spec.ts`](../tests/pwa/sveltekit-light-chat-editing.spec.ts)
+verifies that a background daily verdict updates its own surface during a native
+pointer gesture and the same click opens the assessment after offline relaunch.
+These focused checks do not establish whole-app acceptance.
 [`views-router-refresh.test.ts`](../tests/views-router-refresh.test.ts) checks
 that background same-route refreshes preserve an open mobile menu while explicit
 navigation and route changes still close it. The static persistence check also
@@ -636,7 +648,7 @@ Preserve independently failing assertions for these workflows:
 | Feedback draft | Preserve literal form markup, native defaults and validation, public header/mobile entry, type routing, complete long-report fallback and clipboard-denial selection; keep drafts in the current document, clear them on profile switch and cold launch, submit before SvelteKit navigation, and preserve unrelated stored profiles through offline first use and two cold launches | [Frozen presentation contracts](../tests/feedback-presentation.test.ts), [Notice rule restoration](../tests/feedback-native-rule.test.ts), [Native submit ownership](../tests/feedback-submit-delegation.test.ts), [Public browser workflows](../tests/playwright/feedback-flow.spec.ts), [Static offline Feedback](../tests/pwa/sveltekit-feedback.spec.ts) |
 | Agent chat and proposals | Exercise the actual application and tools; keep retries bounded; retain uploads and journals; do not replay an uncertain mutation | [Agent workflow](../tests/playwright/agent-chat-workflow.spec.ts), [backend recovery](../tests/agent-chat-backend.test.ts), [draft persistence](../tests/agent-draft-persistence.test.ts) |
 | Conversation navigation | Preserve pinned/project/date grouping, sorting, rename/delete/move semantics, encrypted message search, result limits and shifted-prefix jumps; reject late profile/view/query/read/frame replies; keep keyboard menus, pointer cancellation, mobile return-to-chat, scoped theme contrast and cached cold-launch records | [Owned navigation](../tests/chat-thread-navigation.test.ts), [search ownership](../tests/chat-thread-search-owned.test.ts), [original thread workflows](../tests/playwright/chat-threads-dom.spec.ts), [themes/layout/accessibility](../tests/playwright/chat-thread-navigation-owned.spec.ts), [static PWA persistence](../tests/pwa/sveltekit-chat-navigation.spec.ts) |
-| Chat shell and composer | Keep one shared shell, hydrate without replacing focused controls or live hosts, retire replaced input owners and decrypted draft replies, preserve growing input, IME, encrypted local drafts, resize/keyboard/mobile geometry, drag cancellation at capture/blur/closure/fullscreen/rail/mobile boundaries, inert closed rails with focus return on dismissal, and reopen during generation | [Owned shell](../tests/chat-shell-owned.test.ts), [owned layout](../tests/chat-layout-owned.test.ts), [composer](../tests/playwright/chat-composer.spec.ts), [resize](../tests/playwright/chat-layout-resize.spec.ts), [live reopen](../tests/playwright/chat-reopen-streaming.spec.ts), [static composer](../tests/pwa/sveltekit-chat-shell.spec.ts), [static rail keyboard and persisted layout](../tests/pwa/sveltekit-chat-layout.spec.ts) |
+| Chat shell and composer | Keep one shared shell, hydrate without replacing focused controls or live hosts, enable editing after the conversation and its draft are ready, retire replaced input owners and decrypted draft replies, preserve growing input, IME, encrypted local drafts, resize/keyboard/mobile geometry, drag cancellation at capture/blur/closure/fullscreen/rail/mobile boundaries, inert closed rails with focus return on dismissal, and reopen during generation | [Owned shell](../tests/chat-shell-owned.test.ts), [owned layout](../tests/chat-layout-owned.test.ts), [composer](../tests/playwright/chat-composer.spec.ts), [resize](../tests/playwright/chat-layout-resize.spec.ts), [live reopen](../tests/playwright/chat-reopen-streaming.spec.ts), [static composer](../tests/pwa/sveltekit-chat-shell.spec.ts), [static rail keyboard and persisted layout](../tests/pwa/sveltekit-chat-layout.spec.ts) |
 | Chat profile onboarding | Preserve basic/optional fields, units, same-day weight replacement, latitude and connected/disconnected/paused continuation; capture accepted fields before writes, retain per-module callback isolation, serialize profile saves and reject retired profile/thread/history/data/root controls; retain draft/focus/disclosure and recover failed saves; verify themes, keyboard, touch targets, no narrow overflow and static offline first use/cold launch with IndexedDB-backed export | [Save ownership](../tests/chat-profile-onboarding-controller.test.ts), [existing helpers](../tests/playwright/chat-onboarding-browser-coverage.spec.ts), [headless form](../tests/playwright/chat-onboarding-profile-owned.spec.ts), [original funnels](../tests/playwright/chat-empty-state.spec.ts), [static offline profile](../tests/pwa/sveltekit-chat-onboarding-profile.spec.ts) |
 | Light page presentation | Preserve session/action availability, live target IDs, rolling-week counts, UV notices, separate vitamin D quantities, methods/source disclosure, literal fields and delegate contracts; check themes, narrow widths, keyboard, touch targets, offline actual-route session commits, cold launches, unrelated profile equality and backup | [Presentation contracts](../tests/light-page-presentation.test.ts), [Delayed Chat cancellation](../tests/dashboard-onboarding-route.test.ts), [Existing browser contracts](../tests/playwright/light-page-view.spec.ts), [Authored acceptance](../tests/playwright/light-page-owned.spec.ts), [Static offline route](../tests/pwa/sveltekit-light-page.spec.ts) |
 | Light current conditions | Preserve full/compact provider classifications, UV consistency warnings, ozone distinction, attribution, source/freshness and chronological sun events; retain coordinate-keyed fetch/cache bypass and raw inspection; check escaped payloads, six themes, narrow/wide layouts, AA foregrounds, named keyboard scroll regions, tooltip focus, coarse targets and reduced motion; verify real static offline first use, refresh/inspection, two cold launches and complete stored-profile equality | [Projection and escaped markup](../tests/light-conditions-presentation.test.ts), [Existing provider/cache contracts](../tests/playwright/light-conditions-now-browser-coverage.spec.ts), [Authored keyboard/themes](../tests/playwright/light-conditions-owned.spec.ts), [Static offline conditions](../tests/pwa/sveltekit-light-conditions.spec.ts) |
@@ -673,7 +685,7 @@ Preserve independently failing assertions for these workflows:
 | Security and Backup settings | Preserve encryption and backup explanations together; keep snapshot IDs and folder permissions; use keyboard-accessible restore controls; reject stale snapshot reads after remount; retain offline first use and encrypted cold-launch unlock | [Owned components](../tests/settings-protection.test.ts), [folder lifecycle](../tests/backup-folder-presentation.test.ts), [browser backup paths](../tests/playwright/backup-browser-coverage.spec.ts), [static PWA](../tests/pwa/sveltekit-protection.spec.ts) |
 | PPQ accounts and funding | Preserve anonymous recovery credentials before encrypted storage, catalog or consent failures; reject stale account, invoice, QR and balance replies; keep keys and payment text out of nonsecret snapshots and clipboard attributes; enforce every payment-method minimum; preserve funded-account removal confirmation, private-model entitlement, cold launch and update consent | [Account lifecycle](../tests/ppq-account-controller.test.ts), [funding lifecycle](../tests/ppq-topup-controller.test.ts), [view ownership](../tests/ppq-settings-service-owner.test.ts), [private catalog](../tests/ppq-catalog-owner.test.ts), [owned browser UI](../tests/playwright/ppq-settings-owned.spec.ts), [static PWA](../tests/pwa/sveltekit-ppq-settings.spec.ts) |
 | Wallet funding ownership | Preserve private invoice and token ports, original-mint quote identity, minimum whole-sat amounts, single-flight requests, paid/terminal QR guards, close/reopen recovery, cross-tab leadership, fee disclosures and encrypted cold launch; closing presentation must not stop wallet-wide reconciliation | [Owned component](../tests/wallet-funding-component.test.ts), [controller](../tests/wallet-funding-controller.test.ts), [invoice/recovery lifecycle](../tests/wallet-funding-service.test.ts), [background monitor](../tests/routstr-funding-monitor.test.ts), [theme/layout browser UI](../tests/playwright/wallet-funding-owned.spec.ts), [static PWA](../tests/pwa/sveltekit-wallet-funding.spec.ts) |
-| CLI Settings ownership | Preserve setup/login/testing, agent and target-isolated model choices, direct/paused/outdated/linked/embedded companion management, bounded frame messages and credential-free UI; reject obsolete connection publication and late responses while allowing accepted writes and host actions to finish after close | [Owned panel](../tests/cli-agent-settings-component.test.ts), [action controller](../tests/cli-agent-settings-controller.test.ts), [connection publication](../tests/agent-connection-owner.test.ts), [management branches](../tests/cli-companion-ui.test.ts), [headless theme/layout controls](../tests/playwright/cli-agent-settings-owned.spec.ts), [static controls and cold launch](../tests/pwa/sveltekit-cli-agent-settings.spec.ts), [encrypted model choices](../tests/pwa/sveltekit-cli-agent-models.spec.ts) |
+| CLI Settings ownership | Preserve setup/login/testing, agent and target-isolated model choices, direct/paused/outdated/linked/embedded companion management, bounded frame messages and credential-free UI; keep background catalogs on request-scoped credentials, reject obsolete connection publication and late responses, and let accepted writes and host actions finish after close | [Owned panel](../tests/cli-agent-settings-component.test.ts), [action controller](../tests/cli-agent-settings-controller.test.ts), [connection publication](../tests/agent-connection-owner.test.ts), [overlapping catalog and selection](../tests/playwright/cli-agent-capabilities.spec.ts), [management branches](../tests/cli-companion-ui.test.ts), [headless theme/layout controls](../tests/playwright/cli-agent-settings-owned.spec.ts), [static controls and cold launch](../tests/pwa/sveltekit-cli-agent-settings.spec.ts), [encrypted model choices](../tests/pwa/sveltekit-cli-agent-models.spec.ts) |
 | Import Benchmarks ownership | Preserve report/protocol identity, raw versus corrected scoring, missing-value and percentage-point metrics, bounded difference review, locked answer keys and health records; accepted runs survive closure while obsolete confirmation/progress callbacks cannot update another view; native and static cached cold launch retain device-local history | [Owned runtime](../tests/settings-import-benchmark-controller-runtime.test.ts), [existing workflows and calculation parity](../tests/playwright/import-benchmarks.spec.ts), [headless theme/layout accessibility](../tests/playwright/import-benchmarks-owned.spec.ts), [static PWA history and health-data persistence](../tests/pwa/sveltekit-import-benchmarks.spec.ts) |
 | Routstr shared actions and status | Preserve synchronous public controls, escaped attributes, first-click single dispatch and button identity through hydration; retain menu keyboard/outside behavior and reject removed/replaced/disposed owners; preserve node/mint/refund financial assertions, status typography, complete offline graph and both generated artifacts in coverage | [Action ownership](../tests/routstr-actions-component.test.ts), [status ownership](../tests/provider-status-component.test.ts), [build accounting](../tests/routstr-actions-build.test.ts), [real browser compatibility](../tests/playwright/routstr-actions-owned.spec.ts), [wallet and refund regression](../tests/playwright/cashu-wallet-browser-coverage.spec.ts), [static recovery](../tests/pwa/sveltekit-routstr-shell.spec.ts), [static node flow](../tests/pwa/sveltekit-wallet-node.spec.ts) |
 | Routstr session connection | Keep draft tokens and session receipts behind private ports; preserve consent, original-node encrypted saves/removal, journal-before-payment, early recovery receipt, single-flight and 60-second clipboard clearing; reject stale views/accounts/drafts and malformed conversion keys without redeeming again; retain encrypted sessions and uncertain payment journals through cached cold launch | [Account ownership](../tests/routstr-account-controller.test.ts), [payment boundaries](../tests/routstr-security.test.ts), [original provider callbacks](../tests/playwright/provider-coverage-batch.spec.ts), [headless theme/layout accessibility](../tests/playwright/routstr-account-owned.spec.ts), [static account and recovery](../tests/pwa/sveltekit-routstr-account.spec.ts) |
@@ -697,8 +709,23 @@ TypeScript sources, without counting both as separate modules. Function identity
 uses source ranges rather than names. Unmapped collector ranges remain visible;
 do not assign them through broad overlap to improve a result.
 
-Svelte components are inventoried once at their emitted native-browser URL.
-Their generated source maps identify bundled third-party framework functions;
+Coverage inventories Svelte compatibility entries and their emitted implementations.
+The compiler shares compatibility code within each directory and render mode.
+Existing client and HTML entry URLs retain their exports. The native startup
+entries and raw worker renderers retain their standalone request boundaries.
+The native precache follows the actual shared dependencies of its existing
+entries. The compiler transport seals the generated inventory, chunk bytes and
+maps, and the coverage reader includes every registered chunk. A forwarding
+entry receives an empty map only when its program consists of imports and
+exports within the emitted graph. The native dashboard test mounts the widget
+stack and hydrates the page, preserving existing DOM nodes through hydration
+and removing them on disposal.
+The native Chromium collector records the current document before Playwright
+navigates or reloads. V8 may release an earlier document before the final
+capture. Retain each document's emitted source fingerprint and function ranges
+in the same case receipt. Named worker observations use the exact script bytes
+from the worker's debugger target.
+Generated source maps identify bundled third-party framework functions;
 only positively mapped library functions are separated from the first-party
 function denominator. Unit collection uses a public native V8 provider and keeps these artifacts in
 the same compiled coordinate space as browser collection. Its explicit
@@ -706,6 +733,10 @@ the same compiled coordinate space as browser collection. Its explicit
 must retain its own native entry count, exact canonical source mapping, complete
 public transform witness and collected-versus-finished test membership. The
 consumer independently rederives these identities from the retained raw capture.
+The full CI reporter folds each browser receipt after checking its declared
+digest and replays the native unit witness once in the same process. It writes
+the qualification record and enforces the denominator and floors only after
+all expected evidence passes these checks.
 Large inspector source-map URLs are stored once as authenticated, content-addressed
 JSON strings in the versioned capture transport. Readers restore their exact
 logical metadata before validation and replay, accept earlier inline captures,
@@ -742,7 +773,10 @@ as well as [installation, version and offline failure paths](../tests/service-wo
 and [proved retry-chunk behavior](../tests/service-worker-retry-aliases.test.ts).
 Early activation requires direct identity replies from all live documents; missing
 replies must defer activation without reloading an old document. Verify both that
-legacy close-and-reopen boundary and normal identified-tab updates. Stylesheet
+legacy close-and-reopen boundary and normal identified-tab updates. A rejected
+first registration receives one fresh attempt while the app is uncontrolled.
+The static lifecycle regression checks that the recovered worker caches its
+shell and owns a new offline launch. Stylesheet
 ownership tests must reject unknown or missing owned bodies, retain the same rule
 for exact retry URLs, and bind startup CSS only to proven cached app navigations.
 Their inclusion must retain the same module floors; additional selected execution
@@ -964,10 +998,13 @@ shipping SvelteKit acceptance, and isolated performance measurement. Every
 consumer restores the producer's exact catalog before its one dependency-install
 compilation, then verifies the complete artifact inventory and current authored
 source fingerprint. Lifecycle suites remain serial within each runner; independent
-Chromium tests use a bounded CPU-aware worker count. Four native Chromium shards
-feed the unchanged combined-coverage collector. Four SvelteKit projects use up to
-two file shards each, with complete selected-case identity and finite capability
-skip checks at the final gate. Partial coverage inputs or missing selected jobs
+Chromium tests use a bounded CPU-aware worker count. Broad scoped runs can use
+up to eight native Chromium shards to fit the existing job limit. Eight full
+native Chromium shards feed the combined-coverage collector. Full shipping runs
+use four Firefox file shards and two Chromium file shards. Desktop and mobile WebKit each use two
+standard shards and a dedicated Worker/OPFS shard. The final gate verifies the
+complete set of selected case identities and permitted capability skips.
+Partial coverage inputs or missing selected jobs
 fail the gate. PR runs cancel superseded scoped runs; full release evidence stays
 separate. The required merge-check context remains `test`. Immutable Kit receipt artifacts keep each GitHub run attempt
 in a separate directory. A failed-job rerun may reuse successful receipts from the

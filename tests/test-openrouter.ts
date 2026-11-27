@@ -60,7 +60,7 @@ assert('callOpenRouterAPI exists', apiOpenRouterSrc.includes('function callOpenR
 assert('extraHeaders in helper signature', apiOpenAICompatibleSrc.includes('extraHeaders = {}'));
 assert('extraHeaders spread in fetch headers', apiOpenAICompatibleSrc.includes('...extraHeaders'));
 assert('hasAIProvider handles openrouter', /provider === 'openrouter'\)\s+return hasOpenRouterKey\(\)/.test(apiProviderStorageSrc));
-assert('callClaudeAPI handles openrouter', /provider === 'openrouter'\)\s+return callOpenRouterAPI\(/.test(apiSrc));
+assert('callClaudeAPI handles openrouter', apiSrc.includes('openrouter: async () => (await loadOpenRouterApi()).callOpenRouterAPI') && apiSrc.includes('dispatch({ ...opts, requestCurrent })'));
 assert('callOpenRouterAPI sends HTTP-Referer', apiOpenRouterSrc.includes("'HTTP-Referer'"));
 assert('callOpenRouterAPI sends X-Title', apiOpenRouterSrc.includes("'X-Title': 'getbased'"));
 // api.js carries the hyphenated 'anthropic/claude-sonnet-4-6' string as the
@@ -86,8 +86,8 @@ assert('Curated: anthropic/claude-opus prefix', apiModelsSrc.includes("'anthropi
 assert('Curated: openai/gpt prefix', apiModelsSrc.includes("'openai/gpt-5'"));
 assert('Curated: google/gemini-3 prefix', apiModelsSrc.includes("'google/gemini-3'"));
 assert('Curated: google/gemini-2 prefix', apiModelsSrc.includes("'google/gemini-2'"));
-assert('Recommended: Gemini 4 Argon', api.isRecommendedModel('openrouter', 'google/gemini-4-argon'));
-assert('Gemini 4 Hydrogen is recommended alongside Argon', api.isRecommendedModel('custom', 'gemini-4-hydrogen'));
+assert('Recommended: Gemini 4 Neon', api.isRecommendedModel('openrouter', 'google/gemini-4-neon'));
+assert('Gemini 4 Argon is outside Recommended', !api.isRecommendedModel('openrouter', 'google/gemini-4-argon'));
 assert('Curated: deepseek prefix', apiModelsSrc.includes("'deepseek/deepseek'"));
 assert('Curated: qwen prefix', apiModelsSrc.includes("'qwen/qwen'"));
 assert('Curated: z-ai/glm-5 prefix', apiModelsSrc.includes("'z-ai/glm-5'"));
@@ -104,7 +104,7 @@ assert('Exclude filter applied in fetch', apiModelsSrc.includes('OPENROUTER_EXCL
 assert('fetchOpenRouterModels extracts pricing.prompt', apiModelsSrc.includes('m.pricing.prompt'));
 assert('fetchOpenRouterModels converts to per-million', apiModelsSrc.includes('* 1_000_000'));
 assert('fetchOpenRouterModels caches pricing', apiModelsSrc.includes("'labcharts-openrouter-pricing'"));
-assert('OpenRouter default prefers GPT 6.1 Sol then Sonnet 5.5 when fetched', apiModelsSrc.includes("'openai/gpt-6.1-sol', 'anthropic/claude-sonnet-5.5'"));
+assert('OpenRouter recommends GPT-6.2 Sol and Astra', api.isRecommendedModel('openrouter', 'openai/gpt-6.2-sol') && api.isRecommendedModel('openrouter', 'openai/gpt-6.2-astra'));
 assert('getOpenRouterPricing function exists', apiProviderStorageSrc.includes('function getOpenRouterPricing('));
 assert('api.getOpenRouterPricing is function', typeof api.getOpenRouterPricing === 'function');
 

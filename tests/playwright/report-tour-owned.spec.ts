@@ -16,7 +16,11 @@ interface ReportInput {
 interface TourInput {title: string; text: string; index: number; total: number}
 type Sample = {kind: 'report'; name: string; input: ReportInput; html: string}
   | {kind: 'tour'; name: string; input: TourInput; html: string};
-interface PairHost extends HTMLElement {pairs: HTMLElement[]}
+interface PairHost extends HTMLElement {
+  pairs: HTMLElement[];
+  destroyRenderers: Array<() => Promise<void>>;
+  initialChecks: WeakMap<HTMLInputElement, boolean>;
+}
 const frozen = JSON.parse(fs.readFileSync('tests/fixtures/report-tour-original.json', 'utf8')) as {
   samples: Sample[];
   styleBlocks: Array<{css: string; atRules: Array<{name: string; params: string}>}>;
@@ -40,11 +44,11 @@ const properties = [
   'scrollbar-gutter', 'text-align', 'text-decoration', 'cursor',
 ];
 
-async function mountPairs(page: Page, samples: Sample[]) {
+async function mountPairs(page: Page, samples: Sample[], mode: 'html' | 'client' = 'html') {
   await installDiscussionFixture(page.context());
   await prepareDemoProfile(page);
   await page.emulateMedia({reducedMotion: 'reduce'});
-  await page.evaluate(async ({samples, css}) => {
+  await page.evaluate(async ({samples, css, mode}) => {
     const [report, reportProject, definitions, tour, tourProject, tourStyle] = await Promise.all([
       import('/js/components/ReportBuilderPresentation.svelte.html.js'),
       import('/js/report-builder-presentation.js'),
@@ -53,10 +57,16 @@ async function mountPairs(page: Page, samples: Sample[]) {
       import('/js/tour-presentation.js'),
       import('/js/tour-classes.js'),
     ]);
+    const reportClient = mode === 'client' ? await import('/js/components/ReportBuilderPresentation.svelte.native.js') : null;
+    const tourClient = mode === 'client' ? await import('/js/components/TourPresentation.svelte.native.js') : null;
     const style = document.createElement('style');
     style.textContent = css + '\n#report-tour-parity *,#report-tour-parity *::before,#report-tour-parity *::after{transition:none!important;animation:none!important}';
     document.head.append(style);
-    const host: PairHost = Object.assign(document.createElement('div'), {pairs: [] as HTMLElement[]});
+    const host: PairHost = Object.assign(document.createElement('div'), {
+      pairs: [] as HTMLElement[],
+      destroyRenderers: [] as Array<() => Promise<void>>,
+      initialChecks: new WeakMap<HTMLInputElement, boolean>(),
+    });
     host.id = 'report-tour-parity';
     host.style.cssText = 'position:fixed;inset:0;background:var(--bg-primary);z-index:20000';
     document.body.append(host);
@@ -66,7 +76,7 @@ async function mountPairs(page: Page, samples: Sample[]) {
       environment: 'Environment', notes: 'Timeline notes',
     };
     for (const sample of samples) {
-      let current: string;
+      let renderCurrent: (target: HTMLElement) => void;
       if (sample.kind === 'report') {
         const input = sample.input;
         const view = reportProject.projectReportBuilder({
@@ -85,39 +95,62 @@ async function mountPairs(page: Page, samples: Sample[]) {
           notes: input.notes,
           aiAvailable: input.aiAvailable,
         });
-        current = report.renderHTML({view});
+        renderCurrent = target => {
+          if (!reportClient) { target.innerHTML = report.renderHTML({view}); return; }
+          const renderer = reportClient.mount(reportClient.default, {target, props: {view}});
+          reportClient.flushSync();
+          host.destroyRenderers.push(() => reportClient.unmount(renderer));
+        };
       } else {
-        current = tour.renderHTML(tourProject.projectTourPresentation(sample.input, sample.input.index, sample.input.total));
+        const props = tourProject.projectTourPresentation(sample.input, sample.input.index, sample.input.total);
+        renderCurrent = target => {
+          if (!tourClient) { target.innerHTML = tour.renderHTML(props); return; }
+          const renderer = tourClient.mount(tourClient.default, {target, props});
+          tourClient.flushSync();
+          host.destroyRenderers.push(() => tourClient.unmount(renderer));
+        };
       }
       const pair = document.createElement('div');
       pair.dataset.name = sample.name;
       pair.dataset.kind = sample.kind;
       pair.style.cssText = 'position:absolute;inset:0';
-      for (const [kind, html] of [['original', sample.html], ['current', current]]) {
+      for (const kind of ['original', 'current'] as const) {
         const side = document.createElement('section');
-        side.dataset[kind!] = '';
+        side.dataset[kind] = '';
         side.style.cssText = 'position:absolute;inset:0';
         // Separate form owners preserve both copies' checked radio defaults.
         const form = document.createElement('form');
         form.style.display = 'contents';
+        const render = (target: HTMLElement) => {
+          if (kind === 'original') target.innerHTML = sample.html;
+          else renderCurrent(target);
+        };
         if (sample.kind === 'report') {
-          form.innerHTML = html!;
+          render(form);
           form.querySelector('.modal-overlay')!.classList.add('show');
         } else {
           const tooltip = document.createElement('div');
           tooltip.id = 'tour-tooltip';
           if (kind === 'current') tooltip.className = tourStyle.tourClasses('tour-tooltip');
           tooltip.style.cssText = 'left:16px;top:20px';
-          tooltip.innerHTML = html!;
+          render(tooltip);
           form.append(tooltip);
         }
         side.append(form);
         pair.append(side);
       }
+      // Native controls initialize their checked DOM property without a static attribute.
+      const checks = (side: string) => Array.from(pair.querySelectorAll<HTMLInputElement>(`[data-${side}] input[type="checkbox"], [data-${side}] input[type="radio"]`), box => {
+        host.initialChecks.set(box, box.checked);
+        return box.checked;
+      });
+      if (JSON.stringify(checks('original')) !== JSON.stringify(checks('current'))) {
+        throw new Error('Native choice defaults differ for ' + sample.name);
+      }
       host.pairs.push(pair);
     }
     await document.fonts.ready;
-  }, {samples, css: originalCSS});
+  }, {samples, css: originalCSS, mode});
 }
 
 async function setTheme(page: Page, theme: string) {
@@ -140,7 +173,7 @@ async function compareAll(page: Page, detailsOpen: boolean, unchecked: boolean) 
       host.replaceChildren(pair);
       for (const detail of pair.querySelectorAll('details')) detail.open = detailsOpen;
       for (const box of pair.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
-        box.checked = unchecked ? false : box.hasAttribute('checked');
+        box.checked = !unchecked && host.initialChecks.get(box) === true;
       }
       const original = [...pair.querySelector('[data-original]')!.querySelectorAll('*')];
       const current = [...pair.querySelector('[data-current]')!.querySelectorAll('*')];
@@ -259,6 +292,32 @@ test('authored report setup and tour content preserve frozen layouts, themes, di
   for (const theme of themes) { await setTheme(page, theme); hovers += await hoverChecks(page); }
   const focusedControls = await focusChecks(page);
   fs.writeFileSync(info.outputPath('report-tour-parity.json'), JSON.stringify({comparisons, focusedControls, hovers, samples: frozen.samples.length, widths, themes}, null, 2));
+});
+
+test('native report and tour clients retain frozen mobile and desktop controls and release their rendered nodes', async ({page}) => {
+  await mountPairs(page, frozen.samples, 'client');
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({width, height: 1000});
+    await setTheme(page, width === 320 ? 'dark' : 'light');
+    await page.mouse.move(0, 0);
+    for (const [detailsOpen, unchecked] of [[false, false], [true, false], [true, true]] as const) {
+      expect(await compareAll(page, detailsOpen, unchecked), `native render at ${width}px`).toEqual([]);
+    }
+  }
+  expect(await focusChecks(page)).toBeGreaterThan(0);
+  await page.locator('#report-tour-parity').evaluate(async element => {
+    const host = element as PairHost;
+    if (host.destroyRenderers.length !== host.pairs.length) throw new Error('Each fixture must mount its own native renderer');
+    await Promise.all(host.destroyRenderers.map(destroy => destroy()));
+    for (const pair of host.pairs) {
+      if (pair.querySelector('[data-current] [data-report-builder-view], [data-current] [data-tour-view]')) {
+        throw new Error('Native renderer left an owned control behind');
+      }
+      if (!pair.querySelector('[data-original] [role="dialog"], [data-original] .tour-nav')) {
+        throw new Error('Disposing the native renderer removed its frozen comparison');
+      }
+    }
+  });
 });
 
 test('report setup and tour touch controls retain the coarse-pointer desktop layout', async ({browser, page}, info) => {

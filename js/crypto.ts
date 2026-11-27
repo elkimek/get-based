@@ -1,9 +1,11 @@
 import { parseProtectedStorageObject, serializeProtectedStorageObject } from './storage-object-codec.js';
+import { deriveKey, ENCRYPTION_MANIFEST_KEY, openDataKey, wrapDataKey } from './crypto-passphrase-key.js';
 import { bytesToBase64 as toBase64, _base64ToBytes as fromBase64 } from './base64.js';
 import { createPreparedLocalStorageValue } from './crypto-prepared-write.js';
 import { configurePersonaJournalProtection, recoverAllPersonaStorage } from './persona-storage-transaction.js';
 import { hasWhoopStorageDataToken } from './wearables-whoop-storage-contract.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
+import { configureEvoluIdentityProtection, createEvolu8IdentityVault } from './sync-evolu8-identity-vault.js';
 // crypto.ts — Encryption at rest, backup/restore, cross-tab sync
 
 import type { ProfileData } from '../types/app-state.js';
@@ -25,7 +27,8 @@ import { isAppExtensionSyncEncryptedStorageKey } from './app-extension-runtime.j
 import { state } from './state.js';
 import { queueProfileDataWrite, profileDataBaseline, rebaseLiveProfileData, adoptProfileData, rememberProfileData } from './profile-data-writes.js';
 import { profileStorageKey } from './profile-storage-key.js';
-import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
+import { getBlob, getBlobKeys, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
+import { configureNutritionStoreCrypto, migrateNutritionProfileDB } from './nutrition-store-reads.js';
 import { ensureImportedArray } from './data-merge.js';
 import { clearKeyCache, updateKeyCache } from './crypto-key-cache.js';
 import {
@@ -109,6 +112,8 @@ export function configureCryptoProfileDeps(deps: Partial<CryptoProfileDeps> = {}
 // SENSITIVE KEY PATTERNS
 // ═══════════════════════════════════════════════
 const SENSITIVE_PATTERNS = [
+  /^labcharts-.+-(?:focusCard|contextHealth|suppImpact)$/,
+  /^labcharts-agent-access-revocation-[a-f0-9]{64}$/,
   /^labcharts-.+-correlation-workspace$/,
   /^labcharts-.+-imported$/,
   /^labcharts-.+-imported-corrupt$/,
@@ -124,6 +129,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-profiles$/,
   /^labcharts-api-key$/,
   /^labcharts-agent-host-token$/,
+  /^labcharts-companion-pairing$/,
   /^labcharts-venice-key$/,
   /^labcharts-openrouter-key$/,
   /^labcharts-routstr-key$/,
@@ -183,6 +189,7 @@ async function decryptDeviceCredential(storageKey: string, envelope: string) {
 const API_KEY_LS_KEYS = [
   'labcharts-api-key',
   'labcharts-agent-host-token',
+  'labcharts-companion-pairing',
   'labcharts-venice-key',
   'labcharts-openrouter-key',
   'labcharts-routstr-key',
@@ -200,13 +207,14 @@ const API_KEY_LS_KEYS = [
 ];
 
 export function isCredentialKey(key: string) {
+  if (/^labcharts-agent-access-revocation-[a-f0-9]{64}$/.test(key)) return true;
   return API_KEY_LS_KEYS.includes(key) || isAppExtensionSyncEncryptedStorageKey(key);
 }
 
 export async function decryptKeyCache() {
   clearKeyCache();
-  for (let index = 0; index < localStorage.length; index++) {
-    const lsKey = localStorage.key(index);
+  const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
+  for (const lsKey of keys) {
     if (!lsKey || !isCredentialKey(lsKey)) continue;
     const raw = localStorage.getItem(lsKey);
     if (raw === null) continue;
@@ -229,7 +237,6 @@ export async function decryptKeyCache() {
     }
   }
 }
-const PBKDF2_ITERATIONS = 600000;
 
 export function getEncryptionEnabled() {
   return localStorage.getItem('labcharts-encryption-enabled') === 'true';
@@ -237,20 +244,6 @@ export function getEncryptionEnabled() {
 
 export function isUnlocked() {
   return _sessionKey !== null;
-}
-
-async function deriveKey(passphrase: string, salt: Uint8Array<ArrayBuffer>) {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']
-  );
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  );
 }
 
 async function encrypt(key: CryptoKey, plaintext: string) {
@@ -335,14 +328,18 @@ export function isEncryptedObject(o: unknown): EncryptedEnvelopeCheck {
 const indexedDBCryptoDeps = {
   getEncryptionEnabled, encryptObject, isEncryptedObject, decryptObject,
 };
+configureEvoluIdentityProtection(indexedDBCryptoDeps);
 configurePersonaJournalProtection({ enabled: getEncryptionEnabled, seal: encryptObject, open: decryptObject });
 export const getCashuWalletStoreCryptoDeps = () => ({
   ...indexedDBCryptoDeps,
-  encryptedGetItem,
+  encryptedGetItem: (key: string) => encryptedGetItem(key, { throwOnDecryptError: true }),
   encryptedSetItem: encryptedSetCredentialItem,
+  encryptDeviceCredential,
+  decryptDeviceCredential,
 });
 configureCycleStoreCrypto(indexedDBCryptoDeps);
 configureWearablesStoreCrypto(indexedDBCryptoDeps);
+configureNutritionStoreCrypto(indexedDBCryptoDeps);
 
 // TEST-ONLY: injects a freshly-derived key so behavioral tests can drive
 // the encrypt/decrypt round-trip without going through the passphrase
@@ -519,6 +516,7 @@ export async function initEncryption() {
   });
   await migrateSensitiveKeys();
   await migrateLocalIDB('encrypted');
+  await purgePlaintextAutoBackups().catch(() => {});
   await decryptKeyCache();
 }
 
@@ -550,7 +548,11 @@ async function sensitiveBlobKeys() {
   for (const profileId of await migrationProfileIds()) {
     keys.add(profileStorageKey(profileId, 'imported'));
     keys.add(profileStorageKey(profileId, 'imported-corrupt'));
+    keys.add(profileStorageKey(profileId, 'agent-draft-claims'));
   }
+  try {
+    for (const key of await getBlobKeys()) if (isSensitiveKey(key)) keys.add(key);
+  } catch {}
   return [...keys];
 }
 
@@ -558,8 +560,8 @@ async function migrateSensitiveKeys() {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
   await recoverAllPersonaStorage();
   const blobKeys = await sensitiveBlobKeys();
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
+  const lsKeys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+  for (const key of lsKeys) {
     if (!key || !isSensitiveKey(key)) continue;
     const raw = localStorage.getItem(key);
     if (raw === null || isEncryptedValue(raw)) continue; // already encrypted
@@ -582,8 +584,8 @@ async function decryptAllSensitiveKeys() {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
   await recoverAllPersonaStorage();
   const blobKeys = await sensitiveBlobKeys();
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
+  const lsKeys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+  for (const key of lsKeys) {
     if (!key || !isSensitiveKey(key)) continue;
     const raw = localStorage.getItem(key);
     if (raw === null || !isEncryptedValue(raw)) continue;
@@ -658,9 +660,13 @@ async function transformPayloadRows<Row extends Record<string, unknown>>(rows: R
 
 async function migrateLocalIDB(mode: StorageMode) {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
+  await createEvolu8IdentityVault().reprotect(mode);
   const cashuStore = await import('./cashu-wallet-store.js');
   cashuStore.configureCashuWalletStoreCryptoDeps(getCashuWalletStoreCryptoDeps());
-  let migrated = await cashuStore.migrateCashuWalletStorage(mode);
+  const migrateWallet = () => cashuStore.migrateCashuWalletStorage(mode);
+  let migrated = navigator.locks?.request
+    ? await navigator.locks.request(cashuStore.WALLET_LOCK_NAME, migrateWallet)
+    : await migrateWallet();
   for (const profileId of await migrationProfileIds()) {
     const wearableRows = await transformPayloadRows(await getAllDailyRaw(profileId), ['source', 'date'], mode);
     const cycleRows = await transformPayloadRows(await getAllCycleObservationsRaw(profileId), ['source', 'date', 'importId'], mode);
@@ -668,35 +674,42 @@ async function migrateLocalIDB(mode: StorageMode) {
     await upsertDailyBatchRaw(profileId, wearableRows);
     await upsertCycleObservationBatchRaw(profileId, cycleRows);
     await upsertCycleImportMetaBatchRaw(profileId, importRows);
-    migrated += wearableRows.length + cycleRows.length + importRows.length;
+    migrated += wearableRows.length + cycleRows.length + importRows.length + await migrateNutritionProfileDB(profileId, mode);
   }
   return migrated;
 }
 
-async function unlockEncryption(passphrase: string) {
-  const saltHex = localStorage.getItem('labcharts-encryption-salt');
-  if (!saltHex) throw new Error('No encryption salt found');
-  const salt = fromBase64(saltHex);
-  const key = await deriveKey(passphrase, salt);
-
+async function verifyDataKey(key: CryptoKey) {
   const profilesRaw = localStorage.getItem('labcharts-profiles');
   if (profilesRaw && isEncryptedValue(profilesRaw)) {
     const parsed = parseEncryptedValue(profilesRaw);
-    if (parsed) await decrypt(key, parsed.iv, parsed.ciphertext);
+    if (!parsed) throw new Error('Invalid encrypted profile list.');
+    await decrypt(key, parsed.iv, parsed.ciphertext);
   }
+}
+
+async function unlockEncryption(passphrase: string) {
+  const manifest = localStorage.getItem(ENCRYPTION_MANIFEST_KEY);
+  if (!manifest) throw new Error('No encryption salt found');
+  const key = await openDataKey(passphrase, manifest);
+  await verifyDataKey(key);
+  if (localStorage.getItem(ENCRYPTION_MANIFEST_KEY) !== manifest) throw new Error('Encryption settings changed in another tab.');
   _sessionKey = key;
+  if (getEncryptionEnabled()) await purgePlaintextAutoBackups().catch(() => {});
 }
 
 async function prepareEncryption(passphrase: string) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  localStorage.setItem('labcharts-encryption-salt', toBase64(salt));
-  _sessionKey = await deriveKey(passphrase, salt);
+  const dek = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  const manifest = await wrapDataKey(passphrase, dek);
+  _sessionKey = await openDataKey(passphrase, manifest);
+  localStorage.setItem(ENCRYPTION_MANIFEST_KEY, manifest);
   localStorage.setItem('labcharts-encryption-enabled', 'true');
 }
 
 async function migrateEncryptionStorage() {
   await migrateSensitiveKeys();
   await migrateLocalIDB('encrypted');
+  await purgePlaintextAutoBackups();
   await decryptKeyCache();
 }
 
@@ -712,49 +725,34 @@ async function disableEncryptionStorage() {
 }
 
 async function changeEncryptionPassphrase(oldPassphrase: string, newPassphrase: string) {
-  const oldSalt = fromBase64(localStorage.getItem('labcharts-encryption-salt'));
-  const oldKey = await deriveKey(oldPassphrase, oldSalt);
-
-  const profilesRaw = localStorage.getItem('labcharts-profiles');
-  if (profilesRaw && isEncryptedValue(profilesRaw)) {
-    const parsed = parseEncryptedValue(profilesRaw);
-    if (parsed) await decrypt(oldKey, parsed.iv, parsed.ciphertext);
-  }
-
-  // Decrypt every backend under the old key before replacing it.
-  _sessionKey = oldKey;
-  await migrateLocalIDB('plain');
-  await decryptAllSensitiveKeys();
-
-  // Re-encrypt localStorage, blob storage, and raw local databases.
-  const newSalt = crypto.getRandomValues(new Uint8Array(16));
-  localStorage.setItem('labcharts-encryption-salt', toBase64(newSalt));
-  const newKey = await deriveKey(newPassphrase, newSalt);
-  _sessionKey = newKey;
-  await migrateSensitiveKeys();
-  await migrateLocalIDB('encrypted');
-  await decryptKeyCache();
+  const rotate = async () => {
+    const previous = localStorage.getItem(ENCRYPTION_MANIFEST_KEY);
+    if (!previous || !getEncryptionEnabled()) throw new Error('Encryption is disabled.');
+    const dataKey = await openDataKey(oldPassphrase, previous, true);
+    await verifyDataKey(dataKey);
+    const manifest = await wrapDataKey(newPassphrase, dataKey);
+    const session = await openDataKey(newPassphrase, manifest);
+    if (localStorage.getItem(ENCRYPTION_MANIFEST_KEY) !== previous) throw new Error('Encryption settings changed in another tab.');
+    localStorage.setItem(ENCRYPTION_MANIFEST_KEY, manifest);
+    _sessionKey = session;
+  };
+  if (globalThis.navigator?.locks) await navigator.locks.request(ENCRYPTION_MANIFEST_KEY, rotate);
+  else await rotate();
 }
 
-// ═══════════════════════════════════════════════
-// Backup/restore, auto-backup, folder backup extracted to js/backup.js
-import { buildBackupSnapshot, configureBackupRuntimeDeps, scheduleAutoBackup, openBackupDB, initFolderBackup } from './backup.js';
+globalThis.addEventListener?.('storage', event => {
+  const key = (event as StorageEvent).key;
+  if (key === ENCRYPTION_MANIFEST_KEY || key === null) { _sessionKey = null; clearKeyCache(); }
+});
+
+import { buildBackupSnapshot, configureBackupRuntimeDeps, scheduleAutoBackup, openBackupDB, initFolderBackup, purgePlaintextAutoBackups } from './backup.js';
 export { buildBackupSnapshot, scheduleAutoBackup, openBackupDB, initFolderBackup };
 
-configureBackupRuntimeDeps({
-  encryptedGetItem,
-  encryptedSetItem: encryptedSetCredentialItem,
-  getEncryptionEnabled,
-  isCredentialKey,
-});
+configureBackupRuntimeDeps({ encryptedGetItem, encryptedSetItem: encryptedSetCredentialItem, getEncryptionEnabled, isCredentialKey });
 configureCryptoUi({
   changeEncryptionPassphrase,
-  clearEncryptionSession: () => { _sessionKey = null; },
-  disableEncryptionStorage,
-  getEncryptionEnabled,
-  migrateEncryptionStorage,
-  prepareEncryption,
-  unlockEncryption,
+  clearEncryptionSession: () => { _sessionKey = null; clearKeyCache(); },
+  disableEncryptionStorage, getEncryptionEnabled, migrateEncryptionStorage, prepareEncryption, unlockEncryption,
 });
 
 // ═══════════════════════════════════════════════

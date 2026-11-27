@@ -71,6 +71,7 @@ const panelCallbacks: Record<string,unknown> = {
 };
 let chatPanelReturnFocus: Element|null = null;
 let chatPanelIntent = 0;
+let chatComposerOpening = false;
 
 function setChatBackgroundInert(inert: boolean) {
   document.querySelectorAll('.main, .sidebar, .app-footer, .mobile-dashboard').forEach(element => {
@@ -137,8 +138,12 @@ export function refreshWebSearchToggle() {
   updateWebSearchToggleVisibility();
 }
 
-export function isChatThreadInputBlocked() {
+function isChatThreadUnavailable() {
   return isChatThreadIndexBlocked() || !isProfileChatReady(state.currentProfile);
+}
+
+export function isChatThreadInputBlocked() {
+  return chatComposerOpening || isChatThreadUnavailable();
 }
 
 function existingChatPresentationStylesheet(stylesheet: ChatPresentationStylesheet): HTMLLinkElement|null {
@@ -280,7 +285,10 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (!(await loadChatPresentationStylesheetsForAction())) return false;
   if (!isCurrent()) return cancelOpening();
-  if (options.canOpen && !options.canOpen()) return false;
+  if (options.canOpen && !options.canOpen()) return chatComposerOpening ? cancelOpening() : false;
+  // Opening can expose the composer before its thread and draft are restored.
+  chatComposerOpening = true;
+  updateChatInputState();
   chatPanelReturnFocus = returnFocus;
   panel.classList.add('open');
   updateChatPanelAccessibility(panel, true);
@@ -305,47 +313,53 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.add('hidden');
   dismissCurrentChatNudge();
-  await loadCustomPersonalities();
-  if (!isCurrent()) return cancelOpening();
-  loadChatPersonality();
-  refreshChatBackendControl();
-  updateChatHeaderTitle();
-  updatePersonalityBar();
-  // Sync web search toggle
-  updateWebSearchToggleVisibility();
-  // An in-flight answer exists only in the live request/typewriter state
-  // until it finishes. Reloading the persisted thread here would erase that
-  // partial response and typing indicator while the request kept running,
-  // making the latest user message look interrupted and retryable. Replacing
-  // message objects during speech would likewise invalidate its active turn.
-  const generationInProgress = (panelCallbacks as PanelCallbackOperations).isChatStreaming?.() === true;
-  const voicePlaybackInProgress = (panelCallbacks as PanelCallbackOperations).isVoicePlaybackActive?.() === true;
-  const liveSessionInProgress = generationInProgress || voicePlaybackInProgress;
-  // Load threads and ensure active thread
-  let threadsLoaded = true;
-  if (!liveSessionInProgress) {
-    threadsLoaded = await loadChatThreads();
+  try {
+    await loadCustomPersonalities();
     if (!isCurrent()) return cancelOpening();
-    if (threadsLoaded !== false) ensureActiveThread();
+    loadChatPersonality();
+    refreshChatBackendControl();
+    updateChatHeaderTitle();
+    updatePersonalityBar();
+    updateWebSearchToggleVisibility();
+    // Reloading the persisted thread would erase an in-flight answer or
+    // invalidate the message objects referenced by active speech playback.
+    const generationInProgress = (panelCallbacks as PanelCallbackOperations).isChatStreaming?.() === true;
+    const voicePlaybackInProgress = (panelCallbacks as PanelCallbackOperations).isVoicePlaybackActive?.() === true;
+    const liveSessionInProgress = generationInProgress || voicePlaybackInProgress;
+    let threadsLoaded = true;
+    if (!liveSessionInProgress) {
+      threadsLoaded = await loadChatThreads();
+      if (!isCurrent()) return cancelOpening();
+      if (threadsLoaded !== false) ensureActiveThread();
+    }
+    restoreRailState();
+    initChatLayout();
+    renderThreadList();
+    renderSavedSummaries();
+    if (!liveSessionInProgress && threadsLoaded !== false) await loadChatHistory();
+    if (!isCurrent()) return cancelOpening();
+    if (!generationInProgress) (panelCallbacks as PanelCallbackOperations).restoreDiscussionContinuePrompt?.();
+    initChatComposer();
+    initChatModelControls();
+    let focusComposer = false;
+    if (!generationInProgress && !isChatThreadUnavailable()) {
+      focusComposer = prefillMessage ? setChatInputValue(prefillMessage) : await restoreChatDraft();
+    }
+    if (!isCurrent()) return cancelOpening();
+    chatComposerOpening = false;
+    updateChatInputState();
+    if (generationInProgress) {
+      (panelCallbacks as PanelCallbackOperations).restoreChatGenerationUI?.();
+    } else if (focusComposer) {
+      const input = document.querySelector<HTMLTextAreaElement>('#chat-input:enabled');
+      input?.focus();
+    }
+    (panelCallbacks as PanelCallbackOperations).restoreVoicePlaybackUi?.();
+    return true;
+  } catch (error) {
+    cancelOpening();
+    throw error;
   }
-  restoreRailState();
-  initChatLayout();
-  renderThreadList();
-  renderSavedSummaries();
-  if (!liveSessionInProgress && threadsLoaded !== false) await loadChatHistory();
-  if (!isCurrent()) return cancelOpening();
-  if (!generationInProgress) (panelCallbacks as PanelCallbackOperations).restoreDiscussionContinuePrompt?.();
-  updateChatInputState();
-  initChatComposer();
-  initChatModelControls();
-  if (generationInProgress) {
-    (panelCallbacks as PanelCallbackOperations).restoreChatGenerationUI?.();
-  } else if (!isChatThreadInputBlocked()) {
-    if (prefillMessage) setChatInputValue(prefillMessage, { focus: true });
-    else await restoreChatDraft(undefined, { focus: true });
-  }
-  (panelCallbacks as PanelCallbackOperations).restoreVoicePlaybackUi?.();
-  return true;
 }
 
 export function updateChatInputState() {
@@ -353,9 +367,12 @@ export function updateChatInputState() {
   const sendBtn = document.getElementById('chat-send-btn') as HTMLButtonElement|null;
   const noAI = !hasChatResponseBackend();
   const blocked = isChatThreadInputBlocked();
+  const unavailable = noAI || blocked;
   if (input) {
-    input.disabled = noAI || blocked;
-    publishChatComposerPlaceholder(blocked
+    input.disabled = unavailable;
+    publishChatComposerPlaceholder(chatComposerOpening
+      ? 'Loading conversation…'
+      : blocked
       ? 'Conversations are paused to protect saved chats'
       : noAI
         ? (isAIPaused()
@@ -365,10 +382,10 @@ export function updateChatInputState() {
           : 'Connect an AI provider in Settings to chat')
         : null);
   }
-  if (sendBtn) sendBtn.disabled = noAI || blocked;
+  if (sendBtn) sendBtn.disabled = unavailable;
   // Dictation is routed through getbased's independent voice service. A CLI
   // agent handles the resulting text, but does not need to transport audio.
-  setChatVoiceAvailable(!noAI && !blocked);
+  setChatVoiceAvailable(!unavailable);
   refreshChatComposer();
   updateWebSearchToggleVisibility();
 }
@@ -389,6 +406,7 @@ if (typeof globalThis.addEventListener === 'function') {
 
 export function closeChatPanel() {
   chatPanelIntent += 1;
+  chatComposerOpening = false;
   (panelCallbacks as PanelCallbackOperations).stopVoiceActivity?.({ preservePlayback: true });
   stopMobileChatViewportSync();
   const panel = document.getElementById('chat-panel');

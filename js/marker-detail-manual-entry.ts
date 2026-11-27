@@ -4,7 +4,8 @@ import { state } from './state.js';
 import { formatValue } from './utils.js';
 import { projectManualEntryUnits, renderManualMarkerEntry } from './manual-marker-entry-presentation.js';
 import { getActiveData } from './data.js';
-import { saveManualEntry } from './marker-detail-editing.js';
+import { identifyLabPanels, labPanelId } from './lab-panel-identity.js';
+import { bindManualEntryOwner, saveManualEntry } from './marker-detail-editing.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openWithMarkerDetailStylesheet, setDetailModalShell } from './marker-detail-runtime.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
@@ -40,7 +41,8 @@ function renderManualEntryForm(id: string, prefillDate?: unknown) {
   const modal = setDetailModalShell('gb-form-modal', 'marker-form-modal');
   const overlay = document.getElementById('modal-overlay');
   if (!modal) return;
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
   // Explicit prefill → last-used date in this tab → today.
   let sessionLast: string | null = null;
   try {
@@ -52,7 +54,8 @@ function renderManualEntryForm(id: string, prefillDate?: unknown) {
   const dateValue = typeof prefillDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(prefillDate)
     ? prefillDate
     : (sessionLast || today);
-  const existingContext = state.importedData?.entries?.find(entry => entry?.date === dateValue)?.context || {};
+  const dateEntries = (state.importedData?.entries || []).filter(entry => entry.date === dateValue);
+  const existingContext = (dateEntries.length === 1 ? dateEntries[0]?.context : null) || {};
   const sampleTimeValue = typeof existingContext.sampleTime === 'string' ? existingContext.sampleTime : '';
   const fastingValue = existingContext.fasting === true ? 'fasting'
     : existingContext.fasting === false ? 'not-fasting'
@@ -109,12 +112,38 @@ function renderManualEntryForm(id: string, prefillDate?: unknown) {
   valueInput.addEventListener('keydown', onKey);
   const dateInput = (modal.querySelector('#me-date') as HTMLInputElement | null);
   dateInput?.addEventListener('keydown', onKey);
-  dateInput?.addEventListener('change', () => {
+  const chooser = modal.querySelector<HTMLSelectElement>('#me-sample');
+  if (!dateInput || !chooser) return;
+  const owner = state.importedData, profile = state.currentProfile, units = state.unitSystem;
+  let panels = identifyLabPanels([]);
+  function applySampleContext() {
     if (!isCurrent()) return;
-    const context = state.importedData?.entries?.find(entry => entry?.date === dateInput.value)?.context || {};
-    const sampleTime = (modal.querySelector('#me-sample-time') as HTMLInputElement | null);
-    const fasting = (modal.querySelector('#me-fasting') as HTMLSelectElement | null);
+    const entry = panels.find(panel => labPanelId(panel) === chooser!.value);
+    const context = entry?.context || {};
+    const sampleTime = modal!.querySelector<HTMLInputElement>('#me-sample-time');
+    const fasting = modal!.querySelector<HTMLSelectElement>('#me-fasting');
     if (sampleTime) sampleTime.value = typeof context.sampleTime === 'string' ? context.sampleTime : '';
     if (fasting) fasting.value = context.fasting === true ? 'fasting' : context.fasting === false ? 'not-fasting' : 'unknown';
-  });
+  }
+  const refreshChoices = () => {
+    if (!isCurrent()) return;
+    const day = dateInput.value;
+    const reviewed = structuredClone((owner.entries || []).filter(entry => entry.date === day));
+    panels = identifyLabPanels(reviewed);
+    const note = owner.markerValueNotes?.[`${dotKey}:${day}`] || '';
+    bindManualEntryOwner(valueInput, profile, owner, units, day, reviewed, dotKey!, note);
+    const noteInput = modal.querySelector<HTMLTextAreaElement>('#me-note');
+    if (noteInput) noteInput.value = note;
+    const noteLabel = modal.querySelector('label[for="me-note"]');
+    if (noteLabel?.firstChild) noteLabel.firstChild.textContent = panels.length ? 'Note for this marker and date ' : 'Note ';
+    const options = panels.map((panel, i) => new Option([`Sample ${i + 1}`, panel.context?.sampleTime, panel.specimen, panel.sourceFile].filter(Boolean).join(' · '), labPanelId(panel)));
+    if (panels.length > 1) options.unshift(new Option('Choose a collection', ''));
+    options.push(new Option('Create a separate collection', '__new__'));
+    chooser.replaceChildren(...options);
+    modal.querySelector<HTMLElement>('#me-sample-field')!.hidden = !panels.length;
+    applySampleContext();
+  };
+  refreshChoices();
+  chooser.addEventListener('change', applySampleContext);
+  dateInput.addEventListener('change', refreshChoices);
 }

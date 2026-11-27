@@ -1,10 +1,10 @@
-import {installControlledOpenRouter} from '../helpers/controlled-openrouter.js';
 import fs from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { ProfileData } from '../../types/app-state.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
-import { startKitServer } from './kit-release-server.js';
-import { activate, artifactInputs, cacheReceipt, profile } from './kit-native-receipts.js';
+import { startIsolatedChatKitServer as startKitServer } from './kit-release-server.js';
+import { installSyntheticOpenRouter } from '../helpers/synthetic-openrouter.js';
+import { activate, artifactInputs, cacheReceipt, profile, resumePausedArtifactChat } from './kit-native-receipts.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
@@ -12,10 +12,6 @@ const owners = ['js/state.js', 'js/agent-data-bindings.js', 'js/agent-health-dat
   'js/sun-setup-proposals.js', 'js/sun-setup-mutations.js', 'js/sun-setup-store.js', 'js/sun-setup-records.js',
   'js/sun-defaults.js', 'js/sun-defaults-session.js', 'js/sun-defaults-model.js', 'js/sun-defaults-setup-ui.js', 'js/sun-defaults-setup-renderer.js',
   'js/components/ChatAgentDraftCards.svelte', 'js/components/LightSetupPresentation.svelte'] as const;
-async function openChat(page: Page) {
-  if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
-  await expect(page.locator('#chat-input')).toBeVisible();
-}
 test('native setup and chat corrections share durable owners through offline stopped-origin cold launch', async ({ page, context }, info) => {
   test.setTimeout(180000); const artifact = await artifactInputs(owners, []);
   const seeded = JSON.parse(await fs.readFile(new URL('../fixtures/marker-detail-complete/pwa-profile.json', import.meta.url), 'utf8')) as ProfileData;
@@ -35,16 +31,16 @@ test('native setup and chat corrections share durable owners through offline sto
     { statement: 'Clear my answer about a dim workspace; I am not sure.', patch: { habits: { dimWorkspace: null } } },
   ];
   let stage = 0, round = 0; const wire: Array<{ stage: number; round: number }> = [], errors: string[] = [], receipts: Record<string, Awaited<ReturnType<typeof profile>>> = {};
-  await installControlledOpenRouter(context, async body => {
- expect(body.model).toBe('openai/synthetic-sun');
+  await installSyntheticOpenRouter(context, async body => {
+    expect(body.model).toBe('openai/synthetic-sun');
     if (/^You (?:evaluate|interpret|summarize)/.test(String(body.messages[0]?.content || ''))) {
       return { contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '{"dot":"gray","tip":"Controlled setup interpretation","detail":"Only reported setup facts."}' }, finish_reason: 'stop' }] }) };
     }
     wire.push({ stage, round }); let call: AIToolCall | undefined;
     if (round === 0) call = { id: `read-sun-${stage}`, type: 'function', function: { name: 'getbased_read_data', arguments: '{"resource":"sunSetup"}' } };
-    if (round === 1) { const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text);
+    if (round === 1) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); const current = JSON.parse(response.contentItems[0].text);
       call = { id: `draft-sun-${stage}`, type: 'function', function: { name: 'getbased_draft_data', arguments: JSON.stringify({ resource: 'sunSetup', operation: 'update', snapshotId: current.snapshotId, patch: JSON.stringify(stages[stage]!.patch), evidence: stages[stage]!.statement, reason: 'The user reported changed setup facts.' }) } }; }
-    if (round === 2) { const response = JSON.parse(body.messages.at(-1)!.content); expect(response.success).toBe(true); expect(JSON.parse(response.contentItems[0].text).review.applied).toBe(false); }
+    if (round === 2) { const response = JSON.parse(body.messages.at(-1).content); expect(response.success).toBe(true); expect(JSON.parse(response.contentItems[0].text).review.applied).toBe(false); }
     round++; return { contentType: 'text/event-stream', body: `data: ${JSON.stringify({ choices: [{ delta: call ? { tool_calls: [{ index: 0, ...call }] } : { content: 'Review the setup change before applying.' }, finish_reason: call ? 'tool_calls' : 'stop' }] })}\n\ndata: [DONE]\n\n` };
   });
   page.on('pageerror', error => errors.push(error.message)); const server = await startKitServer(process.env.GETBASED_KIT_ARTIFACT || '.local-notes/sveltekit-build'); let stopped = false;
@@ -55,7 +51,7 @@ test('native setup and chat corrections share durable owners through offline sto
     await activate(page, modal.locator('[data-choice-group="setup-homelight"][data-value="led-warm"]')); await activate(page, modal.locator('[data-choice-group="setup-eyewear"][data-value="sunglasses"]'));
     await activate(page, modal.getByRole('button', { name: 'Next: Light patterns', exact: true })); await activate(page, modal.getByRole('button', { name: 'Save setup', exact: true })); await expect(modal).toHaveCount(0);
     receipts.native = await profile(page, artifact.state); const baseline = receipts.native.stored as ProfileData; expect(baseline.sunDefaults?.fitzpatrick).toBe('IV');
-    await openChat(page); await activate(page, page.locator('[data-chat-empty-action="resume-ai"]'));
+    await resumePausedArtifactChat(page);
     for (stage = 0; stage < stages.length; stage++) {
       round = 0; await page.locator('#chat-input').fill(stages[stage]!.statement); await activate(page, page.locator('#chat-send-btn'));
       await expect(page.locator('.chat-agent-draft-pending, #cloud-ai-consent-overlay.show')).toBeVisible(); const consent = page.locator('#cloud-ai-consent-overlay.show'); if (await consent.isVisible()) { await consent.locator('input[type="checkbox"]').check(); await activate(page, consent.locator('[data-ai-processing-action="approve"]')); }
@@ -74,6 +70,6 @@ test('native setup and chat corrections share durable owners through offline sto
     const editor = page.getByRole('dialog', { name: 'Personalize Light', exact: true }); await expect(editor.locator('#setup-homelight')).toHaveValue('led-cool'); await expect(editor.locator('#setup-skin-range')).toHaveValue('4');
     expect(errors).toEqual([]); expect(await artifactInputs(owners, [])).toEqual(artifact);
   } finally {
-    await info.attach('static-sun-setup-chat-receipt', { body: JSON.stringify({ artifact, receipts, wire, errors, stopped, boundary: 'Real native setup form, public chat/native tools, controlled provider, three trusted keyboard approvals, full protected storage/live receipts, mobile/axe/source/cache hashes and stopped-origin zero-page cold launch. Narrow in-page model fixture, without provider HTTP transport. No live provider inference.' }, null, 2), contentType: 'application/json' }); if (!stopped) await server.close();
+    await info.attach('static-sun-setup-chat-receipt', { body: JSON.stringify({ artifact, receipts, wire, errors, stopped, boundary: 'Real native setup form, public chat/native tools, controlled provider, three trusted keyboard approvals, full protected storage/live receipts, mobile/axe/source/cache hashes and stopped-origin zero-page cold launch. No live provider inference.' }, null, 2), contentType: 'application/json' }); if (!stopped) await server.close();
   }
 });

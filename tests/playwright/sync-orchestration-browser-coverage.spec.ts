@@ -248,12 +248,12 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
         {
           profileId: 'bad id',
           syncedAt: new Date().toISOString(),
-          dataJson: await payload.buildSyncPayload('bad id', { entries: [] }),
+          dataJson: await payload.buildSyncPayload('safe_profile', { entries: [] }),
         },
         {
           profileId: 'safe_profile',
           syncedAt: new Date().toISOString(),
-          dataJson: await payload.buildSyncPayload('safe_profile', 'bad-shape'),
+          dataJson: JSON.stringify({ _v: 3, importedData: 'invalid saved record' }),
         }
       );
       debugCalls.length = 0;

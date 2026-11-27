@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 
 interface ConfirmReopenReceipt {

@@ -4,29 +4,45 @@ import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js'
 import { scopedFrozenStyles, type FrozenStyleBlock } from '../helpers/frozen-style-scope.js';
 import type { LightDeviceRecord, DeviceSessionRecord } from '../../js/light-devices-store.js';
 import type { ProductCatalog } from '../../js/recommendations-products.js';
+import type { LightDevicePresentationProps } from '../../js/light-device-library-presentation.js';
 interface Sample { name: string; devices: LightDeviceRecord[]; sessions: DeviceSessionRecord[]; html: string }
 const original = JSON.parse(fs.readFileSync('tests/fixtures/light-device-library-original.json', 'utf8')) as {
   now: number; catalog: ProductCatalog; types: Record<string,{icon?:string;label?:string}>; cases: Sample[]; pickerDevices: LightDeviceRecord[]; pickerHTML: string; styleBlocks: FrozenStyleBlock[];
 };
 const samples = original.cases.filter(sample => ['uvb','combined','sad','custom','empty'].includes(sample.name));
-test('authored device library and picker preserve original themes, responsive styles, type bands and accessible controls', async ({page},info) => {
+for (const mode of ['server-rendered', 'native client'] as const) test(
+  `authored device library and picker preserve original themes, responsive styles, type bands and accessible controls (${mode})`, async ({page}, info) => {
   test.setTimeout(120000); await installDiscussionFixture(page.context()); await page.goto('/app'); await expect(page.locator('html[data-app-ready]')).toBeAttached(); await page.emulateMedia({reducedMotion:'reduce'});
   const errors: string[] = []; page.on('pageerror',error=>errors.push(error.message));
-  await page.evaluate(async ({original,samples,css}) => {
+  await page.evaluate(async ({original,samples,css,mode}) => {
     await (await import('/js/light-sun-loader.js')).loadLightSunUI();
     const style=document.createElement('style');// Declared improvements: readable link/metadata ink, visible phone delete, coarse 44px targets.
     style.textContent=css+":where([data-original]) .rec-light-device-link{color:var(--accent-light,var(--accent));}:where([data-original]) :is(.light-device-typeline,.light-device-stats,.light-device-feeds-label,.light-device-delete){color:var(--text-secondary);}@media(hover:none){:where([data-original]) .light-device-delete{opacity:1;}}@media(max-width:600px){:where([data-original]) .light-device-delete{opacity:1;}}@media(pointer:coarse){:where([data-original]) :is(.light-device-delete,.light-device-picker-row,.import-btn,.modal-close,.rec-light-device-link){min-height:44px;min-width:44px;}:where([data-original]) .rec-light-device-link{display:inline-flex;align-items:center;}}";document.head.append(style);
-    const {renderHTML}=await import('/js/components/LightDevicePresentation.svelte.html.js');
+    const server = mode === 'server-rendered' ? await import('/js/components/LightDevicePresentation.svelte.html.js') : null;
+    const client = mode === 'native client' ? await import('/js/components/LightDevicePresentation.svelte.native.js') : null;
+    const dispose: (() => Promise<void>)[] = [];
+    function render(target: Element, props: LightDevicePresentationProps) {
+      if (client) {
+        const component = client.mount(client.default, {target, props});
+        dispose.push(async () => {
+          await client.unmount(component);
+          if (target.childElementCount) throw new Error('Mounted device library nodes leaked after disposal');
+        });
+      } else if (server) target.innerHTML = server.renderHTML(props);
+    }
     const model=await import('/js/light-device-library-presentation.js'); const {CHANNEL_DISPLAY}=await import('/js/sun.js');
     const products=await import('/js/recommendations-products.js'); products.setProductRecsEnabled(true);
     const host=document.createElement('div');host.id='device-library-acceptance';host.style.cssText='position:fixed;inset:0;z-index:20000;overflow:auto;background:var(--bg-primary);padding:12px';document.body.append(host);
-    const pairs: {old:string;current:string;widget:boolean}[]=[];
+    const pairs: {old: string; props: LightDevicePresentationProps; widget: boolean}[] = [];
     for(const sample of samples){
       const cards=model.projectDeviceLibrary({devices:sample.devices,sessions:sample.sessions,types:original.types,channels:CHANNEL_DISPLAY,affiliateFor:slug=>products.getLightDeviceAffiliateView(original.catalog,slug),now:original.now});
-      for(const widget of [false,true])pairs.push({old:sample.html,current:renderHTML({kind:'library',cards}),widget});
+      for(const widget of [false,true])pairs.push({old: sample.html, props: {kind: 'library', cards}, widget});
     }
-    pairs.push({old:original.pickerHTML,current:renderHTML({kind:'picker',rows:model.projectDevicePicker(original.pickerDevices)}),widget:false});
-    host.innerHTML=pairs.map((pair,index)=>`<div data-pair="${index}"><section data-original><div class="${pair.widget?'light-page':''}"><div class="${pair.widget?'dashboard-widget':''}" data-widget-id="light-devices"><div class="dashboard-widget-body">${pair.old}</div></div></div></section><section data-current><div class="${pair.widget?'light-page':''}"><div class="${pair.widget?'dashboard-widget':''}" data-widget-id="light-devices"><div class="dashboard-widget-body">${pair.current}</div></div></div></section></div>`).join('');
+    pairs.push({old: original.pickerHTML, props: {kind: 'picker', rows: model.projectDevicePicker(original.pickerDevices)}, widget: false});
+    host.innerHTML=pairs.map((pair,index)=>`<div data-pair="${index}"><section data-original><div class="${pair.widget?'light-page':''}"><div class="${pair.widget?'dashboard-widget':''}" data-widget-id="light-devices"><div class="dashboard-widget-body">${pair.old}</div></div></div></section><section data-current><div class="${pair.widget?'light-page':''}"><div class="${pair.widget?'dashboard-widget':''}" data-widget-id="light-devices"><div class="dashboard-widget-body"></div></div></div></section></div>`).join('');
+    for (const [index, pair] of pairs.entries()) {
+      render(host.querySelector(`[data-pair="${index}"] [data-current] .dashboard-widget-body`)!, pair.props);
+    }
     // The real picker is displayed inside a shown overlay. Keep that state for both
     // independent trees while letting the paired fixture stay in document flow.
     const pickerPair=host.querySelector<HTMLElement>('[data-pair="10"]')!;
@@ -34,11 +50,21 @@ test('authored device library and picker preserve original themes, responsive st
     pickerPair.style.cssText='position:static;display:block;padding:0;background:none;overflow:visible;backdrop-filter:none;-webkit-backdrop-filter:none';
     // Every type-specific band is checked even when the full matrix uses representative cards.
     const bands=document.createElement('div');bands.id='device-band-acceptance';
-    bands.innerHTML=original.cases.filter(sample=>sample.devices.length).map(sample=>{
-      const cards=model.projectDeviceLibrary({devices:sample.devices,sessions:sample.sessions,types:original.types,channels:CHANNEL_DISPLAY,affiliateFor:()=>null,now:original.now});
-      return `<section data-original>${sample.html}</section><section data-current>${renderHTML({kind:'library',cards})}</section>`;
-    }).join('');host.append(bands);
-  },{original,samples,css:scopedFrozenStyles(original.styleBlocks).replaceAll('[data-original]',':where([data-original])')});
+    const bandSamples = original.cases.filter(sample => sample.devices.length);
+    bands.innerHTML = bandSamples.map(sample => `<section data-original>${sample.html}</section><section data-current></section>`).join('');
+    host.append(bands);
+    for (const [index, target] of Array.from(bands.querySelectorAll('[data-current]')).entries()) {
+      const sample = bandSamples[index]!;
+      const cards = model.projectDeviceLibrary({devices: sample.devices, sessions: sample.sessions, types: original.types, channels: CHANNEL_DISPLAY, affiliateFor: () => null, now: original.now});
+      render(target, {kind: 'library', cards});
+    }
+    client?.flushSync();
+    Object.assign(host, {
+      dispose: async () => {
+        for (const unmount of dispose) await unmount();
+      },
+    });
+  },{original,samples,mode,css:scopedFrozenStyles(original.styleBlocks).replaceAll('[data-original]',':where([data-original])')});
   const host=page.locator('#device-library-acceptance');let pairs=0;
   for(const width of [320,375,600,768,1100]){
     await page.setViewportSize({width,height:1000});
@@ -90,5 +116,8 @@ test('authored device library and picker preserve original themes, responsive st
     return {errors,checked};
   });
   expect(controls.checked).toBe(await host.locator('button,a').count()); expect(controls.errors).toEqual([]);
-  expect(errors).toEqual([]);expect(pairs).toBe(330);await fs.promises.writeFile(info.outputPath('device-library-style-pairs.json'),JSON.stringify({pairs,themes:6,widths:[320,375,600,768,1100],placements:11,allTypeBands:8}));
+  await host.evaluate(element => (element as HTMLElement & {dispose: () => Promise<void>}).dispose());
+  expect(errors).toEqual([]);
+  expect(pairs).toBe(330);
+  await fs.promises.writeFile(info.outputPath('device-library-style-pairs.json'), JSON.stringify({mode, pairs, themes: 6, widths: [320, 375, 600, 768, 1100], placements: 11, allTypeBands: 8}));
 });

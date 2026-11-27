@@ -423,6 +423,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     const applied: unknown[] = [];
     const rejected: unknown[] = [];
     const openedTabs: unknown[] = [];
+    const relayRevocations: string[] = [];
     let syncIndicatorUpdates = 0;
     let pushedContexts = 0;
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
@@ -439,7 +440,12 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       syncState.setSyncEnabled(false);
-      window.fetch = async () => new Response('', { status: 200 });
+      window.fetch = async (input, options) => {
+        if (String(input) === 'https://new-relay.example/api/context' && options?.method === 'DELETE') {
+          relayRevocations.push(new Headers(options.headers).get('Authorization') || '');
+        }
+        return new Response('', { status: 200 });
+      };
       (window as unknown as {WebSocket:unknown}).WebSocket = class {
         constructor(url:unknown) {
           (this as unknown as {url:unknown}).url = url;
@@ -514,10 +520,11 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       await wait(0);
       const ownerPendingToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]');
       const ownerPendingDisabled = ownerPendingToggle?.disabled === true;
-      syncRuntime.setSyncAppOwner({
+      const syntheticOwner = {
         id: 'abcdefghijklmnopqrstuv',
         writeKey: new Uint8Array(32).fill(7),
-      });
+      };
+      syncRuntime.setSyncAppOwner(syntheticOwner);
       await wait(0);
       const ownerReadyRerenderEnables = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')?.disabled === false;
       localStorage.setItem('labcharts-sync-relay', 'wss://relay.example');
@@ -569,7 +576,9 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       await wait(0);
       messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.checked = true;
       messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.dispatchEvent(new Event('change', { bubbles: true }));
+      const actionReady = (action: string) => messengerSection!.querySelector(`[data-sync-action="${action}"]:enabled`) !== null;
       await waitFor(() => syncMessenger.isMessengerEnabled()
+        && actionReady('toggle-messenger-token')
         && messengerSection!.textContent!.includes('Read-only token')
         && messengerSection!.textContent!.includes('GETBASED_AGENT_CONTEXT_KEY'), 'Agent Access enable render');
       const token = syncMessenger.getMessengerToken();
@@ -595,25 +604,28 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       await wait(0);
       const tokenCopied = (writes.includes as (value:unknown)=>ReturnType<typeof writes.includes>)(token);
       const contextKeyCopied = (writes.includes as (value:unknown)=>ReturnType<typeof writes.includes>)(contextKey);
+      const pushesBeforeSeriesChange = pushedContexts;
       messengerSection!.querySelector<HTMLSelectElement>('[data-sync-action="set-agent-wearable-series-days"]')!.value = '30';
       messengerSection!.querySelector<HTMLSelectElement>('[data-sync-action="set-agent-wearable-series-days"]')!.dispatchEvent(new Event('change', { bubbles: true }));
-      await waitFor(() => pushedContexts >= 1, 'series save then context push');
+      await waitFor(() => pushedContexts > pushesBeforeSeriesChange && actionReady('regenerate-messenger-token'), 'series saved and token rotation available');
       const seriesProfileId = localStorage.getItem('labcharts-active-profile') || 'default';
       const seriesDelegated = syncMessenger.getAgentAccessState().wearableSeriesDays === 30
         && localStorage.getItem(`labcharts-${seriesProfileId}-agent-wearable-series`) === '30'
         && !('getAgentWearableSeriesDays' in window)
         && !('setAgentWearableSeriesDays' in window)
-        && pushedContexts >= 1;
+        && pushedContexts > pushesBeforeSeriesChange;
       messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="regenerate-messenger-token"]')!.click();
       await waitFor(() => syncMessenger.getMessengerToken() !== token
-        && messengerSection!.textContent!.includes('Read-only token'), 'token regenerated');
+        && messengerSection!.textContent!.includes('Read-only token')
+        && actionReady('regenerate-messenger-context-key'), 'token saved and context-key rotation available');
       const regenerated = !localStorage.getItem('labcharts-messenger-token')
         && syncMessenger.getMessengerToken() !== token
         && messengerSection!.textContent!.includes('Read-only token');
       const contextKeyBeforeRegen = syncMessenger.getMessengerContextKey();
       messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="regenerate-messenger-context-key"]')!.click();
       await waitFor(() => syncMessenger.getMessengerContextKey() !== contextKeyBeforeRegen
-        && messengerSection!.textContent!.includes('Context encryption key'), 'context key regenerated');
+        && messengerSection!.textContent!.includes('Context encryption key')
+        && actionReady('regenerate-messenger-context-key'), 'context key saved');
       const contextKeyRegenerated = !localStorage.getItem('labcharts-agent-context-key')
         && syncMessenger.getMessengerContextKey() !== contextKeyBeforeRegen
         && messengerSection!.textContent!.includes('Context encryption key');
@@ -622,18 +634,31 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       await waitFor(() => messengerSection!.querySelector('[data-agent-access-view]'), 'mounted Agent Access owner');
       await wait(0);
       const ownerLostToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]');
-      const ownerLostCanDisable = ownerLostToggle?.checked === true
+      const ownerLostCanRequestDisable = ownerLostToggle?.checked === true
         && ownerLostToggle?.disabled === false
         && messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="regenerate-messenger-token"]')?.disabled === true
         && messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="regenerate-messenger-context-key"]')?.disabled === true
         && messengerSection!.querySelector<HTMLSelectElement>('[data-sync-action="set-agent-wearable-series-days"]')?.disabled === true;
       ownerLostToggle!.checked = false;
       ownerLostToggle!.dispatchEvent(new Event('change', { bubbles: true }));
-      await wait(0);
-      const messengerDisabled = localStorage.getItem('labcharts-messenger-enabled') === 'false'
+      const currentToken = syncMessenger.getMessengerToken();
+      const ownerLostKeepsPublishedAccess = await waitFor(() =>
+        [...document.querySelectorAll('.notification-toast')].some(toast => toast.textContent?.includes('Could not save Agent Access disable'))
+        && messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')?.checked
+        && syncMessenger.isMessengerEnabled()
+        && syncMessenger.getMessengerToken() === currentToken
+        && !relayRevocations.includes(`Bearer ${currentToken}`), 'refused local disable remains visibly enabled');
+      syncRuntime.setSyncAppOwner(syntheticOwner);
+      await waitFor(() => actionReady('toggle-messenger'), 'restored owner');
+      const ownerReadyToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!;
+      ownerReadyToggle.checked = false;
+      ownerReadyToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      const messengerDisabled = await waitFor(() => localStorage.getItem('labcharts-messenger-enabled') === 'false'
         && !localStorage.getItem('labcharts-messenger-token')
         && !localStorage.getItem('labcharts-agent-context-key')
-        && messengerSection!.textContent!.includes('Let AI agents query your labs');
+        && !syncMessenger.isMessengerEnabled()
+        && relayRevocations.includes(`Bearer ${currentToken}`)
+        && messengerSection!.textContent!.includes('Let AI agents query your labs'), 'saved disable and matching relay withdrawal');
 
       return {
         tombstoneBanner,
@@ -664,7 +689,8 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         seriesDelegated,
         regenerated,
         contextKeyRegenerated,
-        ownerLostCanDisable,
+        ownerLostCanRequestDisable,
+        ownerLostKeepsPublishedAccess,
         messengerDisabled,
       };
     } finally {

@@ -11,7 +11,7 @@ import {
   fetchWithRetry,
   readWithStallTimeout,
 } from './api-transport.js';
-import { needsMaxCompletionTokens } from './api-models.js';
+import { gpt62BaseModelId, needsMaxCompletionTokens } from './api-models.js';
 import { getAIProvider, getCustomApiUrl } from './api-provider-storage.js';
 import { showOpenRouterInsufficientBalanceDialogRuntime } from './api-runtime.js';
 import { redactApiSecretText } from './local-ai-provider-shared.js';
@@ -25,6 +25,20 @@ export function isTokenLimitFinish(reason: unknown) {
     || r === 'max_completion_tokens'
     || r.includes('token_limit')
     || r.includes('max token');
+}
+
+function localReasoningBudgetExhaustedError(
+  finishReason: unknown,
+  usage?: { inputTokens: number; outputTokens: number },
+) {
+  const error = new Error(
+    'Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.',
+  ) as Error & { code?: string; usage?: { inputTokens: number; outputTokens: number } };
+  if (isTokenLimitFinish(finishReason)) {
+    error.code = 'local_reasoning_budget_exhausted';
+    if (usage) error.usage = usage;
+  }
+  return error;
 }
 
 export function shouldProxyCustomApiUrl(rawUrl: string) {
@@ -129,6 +143,11 @@ function temperatureControlRejected(res: Response, errorText: string, providerNa
 }
 
 export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, model: unknown, providerName: string, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, requestRetries, jsonMode, jsonSchema, forceNonStream, temperature, reasoningEffort, strictTokenLimit, tools, requestCurrent }: OpenAICompatibleOptions, extraHeaders: Record<string, string> = {}, { useProxy = true, extraBody = {}, fetchImpl = null, firstReadStallMs = 0 } : OpenAICompatibleTransportOptions = {}) {
+  const directOpenAIGpt62 = endpoint === 'https://api.openai.com/v1/chat/completions' && !!gpt62BaseModelId(model);
+  // OpenAI requires Responses for native tools on these models. Chat can use
+  // its structured tool protocol on the same Chat Completions endpoint.
+  if (directOpenAIGpt62 && tools?.length) throw new AIToolsUnsupportedError('GPT-6.2 native tools require the OpenAI Responses API.');
+
   const apiMessages: AIChatMessage[] = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content,
@@ -147,9 +166,11 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
   const tokenLimitField = needsMaxCompletionTokens(model) ? 'max_completion_tokens' : 'max_tokens';
   const body: RequestBody = { model, messages: apiMessages, [tokenLimitField]: effectiveMaxTokens || 4096, ...extraBody };
   if (tools?.length) { body.tools = tools; body.tool_choice = 'auto'; }
-  if (typeof reasoningEffort === 'string' && reasoningEffort) body.reasoning_effort = reasoningEffort;
+  if (typeof reasoningEffort === 'string' && reasoningEffort) {
+    body.reasoning_effort = directOpenAIGpt62 && (reasoningEffort === 'none' || reasoningEffort === 'minimal') ? 'low' : reasoningEffort;
+  }
   const requestedTemperature = Number(temperature);
-  if (temperature !== undefined && Number.isFinite(requestedTemperature) && requestedTemperature >= 0 && requestedTemperature <= 2) {
+  if (!directOpenAIGpt62 && temperature !== undefined && Number.isFinite(requestedTemperature) && requestedTemperature >= 0 && requestedTemperature <= 2) {
     body.temperature = requestedTemperature;
   }
   if (jsonMode) {
@@ -169,6 +190,7 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
     if (requestCurrent && !requestCurrent()) throw new Error('The AI request recipient or owner changed.');
     const requestInit = {
       method: 'POST',
+      redirect: 'error',
       headers: {
         'Content-Type': 'application/json',
         ...(key ? { 'Authorization': `Bearer ${key}` } : {}),
@@ -331,7 +353,7 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
     if (toolCalls.length && !tools?.length) throw new Error('The provider returned unrequested tool calls.');
     if (!fullText && reasoningBuf && !toolCalls.length) {
       if (providerName === 'Local AI') {
-        throw new Error('Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.');
+        throw localReasoningBudgetExhaustedError(finishReason, { inputTokens, outputTokens });
       }
       fullText = reasoningBuf;
       onStream!(fullText);
@@ -356,18 +378,21 @@ export async function callOpenAICompatibleAPI(endpoint: string, key: unknown, mo
   const msg = choice?.message;
   const toolCalls = normalizeAIToolCalls(msg?.tool_calls);
   if (toolCalls.length && !tools?.length) throw new Error('The provider returned unrequested tool calls.');
+  const finishReason = choice?.finish_reason || choice?.native_finish_reason || null;
   let text = msg?.content || '';
   const reasoningText = msg?.reasoning_content || msg?.reasoning || '';
   if (!text && reasoningText && !toolCalls.length) {
     if (providerName === 'Local AI') {
-      throw new Error('Local AI returned reasoning but no final answer. Reasoning used the output budget; disable thinking for this task or increase the model context/output limit.');
+      throw localReasoningBudgetExhaustedError(finishReason, {
+        inputTokens: usage.prompt_tokens || 0,
+        outputTokens: usage.completion_tokens || 0,
+      });
     }
     text = reasoningText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
   }
   if (!String(text).trim() && !toolCalls.length) {
     throw new Error(`${providerName} returned no response content. No usage was reported by the app; check the provider account before retrying.`);
   }
-  const finishReason = choice?.finish_reason || choice?.native_finish_reason || null;
   const stats = data.stats || {};
   const performance = Object.keys(stats).length ? {
     tokensPerSecond: Number(stats.tokens_per_second) || 0,

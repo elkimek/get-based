@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
 import {describe,expect,it} from 'vitest';
 import {isDeepStrictEqual} from 'node:util';
 import type {GeneratedIdentityQR} from '../js/sync-diagnose-presentation.js';
@@ -24,6 +25,18 @@ function parsed(html:string):NodeRow[] {
     ...(node instanceof Element?{attrs:Array.from(node.attributes,a=>[a.name,a.value])}:{}),
     ...(node.childNodes.length?{children:Array.from(node.childNodes,tree)}:{})});
   return Array.from(host.childNodes,tree);
+}
+function renderedControls(root: Element) {
+  return Array.from(root.querySelectorAll('*'), node => ({
+    tag: node.tagName,
+    attributes: Array.from(node.attributes, attribute => [attribute.name,
+      attribute.name === 'style' && node instanceof HTMLElement ? node.style.cssText : attribute.value,
+    ]).sort(([left], [right]) => left!.localeCompare(right!)),
+    text: Array.from(node.childNodes).filter(child => child.nodeType === Node.TEXT_NODE)
+      .map(child => child.textContent).join('').replace(/\s+/g, ' ').trim(),
+    checked: node instanceof HTMLInputElement && node.checked,
+    disabled: node instanceof HTMLInputElement || node instanceof HTMLButtonElement ? node.disabled : false,
+  }));
 }
 function qualified(tree:NodeRow[],policy:Policy):NodeRow[] {
   const clone=structuredClone(tree),found:Array<{path:number[];value:string|null}>=[];
@@ -59,6 +72,39 @@ describe('Sync Diagnose original presentation contracts',()=>{
  it.each(diagnosticCases())('preserves native normal summary priority: $name',row=>{const host=document.createElement('div');host.innerHTML=renderSyncDiagnoseModal(row.input);expect(host.querySelector('.sync-diagnose-summary h4')?.textContent).toBe(row.summary);expect(host.querySelector('[data-probe]')).toBeNull();});
  it.each(fixtures.cases)('retains original getter/read chronology: $name',row=>{const trace:string[]=[];const input=diagnosticCases().find(v=>v.name===row.name)!.input;renderSyncDiagnoseModal(observed(input,trace));expect(trace).toEqual(row.trace);});
  it.each(fixtures.cases)('matches complete original fragment: $name',row=>{expect(parsed(row.originalHTML)).toEqual(row.originalTree);identical(qualified(parsed(renderSyncDiagnoseModal(diagnosticCases().find(v=>v.name===row.name)!.input)),row),row.originalTree,'Complete original parsed fragment');});
+ it.each(fixtures.cases)('mounts the emitted native diagnostic using the checked controls and literal text: $name', async row => {
+   const load = createRequire(import.meta.url);
+   const native = load('../js/components/SyncDiagnoseModal.svelte.native.js') as typeof import('../js/components/SyncDiagnoseModal.svelte.native.js');
+   const input = diagnosticCases().find(item => item.name === row.name)!.input;
+   const reference = document.createElement('div');
+   reference.innerHTML = renderSyncDiagnoseModal(input);
+   if (row.name === 'debug-blocked') {
+     // The original blocker table omits tbody. HTML parsing inserts the group
+     // while a native mount appends the same rows directly to the table.
+     const table = reference.querySelector('[data-sync-diagnose-action="backfill-blockers"]')!
+       .parentElement!.parentElement!.querySelector('table')!;
+     const group = table.tBodies.item(0)!;
+     expect(group.attributes.length).toBe(0);
+     expect(group.rows.length).toBeGreaterThan(0);
+     group.replaceWith(...group.childNodes);
+   }
+   const host = document.createElement('div'), sibling = document.createElement('button');
+   sibling.textContent = 'Outside Diagnose';
+   document.body.replaceChildren(host, sibling);
+   const component = native.mount(native.default, {target: host, props: {view: projectSyncDiagnose(input)}});
+   try {
+     native.flushSync();
+     expect(renderedControls(host)).toEqual(renderedControls(reference));
+     expect(host.querySelector('[data-probe]')).toBeNull();
+     const button = host.querySelector<HTMLButtonElement>('button:not(:disabled)')!;
+     button.focus();
+     expect(document.activeElement).toBe(button);
+   } finally {
+     await native.unmount(component);
+   }
+   expect(host.childElementCount).toBe(0);
+   expect(sibling.isConnected).toBe(true);
+ });
  it.each(['unknown comment','changed marker','missing marker','moved marker'] as const)('rejects compiler corruption: %s',kind=>{const row=fixtures.cases.find(v=>v.anchors.length>0)!;expect(row).toBeDefined();const html=renderSyncDiagnoseModal(row.input);const anchor=row.anchors[0]!;const literal='<!--'+anchor.value+'-->';expect(html).toContain(literal);const changed=kind==='unknown comment'?'<!--foreign-->'+html:kind==='changed marker'?html.replace(literal,'<!--foreign-->'):kind==='missing marker'?html.replace(literal,''):html.replace(literal,'')+literal;expect(changed).not.toBe(html);expect(()=>qualified(parsed(changed),row)).toThrow();});
  it('keeps sparse map holes empty while retaining the original row count',()=>{const row=diagnosticCases().find(v=>v.name==='sparse-rows')!;const view=projectSyncDiagnose(row.input);expect(view.rows.rows).toEqual([]);expect(view.rowCount).toBe('3');});
  it('throws before rendering when an original early row getter throws',()=>{const input=diagnosticFixture();const base={profileId:'row',profileIdSource:'column',format:'plain',isDeleted:false,syncedAt:0,syncedAtMs:0,sun:0,dev:0,bytes:0};Object.defineProperty(base,'profileId',{get(){throw new Error('original row getter');}});input.diagnostics.rows=[base];expect(()=>renderSyncDiagnoseModal(input)).toThrow('original row getter');});

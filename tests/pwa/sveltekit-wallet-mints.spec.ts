@@ -3,7 +3,7 @@ import path from 'node:path';
 import { getDecodedToken } from '@cashu/cashu-ts';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-release-server.js';
-import { prepareStaticWallet, seedStaticWalletMints } from './wallet-static-fixture.js';
+import { prepareStaticWallet, readWalletMetaValue, seedStaticWalletMints } from './wallet-static-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 const mint = 'https://mint.minibits.cash/Bitcoin', other = 'https://mint.other.test';
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 30_000 }).toBe(true); }
@@ -32,8 +32,23 @@ test('wallet mints and readonly private exports preserve per-mint funds and reco
     await page.close(); const cold = await context.newPage(); cold.on('pageerror', error => errors.push(error.message)); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold); await wallet(cold);
     await expect(cold.locator('#routstr-wallet-balance')).toContainText('7 sats'); await expect(cold.locator('[data-wallet-export-view]')).toHaveCount(0); await cold.locator('[data-provider-panel-action="show-routstr-mint-edit"]').click();
     await expect(cold.locator('[data-wallet-mint-view]')).toContainText('12 sats'); await expect(cold.locator('[data-wallet-mint-view]')).toContainText('7 sats');
-    const records = await cold.evaluate(async () => { const db = await new Promise<IDBDatabase>((resolve, reject) => { const req = indexedDB.open('getbased-cashu', 2); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); try { return await new Promise<{proofs: number; refund: unknown}>(resolve => { const tx = db.transaction(['proofs', 'meta'], 'readonly'), count = tx.objectStore('proofs').count(), refund = tx.objectStore('meta').get('pendingNodeRefund'); tx.oncomplete = () => resolve({ proofs: count.result, refund: refund.result }); }); } finally { db.close(); } });
-    expect(records.proofs).toBe(5); expect(records.refund).toEqual({ key: 'pendingNodeRefund', value: { nodeUrl: 'https://synthetic-routstr.test', key: 'SYNTHETIC-RECOVERY', token: 'SYNTHETIC-NODE-TOKEN', createdAt: 1 } });
+    const protectedRows = await cold.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => { const open = indexedDB.open('getbased-cashu'); open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error); });
+      try {
+        const tx = db.transaction(['proofs', 'meta']);
+        const proofs = tx.objectStore('proofs').getAll(), refund = tx.objectStore('meta').get('pendingNodeRefund');
+        return await new Promise<{ proofs: number; protectedProofs: boolean; protectedRefund: boolean }>((resolve, reject) => {
+          tx.oncomplete = () => resolve({
+            proofs: proofs.result.length,
+            protectedProofs: proofs.result.every(row => String(row._payload).startsWith('d1:') && !('amount' in row) && !String(row.secret).includes('SYNTHETIC')),
+            protectedRefund: String(refund.result?._payload).startsWith('d1:') && !('value' in refund.result),
+          });
+          tx.onerror = () => reject(tx.error);
+        });
+      } finally { db.close(); }
+    });
+    expect(protectedRows).toEqual({ proofs: 5, protectedProofs: true, protectedRefund: true });
+    expect(await readWalletMetaValue(cold, 'pendingNodeRefund')).toEqual({ nodeUrl: 'https://synthetic-routstr.test', key: 'SYNTHETIC-RECOVERY', token: 'SYNTHETIC-NODE-TOKEN', createdAt: 1 });
     expect(await cold.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map(registration => new URL(registration.active!.scriptURL).pathname))).toEqual(['/service-worker.js']); expect(errors).toEqual([]);
   } finally { await server.close(); }
 });

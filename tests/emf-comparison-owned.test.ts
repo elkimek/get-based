@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {afterEach,expect,it,vi} from 'vitest';import {readFileSync} from 'node:fs';import path from 'node:path';import {parse} from 'svelte/compiler';
 import {renderEMFComparisonPresentation,qualifyEMFComparisonAction,type EMFComparisonView} from '../js/emf-comparison-presentation.js';
 import {expectedEMFComparisonHTML} from './helpers/emf-comparison-owned-receipts.js';
 import fixtures from './fixtures/emf-comparison-presentation-original.json' with {type:'json'};
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
 const fault=vi.hoisted(()=>({apply:(raw:string)=>raw}));vi.mock('../js/components/EMFComparison.svelte.html.js',async original=>{const actual=await original<typeof import('../js/components/EMFComparison.svelte.html.js')>();return{renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>fault.apply(actual.renderHTML(props))};});
 const view:EMFComparisonView={before:'Jan 1, 2026 — Before <&> "',after:'Feb 3, 2026 — After <&> "',earlier:null,columns:['AC Electric','AC Magnetic','RF/Microwave','Dirty Elec.','DC Magnetic'],rows:[{label:'Bedroom',cells:[{kind:'paired',beforeColor:'orange',beforeText:'10',arrowColor:'var(--green)',arrow:'↓',afterColor:'orange',afterText:'5'},{kind:'paired',beforeColor:'yellow',beforeText:'20',arrowColor:'var(--red)',arrow:'↑',afterColor:'yellow',afterText:'30'},{kind:'paired',beforeColor:'orange',beforeText:'30',arrowColor:'var(--text-muted)',arrow:'=',afterColor:'orange',afterText:'30'},{kind:'added',afterColor:'yellow',afterText:'25'},{kind:'removed',beforeColor:'red',beforeText:'50'}]}],interpret:false};
 const original=fixtures.find(row=>row.name==='two-recent')!.original.raw;const a=original.indexOf('<div class="emf-compare-header">'),z=original.indexOf('</tbody></table></div>',a)+'</tbody></table></div>'.length;const rawNative=original.slice(a,z);afterEach(()=>{fault.apply=raw=>raw;vi.restoreAllMocks();});
@@ -13,3 +17,27 @@ it('finite interpretation attributes require the original exact native action an
 it('genuine owner has no parser/raw HTML/ports/markers/controller event or suppression',()=>{const source=readFileSync(path.join(process.cwd(),'js/components/EMFComparison.svelte'),'utf8');expect(source).not.toMatch(/gb-emf-comparison|\{@html|\bsvelte-ignore\b|\bon[a-z]+\s*=|NativePort|CompilerFrame/);function visit(v:unknown){if(!v||typeof v!=='object')return;const n=v as Record<string,unknown>;expect(n.type).not.toBe('HtmlTag');expect(n.type).not.toBe('EventDirective');for(const c of Object.values(n))if(Array.isArray(c))c.forEach(visit);else visit(c);}visit(parse(source,{modern:true}));});
 
 it('unsafe foreign raw-value markup becomes literal text without claiming legacy injection parity',()=>{const hostile='<img src=x onerror="foreign()">';const actual=renderEMFComparisonPresentation({...view,rows:[{label:'Bedroom',cells:[{kind:'added',afterColor:'yellow',afterText:hostile}]}]});const host=document.createElement('div');host.innerHTML=actual;expect(host.querySelector('img')).toBeNull();expect(host.querySelector('.emf-compare-cell')!.textContent).toBe('— → '+hostile);expect(actual).toContain('&lt;img');});
+
+
+it.each([false, true])('matches native comparison cells, missing values and optional review (%s)', async interpret => {
+ const data: EMFComparisonView = interpret ? {...view, interpret, earlier: {count: '2', suffix: 's'},
+  rows: [...view.rows, {label: 'No measurement <em>recorded</em>', cells: view.columns.map(() => ({kind: 'empty'}))}],
+ } : view;
+ const raw = renderEMFComparisonPresentation(data);
+ if (!interpret) expect(raw).toBe(expectedEMFComparisonHTML(rawNative));
+ const component = load('../js/components/EMFComparison.svelte.native.js') as typeof import('../js/components/EMFComparison.svelte.native.js');
+ await expectNativeReview(raw, root => {
+  const mounted = component.mount(component.default, {target: root, props: {view: data}});
+  component.flushSync();
+  return () => component.unmount(mounted);
+ }, root => {
+  expect(root.querySelectorAll('th')).toHaveLength(data.columns.length + 1);
+  expect(root.querySelectorAll('tbody tr')).toHaveLength(data.rows.length);
+  expect(root.querySelector('tbody tr:first-child .emf-compare-cell')?.textContent?.replace(/\s+/g,' ').trim()).toBe('10 ↓ 5');
+  expect(root.querySelector('[data-emf-action="interpret-comparison"]')?.textContent ?? null)
+   .toBe(interpret ? 'Interpret Changes' : null);
+  expect(root.querySelector('.emf-compare-note')?.textContent ?? null).toBe(interpret
+   ? 'Comparing the two most recent assessments. 2 earlier assessments not shown.' : null);
+  expect(root.querySelector('em')).toBeNull();
+ });
+});

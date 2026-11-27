@@ -28,21 +28,25 @@ export function applyInlineMarkdown(text: unknown) {
     return token;
   };
 
-  let html = escapeHTML(normalizeComparisonEntities(String(text ?? ''))
+  const formatEmphasis = (value: string) => value
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+
+  let html = formatEmphasis(escapeHTML(normalizeComparisonEntities(String(text ?? ''))
     // NUL is reserved for internal placeholders and has no useful display form.
     .replace(/\u0000/g, '\ufffd'))
-    // Protect code before processing emphasis or links inside it.
+    // Protect code before processing links or emphasis inside it.
     .replace(/`([^`\n]+?)`/g, (_, code) => protect(`<code>${code}</code>`))
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+    // Protect Markdown links before emphasis so '*' inside URLs is never rewritten.
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+      const formattedLabel = formatEmphasis(label);
       const source = parseConversationSourceLink(url);
-      if (source) return protect(`<a href="${url}" data-chat-message-action="open-conversation-result">${label}</a>`);
+      if (source) return protect(`<a href="${url}" data-chat-message-action="open-conversation-result">${formattedLabel}</a>`);
       const safe = safeMarkdownHref(url);
       // The whole input, including the label, was escaped before Markdown tags
       // were introduced. Protect the complete anchor from the bare-URL pass.
-      return protect(`<a href="${safe}" target="_blank" rel="noopener noreferrer">${label}</a>`);
-    })
+      return protect(`<a href="${safe}" target="_blank" rel="noopener noreferrer">${formattedLabel}</a>`);
+    }))
     // NUL also delimits protected Markdown that immediately follows a URL.
     // URL-valid terminal punctuation stays in the destination; authors can use
     // an explicit Markdown link when sentence punctuation must be separate.

@@ -64,7 +64,7 @@ it('recovers before native loading and sync collection can expose half a persona
 it('recovers before another native writer and before a full backup', async () => {
   await seed(); localStorage.setItem(catalog, changes[0]!.after);
   await saveCustomPersonalitiesToStorage([{ ...target, name: 'Saved after recovery' }], profile); expect((await loadCustomPersonalitiesFromStorage(profile))[0]?.name).toBe('Saved after recovery'); await clean();
-  localStorage.setItem(catalog, changes[0]!.before!); localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: profile, name: 'Synthetic recovery profile' }]));
+  localStorage.setItem(catalog, changes[0]!.before!); await protection.encryptedSetItem('labcharts-profiles', JSON.stringify([{ id: profile, name: 'Synthetic recovery profile' }]));
   await seed(); localStorage.setItem(catalog, changes[0]!.after); expect(() => buildBackupSnapshot()).toThrow('recovery');
   const backup = await buildFullBackupSnapshot(); expect(backup?.profiles[0]?.keys.chatPersonalityCustom).toBe(changes[0]!.before); expect(current()).toEqual(before()); await clean();
 });

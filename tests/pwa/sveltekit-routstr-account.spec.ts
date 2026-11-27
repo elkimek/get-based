@@ -1,7 +1,7 @@
 import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page, type BrowserContext } from '@playwright/test';
-import { prepareStaticWallet } from './wallet-static-fixture.js';
+import { readWalletMetaValue, prepareStaticWallet } from './wallet-static-fixture.js';
 import { startKitServer } from './kit-release-server.js';
 test.use({ actionTimeout: 15_000, navigationTimeout: 30_000 });
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
@@ -18,7 +18,7 @@ async function consent(page: Page) {
   await expect(overlay).toBeVisible(); await overlay.getByRole('checkbox').check();
   await overlay.getByRole('button',{name:'Allow & activate',exact:true}).click(); await expect(overlay).not.toBeAttached();
 }
-async function journal(page: Page) { return page.evaluate(() => new Promise<unknown>((resolve, reject) => { const request = indexedDB.open('getbased-cashu',2); request.onerror = () => reject(request.error); request.onsuccess = () => { const db=request.result, tx=db.transaction('meta','readonly'), read=tx.objectStore('meta').get('pendingDeposit'); read.onsuccess=() => resolve(read.result?.value ?? null); tx.oncomplete=() => db.close(); }; })); }
+function journal(page: Page) { return readWalletMetaValue(page, 'pendingDeposit'); }
 test('static Routstr connection owns its receipt, retains encrypted node storage and cold-launches without the origin', async ({ page, context }) => {
   test.setTimeout(150_000); await prepare(context,'valid'); const server = await startKitServer(artifact), errors: string[] = []; page.on('pageerror',error => errors.push(error.message));
   try {

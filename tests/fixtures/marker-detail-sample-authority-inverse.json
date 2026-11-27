@@ -1,0 +1,72 @@
+{
+  "file": "js/marker-detail-editing.ts",
+  "currentSHA256": "b9cf86c166f4d55263cb59ef6de5ad66eb8ab9f257692383f809642f04c9f4db",
+  "restoredSHA256": "380e796f56833ce98b7a94314fd12c2459f102ad58e6b08708d8f82d4ecfda49",
+  "edits": [
+    {
+      "start": 864,
+      "before": "",
+      "after": "  hasMarkerValueForDate,\n"
+    },
+    {
+      "start": 1095,
+      "before": "import { identifyLabPanels, labPanelId } from './lab-panel-identity.js';\n",
+      "after": ""
+    },
+    {
+      "start": 2837,
+      "before": "}\n\ntype ReviewedDay = NonNullable<typeof state.importedData.entries>;\nconst manualEntryOwners = new WeakMap<HTMLInputElement, () => boolean>();\nexport function bindManualEntryOwner(input: HTMLInputElement, profile: string, root: typeof state.importedData, units: string, date: string, entries: ReviewedDay, dotKey: string, note: string) {\n  manualEntryOwners.set(input, () => state.currentProfile === profile && state.importedData === root && state.unitSystem === units\n    && (document.querySelector<HTMLInputElement>('#me-date')?.value === date)\n    && (root.markerValueNotes?.[`${dotKey}:${date}`] || '') === note\n    && profileDataValuesEqual((root.entries || []).filter(entry => entry.date === date), entries));\n}\nfunction captureLabReview(date: string) {\n  const root = state.importedData, profile = state.currentProfile, units = state.unitSystem;\n  const rows = structuredClone((root.entries || []).filter(entry => entry.date === date));\n  const owns = () => state.currentProfile === profile && state.importedData === root && state.unitSystem === units;\n  const current = () => owns() && profileDataValuesEqual((root.entries || []).filter(entry => entry.date === date), rows);\n  return {rows, owns, current};\n",
+      "after": ""
+    },
+    {
+      "start": 7297,
+      "before": "  const review = captureLabReview(date);\n  const chooser = document.getElementById('me-sample') as HTMLSelectElement | null;\n  const choice = chooser?.value;\n  const panels = identifyLabPanels(review.rows);\n  const newPanel = choice === '__new__' && panels.length > 0;\n  const panelId = choice && choice !== '__new__' ? choice : undefined;\n  const existingEntry = panelId ? panels.find(panel => labPanelId(panel) === panelId) : newPanel ? null : panels.length === 1 ? panels[0] : null;\n  if (panelId && !existingEntry || !newPanel && !panelId && panels.length > 1) {\n    showNotification('Choose which sample to edit.', 'error'); return;\n  }\n  const authorized = () => review.current() && (manualEntryOwners.get(valueInput)?.() ?? true) && document.getElementById('me-value') === valueInput;\n  const stale = () => { if (authorized()) return false; showNotification('This sample or profile changed. Reopen the entry to review its current values.', 'error'); return true; };\n  if (stale()) return;\n",
+      "after": ""
+    },
+    {
+      "start": 9139,
+      "before": "  if (stale()) return;\n  const priorValue = existingEntry?.markers?.[dotKey];\n  if (typeof priorValue === 'number') {\n    const displayVal = convertCanonicalToInputUnit(dotKey, priorValue, inputUnit, state.unitSystem, customCanonicalUnit);\n    const unit = inputUnit;\n",
+      "after": "  const existingEntry = state.importedData.entries?.find(e => e.date === date);\n  if (existingEntry && existingEntry.markers && existingEntry.markers[dotKey] != null) {\n    // Show in display units — find the marker's display value at this date.\n    const data = getActiveData();\n    const dateIdx = data.dates.indexOf(date);\n    const displayVal = (dateIdx >= 0 && marker) ? marker.values[dateIdx] : existingEntry.markers[dotKey];\n    const unit = marker?.unit || '';\n"
+    },
+    {
+      "start": 9947,
+      "before": "  if (stale()) return;\n",
+      "after": ""
+    },
+    {
+      "start": 10016,
+      "before": "    ...(panelId ? {panelId} : {}), ...(newPanel ? {newPanel} : {}), dotKey,\n",
+      "after": "    dotKey,\n"
+    },
+    {
+      "start": 10230,
+      "before": "  }, authorized);\n  if (!saved || !review.owns()) return;\n",
+      "after": "  });\n  if (!saved) return;\n"
+    },
+    {
+      "start": 11166,
+      "before": "    setTimeout(() => { if (review.owns()) showDetailModal(id); }, 50);\n",
+      "after": "    setTimeout(() => showDetailModal(id), 50);\n"
+    },
+    {
+      "start": 11549,
+      "before": "  const review = captureLabReview(date);\n  const panels = identifyLabPanels(review.rows);\n  const entry = panelId ? panels.find(panel => labPanelId(panel) === panelId) : panels.length === 1 ? panels[0] : null;\n  if (!entry?.markers || !Object.hasOwn(entry.markers, dotKey)) return;\n",
+      "after": "  const entry = state.importedData.entries.find(e => e.date === date);\n  if (!entry) return;\n  if (!hasMarkerValueForDate(dotKey, date)) return;\n"
+    },
+    {
+      "start": 11918,
+      "before": "    if (!review.current()) { showNotification('This sample or profile changed. Review its current values.', 'error'); return; }\n    const deleted = await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) }, review.current);\n    if (!deleted || !review.owns()) return;\n",
+      "after": "    const deleted = await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });\n    if (!deleted) return;\n"
+    },
+    {
+      "start": 13148,
+      "before": "  const review = captureLabReview(date);\n",
+      "after": ""
+    },
+    {
+      "start": 13771,
+      "before": "    if (!review.current()) { showNotification('This sample or profile changed. Review its current values.', 'error'); return; }\n    const updated = await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) }, review.current);\n    if (!updated || !review.owns()) { saveStarted = false; return; }\n",
+      "after": "    const updated = await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) });\n    if (!updated) { saveStarted = false; return; }\n"
+    }
+  ]
+}

@@ -2,6 +2,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { createEvolu8IdentityVault, EVOLU8_IDENTITY_TOKEN_KEY as KEY } from '../js/sync-evolu8-identity-vault.js';
 
+vi.mock('../js/wearables-credential-vault.js', () => ({
+  encryptDeviceCredential: async (_key: string, value: string) => 'd1:fixture:' + value,
+  decryptDeviceCredential: async (_key: string, value: string) => value.startsWith('d1:fixture:') ? value.slice(11) : null,
+}));
+
 type RequestFixture = {result?: unknown; onsuccess?: () => unknown; onerror?: () => unknown; onblocked?: () => unknown; onupgradeneeded?: () => unknown};
 type StoreFixture = {get: Mock<() => RequestFixture>; put: Mock<() => RequestFixture>; delete: Mock<() => RequestFixture>};
 type TxFixture = {objectStore: Mock<() => StoreFixture>; abort: Mock<() => void>; error: unknown; oncomplete?: () => unknown; onabort?: () => unknown; onerror?: () => unknown};
@@ -22,11 +27,12 @@ beforeEach(() => {
   vault=(createEvolu8IdentityVault as unknown as (options: VaultFixtureOptions) => ReturnType<typeof createEvolu8IdentityVault>)({storage,indexedDb,tokenFactory:()=> 'new-token'});
 });
 afterEach(()=>{vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();});
-async function opened() {request.result=db;request.onsuccess!();await Promise.resolve();await Promise.resolve();}
+async function opening() { await vi.waitFor(() => expect(request.onsuccess).toBeTypeOf('function')); }
+async function opened() {await opening();request.result=db;request.onsuccess!();await Promise.resolve();await Promise.resolve();}
 async function completed(result?: unknown) {row.result=result;row.onsuccess?.();tx.oncomplete!();await Promise.resolve();}
 it('does not return a read until its transaction commits',async()=>{
   let settled=false;const pending=vault.read().then(v=>{settled=true;return v;}); await opened();
-  row.result={version:1,token:'old-token',...identity};row.onsuccess!();await Promise.resolve();expect(settled).toBe(false);
+  row.result={version:1,token:'old-token',ownerId:identity.ownerId,envelope:'d1:fixture:' + identity.mnemonic};row.onsuccess!();await Promise.resolve();expect(settled).toBe(false);
   tx.oncomplete!();await expect(pending).resolves.toEqual(identity);expect(db.close).toHaveBeenCalledOnce();
 });
 it('does not publish a token until the write transaction commits',async()=>{
@@ -35,26 +41,30 @@ it('does not publish a token until the write transaction commits',async()=>{
 });
 it.each(['blocked','error','timeout'])('fails closed on read open %s',async mode=>{
   const pending=vault.read();
+  const outcome=expect(pending).rejects.toThrow();
+  await opening();
   if(mode==='timeout') await vi.advanceTimersByTimeAsync(5000);
   else request[mode==='blocked'?'onblocked':'onerror']!();
-  await expect(pending).resolves.toBeNull(); expect(vi.getTimerCount()).toBe(0);
+  await outcome; expect(vi.getTimerCount()).toBe(0);
 });
 it.each(['blocked','error','timeout'])('rejects write open %s without publishing',async mode=>{
   const pending=vault.write(identity);const rejection=expect(pending).rejects.toThrow();
+  await opening();
   if(mode==='timeout') await vi.advanceTimersByTimeAsync(5000);
   else request[mode==='blocked'?'onblocked':'onerror']!();
   await rejection; expect(storage.setItem).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(0);
 });
 it.each(['blocked','timeout'])('closes a late open after %s',async mode=>{
-  const pending=vault.read(); if(mode==='blocked') request.onblocked!();else await vi.advanceTimersByTimeAsync(5000);
-  await pending;request.result=db;request.onsuccess!();expect(db.close).toHaveBeenCalledOnce();expect(db.transaction).not.toHaveBeenCalled();
+  const pending=vault.read(); const outcome=expect(pending).rejects.toThrow(); await opening();
+  if(mode==='blocked') request.onblocked!();else await vi.advanceTimersByTimeAsync(5000);
+  await outcome;request.result=db;request.onsuccess!();expect(db.close).toHaveBeenCalledOnce();expect(db.transaction).not.toHaveBeenCalled();
 });
 it.each(['read','write'])('releases database after %s transaction abort',async method=>{
-  const pending=(vault[method as "read" | "write"] as (value: typeof identity) => Promise<unknown>)(identity);const outcome=method==='write'?expect(pending).rejects.toThrow('aborted'):expect(pending).resolves.toBeNull();
+  const pending=(vault[method as "read" | "write"] as (value: typeof identity) => Promise<unknown>)(identity);const outcome=expect(pending).rejects.toThrow('aborted');
   await opened();tx.onabort!();await outcome;expect(db.close).toHaveBeenCalledOnce();expect(storage.setItem).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(0);
 });
 it.each(['read','write'])('bounds stalled %s transactions',async method=>{
-  const pending=(vault[method as "read" | "write"] as (value: typeof identity) => Promise<unknown>)(identity);const outcome=method==='write'?expect(pending).rejects.toThrow('timed out'):expect(pending).resolves.toBeNull();
+  const pending=(vault[method as "read" | "write"] as (value: typeof identity) => Promise<unknown>)(identity);const outcome=expect(pending).rejects.toThrow('timed out');
   await opened();await vi.advanceTimersByTimeAsync(5000);await outcome;expect(tx.abort).toHaveBeenCalledOnce();expect(db.close).toHaveBeenCalledOnce();
 });
 it('ignores request success followed by transaction failure',async()=>{
@@ -67,7 +77,12 @@ it('aborts when a store operation throws synchronously',async()=>{
 it.each([
   ['missing',null],['version',{version:2}],['token',{token:'other'}],['owner',{ownerId:''}],['mnemonic',{mnemonic:''}],['owner type',{ownerId:7}],['mnemonic type',{mnemonic:7}],
 ])('does not restore %s record',async (_label,override)=>{
-  const pending=vault.read();await opened();await completed(override===null?null:{version:1,token:'old-token',...identity,...override});await expect(pending).resolves.toBeNull();
+  const pending=vault.read();
+  const outcome = override === null || _label === 'token'
+    ? expect(pending).resolves.toBeNull() : expect(pending).rejects.toThrow(/could not be/);
+  await opened();
+  await completed(override===null?null:{version:1,token:'old-token',...identity,...override});
+  await outcome;
 });
 it('ignores inaccessible token storage without opening the database',async()=>{
   storage.getItem.mockImplementation(()=>{throw Error('denied');});await expect(vault.read()).resolves.toBeNull();expect(indexedDb.open).not.toHaveBeenCalled();

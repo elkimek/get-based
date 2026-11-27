@@ -256,11 +256,10 @@ test('charts browser coverage exercises annotation supplement and theme callback
         optimalMin: 1.5,
         optimalMax: 2.5,
         phaseLabels: ['Follicular', 'Luteal', 'Luteal'],
-      }, ['Jan', 'Feb', 'Mar'], ['2026-01-01', '2026-02-01', '2026-03-01'], ['follicular', 'luteal', 'luteal'], {
-        displayLabels: ['Late follicular', 'Late luteal', 'Luteal'],
-        cycleDays: [10, 27, 20],
-        sources: ['recorded', 'recorded', 'predicted'],
-      });
+        phaseDisplayLabels: ['Late follicular', 'Late luteal', 'Luteal'],
+        phaseCycleDays: [10, 27, 20],
+        phaseSources: ['recorded', 'recorded', 'predicted'],
+      }, ['Jan', 'Feb', 'Mar'], ['2026-01-01', '2026-02-01', '2026-03-01']);
 
       state.dateRangeFilter = '3m';
       const recent = new Date();

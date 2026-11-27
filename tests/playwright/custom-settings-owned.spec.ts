@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 // The 44px target contract applies to coarse pointer input. Desktop density
 // is checked against the original UI in sveltekit-settings-density.spec.ts.

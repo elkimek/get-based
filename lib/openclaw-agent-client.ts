@@ -221,9 +221,13 @@ export class OpenClawAgentClient {
   async prompt(options: AgentTurnOptions) {
     assertAgentNotAborted(options.signal);
     const catalog = await this.getModelCatalog();
-    const model = cleanText(options.model, 160)
-      || catalog.find(entry => entry.isDefault)?.id || catalog[0]?.id || '';
-    if (!model) throw new Error('OpenClaw has no model available for this request.');
+    const requestedModel = cleanText(options.model, 160);
+    if (requestedModel && (requestedModel.startsWith('-') || /[\s\0-\x1f\x7f]/.test(requestedModel))) {
+      throw new Error('OpenClaw received an invalid model identifier.');
+    }
+    const model = requestedModel || catalog.find(entry => entry.isDefault)?.id || catalog[0]?.id || '';
+    if (!model || model.startsWith('-')) throw new Error('OpenClaw has no model available for this request.');
+    const safeEffort = options.effort && /^[A-Za-z0-9._-]+$/.test(options.effort) && !options.effort.startsWith('-') ? options.effort : '';
     assertAgentNotAborted(options.signal);
     const sessionId = options.sessionId || randomUUID();
     const privateId = randomUUID();
@@ -243,12 +247,12 @@ export class OpenClawAgentClient {
         ? [
           'agent', ...(this.gatewayAgentId ? ['--agent', this.gatewayAgentId] : []),
           '--session-id', sessionId, '--message-file', promptPath, '--json', '--model', model,
-          ...(options.effort ? ['--thinking', options.effort] : []),
+          ...(safeEffort ? ['--thinking', safeEffort] : []),
         ]
         : [
           'agent', 'exec', '--config', configPath, '--code-mode', 'direct', '--json',
           '--cwd', this.cwd, '--message-file', promptPath, '--model', model,
-          ...(options.effort ? ['--thinking', options.effort] : []),
+          ...(safeEffort ? ['--thinking', safeEffort] : []),
         ];
       const { stdout } = await this.runCommand(args, options.signal, [configPath, promptPath]);
       let payload;

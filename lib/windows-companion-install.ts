@@ -38,6 +38,9 @@ function vbsString(value: string) {
 }
 
 export function renderWindowsCompanionRunner(options: CompanionServiceSource & { pathValue?: string }) {
+  for (const candidate of [options.nodePath, options.bundlePath]) {
+    if (/["%\r\n\0]/.test(String(candidate || ''))) throw new Error('Invalid Windows runner path.');
+  }
   const command = `"${options.nodePath}" "${options.bundlePath}" run`;
   const commands = options.agentCommands || (options.codexCommand ? { GETBASED_CODEX_COMMAND: options.codexCommand } : {});
   const commandEnvironment = Object.entries(commands).map(([name, value]) => `shell.Environment("Process")(${vbsString(name)}) = ${vbsString(value)}\r\n`).join('');
@@ -89,14 +92,16 @@ export function installWindowsCompanion(options: CompanionInstallOptions) {
   writeFileSync(paths.launcher, renderWindowsCompanionLauncher({ nodePath, bundlePath: paths.installedBundle }));
   const systemRoot = requireWindowsAbsolutePath(env.SystemRoot || 'C:\\Windows', 'SystemRoot');
   const wscript = win32.join(systemRoot, 'System32', 'wscript.exe');
+  const schtasks = win32.join(systemRoot, 'System32', 'schtasks.exe');
+  const powershell = win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
   const taskAction = `"${wscript}" "${paths.runnerScript}"`;
   const run = options.execFileSyncImpl || execFileSync;
-  run('schtasks.exe', ['/Create', '/TN', WINDOWS_COMPANION_TASK, '/TR', taskAction, '/SC', 'ONLOGON', '/RL', 'LIMITED', '/F'], { stdio: 'inherit', env });
+  run(schtasks, ['/Create', '/TN', WINDOWS_COMPANION_TASK, '/TR', taskAction, '/SC', 'ONLOGON', '/RL', 'LIMITED', '/F'], { stdio: 'inherit', env });
   const settingsCommand = `$settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; Set-ScheduledTask -TaskName '${WINDOWS_COMPANION_TASK.replaceAll("'", "''")}' -Settings $settings | Out-Null`;
-  run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', settingsCommand], { stdio: 'inherit', env });
+  run(powershell, ['-NoProfile', '-NonInteractive', '-Command', settingsCommand], { stdio: 'inherit', env });
   if (options.startService !== false) {
-    try { run('schtasks.exe', ['/End', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'ignore', env }); } catch {}
-    run('schtasks.exe', ['/Run', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'inherit', env });
+    try { run(schtasks, ['/End', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'ignore', env }); } catch {}
+    run(schtasks, ['/Run', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'inherit', env });
   }
   return { ...paths, nodePath, codexCommand, runnerSource, installed: true };
 }
@@ -105,11 +110,12 @@ export function uninstallWindowsCompanion(options: CompanionServiceOptions = {})
   const env = options.env || process.env;
   const paths = resolveWindowsCompanionPaths({ env, homeDirectory: options.homeDirectory });
   if (win32.basename(paths.runtimeDirectory) !== 'companion') throw new Error('Refusing an unsafe runtime path.');
+  const schtasks = win32.join(requireWindowsAbsolutePath(env.SystemRoot || 'C:\\Windows', 'SystemRoot'), 'System32', 'schtasks.exe');
   const run = options.execFileSyncImpl || execFileSync;
   if (options.stopService !== false) {
-    try { run('schtasks.exe', ['/End', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'ignore', env }); } catch {}
+    try { run(schtasks, ['/End', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'ignore', env }); } catch {}
   }
-  try { run('schtasks.exe', ['/Delete', '/TN', WINDOWS_COMPANION_TASK, '/F'], { stdio: 'ignore', env }); } catch {}
+  try { run(schtasks, ['/Delete', '/TN', WINDOWS_COMPANION_TASK, '/F'], { stdio: 'ignore', env }); } catch {}
   if (existsSync(paths.runnerScript)) unlinkSync(paths.runnerScript);
   if (existsSync(paths.launcher)) unlinkSync(paths.launcher);
   rmSync(paths.runtimeDirectory, { recursive: true, force: true });
@@ -119,13 +125,14 @@ export function uninstallWindowsCompanion(options: CompanionServiceOptions = {})
 export function runWindowsCompanionServiceCommand(command: CompanionServiceCommand, options: CompanionServiceOptions = {}) {
   if (!['start', 'stop', 'restart', 'status'].includes(command)) throw new Error('Unsupported companion service command.');
   const env = options.env || process.env;
+  const schtasks = win32.join(requireWindowsAbsolutePath(env.SystemRoot || 'C:\\Windows', 'SystemRoot'), 'System32', 'schtasks.exe');
   const run = options.execFileSyncImpl || execFileSync;
-  if (command === 'status') run('schtasks.exe', ['/Query', '/TN', WINDOWS_COMPANION_TASK, '/FO', 'LIST'], { stdio: 'inherit', env });
-  else if (command === 'stop') run('schtasks.exe', ['/End', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'inherit', env });
+  if (command === 'status') run(schtasks, ['/Query', '/TN', WINDOWS_COMPANION_TASK, '/FO', 'LIST'], { stdio: 'inherit', env });
+  else if (command === 'stop') run(schtasks, ['/End', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'inherit', env });
   else {
     if (command === 'restart') {
-      try { run('schtasks.exe', ['/End', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'ignore', env }); } catch {}
+      try { run(schtasks, ['/End', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'ignore', env }); } catch {}
     }
-    run('schtasks.exe', ['/Run', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'inherit', env });
+    run(schtasks, ['/Run', '/TN', WINDOWS_COMPANION_TASK], { stdio: 'inherit', env });
   }
 }

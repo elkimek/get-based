@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
 import { renderFeedbackForm } from '../js/feedback-rendering.js';
 import { feedbackClasses } from '../js/feedback-classes.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
 interface Adjacent { type: number; text: string | null }
 interface Anchor { path: number[]; value: string | null; previous: Adjacent | null; next: Adjacent | null }
 interface Receiver { elementIndex: number; nativeClass: string | null; utilities: string[] }
@@ -117,4 +119,29 @@ it('preserves reset defaults after native control writes', () => {
   expect(controls(actual)).toEqual(controls(baseline));
   expect(actual.querySelector<HTMLSelectElement>('#feedback-type')!.value).toBe('bug');
   expect([...actual.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea')].map(i => i.value)).toEqual(['', '', '']);
+});
+
+it('mounts the native feedback form with local validation and draft-only defaults', async () => {
+  const load = createRequire(import.meta.url);
+  const native = load('../js/components/FeedbackPresentation.svelte.native.js') as typeof import('../js/components/FeedbackPresentation.svelte.native.js');
+  const reference = host(renderFeedbackForm());
+  await expectNativeReview(reference.innerHTML, root => {
+    const mounted = native.mount(native.default, {target: root, props: {}});
+    native.flushSync();
+    return () => native.unmount(mounted);
+  }, root => {
+    expect(controls(root)).toEqual(controls(reference));
+    const title = root.querySelector<HTMLInputElement>('#feedback-title')!;
+    const description = root.querySelector<HTMLTextAreaElement>('#feedback-desc')!;
+    expect(title.validity.valueMissing).toBe(true);
+    expect(description.validity.valueMissing).toBe(true);
+    expect(document.activeElement).toBe(title);
+    title.value = 'Local fixture edit';
+    description.value = 'Local fixture description';
+    root.querySelector('form')!.reset();
+    expect(controls(root)).toEqual(controls(reference));
+    expect(root.querySelector<HTMLTextAreaElement>('#feedback-draft')?.readOnly).toBe(true);
+    expect(root.querySelector<HTMLElement>('#feedback-result')?.hidden).toBe(true);
+    expect(root.querySelector('a')?.getAttribute('href')).toBeNull();
+  }, '#feedback-title');
 });

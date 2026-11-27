@@ -5,23 +5,24 @@ import type { HostControlAction } from './agent-host-turn-state.js';
 import { chmodSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createPublicKey, randomUUID, verify } from 'node:crypto';
 import {
   installCompanion, runCompanionServiceCommand, uninstallCompanion,
 } from './companion-install.js';
 import { GETBASED_COMPANION_VERSION } from '../shared/agent-host-protocol.js';
 
 const MAX_COMPANION_BUNDLE_BYTES = 250_000;
+const RELEASE_UPDATE_PUBLIC_KEY = process.env.GETBASED_COMPANION_UPDATE_PUBLIC_KEY || '';
 
 function companionBundleUrl() {
   // Never let the calling web page select executable update content.
   return 'https://app.getbased.health/getbased-companion.mjs';
 }
 
-async function readVerifiedBundle(response: Response) {
+async function readBoundedUpdate(response: Response, limit: number) {
   if (!response.ok) throw new Error(`Could not download the companion update (HTTP ${response.status}).`);
   const declaredBytes = Number(response.headers.get('Content-Length') || 0);
-  if (Number.isFinite(declaredBytes) && declaredBytes > MAX_COMPANION_BUNDLE_BYTES) {
+  if (Number.isFinite(declaredBytes) && declaredBytes > limit) {
     throw new Error('The companion update is unexpectedly large.');
   }
   const reader = response.body?.getReader();
@@ -33,28 +34,31 @@ async function readVerifiedBundle(response: Response) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.byteLength;
-      if (total > MAX_COMPANION_BUNDLE_BYTES) throw new Error('The companion update is unexpectedly large.');
+      if (total > limit) throw new Error('The companion update is unexpectedly large.');
       chunks.push(value);
     }
   } finally { await reader.cancel(); }
   const bytes = Buffer.concat(chunks, total);
-  if (!bytes.byteLength || bytes.byteLength > MAX_COMPANION_BUNDLE_BYTES) {
+  if (!bytes.byteLength || bytes.byteLength > limit) {
     throw new Error('The companion update is empty or unexpectedly large.');
   }
+  return bytes;
+}
+
+function validateBundleSource(bytes: Buffer) {
   const source = new TextDecoder().decode(bytes);
   if (!source.startsWith('#!/usr/bin/env node\n')
     || !source.includes('getbased Companion')
     || !source.includes('getbased-agent-host')) {
     throw new Error('The downloaded file is not a getbased Companion bundle.');
   }
-  return bytes;
 }
 
 // Read the release version as data; never evaluate downloaded code.
 function bundleVersion(bytes: Buffer) {
-  const matches = [...bytes.toString('utf8').matchAll(/^\s*(?:(?:export\s+)?(?:const|let|var)\s+)?GETBASED_COMPANION_VERSION\s*=\s*["'](\d+\.\d+\.\d+)["'];?\s*$/gm)];
+  const matches = [...bytes.toString('utf8').matchAll(/\bGETBASED_COMPANION_VERSION\s*=\s*(["'`])(\d+\.\d+\.\d+)\1(?=\s*[;,)])/g)];
   if (matches.length !== 1) throw new Error('Could not verify the Companion update version. Nothing was installed.');
-  return matches[0]![1]!;
+  return matches[0]![2]!;
 }
 
 function newerVersion(candidate: string, current: string) {
@@ -139,10 +143,20 @@ export function createCompanionRuntimeController(options: CompanionRuntimeOption
     }
     if (action === 'update') {
       if (runtimeMode !== 'installed') throw new Error('Start the companion automatically before updating it.');
-      const response = await fetchImpl(companionBundleUrl(), {
+      const pinnedKey = env.GETBASED_COMPANION_UPDATE_PUBLIC_KEY || RELEASE_UPDATE_PUBLIC_KEY;
+      if (!pinnedKey) throw new Error('This Companion has no trusted update signing key. See the official installation instructions.');
+      const publicKey = createPublicKey(pinnedKey);
+      if (publicKey.asymmetricKeyType !== 'ed25519') throw new Error('The Companion update key must use Ed25519.');
+      const fetchOptions: RequestInit = {
         cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(30_000),
-      });
-      const bytes = await readVerifiedBundle(response);
+      };
+      const url = companionBundleUrl();
+      const bytes = await readBoundedUpdate(await fetchImpl(url, fetchOptions), MAX_COMPANION_BUNDLE_BYTES);
+      const signatureText = (await readBoundedUpdate(await fetchImpl(url + '.sig', fetchOptions), 256)).toString('ascii').trim();
+      if (!/^[A-Za-z0-9+/]{86}==$/.test(signatureText) || !verify(null, bytes, publicKey, Buffer.from(signatureText, 'base64'))) {
+        throw new Error('Could not verify the Companion update signature. No update was installed.');
+      }
+      validateBundleSource(bytes);
       const availableVersion = bundleVersion(bytes);
       // A local preview or pending update must never be replaced by the same
       // release or an older production bundle.

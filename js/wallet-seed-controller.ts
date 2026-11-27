@@ -4,6 +4,7 @@ interface WalletSeedDependencies {
   hasSeed(): Promise<unknown>; generate(): Promise<unknown>; mnemonic(): Promise<unknown>; restore(words: string): Promise<unknown>;
   refresh(): unknown; notify(text: string, tone: 'success' | 'error'): void;
   writeClipboard(text: string): Promise<void>; scheduleClear(clear: () => void): void;
+  markAcknowledged?(): unknown;
   close(view: WalletSeedView): void;
 }
 const normalize = (words: string) => words.trim().toLowerCase().split(/\s+/).join(' ');
@@ -58,6 +59,9 @@ export function createWalletSeedController(deps: WalletSeedDependencies) {
   async function acknowledge(): Promise<void> {
     const next = continuation;
     if (!next || !current(next.view) || !next.view.isAcknowledged() || next.view.getState().pending || next.view.getState().mode !== 'onboarding') return;
+    try { await deps.markAcknowledged?.(); }
+    catch { message(next.view, 'Could not save the seed backup confirmation. Try again.', 'danger'); return; }
+    if (!current(next.view) || continuation !== next) return;
     continuation = null;
     deps.close(next.view); deps.refresh();
     try { await next.after(); } catch { deps.notify('Wallet setup completed, but the next action could not start. Open it again to continue.', 'error'); }

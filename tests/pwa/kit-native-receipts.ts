@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
-import {expect, type Locator, type Page} from '@playwright/test';
+import {expect, test, type Locator, type Page} from '@playwright/test';
 import {createSvelteFacadePlugin} from '../../scripts/svelte-facade-plugin.mjs';
+import {captureOfflineLaunchDiagnostics, navigateWithOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 
 // Shared read-only static artifact, bundled state and native cache/profile receipts.
 // Extracted from the maintained Changelog test; no synthetic application getters.
@@ -175,4 +176,51 @@ export async function cacheReceipt(page: Page, artifact: Awaited<ReturnType<type
 }
 export async function activate(page: Page, control: Locator) {
   if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) await control.tap(); else await control.click();
+}
+
+export async function openKitChatComposer(page: Page) {
+  const panel = page.locator('#chat-panel.open[aria-hidden="false"]:not([inert])');
+  if (!await panel.isVisible()) await activate(page, page.locator('#chat-fab'));
+  await expect(panel).toBeVisible();
+  const input = panel.getByRole('textbox', {name: 'Chat message', exact: true});
+  await expect(input).toBeVisible();
+  await expect(input).toBeEnabled();
+  return {
+    async send(evidence: string) {
+      await input.fill(evidence);
+      await expect(input).toHaveValue(evidence);
+      await activate(page, panel.getByRole('button', {name: 'Send message', exact: true}));
+    },
+  };
+}
+
+export async function resumePausedArtifactChat(page: Page) {
+  if (!await page.locator('#chat-panel.open').isVisible()) await activate(page, page.locator('#chat-fab'));
+  const resume = page.locator('[data-chat-empty-action="resume-ai"]');
+  await expect(resume).toBeVisible();
+  await expect(page.locator('#chat-input')).toBeDisabled();
+  await activate(page, resume);
+  await expect(page.locator('#chat-input')).toBeEnabled();
+}
+
+export async function expectControlledKitArtifact(page: Page): Promise<void> {
+  try {
+    await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({timeout: 30_000});
+    await expect.poll(() => page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration(location.href);
+      const controller = navigator.serviceWorker.controller;
+      return registration?.active?.state === 'activated' && controller?.state === 'activated'
+        && controller.scriptURL === registration.active.scriptURL && controller.scriptURL === location.origin + '/service-worker.js';
+    }), {timeout: 30_000, message: 'The activated release worker must control the application'}).toBe(true);
+  } catch (error) {
+    await captureOfflineLaunchDiagnostics(page, test.info()).catch(() => {});
+    throw error;
+  }
+}
+
+export async function readyControlledKitArtifact(page: Page, origin: string): Promise<number> {
+  const start = performance.now();
+  await navigateWithOfflineLaunchDiagnostics(page, origin + '/app?dev-sw=1', test.info());
+  await expectControlledKitArtifact(page);
+  return Math.round(performance.now() - start);
 }

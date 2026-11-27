@@ -9,7 +9,7 @@ export interface PdfPageProxy {
   getViewport(options: { scale: number }): { width: number; height: number };
   render(options: { canvasContext: CanvasRenderingContext2D | null; viewport: unknown }): { promise: Promise<void> };
 }
-export interface PdfDocumentProxy { numPages: number; getPage(pageNumber: number): Promise<PdfPageProxy> }
+export interface PdfDocumentProxy { numPages: number; getPage(pageNumber: number): Promise<PdfPageProxy>; destroy?(): Promise<void> }
 interface PdfLoadingTask { promise: Promise<PdfDocumentProxy> }
 export interface PdfJsModule { GlobalWorkerOptions: { workerSrc?: string }; getDocument(options: Record<string, unknown>): PdfLoadingTask }
 type PdfDocumentInput = ArrayBuffer | ArrayBufferView | string | Record<string, unknown>;

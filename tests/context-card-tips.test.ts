@@ -1,7 +1,20 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { contextTipsSlotKeys, projectContextTips, type ContextTipsInput } from '../js/context-card-tips-presentation.js';
 import { renderHTML } from '../js/components/ContextCardTips.svelte.html.js';
+
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+function checkNativeTips(view: NonNullable<ReturnType<typeof projectContextTips>>, verify: (root: HTMLElement) => void) {
+  const component = load('../js/components/ContextCardTips.svelte.native.js') as typeof import('../js/components/ContextCardTips.svelte.native.js');
+  return expectNativeReview(renderHTML({view}), root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, verify);
+}
 
 function input(): ContextTipsInput {
   return {
@@ -16,7 +29,7 @@ function input(): ContextTipsInput {
   };
 }
 describe('authored context tips', () => {
-  it('retains card slots, genetic evidence and general-information text without catalog mutation', () => {
+  it('retains card slots, genetic evidence and general-information text without catalog mutation', async () => {
     const source = input(), before = JSON.stringify(source), view = projectContextTips(source)!;
     expect(contextTipsSlotKeys(source.catalog, 'diet')).toEqual(['diet.fiber', 'diet.empty']);
     expect(view.sections).toEqual([{ label: 'Fiber', actions: ['Eat vegetables'], forms: ['Food'] }]);
@@ -26,6 +39,11 @@ describe('authored context tips', () => {
     expect(host.textContent).toContain('Evidence ·');
     expect(host.textContent).toContain('not individualized medical advice or a care plan');
     expect(host.querySelector('[data-rec-action="close-modal"]')?.tagName).toBe('BUTTON');
+    await checkNativeTips(view, root => {
+      expect(root.querySelector('h2')?.textContent).toBe(host.querySelector('h2')?.textContent);
+      expect(root.querySelector('a')?.getAttribute('href')).toBe('https://example.org/study');
+      expect(root.querySelector('a')?.getAttribute('rel')).toBe('noopener');
+    });
     expect(JSON.stringify(source)).toBe(before);
   });
   it.each(['disabled', 'missing catalog', 'unknown card', 'empty slot', 'toString', 'constructor', '__proto__'])('retains the empty contract for %s', condition => {
@@ -58,7 +76,7 @@ describe('authored context tips', () => {
     source.genetics.apoe = null;
     expect(projectContextTips(source)!.genetics).toHaveLength(1);
   });
-  it('renders catalog and genotype strings literally and excludes executable study links', () => {
+  it('renders catalog and genotype strings literally and excludes executable study links', async () => {
     const source = input();
     source.catalog!.slots['diet.fiber']!.label = '<img src=x onerror=evil>';
     source.catalog!.slots['diet.fiber']!.freeActions = ['<script>evil()</script> & food'];
@@ -70,6 +88,10 @@ describe('authored context tips', () => {
     expect(host.querySelector('img,script,input,svg,b,a')).toBeNull();
     expect(host.textContent).toContain('<script>evil()</script> & food');
     expect(host.textContent).toContain('<b>literal</b>');
+    await checkNativeTips(projectContextTips(source)!, root => {
+      expect(root.querySelector('img, script, input, svg, b, a')).toBeNull();
+      expect(root.textContent).toContain('<b>literal</b>');
+    });
   });
   it('keeps valid study URLs escaped with isolated new-tab navigation', () => {
     const source = input(); source.snpTable!.rs1!.snpHints!.AG!.ref = 'https://example.org/?q=" onclick="evil';
@@ -87,10 +109,15 @@ describe('authored context tips', () => {
     source.assessments = [{ date: date(370) }]; expect(projectContextTips(source)!.environment?.text).toContain('over a year ago');
     source.assessments = [{ date: 'invalid' }]; expect(projectContextTips(source)).toBeNull();
   });
-  it('exposes environment navigation as a keyboard button with the retained action and analytics contract', () => {
+  it('exposes environment navigation as a keyboard button with the retained action and analytics contract', async () => {
     const source = input(); source.cardKey = 'environment'; source.catalog = { slots: { emf: { card: 'Environment' } } };
     const host = document.createElement('div'); host.innerHTML = renderHTML({ view: projectContextTips(source)! });
     const control = host.querySelector<HTMLButtonElement>('[data-rec-action="open-emf-assessment"]')!;
     expect(control.tagName).toBe('BUTTON'); expect(control.type).toBe('button'); expect(control.dataset.umamiEvent).toBe('emf-nudge-env-tips-noassessment');
+    await checkNativeTips(projectContextTips(source)!, root => {
+      const action = root.querySelector<HTMLButtonElement>('[data-rec-action="open-emf-assessment"]');
+      expect(action?.type).toBe('button');
+      expect(action?.dataset.umamiEvent).toBe('emf-nudge-env-tips-noassessment');
+    });
   });
 });

@@ -17,8 +17,10 @@ import type { ScoreOptions } from './biology-score-types.js';
 // synchronously and restore both settings before any render, write or await.
 export function computeBiologyScoreView(data: BiologyData, view: unknown, options: ScoreOptions = {}) {
   const previous = { rangeMode: state.rangeMode, dateRangeFilter: state.dateRangeFilter };
+  const next = view && typeof view === 'object' ? view as { rangeMode?: typeof state.rangeMode; dateRangeFilter?: typeof state.dateRangeFilter } : null;
   try {
-    Object.assign(state, view);
+    if (next && 'rangeMode' in next) state.rangeMode = next.rangeMode!;
+    if (next && 'dateRangeFilter' in next) state.dateRangeFilter = next.dateRangeFilter!;
     return computeBiologyScores((filterDatesByRange as (data: BiologyData, options: Parameters<typeof filterDatesByRange>[1]) => BiologyData)(data, { fallbackToAll: false }), options);
   } finally { Object.assign(state, previous); }
 }
@@ -63,7 +65,7 @@ export const SCORE_DEFINITIONS: BiologyDefinition[] = [
       { key: 'apoB', label: 'ApoB', weight: 2.0, paths: ['lipids.apoB', 'lipids.apoB_'], core: true },
       { key: 'apoBA1Ratio', label: 'ApoB/ApoA1 ratio', weight: 1.5, paths: ['calculatedRatios.apoBapoAIRatio', 'calculatedRatios.apoBA1Ratio'], core: true },
       { key: 'apoA1', label: 'ApoA1', weight: 1.0, paths: ['lipids.apoAI', 'lipids.apoA1'] },
-      { key: 'lpA', label: 'Lp(a)', weight: 1.0, paths: ['lipids.lpA', 'lipids.lpa', 'lipids.lp_a'] },
+      { key: 'lpA', label: 'Lp(a)', weight: 1.0, paths: ['lipids.lpA', 'lipids.lpAMass', 'lipids.lpa', 'lipids.lp_a'] },
       { key: 'ldl', label: 'LDL cholesterol', weight: 0.8, paths: ['lipids.ldl', 'lipids.ldlCholesterol', 'calculatedRatios.ldl'] },
       { key: 'nonHdl', label: 'Non-HDL cholesterol', weight: 0.8, paths: 'lipids.nonHdl' },
       { key: 'cholHdlRatio', label: 'Total cholesterol/HDL ratio', weight: 0.6, paths: ['calculatedRatios.cholHdlRatio', 'lipids.cholHdlRatio'] },

@@ -604,7 +604,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
     document.getElementById('tour-overlay')?.remove();
     const { state } = await import('/js/state.js');
     const { setAIProvider, setOllamaMainModel } = await import('/js/api.js');
-    const { finishImportBenchmark, startImportBenchmark } = await import('/js/import-benchmarks.js');
+    const { finishImportBenchmark, startImportBenchmark, persistImportBenchmarks } = await import('/js/import-benchmarks.js');
     const { setPendingImportRuntime } = await import('/js/pdf-import-review-runtime.js');
     const { confirmImport } = await import('/js/pdf-import-commit.js');
     state.currentProfile = 'two-model-benchmark-profile';
@@ -618,6 +618,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
       manualValues: {},
       customMarkers: {},
     };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not persist the benchmark profile');
     setAIProvider('ollama');
 
     const importWithModel = async (modelId: string, value: number) => {
@@ -636,6 +637,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
         timings: { analysisMs: 9_000, piiMs: 500 },
         usage: { inputTokens: 1_000, outputTokens: 400 },
       }, { persist: false });
+      if (!await persistImportBenchmarks()) throw new Error('Could not persist the model preview');
       setPendingImportRuntime({
         benchmarkId,
         _importProfileId: state.currentProfile,
@@ -662,6 +664,9 @@ test('two successful imports persist as two distinct comparable model runs', asy
           matched: true,
         }],
       }, {});
+      const { getPendingImport } = await import('/js/pdf-import-review.js');
+      const { chooseImportSample } = await import('/js/lab-report-samples.js');
+      chooseImportSample(getPendingImport()!, state.importedData, state.currentProfile, 'new');
       await confirmImport();
     };
 

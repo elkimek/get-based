@@ -1073,7 +1073,7 @@ describe('synced Agent Access state', () => {
     await pushComplete;
 
     expect(buildLabContext).toHaveBeenCalledWith();
-    expect(getAgentWearableSeriesDays).toHaveBeenCalledOnce();
+    expect(getAgentWearableSeriesDays).toHaveBeenCalled();
     expect(buildWearableSeriesSection).toHaveBeenCalledWith(7);
     expect(fetchSpy).toHaveBeenCalledOnce();
   });

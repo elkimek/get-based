@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {generatedInlineStyleMapOutputs} from './inline-style-map-owners.mjs';
-const GENERATED_INLINE_MAPS = new Set(generatedInlineStyleMapOutputs);
+import {SVELTE_COMPATIBILITY_MANIFEST} from './svelte-compatibility-outputs.mjs';
+const GENERATED_BUILD_OUTPUTS = new Set([...generatedInlineStyleMapOutputs, SVELTE_COMPATIBILITY_MANIFEST]);
 
 const SOURCE_INPUT = /\.(?:ts|mts|svelte|css|html|json)$/;
 // Maintained coverage producers own exactly these report coordinates:
@@ -22,7 +23,7 @@ const OUTPUT_DIRECTORIES = new Set(['.git', 'node_modules', '.local-notes', '.sv
 function eligible(relative:string):boolean {
   const parts=relative.split('/');
   if(path.isAbsolute(relative)||parts.some(part=>!part||part==='.'||part==='..')) throw new Error('Static build input must be relative to its source root');
-  return !GENERATED_INLINE_MAPS.has(relative)&&!generatedCoverageReport(relative)&&SOURCE_INPUT.test(relative)&&!parts.some(part=>OUTPUT_DIRECTORIES.has(part));
+  return !GENERATED_BUILD_OUTPUTS.has(relative)&&!generatedCoverageReport(relative)&&SOURCE_INPUT.test(relative)&&!parts.some(part=>OUTPUT_DIRECTORIES.has(part));
 }
 /** Git can report no files for an ignored evaluation checkout. Discover its real
  * authored inputs too; output, dependency and local-journal trees never version the app. */

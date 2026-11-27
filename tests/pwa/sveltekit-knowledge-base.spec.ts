@@ -5,7 +5,7 @@ import { runKnowledgeChatStaticCase } from '../helpers/knowledge-chat-static-cas
 import { runKnowledgeLibraryChatStaticCase } from '../helpers/knowledge-library-chat-static-case.js';
 import { runKnowledgeDocumentChatStaticCase } from '../helpers/knowledge-document-chat-static-case.js';
 import {createHash} from 'node:crypto';
-import {expect, test as base, type Page, type BrowserContextOptions} from '@playwright/test';
+import {expect, test as base, type Page, type BrowserContext, type BrowserContextOptions} from '@playwright/test';
 import {createDefaultProfileData} from '../../js/profile.js';
 import {chunkText} from '../../js/lens-local-utils.js';
 import {MODELS} from '../../js/lens-local-embedder-config.js';
@@ -16,15 +16,15 @@ import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
-import {withNativeCocoaOpfsContext} from '../helpers/cocoa-opfs-context.js';
+import {openColdKnowledgePage, withPersistentWebKitOpfsContext} from '../helpers/cocoa-opfs-context.js';
 
 const test = base.extend({
   context: async ({context, playwright, browserName, launchOptions, headless, contextOptions,
     viewport, userAgent, deviceScaleFactor, isMobile, hasTouch, serviceWorkers}, use, info) => {
     const scope = process.env['GETBASED_KIT_CASE_SCOPE'];
     if (scope === 'webkit-opfs' && (process.platform !== 'darwin' || browserName !== 'webkit')) throw new Error('Native Cocoa OPFS scope requires macOS WebKit');
-    if (process.platform !== 'darwin' || browserName !== 'webkit') {await use(context); return;}
-    expect(headless, 'Native Cocoa PWA acceptance stays headless').toBe(true);
+    if (!['darwin', 'linux'].includes(process.platform) || browserName !== 'webkit') {await use(context); return;}
+    expect(headless, 'Native WebKit PWA acceptance stays headless').toBe(true);
     // Keep the same public resolved device fixtures; the runner also applies all
     // remaining configured context options to manually launched contexts.
     const device: BrowserContextOptions = {
@@ -36,7 +36,7 @@ const test = base.extend({
       ...(serviceWorkers === undefined ? {} : {serviceWorkers}),
     };
     const resolved = {...contextOptions, ...device};
-    await withNativeCocoaOpfsContext({browserType: playwright.webkit, privateContext: context,
+    await withPersistentWebKitOpfsContext({browserType: playwright.webkit, privateContext: context,
       launchOptions: {...launchOptions, headless}, contextOptions: resolved, info}, use);
   },
 });
@@ -271,30 +271,34 @@ test('native Knowledge Base create, Markdown ingest and rename persist through t
   expect(Object.keys(MODELS).sort(), 'Independent maintained domain catalog identity').toEqual([...MODEL_KEYS].sort());
   expect(TEXT.length).toBeGreaterThan(100); expect(TEXT.length).toBeLessThan(512);
   expect(chunkText(TEXT)).toEqual([TEXT.trim()]);
-  await installDiscussionFixture(context, {paused: true});
-  await installOfflineStartupDiagnostics(context);
-  await context.addInitScript(({defaults, demo}) => {
-    if (!['http:', 'https:'].includes(location.protocol)) return;
-    if (localStorage.getItem('knowledge-base-native-pwa-seeded')) return;
-    localStorage.setItem('knowledge-base-native-pwa-seeded', '1');
-    localStorage.setItem('labcharts-profiles', JSON.stringify([{id: 'default', name: 'Alex', sex: 'male', dob: '1987-11-22', createdAt: 1}]));
-    localStorage.setItem('labcharts-active-profile', 'default');
-    localStorage.setItem('labcharts-show-product-recs', 'false');
-    localStorage.setItem('labcharts-default-imported', JSON.stringify({...defaults, entries: demo.entries, refOverrides: demo.refOverrides, profile: {firstName: 'Alex', age: 38}, markerNotes: {'thyroid.tsh': 'Preserve unrelated native KB note'}, contextNotes: 'Preserve unrelated native KB context', sunDefaults: {fitzpatrick: 'II', completedAt: 1}}));
-    localStorage.setItem('labcharts-lens-config', JSON.stringify({backend: 'in-browser', enabled: true, topK: 5, multiQuery: false, name: '', url: '', testProbe: ''}));
-  }, {defaults: createDefaultProfileData(), demo: JSON.parse(await fs.readFile('data/demo-male.json', 'utf8')) as Record<string, unknown>});
-  await context.addInitScript(installNativeObservation);
   const errors: string[] = [], csp: string[] = [], requests: RequestReceipt[] = [];
   let phase = 'initial-online';
   const observe = (target: Page) => target.on('pageerror', error => errors.push(error.message));
-  observe(page); context.on('page', observe);
-  await context.exposeBinding('knowledgeBaseCsp', (_, value: string) => csp.push(value));
-  await context.addInitScript(() => document.addEventListener('securitypolicyviolation', event => {
-    void (window as unknown as {knowledgeBaseCsp(value: string): Promise<void>}).knowledgeBaseCsp(event.violatedDirective);
-  }));
-  context.on('request', request => requests.push({phase, event: 'request', url: request.url()}));
-  context.on('response', response => requests.push({phase, event: 'response', url: response.url(), status: response.status(), sw: response.fromServiceWorker()}));
-  context.on('requestfailed', request => requests.push({phase, event: 'failed', url: request.url(), failure: request.failure()?.errorText || null}));
+  const configure = async (context: BrowserContext) => {
+    await installDiscussionFixture(context, {paused: true});
+    await installOfflineStartupDiagnostics(context);
+    await context.addInitScript(({defaults, demo}) => {
+      if (!['http:', 'https:'].includes(location.protocol)) return;
+      if (localStorage.getItem('knowledge-base-native-pwa-seeded')) return;
+      localStorage.setItem('knowledge-base-native-pwa-seeded', '1');
+      localStorage.setItem('labcharts-profiles', JSON.stringify([{id: 'default', name: 'Alex', sex: 'male', dob: '1987-11-22', createdAt: 1}]));
+      localStorage.setItem('labcharts-active-profile', 'default');
+      localStorage.setItem('labcharts-show-product-recs', 'false');
+      localStorage.setItem('labcharts-default-imported', JSON.stringify({...defaults, entries: demo.entries, refOverrides: demo.refOverrides, profile: {firstName: 'Alex', age: 38}, markerNotes: {'thyroid.tsh': 'Preserve unrelated native KB note'}, contextNotes: 'Preserve unrelated native KB context', sunDefaults: {fitzpatrick: 'II', completedAt: 1}}));
+      localStorage.setItem('labcharts-lens-config', JSON.stringify({backend: 'in-browser', enabled: true, topK: 5, multiQuery: false, name: '', url: '', testProbe: ''}));
+    }, {defaults: createDefaultProfileData(), demo: JSON.parse(await fs.readFile('data/demo-male.json', 'utf8')) as Record<string, unknown>});
+    await context.addInitScript(installNativeObservation);
+    context.on('page', observe);
+    await context.exposeBinding('knowledgeBaseCsp', (_, value: string) => csp.push(value));
+    await context.addInitScript(() => document.addEventListener('securitypolicyviolation', event => {
+      void (window as unknown as {knowledgeBaseCsp(value: string): Promise<void>}).knowledgeBaseCsp(event.violatedDirective);
+    }));
+    context.on('request', request => requests.push({phase, event: 'request', url: request.url()}));
+    context.on('response', response => requests.push({phase, event: 'response', url: response.url(), status: response.status(), sw: response.fromServiceWorker()}));
+    context.on('requestfailed', request => requests.push({phase, event: 'failed', url: request.url(), failure: request.failure()?.errorText || null}));
+  };
+  await configure(context);
+  observe(page);
   const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
   const workerArtifact = await fs.readFile(path.join(artifact, 'js/lens-local-worker.js'));
   const workerArtifactHash = createHash('sha256').update(workerArtifact).digest('hex');
@@ -444,7 +448,8 @@ test('native Knowledge Base create, Markdown ingest and rename persist through t
     expect(context.pages()).toHaveLength(0);
     for (let launch = 1; launch <= 2; launch++) {
       phase = 'stopped-origin-cold-' + launch;
-      const cold = await context.newPage();
+      const cold = await openColdKnowledgePage(context, configure);
+      context = cold.context();
       loading.push({phase, readyMs: await ready(cold, server.origin)});
       await openKnowledgeBase(cold);
       await expect(cold.locator('#lens-library-select option:checked')).toContainText(SAVED_NAME);

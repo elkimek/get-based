@@ -322,7 +322,7 @@ const realFetch = window.fetch;
     installMocks([
       // Withings sends `action=` in the form-encoded body, not the URL — so we
       // match the URL path-suffix instead. /measure handles getmeas, /v2/sleep
-      // handles getsleepsummary.
+      // handles getsummary.
       { matcher: /\/measure$/, body: {
         status: 0,
         body: {
@@ -342,10 +342,10 @@ const realFetch = window.fetch;
               { type: 77, value: 410, unit: -1 },  // 41.0 kg water mass
               { type: 88, value: 26, unit: -1 },   // 2.6 kg bone mass
               { type: 91, value: 73, unit: -1 },   // 7.3 m/s PWV
-              { type: 130, value: 41, unit: 0 },   // 41 yrs vascular age
-              { type: 167, value: 8, unit: 0 },    // visceral fat index 8
-              { type: 168, value: 71, unit: 0 },   // nerve health score 71
-              { type: 169, value: 47, unit: 0 },   // cardio fitness 47
+              { type: 155, value: 41, unit: 0 },   // 41 yrs vascular age
+              { type: 170, value: 8, unit: 0 },    // visceral fat index 8
+              { type: 167, value: 71, unit: 0 },   // nerve health score 71
+              { type: 123, value: 47, unit: 0 },   // cardio fitness 47
               { type: 78, value: 999, unit: 0 },   // unknown measType — must be silently ignored, not crash (#144)
             ],
           }, {
@@ -403,13 +403,13 @@ const realFetch = window.fetch;
     assert('Withings bone_mass_kg from measType 88 (decoded with unit-shift)', r?.bone_mass_kg === 2.6);
     assert('Withings water_mass_kg from measType 77', r?.water_mass_kg === 41);
     assert('Withings PWV from measType 91 (m/s, decoded)', r?.pwv === 7.3);
-    assert('Withings visceral_fat from measType 167', r?.visceral_fat === 8);
-    assert('Withings nerve_health_score from measType 168', r?.nerve_health_score === 71);
+    assert('Withings visceral_fat from measType 170', r?.visceral_fat === 8);
+    assert('Withings nerve_health_score from measType 167', r?.nerve_health_score === 71);
     assert('Withings spo2_avg from measType 54 (ScanWatch)', r?.spo2_avg === 96);
     assert('Withings body_temp from measType 71 (Body Scan IR, °C)', r?.body_temp === 36.5);
     assert('Withings skin_temp from measType 73 (ScanWatch wrist)', r?.skin_temp === 33.9);
-    assert('Withings vascular_age from measType 130 (yrs)', r?.vascular_age === 41);
-    assert('Withings cardio_fitness from measType 169', r?.cardio_fitness === 47);
+    assert('Withings vascular_age from measType 155 (yrs)', r?.vascular_age === 41);
+    assert('Withings cardio_fitness from measType 123', r?.cardio_fitness === 47);
     // Sleep architecture — fetcher converts seconds to minutes.
     assert('sleep_total_min: 27000 s → 450 min', r?.sleep_total_min === 450);
     assert('sleep_deep_min: 4500 s → 75 min', r?.sleep_deep_min === 75);

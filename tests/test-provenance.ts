@@ -44,7 +44,7 @@ assert('saveManualEntry uses the source-preserving mutation boundary',
   /saveManualEntry[\s\S]{0,6200}saveManualMarkerValue\(\{[\s\S]{0,250}dotKey,[\s\S]{0,250}noteText,[\s\S]{0,250}collectionContext:/.test(markerDetailEditingSrc) && markerDetailStoreSrc.includes("dotKey, date, kind: 'save'") && mutationSrc.includes('rememberLabManualOriginal(data, entry, dotKey);') && mutationSrc.includes("source?.snapshotId || source?.file ? { ...source, at: now, manuallyEdited: true } : { file: null, at: now }") && mutationSrc.includes('source: provenance'));
 const editSection = markerDetailEditingSrc.split('function editMarkerValue')[1] || '';
 assert('editMarkerValue sets provenance',
-  editSection.includes('await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) });') && markerDetailStoreSrc.includes("dotKey, date, kind: 'edit'") && mutationSrc.includes('setLabEntryMarker(entry, dotKey, command.storedValue, { now, source: provenance });'));
+  editSection.includes('await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) }, review.current);') && markerDetailStoreSrc.includes("dotKey, date, kind: 'edit'") && mutationSrc.includes('setLabEntryMarker(entry, dotKey, command.storedValue, { now, source: provenance });'));
 
 // ─── 3. Detail Modal Display ───
 console.log('\n3. Detail Modal Display');

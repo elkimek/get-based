@@ -1,14 +1,28 @@
+// @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {normalizeWearableReceipt} from './helpers/wearable-genuine-dom.js';
 import {expectedWearableSparklineReceipt} from './helpers/wearable-strip-sparkline-owned-receipts.js';
 import {expectedWearableEmptyReceipt} from './helpers/wearable-strip-empty-owned-receipts.js';
 import {expectedWearableStubReceipt} from './helpers/wearable-strip-stub-owned-receipts.js';
-// @vitest-environment jsdom
 import {afterAll,afterEach,expect,it,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {state} from '../js/state.js';
 import {CANONICAL_METRICS} from '../js/wearable-adapters.js';
 import {configureWearablesRuntime} from '../js/wearables-runtime.js';
+import type {WearableStripView} from '../js/wearable-strip-presentation.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const requireNative = createRequire(import.meta.url);
+const projected = vi.hoisted(() => ({view: null as WearableStripView | null}));
+vi.mock('../js/components/WearableStripBody.svelte.html.js', async original => {
+ const actual = await original<typeof import('../js/components/WearableStripBody.svelte.html.js')>();
+ return {...actual, renderHTML: ({view}: {view: WearableStripView}) => {
+  projected.view = view;
+  return actual.renderHTML({view});
+ }};
+});
+
 vi.useFakeTimers();vi.setSystemTime(new Date('2026-07-01T12:00:00Z'));
 type Listener={type:string;callback:EventListenerOrEventListenerObject};
 async function load(loadModule:()=>Promise<typeof import('../js/wearables.js')>){const listeners:Listener[]=[];const native=document.addEventListener.bind(document);const spy=vi.spyOn(document,'addEventListener').mockImplementation((type,callback,opts)=>{if(typeof callback==='function'&&['handleWearableActionClick','handleWearableActionKeydown','handleWearableFormSubmit'].includes(callback.name))listeners.push({type,callback});native(type,callback,opts);});try{const api=await loadModule();expect(listeners.map(row=>row.type)).toEqual(['click','keydown','submit']);for(const row of listeners)document.removeEventListener(row.type,row.callback);return{api,listeners};}finally{spy.mockRestore();}}
@@ -37,7 +51,7 @@ const fixtures:Record<string,Fixture>={
  'empty sources stub':()=>({summary:summary({}, {})}),
  'empty metrics stub':()=>({summary:summary({})}),
  'null metrics stub':()=>({summary:summary(null)}),
- 'manual hidden values':()=>({summary:summary({weight:metric({primarySource:'manual',latest:74,baseline:72}),bp_systolic:metric({primarySource:'manual',latest:122}),bp_diastolic:metric({primarySource:'manual',latest:78}),rhr:metric({primarySource:'manual',latest:60})},{manual:{coverageDays:8,lastSyncAt:0}}),hidden:true}),
+ 'manual hidden values':()=>({summary:summary({weight:metric({primarySource:'manual',latest:74,baseline:72}),bp_systolic:metric({primarySource:'manual',latest:122,latestBpPaired:true}),bp_diastolic:metric({primarySource:'manual',latest:78,latestBpPaired:true}),rhr:metric({primarySource:'manual',latest:60})},{manual:{coverageDays:8,lastSyncAt:0}}),hidden:true}),
  'hidden vendor values suppressed':()=>({summary:summary(),hidden:true}),
  'multiple source badge':()=>({summary:summary({hrv_rmssd:metric(),weight:metric({primarySource:'withings'})},{withings:{coverageDays:20,lastSyncAt:0},oura:{coverageDays:30,lastSyncAt:0},manual:{coverageDays:2,lastSyncAt:0}})}),
  'waiting source footer':()=>({summary:summary(undefined,{oura:{coverageDays:30,lastSyncAt:0},polar:{coverageDays:0,lastSyncAt:0},manual:{coverageDays:0,lastSyncAt:0}})}),
@@ -57,7 +71,7 @@ const fixtures:Record<string,Fixture>={
  'flat trend':()=>({summary:summary({hrv_rmssd:metric({trend30d:'flat'})})}),
  'zero latest suppression':()=>({summary:summary({hrv_rmssd:metric({latest:0})})}),
  'null latest':()=>({summary:summary({hrv_rmssd:metric({latest:null})})}),
- 'paired BP':()=>({summary:summary({bp_systolic:metric({latest:123}),bp_diastolic:metric({latest:78})},{manual:{coverageDays:1,lastSyncAt:0}})}),
+ 'paired BP':()=>({summary:summary({bp_systolic:metric({latest:123,latestBpPaired:true}),bp_diastolic:metric({latest:78,latestBpPaired:true})},{manual:{coverageDays:1,lastSyncAt:0}})}),
  'unpaired BP diastolic':()=>({summary:summary({bp_diastolic:metric({latest:78})},{manual:{coverageDays:1,lastSyncAt:0}})}),
  'tight slash unit':()=>({summary:summary({resilience_level:metric({latest:3})})}),
  'absolute temperature delta':()=>({summary:summary({body_temp_delta:metric({latest:0.8,baseline:0.2})})}),
@@ -82,7 +96,34 @@ function setup(spec:Spec){localStorage.clear();document.body.innerHTML='';localS
 function receipt(api:typeof candidate.api,fixture:Fixture){const trace:string[]=[];const spec=fixture(trace);setup(spec);const canon=CANONICAL_METRICS[spec.registryId||'hrv_rmssd'];const beforeCanon=Object.getOwnPropertyDescriptors(canon);if(spec.registry)Object.defineProperties(canon,Object.fromEntries(Object.entries(Object.getOwnPropertyDescriptors(spec.registry)).map(([key,descriptor])=>[key,{...descriptor,configurable:true}])) );const before=snapshot(state.importedData),registry=snapshot(state.markerRegistry);const host=document.createElement('main');const setter=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML')!;const assignments:string[]=[];Object.defineProperty(host,'innerHTML',{get(){return setter.get!.call(host);},set(value:string){assignments.push(value);trace.push('host:assignment');setter.set!.call(host,value);}});let raw:string|null=null,error:unknown=null;try{raw=api.renderWearableStrip();host.innerHTML=raw;}catch(e){const err=e as Error;error={name:err.name,message:err.message};}finally{Object.defineProperties(canon,beforeCanon);}
 return{raw,assignments,dom:dom(host),actions:[...host.querySelectorAll<HTMLElement>('[data-wearable-action]')].map(el=>({tag:el.localName,attributes:[...el.attributes].map(a=>[a.name,a.value]),label:el.textContent})),trace,error,before,after:snapshot(state.importedData),registryBefore:registry,registryAfter:snapshot(state.markerRegistry),exports:Object.keys(api),method:{name:api.renderWearableStrip.name,length:api.renderWearableStrip.length},storage:Array.from({length:localStorage.length},(_,j)=>{const key=localStorage.key(j)!;return[key,localStorage.getItem(key)];})};}
 const originals=JSON.parse(readFileSync(path.join(import.meta.dirname,'fixtures/wearable-strip-original.json'),'utf8')) as {name:string;original:unknown}[];
-it.each(Object.entries(fixtures))('%s preserves genuine original public raw/DOM/action/getter/coercion/throw contracts',(name,fixture)=>{const native=originals.find(row=>row.name===name)!.original,next=receipt(candidate.api,fixture);expect(normalizeWearableReceipt(next)).toEqual(normalizeWearableReceipt(expectedWearableSparklineReceipt(expectedWearableEmptyReceipt(expectedWearableStubReceipt(native as Record<string,unknown>)))));expect(next.after).toEqual(next.before);expect(next.registryAfter).toEqual(next.registryBefore);});
+it.each(Object.entries(fixtures))('%s preserves genuine original public raw/DOM/action/getter/coercion/throw contracts', async (name, fixture) => {
+ projected.view = null;
+ const original = originals.find(row => row.name === name)!.original as Record<string,unknown>;
+ const next = receipt(candidate.api,fixture);
+ expect(normalizeWearableReceipt(next)).toEqual(normalizeWearableReceipt(expectedWearableSparklineReceipt(expectedWearableEmptyReceipt(expectedWearableStubReceipt(original)))));
+ expect(next.after).toEqual(next.before);
+ expect(next.registryAfter).toEqual(next.registryBefore);
+ const view = projected.view as WearableStripView | null;
+ if (!view) {
+  expect(next.raw ?? '').not.toContain('id="wearable-strip"');
+  return;
+ }
+ expect(next.raw).not.toBeNull();
+ const component = requireNative('../js/components/WearableStripBody.svelte.native.js') as typeof import('../js/components/WearableStripBody.svelte.native.js');
+ await expectNativeReview(next.raw!, root => {
+  const mounted = component.mount(component.default, {target: root, props: {view}});
+  component.flushSync();
+  return () => component.unmount(mounted);
+ }, root => {
+  expect(root.querySelector('.wearable-card-grid')?.classList.contains('hidden')).toBe(view.header.collapsed);
+  const moves = [...root.querySelectorAll<HTMLButtonElement>('[data-wearable-action="move-card"]')];
+  expect(moves.map(action => [action.dataset.wearableMetric, action.dataset.wearableDelta, action.disabled])).toEqual(
+   view.header.reorderMode ? view.cards.flatMap(card => [[card.metric, '-1', !card.canLeft], [card.metric, '1', !card.canRight]]) : [],
+  );
+  expect(root.querySelector('#wearable-strip')).not.toBeNull();
+  expect(root.querySelector('script, [onclick], [onerror]')).toBeNull();
+ });
+});
 const actions=[['header click','.wearable-strip-header','click'],['chevron click','.wearable-collapse-arrow','click'],['native chevron Enter ignores delegate','.wearable-collapse-arrow','Enter'],['reorder toggle','.wearable-strip-reorder','click'],['stub dismiss','.wearable-strip-stub-dismiss','click'],['irrelevant Escape','.wearable-collapse-arrow','Escape']] as const;
 async function delegated(loaded:typeof candidate,selector:string,key:string){setup(selector.includes('stub')?{}:{summary:summary()});document.body.innerHTML=loaded.api.renderWearableStrip();const calls:string[]=[];const previous=configureWearablesRuntime({navigate:(route:string)=>calls.push(route)});for(const row of loaded.listeners)document.addEventListener(row.type,row.callback);const target=document.querySelector<HTMLElement>(selector)!;const event=key==='click'?new MouseEvent('click',{bubbles:true,cancelable:true}):new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true});const before=snapshot(state.importedData);try{target.dispatchEvent(event);await Promise.resolve();return{dom:dom(document.body),calls,prevented:event.defaultPrevented,before,after:snapshot(state.importedData),storage:Array.from({length:localStorage.length},(_,j)=>{const k=localStorage.key(j)!;return[k,localStorage.getItem(k)];})};}finally{for(const row of loaded.listeners)document.removeEventListener(row.type,row.callback);configureWearablesRuntime(previous);}}
 it.each(actions)('%s preserves actual native delegated calls and ordered DOM',async(name,selector,key)=>{const native=originals.find(row=>row.name===name)!.original,next=await delegated(candidate,selector,key);expect(normalizeWearableReceipt(next)).toEqual(normalizeWearableReceipt(expectedWearableSparklineReceipt(expectedWearableEmptyReceipt(expectedWearableStubReceipt(native as Record<string,unknown>)))));expect(next.after).toEqual(next.before);});

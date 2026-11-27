@@ -1,3 +1,10 @@
+import {
+  cashuWalletStoreCryptoDeps, _amountToNumber, _digestStorageKey, _metaForStorage,
+  _metaFromStorage, _normalizeMintUrl, _normalizeProofForStorage, _proofForStorage,
+  _proofFromStorage, _proofStorageKeys,
+} from './cashu-wallet-payloads.js';
+export { configureCashuWalletStoreCryptoDeps, _amountToNumber, _digestStorageKey, _normalizeMintUrl } from './cashu-wallet-payloads.js';
+
 // cashu-wallet-store.ts — Cashu proof, recovery journal, counter, and seed persistence
 
 import { getErrorMessage } from './caught-error.js';
@@ -7,15 +14,17 @@ import { isValidExternalUrl } from './url-safety.js';
 
 import type * as Cashu from '@cashu/cashu-ts';
 import type {
-  CashuStorageSdk, CashuWalletStoreCryptoDeps, CashuWalletStoreRuntime, DurableJournal, MintJournal,
-  PreparedSwap, ProofCommit, RecoveryResult, StorageChange, StorageMode, StorageWallet, StorageSignatureVerifier, StoredMeta, StoredProof,
+  CashuStorageSdk, CashuWalletStoreRuntime, DurableJournal, MintJournal,
+  PreparedSwap, ProofCommit, RecoveryResult, StorageChange, StorageWallet, StorageSignatureVerifier, StoredMeta, StoredProof,
   SwapContext, SwapJournal, SwapOperation, WalletMintBalance, WalletProof, WalletStorageRows,
 } from './cashu-wallet-storage-types.js';
+import { registerAppErasureHook } from './app-erasure-hooks.js';
 
 export const DEFAULT_MINT = 'https://mint.minibits.cash/Bitcoin';
 export const PENDING_QUOTE_PREFIX = 'pendingQuote:';
 export const PENDING_SWAP_KEY = 'pendingSwap';
 export const PENDING_RECEIVE_PREFIX = 'pendingReceive:';
+export const WALLET_LOCK_NAME = 'getbased-cashu-wallet';
 
 const DB_NAME = 'getbased-cashu';
 const DB_VERSION = 2;
@@ -26,71 +35,12 @@ const PROOF_CHECK_COOLDOWN = 60_000;
 const MNEMONIC_KEY = 'labcharts-cashu-wallet-mnemonic';
 
 const storeRuntime = {} as CashuWalletStoreRuntime;
-function rejectUnconfiguredCryptoDependency(): never {
-  throw new Error('Cashu wallet storage encryption is not configured.');
-}
-
-const cashuWalletStoreCryptoDeps: CashuWalletStoreCryptoDeps = {
-  decryptObject: rejectUnconfiguredCryptoDependency,
-  encryptedSetItem: rejectUnconfiguredCryptoDependency,
-  encryptedGetItem: rejectUnconfiguredCryptoDependency,
-  encryptObject: rejectUnconfiguredCryptoDependency,
-  getEncryptionEnabled: rejectUnconfiguredCryptoDependency,
-  isEncryptedObject: rejectUnconfiguredCryptoDependency,
-};
 let _db: IDBDatabase | null = null;
 let _indexedDBFactory: IDBFactory | null = null;
+let pendingDbOpen: Promise<IDBDatabase> | null = null;
 let _legacyProofsMigrated = false;
+let closedForErasure = false;
 const _lastProofChecks = new Map<string, number>();
-
-function _sessionLockedError() {
-  const error = new Error('Cashu wallet storage is encrypted; unlock with your passphrase first.');
-  (error as Error & { code?: string }).code = 'session-locked';
-  return error;
-}
-
-export async function _digestStorageKey(value: unknown) {
-  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value))));
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-async function _proofStorageKeys(secret: string): Promise<[string, string]> {
-  return [String(secret), `enc:v1:${await _digestStorageKey(secret)}`];
-}
-
-async function _encryptWalletPayload(value: unknown) {
-  const envelope = await cashuWalletStoreCryptoDeps.encryptObject(value);
-  if (!envelope) throw _sessionLockedError();
-  return envelope;
-}
-
-async function _proofForStorage(proof: WalletProof, mintUrl: string, mode: StorageMode = cashuWalletStoreCryptoDeps.getEncryptionEnabled() ? 'encrypted' : 'plain') {
-  const normalized = _normalizeProofForStorage(proof, mintUrl);
-  if (mode === 'plain') return normalized;
-  const [, storageKey] = await _proofStorageKeys(normalized.secret);
-  return { secret: storageKey, _payload: await _encryptWalletPayload(normalized) };
-}
-
-async function _proofFromStorage(row: StoredProof): Promise<WalletProof> {
-  if (!row?._payload) return row as WalletProof;
-  if (!cashuWalletStoreCryptoDeps.isEncryptedObject(row._payload)) throw new Error('Encrypted Cashu proof has an invalid envelope.');
-  const proof = await cashuWalletStoreCryptoDeps.decryptObject(row._payload).catch(() => null) as WalletProof | null;
-  if (!proof) throw _sessionLockedError();
-  return proof;
-}
-
-async function _metaForStorage(key: string, value: unknown, mode: StorageMode = cashuWalletStoreCryptoDeps.getEncryptionEnabled() ? 'encrypted' : 'plain') {
-  if (mode === 'plain' || String(key).startsWith('counter:')) return { key, value };
-  return { key, _payload: await _encryptWalletPayload({ value }) };
-}
-
-async function _metaFromStorage<Value = unknown>(row: StoredMeta | undefined): Promise<Value | null> {
-  if (!row?._payload) return (row?.value ?? null) as Value | null;
-  if (!cashuWalletStoreCryptoDeps.isEncryptedObject(row._payload)) throw new Error('Encrypted Cashu metadata has an invalid envelope.');
-  const payload = await cashuWalletStoreCryptoDeps.decryptObject(row._payload).catch(() => null) as { value?: unknown } | null;
-  if (!payload || !Object.prototype.hasOwnProperty.call(payload, 'value')) throw _sessionLockedError();
-  return payload.value as Value;
-}
 
 async function _getAllRaw<Store extends keyof WalletStorageRows>(storeName: Store): Promise<WalletStorageRows[Store][]> {
   const db = await _openDB();
@@ -106,50 +56,23 @@ export function configureCashuWalletStore(runtime: Partial<CashuWalletStoreRunti
   Object.assign(storeRuntime, runtime);
 }
 
-export function configureCashuWalletStoreCryptoDeps(deps: Partial<Record<keyof CashuWalletStoreCryptoDeps, unknown>> = {}) {
-  const previous = { ...cashuWalletStoreCryptoDeps };
-  for (const dependency of Object.keys(cashuWalletStoreCryptoDeps) as Array<keyof CashuWalletStoreCryptoDeps>) {
-    if (!Object.hasOwn(deps, dependency)) continue;
-    (cashuWalletStoreCryptoDeps as unknown as Record<string, CashuWalletStoreCryptoDeps[keyof CashuWalletStoreCryptoDeps]>)[dependency] = typeof deps[dependency] === 'function'
-      ? deps[dependency] as CashuWalletStoreCryptoDeps[keyof CashuWalletStoreCryptoDeps]
-      : rejectUnconfiguredCryptoDependency;
-  }
-  return previous;
-}
-
-export function _amountToNumber(value: unknown): number {
-  if (value == null) return 0;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value === 'bigint') return Number(value);
-  if (typeof value === 'string') return Number(value) || 0;
-  if (typeof (value as { toNumber?: () => number }).toNumber === 'function') return (value as { toNumber?: () => number }).toNumber!();
-  if (typeof (value as { toNumberUnsafe?: () => number }).toNumberUnsafe === 'function') return (value as { toNumberUnsafe?: () => number }).toNumberUnsafe!();
-  if (typeof (value as { toBigInt?: () => bigint }).toBigInt === 'function') return Number((value as { toBigInt?: () => bigint }).toBigInt!());
-  return Number(value) || 0;
-}
-
-export function _normalizeMintUrl(url: unknown) {
-  return String(url || '').trim().replace(/\/+$/, '');
-}
-
-function _normalizeProofForStorage(proof: WalletProof, mintUrl: string) {
-  return { ...proof, amount: _amountToNumber(proof.amount), _mint: _normalizeMintUrl(mintUrl) };
-}
-
 function _sumProofsAsNumber(cashuts: CashuStorageSdk, proofs: WalletProof[]) {
   return storeRuntime.sumProofsAsNumber(cashuts, proofs);
 }
 
 export function _openDB(): Promise<IDBDatabase> {
-  if (_db && _indexedDBFactory === indexedDB) return Promise.resolve(_db);
+  if (closedForErasure) return Promise.reject(new Error('Wallet storage is being erased.'));
+  const factory = indexedDB;
+  if (_db && _indexedDBFactory === factory) return Promise.resolve(_db);
+  if (pendingDbOpen) return pendingDbOpen;
   if (_db) {
     try { _db.close(); } catch {}
     _db = null;
     _legacyProofsMigrated = false;
     _lastProofChecks.clear();
   }
-  return new Promise<IDBDatabase>((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+  pendingDbOpen = new Promise<IDBDatabase>((resolve, reject) => {
+    const req = factory.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = function() {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_PROOFS)) {
@@ -163,14 +86,36 @@ export function _openDB(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = function() {
-      _db = req.result;
-      _indexedDBFactory = indexedDB;
+      const db = req.result;
+      if (closedForErasure || factory !== indexedDB) {
+        db.close();
+        reject(new Error('Wallet storage changed while opening.'));
+        return;
+      }
+      _db = db;
+      _indexedDBFactory = factory;
+      db.onversionchange = () => {
+        db.close();
+        if (_db === db) _db = null;
+      };
       _migrateFeeProofs().catch(() => {});
-      resolve(_db);
+      resolve(db);
     };
     req.onerror = function() { reject(req.error); };
-  });
+  }).finally(() => { pendingDbOpen = null; });
+  return pendingDbOpen;
 }
+
+registerAppErasureHook(async () => {
+  const close = async () => {
+    closedForErasure = true;
+    await pendingDbOpen?.catch(() => {});
+    _db?.close();
+    _db = null;
+  };
+  if (navigator.locks?.request) await navigator.locks.request(WALLET_LOCK_NAME, close);
+  else await close();
+});
 
 async function _migrateUntaggedProofs() {
   if (_legacyProofsMigrated) return;
@@ -714,8 +659,8 @@ export async function migrateCashuWalletStorage(mode: string) {
   const feeChanges: StorageChange<StoredProof>[] = [];
   for (const [rows, changes] of [[proofRows, proofChanges], [feeRows, feeChanges]] as const) {
     for (const row of rows) {
-      const wrapped = !!row?._payload;
-      if ((mode === 'encrypted') === wrapped) continue;
+      const protectedForMode = mode === 'encrypted' ? !!row._payload && typeof row._payload !== 'string' : typeof row._payload === 'string';
+      if (protectedForMode) continue;
       const proof = await _proofFromStorage(row);
       changes.push({ previousKey: row.secret, next: await _proofForStorage(proof, proof._mint || DEFAULT_MINT, mode) });
     }
@@ -723,11 +668,11 @@ export async function migrateCashuWalletStorage(mode: string) {
   const metaChanges: StorageChange<StoredMeta>[] = [];
   for (const row of metaRows) {
     if (String(row?.key || '').startsWith('counter:')) continue;
-    const wrapped = !!row?._payload;
+    const protectedForMode = mode === 'encrypted' ? !!row._payload && typeof row._payload !== 'string' : typeof row._payload === 'string';
     const legacyQuoteKey = mode === 'encrypted'
       && String(row?.key || '').startsWith(PENDING_QUOTE_PREFIX)
       && !String(row.key).startsWith(PENDING_QUOTE_PREFIX + 'v2:');
-    if ((mode === 'encrypted') === wrapped && !legacyQuoteKey) continue;
+    if (protectedForMode && !legacyQuoteKey) continue;
     const value = await _metaFromStorage(row);
     let key = row.key;
     if (legacyQuoteKey) {
@@ -764,6 +709,7 @@ export async function migrateCashuWalletStorage(mode: string) {
 }
 
 export async function _destroyWalletDBStorage() {
+  await pendingDbOpen?.catch(() => {});
   if (_db) {
     try { _db.close(); } catch {}
   }

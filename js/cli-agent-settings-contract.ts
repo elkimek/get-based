@@ -16,6 +16,7 @@ export interface CliAgentSettingsSnapshot {
   platform: CompanionPlatform; runCommand: string; startCommand: string; companion: CompanionPresentation | null;
 }
 export interface CliAgentSettingsActions {
+  pair?(code: string): unknown;
   scan(): unknown; platform(value: CompanionPlatform): unknown; copy(action: CliCopyAction): unknown;
   login(agent: string): unknown; test(agent: string): unknown; toggle(enabled: boolean, agent: string): unknown;
   disclose(agent: string): unknown; control(action: CompanionAction): unknown;

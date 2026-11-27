@@ -225,6 +225,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
       clearNotifications();
       scheduledDelays.length = 0;
       for (const key of identityDeleteKeys) localStorage.setItem(key, 'remove-on-owner-change');
+      // The preceding acknowledged restore suspends publishing until its scheduled reload.
+      (await import('/js/sync-settings-state.js')).setSyncPublishingSuspended(false);
       const seededResult = await identity.restoreFromMnemonic('seed local mnemonic', { seedLocal: true });
       outcomes.restoreSeedLocalClearsPendingAndSeeds = seededResult === true
         && restoreCalls[1]?.mnemonic === 'seed local mnemonic'
@@ -241,6 +243,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
         getAppOwner: () => ({ id: 'same-owner', mnemonic: 'same owner mnemonic' }),
       });
       for (const key of identityDeleteKeys) localStorage.setItem(key, 'preserve-on-same-owner');
+      // The preceding acknowledged restore suspends publishing until its scheduled reload.
+      (await import('/js/sync-settings-state.js')).setSyncPublishingSuspended(false);
       const sameOwnerResult = await identity.restoreFromMnemonic(' same   owner\nmnemonic ', { seedLocal: true });
       outcomes.sameIdentityRestorePreservesPendingDelete = sameOwnerResult === true
         && restoreCalls[2]?.mnemonic === 'same owner mnemonic'
@@ -253,6 +257,7 @@ test('sync identity browser coverage handles libraries getters pending restore a
       identity.configureSyncIdentity({
         getEvolu: () => rejectingEvolu,
       });
+      (await import('/js/sync-settings-state.js')).setSyncPublishingSuspended(false);
       const failureResult = await identity.restoreFromMnemonic('bad mnemonic');
       outcomes.restoreFailureNotifiesAndReturnsFalse = failureResult === false
         && notifications().includes('Invalid mnemonic')

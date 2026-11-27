@@ -30,12 +30,13 @@ async function openIsolatedProfileSharePage(page:import("@playwright/test").Page
           entries: [{ date: '2026-07-20', markers: { metabolic: { glucose: 5.1 } } }],
         };
       }
-      export async function importDataJSON(file) {
-        if (window.__profileShareImportError) throw new Error(window.__profileShareImportError);
-        const payload = JSON.parse(await file.text());
-        window.__profileShareImports = window.__profileShareImports || [];
-        window.__profileShareImports.push({ name: file.name, type: file.type, payload });
-        return true;
+      export async function loadExportImportModule() {
+        return { async importNewSharedProfile(payload) {
+          if (window.__profileShareImportError) throw new Error(window.__profileShareImportError);
+          window.__profileShareImports = window.__profileShareImports || [];
+          window.__profileShareImports.push({ payload });
+          return { profileId: 'new-profile' };
+        } };
       }
     `, 200);
   await page.goto('/profile-share-edge-browser-coverage', { waitUntil: 'load' });
@@ -161,13 +162,13 @@ test('profile share forms recover from create, load, decrypt, import, and delete
         expiresAt: '2099-01-01T00:00:00.000Z',
       }]));
       share.openProfileShareModal('default');
-      const deleteButton = submit('delete-link');
+      const savedButton = () => document.querySelector<HTMLButtonElement>(`[data-profile-share-action="delete-link"][data-share-id="${shareId}"]`);
+      await waitFor(savedButton, 'hydrated management credential');
+      const deleteButton = savedButton();
       deleteButton?.click();
       await waitFor(() => statusText().includes('Could not stop this test link'), 'delete API error');
       const deleteRequest = requests.find(request => request.method === 'DELETE');
-      outcomes.deleteFailureKeepsRecordAndRecovers = JSON.parse(
-        localStorage.getItem('getbased-profile-shares-v1') || '[]',
-      ).length === 1
+      outcomes.deleteFailureKeepsRecordAndRecovers = localStorage.getItem('getbased-profile-shares-v1:' + shareId)?.startsWith('d1:') === true
         && JSON.parse(deleteRequest?.body || '{}').manageToken === 'correct-local-manage-token'
         && deleteButton?.textContent === 'Stop sharing'
         && deleteButton?.disabled === false
@@ -189,7 +190,7 @@ test('profile share forms recover from create, load, decrypt, import, and delete
   }
 });
 
-test('profile share local records are repaired, capped, scoped, and safe without a management token', async ({ page }) => {
+test('profile share local records are encrypted, retained until expiry, scoped, and safe without a management token', async ({ page }) => {
   await openIsolatedProfileSharePage(page);
 
   const results = await page.evaluate(async ({ shareUrl }) => {
@@ -207,8 +208,9 @@ test('profile share local records are repaired, capped, scoped, and safe without
     try {
       localStorage.setItem('getbased-profile-shares-v1', '{broken-json');
       share.openProfileShareModal('default');
-      outcomes.repairsMalformedStorage = document.querySelector<HTMLElement>('.profile-share-active-empty') != null
-        && localStorage.getItem('getbased-profile-shares-v1') === '[]';
+      await waitFor(() => document.getElementById('profile-share-status')?.dataset.status === 'error', 'legacy read failure');
+      outcomes.preservesUnreadableStorage = document.querySelector<HTMLElement>('.profile-share-active-empty') != null
+        && localStorage.getItem('getbased-profile-shares-v1') === '{broken-json';
       share.closeProfileShareModal();
 
       const records = Array.from({ length: 55 }, (_, index) => {
@@ -239,13 +241,15 @@ test('profile share local records are repaired, capped, scoped, and safe without
       };
 
       share.openProfileShareModal('default');
-      const stored = JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]') as Record<string,unknown>[];
+      await waitFor(() => document.querySelectorAll('.profile-share-active-row').length === 28, 'verified encrypted migration');
+      const stored = Object.keys(localStorage).filter(key => key.startsWith('getbased-profile-shares-v1:'));
       const visibleRows = Array.from(document.querySelectorAll<HTMLElement>('.profile-share-active-row'));
-      outcomes.prunesAndCapsRecordsImmediately = stored.length === 50
-        && stored.every(record => record.id !== 'invalid' && record.expiresAt !== '2000-01-01T00:00:00.000Z')
-        && visibleRows.length === 25;
+      outcomes.prunesExpiredAndPreservesEveryActiveRecord = stored.length === 55
+        && localStorage.getItem('getbased-profile-shares-v1') === null
+        && stored.every(key => localStorage.getItem(key)?.startsWith('d1:'))
+        && visibleRows.length === 28;
       outcomes.scopesRecordsToSelectedProfile = visibleRows.every(row => {
-        const record = stored.find(item => item.id === row.dataset.profileShareRecord);
+        const record = records.find(item => item.id === row.dataset.profileShareRecord);
         return record?.profileId === 'default';
       });
 
@@ -253,7 +257,7 @@ test('profile share local records are repaired, capped, scoped, and safe without
       deleteButton?.click();
       await waitFor(() => document.getElementById('profile-share-status')?.dataset.status === 'error', 'missing-token delete error');
       outcomes.missingManageTokenFailsSafely = (deleteBody as {manageToken?:unknown}|null|undefined)?.manageToken === ''
-        && JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]').length === 50
+        && Object.keys(localStorage).filter(key => key.startsWith('getbased-profile-shares-v1:')).length === 55
         && deleteButton?.disabled === false
         && deleteButton?.textContent === 'Stop sharing';
     } finally {
@@ -311,6 +315,7 @@ test('profile share copy actions fall back when the Clipboard API is unavailable
       };
 
       share.openProfileShareModal('default');
+      await waitFor(() => document.querySelector('[aria-label="Copy active link"]'), 'active link hydration');
       document.querySelector<HTMLElement>('[aria-label="Copy active link"]')?.click();
       await waitFor(() => calls === 1, 'successful copy fallback');
       outcomes.rejectedClipboardUsesFallback = Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
@@ -349,7 +354,7 @@ test('profile share completes a browser-to-dev-server create, load, import, and 
     const share = await ((import(shareUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/profile-share.js"), "openProfileShareModal" | "closeProfileShareModal" | "openSharedProfileImportModal"> >);
     const outcomes:Record<string,unknown> = {};
     const password = 'correct-horse-roundtrip-1234';
-    let cleanup:Record<string,unknown>|null = null;
+    let cleanup: Awaited<ReturnType<typeof import('../../js/profile-share-history.js').getShareRecord>> = null;
     const waitFor = async (predicate:()=>unknown, label:string, attempts = 200) => {
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         if (predicate()) return;
@@ -366,8 +371,9 @@ test('profile share completes a browser-to-dev-server create, load, import, and 
       document.querySelector<HTMLButtonElement>('[data-profile-share-action="create"]')?.click();
       await waitFor(() => document.getElementById('profile-share-link'), 'real share creation');
 
-      const records = JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]') as Record<string,unknown>[];
-      const record = records[0]!;
+      const id = document.querySelector<HTMLElement>('[data-profile-share-record]')!.dataset.profileShareRecord!;
+      const history = await (import('/js/profile-share-history.js' as string) as Promise<typeof import('../../js/profile-share-history.js')>);
+      const record = (await history.getShareRecord(id))!;
       cleanup = record;
       const createdResponse = await fetch(`/api/share?id=${encodeURIComponent(record!.id as string)}`);
       const createdBody = await createdResponse.json() as {envelope?:{schema?:unknown}};
@@ -382,7 +388,6 @@ test('profile share completes a browser-to-dev-server create, load, import, and 
       document.querySelector<HTMLButtonElement>('[data-profile-share-action="load"]')?.click();
       await waitFor(() => !document.getElementById('profile-share-overlay'), 'real share import');
       outcomes.realGetDecryptsAndImports = (window as unknown as ProfileShareFixtureGlobals).__profileShareImports?.length === 1
-        && (window as unknown as ProfileShareFixtureGlobals).__profileShareImports![0]!.name === 'getbased-shared-profile.json'
         && (window as unknown as ProfileShareFixtureGlobals).__profileShareImports![0]!.payload.profile.name === 'Edge Profile'
         && (window as unknown as ProfileShareFixtureGlobals).__profileShareImports![0]!.payload.entries[0]!.markers.metabolic.glucose === 5.1;
 
@@ -391,7 +396,7 @@ test('profile share completes a browser-to-dev-server create, load, import, and 
       await waitFor(() => document.querySelector<HTMLElement>('.profile-share-active-empty'), 'real share deletion');
       const deletedResponse = await fetch(`/api/share?id=${encodeURIComponent(record.id as string)}`);
       outcomes.realDeleteRemovesRemoteAndLocalRecord = deletedResponse.status === 404
-        && JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]').length === 0;
+        && localStorage.getItem('getbased-profile-shares-v1:' + record.id) === null;
       cleanup = null;
     } finally {
       share.closeProfileShareModal();

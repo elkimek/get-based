@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import {afterEach,beforeEach,expect,it} from 'vitest';
 import fs from 'node:fs';
-import {configureLensPageShell,renderLensHeader,renderLensWidget,renderLensPageWidgets} from '../js/lens-page-shell.js';
+import {createRequire} from 'node:module';
+import {getLensWidgetChrome,configureLensPageShell,renderLensHeader,renderLensWidget,renderLensPageWidgets} from '../js/lens-page-shell.js';
 import type {LensWidgetContent} from '../js/lens-widget-content.js';
 import {lensWidgetHasContent} from '../js/lens-widget-content.js';
 import {evaluateLegacyLensShell} from './helpers/lens-shell-legacy.js';
@@ -13,6 +14,7 @@ import {projectLensActions} from '../js/lens-content-presentation.js';
 import {projectLabDateRange} from '../js/lab-date-range-presentation.js';
 import {state} from '../js/state.js';
 import {profileStorageKey} from '../js/profile.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 const legacy=await evaluateLegacyLensShell();
 const legacyRawHashes=new Set<string>();
 function rawHash(value:string):string{let hash=5381,index=value.length;while(index--)hash=((hash<<5)-hash)^value.charCodeAt(index);return (hash>>>0).toString(36);}
@@ -80,4 +82,24 @@ it('has one genuine dispatcher and no ordinary HTML/private coordinate or tools 
  for(const name of ['js/lens-shell-presentation.ts','js/lens-page-shell.ts','js/lens-page-shell-core.ts','js/components/LensPageHeader.svelte','js/components/LensPageWidget.svelte','js/components/LensWidgetBody.svelte','js/components/LensDataWidgetBody.svelte'])expect(fs.readFileSync(name,'utf8')).not.toMatch(/actionsHTML|bodyHTML|score-tools|\{@html|\.replace\(/);
  expect(fs.readFileSync('js/components/LensDataPage.svelte','utf8')).toContain('<LensDataWidgetBody');
  expect(fs.readFileSync('js/components/FocusCardBody.svelte','utf8')).toContain('{@html current.markdown}');
+});
+
+const load = createRequire(import.meta.url);
+it.each([sources, genome, trends])('retains the native $kind child and delegated widget controls together', async content => {
+  const native = load('../js/components/LensShellPresentation.svelte.native.js') as typeof import('../js/components/LensShellPresentation.svelte.native.js');
+  const opts = {pageRoute: 'body', pageIndex: 1, pageCount: 3};
+  const description = 'Synthetic lens description';
+  const chrome = getLensWidgetChrome('native', 'Source widget', description, 'half', opts);
+  const html = renderLensWidget('native', 'Source widget', description, content, 'half', opts);
+  await expectNativeReview(html, root => {
+    const owned = native.mount(native.default, {target: root, props: {kind: 'widget', view: {...chrome, content}}});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    expect(root.querySelector('[data-widget-id="native"]')?.textContent).toContain(description);
+    const directions = Array.from(root.querySelectorAll('[data-lens-page-action="move-widget"]'), button =>
+      button.getAttribute('data-lens-page-direction'));
+    expect(directions).toEqual(['-1', '1']);
+    expect(root.querySelector('[data-lens-page-action="remove-dashboard-widget"]')).not.toBeNull();
+  });
 });

@@ -16,7 +16,6 @@ import {
   deleteManualMarkerValue,
   editManualMarkerValue,
   getMarkerValueNote,
-  hasMarkerValueForDate,
   revertManualMarkerValue,
   revertRefRangeOverride,
   saveManualMarkerValue,
@@ -26,6 +25,7 @@ import {
   deleteMarkerNoteText,
   deleteMarkerValueNote,
 } from './marker-detail-store.js';
+import { identifyLabPanels, labPanelId } from './lab-panel-identity.js';
 import { getMarkerStorageDotKey } from './marker-placement.js';
 import {
   convertCanonicalToInputUnit,
@@ -72,6 +72,22 @@ function closeModal() {
 
 function storageDotKeyForId(id: string, marker: PlacementViewMarker | null | undefined = state.markerRegistry[id] as PlacementViewMarker | null | undefined) {
   return getMarkerStorageDotKey(marker, id);
+}
+
+type ReviewedDay = NonNullable<typeof state.importedData.entries>;
+const manualEntryOwners = new WeakMap<HTMLInputElement, () => boolean>();
+export function bindManualEntryOwner(input: HTMLInputElement, profile: string, root: typeof state.importedData, units: string, date: string, entries: ReviewedDay, dotKey: string, note: string) {
+  manualEntryOwners.set(input, () => state.currentProfile === profile && state.importedData === root && state.unitSystem === units
+    && (document.querySelector<HTMLInputElement>('#me-date')?.value === date)
+    && (root.markerValueNotes?.[`${dotKey}:${date}`] || '') === note
+    && profileDataValuesEqual((root.entries || []).filter(entry => entry.date === date), entries));
+}
+function captureLabReview(date: string) {
+  const root = state.importedData, profile = state.currentProfile, units = state.unitSystem;
+  const rows = structuredClone((root.entries || []).filter(entry => entry.date === date));
+  const owns = () => state.currentProfile === profile && state.importedData === root && state.unitSystem === units;
+  const current = () => owns() && profileDataValuesEqual((root.entries || []).filter(entry => entry.date === date), rows);
+  return {rows, owns, current};
 }
 
 export async function saveManualEntry(id: string, opts: {keepOpen?: unknown} = {}) {
@@ -124,6 +140,19 @@ export async function saveManualEntry(id: string, opts: {keepOpen?: unknown} = {
       : null;
     checkUnit = inputUnit;
   }
+  const review = captureLabReview(date);
+  const chooser = document.getElementById('me-sample') as HTMLSelectElement | null;
+  const choice = chooser?.value;
+  const panels = identifyLabPanels(review.rows);
+  const newPanel = choice === '__new__' && panels.length > 0;
+  const panelId = choice && choice !== '__new__' ? choice : undefined;
+  const existingEntry = panelId ? panels.find(panel => labPanelId(panel) === panelId) : newPanel ? null : panels.length === 1 ? panels[0] : null;
+  if (panelId && !existingEntry || !newPanel && !panelId && panels.length > 1) {
+    showNotification('Choose which sample to edit.', 'error'); return;
+  }
+  const authorized = () => review.current() && (manualEntryOwners.get(valueInput)?.() ?? true) && document.getElementById('me-value') === valueInput;
+  const stale = () => { if (authorized()) return false; showNotification('This sample or profile changed. Reopen the entry to review its current values.', 'error'); return true; };
+  if (stale()) return;
   // Range sanity check: catches decimal/unit slips (e.g. typing 100 mg/dL when SI ref is 4–6 mmol/L).
   if (marker) {
     let warn: string | null = null;
@@ -133,13 +162,11 @@ export async function saveManualEntry(id: string, opts: {keepOpen?: unknown} = {
     if (warn && !await showConfirmDialog(`${warn}\n\nSave anyway?`)) return;
   }
   // Duplicate-date check: an existing value for this marker on the same date.
-  const existingEntry = state.importedData.entries?.find(e => e.date === date);
-  if (existingEntry && existingEntry.markers && existingEntry.markers[dotKey] != null) {
-    // Show in display units — find the marker's display value at this date.
-    const data = getActiveData();
-    const dateIdx = data.dates.indexOf(date);
-    const displayVal = (dateIdx >= 0 && marker) ? marker.values[dateIdx] : existingEntry.markers[dotKey];
-    const unit = marker?.unit || '';
+  if (stale()) return;
+  const priorValue = existingEntry?.markers?.[dotKey];
+  if (typeof priorValue === 'number') {
+    const displayVal = convertCanonicalToInputUnit(dotKey, priorValue, inputUnit, state.unitSystem, customCanonicalUnit);
+    const unit = inputUnit;
     if (!await showConfirmDialog(`A value of ${displayVal} ${unit} already exists for ${date}. Overwrite?`)) return;
   }
   // Resolve every selectable input unit back to the canonical stored value.
@@ -154,8 +181,9 @@ export async function saveManualEntry(id: string, opts: {keepOpen?: unknown} = {
   const fasting = fastingInput?.value === 'fasting' ? true
     : fastingInput?.value === 'not-fasting' ? false
       : null;
+  if (stale()) return;
   const saved = await saveManualMarkerValue({
-    dotKey,
+    ...(panelId ? {panelId} : {}), ...(newPanel ? {newPanel} : {}), dotKey,
     date,
     storedValue,
     noteText,
@@ -163,8 +191,8 @@ export async function saveManualEntry(id: string, opts: {keepOpen?: unknown} = {
       sampleTime: sampleTimeInput?.value || null,
       fasting,
     },
-  });
-  if (!saved) return;
+  }, authorized);
+  if (!saved || !review.owns()) return;
   // Remember the date session-wide so the next manual entry defaults to it.
   try { sessionStorage.setItem('labcharts-last-manual-date', date); } catch (_) {}
   buildSidebar();
@@ -182,7 +210,7 @@ export async function saveManualEntry(id: string, opts: {keepOpen?: unknown} = {
     closeModal();
     markerDetailDeps.navigate(navCat);
     // Re-open detail modal so user stays in context (#29)
-    setTimeout(() => showDetailModal(id), 50);
+    setTimeout(() => { if (review.owns()) showDetailModal(id); }, 50);
   }
 }
 
@@ -194,12 +222,14 @@ export async function deleteMarkerValue(id: string, date: string, panelId?: stri
   const dotKey = storageDotKeyForId(id);
   if (!dotKey) return;
   if (!state.importedData.entries) return;
-  const entry = state.importedData.entries.find(e => e.date === date);
-  if (!entry) return;
-  if (!hasMarkerValueForDate(dotKey, date)) return;
+  const review = captureLabReview(date);
+  const panels = identifyLabPanels(review.rows);
+  const entry = panelId ? panels.find(panel => labPanelId(panel) === panelId) : panels.length === 1 ? panels[0] : null;
+  if (!entry?.markers || !Object.hasOwn(entry.markers, dotKey)) return;
   if (await showConfirmDialog(`Delete this value (${date})? This can't be undone.`)) {
-    const deleted = await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });
-    if (!deleted) return;
+    if (!review.current()) { showNotification('This sample or profile changed. Review its current values.', 'error'); return; }
+    const deleted = await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) }, review.current);
+    if (!deleted || !review.owns()) return;
     buildSidebar();
     updateHeaderDates();
     // Re-open the detail modal to show updated values. buildSidebar
@@ -224,6 +254,7 @@ export function editMarkerValue(id: string, date: string, currentValue: unknown,
   el.appendChild(input);
   input.focus();
   input.select();
+  const review = captureLabReview(date);
   let cancelled = false;
   let saveStarted = false;
   const save = async () => {
@@ -237,8 +268,9 @@ export function editMarkerValue(id: string, date: string, currentValue: unknown,
     const dotKey = storageDotKeyForId(id);
     if (!dotKey) return;
     const storedValue = convertDisplayToSI(dotKey, newValue);
-    const updated = await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) });
-    if (!updated) { saveStarted = false; return; }
+    if (!review.current()) { showNotification('This sample or profile changed. Review its current values.', 'error'); return; }
+    const updated = await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) }, review.current);
+    if (!updated || !review.owns()) { saveStarted = false; return; }
     // Rebuild the underlying view so Table/Heatmap/Chart reflect the edit.
     markerDetailDeps.navigate(state.currentView || 'dashboard');
     showDetailModal(id);

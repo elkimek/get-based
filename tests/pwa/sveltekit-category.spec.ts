@@ -11,7 +11,7 @@ import {startKitServer} from './kit-release-server.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
-import {activate,artifactInputs,cacheReceipt,profile,type StateBinding} from './kit-native-receipts.js';
+import {activate,artifactInputs,cacheReceipt as readCacheReceipt,profile,type StateBinding} from './kit-native-receipts.js';
 import {categoryRoutes,categoryRegistry,categorySeedFields,categoryPresentationReceipt,type CategoryNativeOracle,type CategoryRangeMode,type CategoryViewMode,type CategoryChartReceipt} from '../helpers/category-pwa-receipt.js';
 import {categoryPageChromeReceipt,categoryChromeClock,categoryChromeOutsideClock,type CategoryChromeNativeOracle,type CategoryChromeNativeCase} from '../helpers/category-page-chrome-pwa-receipt.js';
 const authored=['js/category-presentation.js','js/components/CategoryRangeRail.svelte.html.js','js/components/CategoryChartCard.svelte.html.js','js/components/CategoryTableColgroup.svelte.html.js','js/components/CategoryScrollableTable.svelte.html.js','js/components/CategoryDataTable.svelte.html.js','js/components/CategoryHeatmap.svelte.html.js','js/components/CategoryFattyAcids.svelte.html.js'] as const;
@@ -24,6 +24,24 @@ interface NativeChart {canvas:HTMLCanvasElement;ctx:CanvasRenderingContext2D;cha
 interface NativeState {currentProfile:string;currentView:string;categoryView:string;rangeMode:string;dateRangeFilter:string;markerRegistry:Record<string,unknown>;chartInstances:Record<string,NativeChart>}
 interface CategoryEvent {type:string;action:string|null;route:string|null;view:string|null;range:string|null;marker:string|null;date:string|null;key:string|null;trusted:boolean}
 interface ObservedWindow extends Window {categoryPwaEvent(event:CategoryEvent):Promise<void>;categoryPwaCsp(directive:string):Promise<void>}
+// Category verifies the complete cache after repeated state transitions. Read
+// disjoint ordered groups concurrently through the same per-entry verifier.
+async function cacheReceipt(page: Page, artifact: Awaited<ReturnType<typeof artifactInputs>>) {
+ const groupSize = Math.ceil(artifact.cachePaths.length / 8);
+ const groups: string[][] = [];
+ for (let offset = 0; offset < artifact.cachePaths.length; offset += groupSize) {
+  groups.push(artifact.cachePaths.slice(offset, offset + groupSize));
+ }
+ const receipts = await Promise.all(groups.map(cachePaths => readCacheReceipt(page, {...artifact, cachePaths})));
+ const [first, ...rest] = receipts;
+ if (!first) throw new Error('Category artifact must have cached paths');
+ for (const receipt of rest) {
+  expect(receipt.controller).toBe(first.controller);
+  expect(receipt.registrations).toEqual(first.registrations);
+  expect(receipt.keys).toEqual(first.keys);
+ }
+ return {...first, entries: receipts.flatMap(receipt => receipt.entries)};
+}
 async function openCategory(page:Page,route:string){
  const close=page.getByRole('button',{name:'Close chat',exact:true});if(await close.isVisible())await activate(page,close);
  const menu=page.getByRole('button',{name:'Menu',exact:true}),sidebar=page.locator('#sidebar-nav');

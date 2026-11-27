@@ -11,6 +11,7 @@ import {
   syncRoutstrModelSelection,
 } from './api-provider-storage.js';
 import {
+  GPT_62_DEFAULT_CANDIDATES,
   deduplicateModels,
   findPreferredModel,
   isRecommendedModel,
@@ -19,9 +20,10 @@ import {
 } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 import { notifyRoutstrRequestSettled } from './routstr-balance-settlement.js';
+import { canonicalRoutstrUrl } from './url-safety.js';
 
-const ROUTSTR_CURATED = ['deepseek/deepseek', '~deepseek/deepseek', 'gemini-4', 'google/gemini-4', 'muse-', 'meta/muse-', 'claude-', 'anthropic/claude-', 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6-sol', 'openai/gpt-6-sol', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', 'gpt-6.1-terra', 'openai/gpt-6.1-terra', 'openai/gpt-5', 'gpt-5', 'gpt-4', 'gemini-3', 'gemini-2', 'glm-5', 'z-ai/glm-5', 'kimi-', 'moonshotai/kimi-', 'grok-4', 'x-ai/grok-4', 'grok-3', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'mimo-'];
-const ROUTSTR_DEFAULT_CANDIDATES = ['gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', 'gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
+const ROUTSTR_CURATED = [...GPT_62_DEFAULT_CANDIDATES, 'deepseek/deepseek', '~deepseek/deepseek', 'gemini-4', 'google/gemini-4', 'muse-', 'meta/muse-', 'claude-', 'anthropic/claude-', 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6-sol', 'openai/gpt-6-sol', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', 'gpt-6.1-terra', 'openai/gpt-6.1-terra', 'openai/gpt-5', 'gpt-5', 'gpt-4', 'gemini-3', 'gemini-2', 'glm-5', 'z-ai/glm-5', 'kimi-', 'moonshotai/kimi-', 'grok-4', 'x-ai/grok-4', 'grok-3', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'mimo-'];
+const ROUTSTR_DEFAULT_CANDIDATES = [...GPT_62_DEFAULT_CANDIDATES, 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', 'gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
 const ROUTSTR_EXCLUDE = ['codex', 'audio', 'image', 'oss', 'safeguard', 'coder', 'embed', 'tts', 'whisper', 'beta', 'preview', 'free', 'gratis'];
 const ROUTSTR_PRIVATE_REQUEST_TIMEOUT_MS = 180000;
 const ROUTSTR_PRIVATE_MAX_OUTPUT_TOKENS = 4096;
@@ -121,16 +123,24 @@ export function getRoutstrNodeUrl() {
 }
 
 function _requireNodeUrl() {
-  const url = getRoutstrNodeUrl();
-  if (!url) throw new Error('No Routstr node selected. Pick a node in Settings -> Routstr.');
-  return url.replace(/\/$/, '');
+  const raw = getRoutstrNodeUrl();
+  if (!raw) throw new Error('No Routstr node selected. Pick a node in Settings -> Routstr.');
+  const url = canonicalRoutstrUrl(raw);
+  if (!url) throw new Error('Invalid Routstr node URL. Pick a node in Settings -> Routstr.');
+  return url;
 }
 
 export async function callRoutstrAPI(opts: ProviderRequestOptions) {
   const key = getRoutstrKey();
   if (!key) throw new Error('No Routstr key configured. Fund your wallet and connect to a node in Settings.');
   const nodeUrl = _requireNodeUrl();
-  const modelId = String(opts?.modelOverride || getRoutstrModel());
+  const modelOverride = String(opts?.modelOverride || '').trim();
+  const savedModel = getRoutstrModel();
+  const modelId = modelOverride || savedModel;
+  const privateRequested = isRoutstrPrivateModeActive() || isRoutstrTinfoilModel(modelId);
+  if (privateRequested && !isRoutstrTinfoilModel(modelId)) {
+    throw new Error('Routstr Private TEE is active, so non-private models are blocked. Choose a Routstr Private TEE model or switch to a standard model in Settings.');
+  }
   if (isRoutstrTinfoilModel(modelId)) {
     if (!globalThis.crypto?.subtle) throw new Error('Routstr Private TEE mode requires a secure context (HTTPS). Cannot encrypt on this page.');
     const { createTinfoilSecureFetch } = await import('./tinfoil-secure-fetch.js');

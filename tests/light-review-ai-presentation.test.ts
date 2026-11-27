@@ -1,8 +1,21 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import type { AIVerdictStatus } from '../js/ai-verdict-engine.js';
-import type { ReviewAIKind } from '../js/light-review-ai-presentation.js';
+import type { ReviewAIKind, ReviewPresentation } from '../js/light-review-ai-presentation.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+const nativeView = vi.hoisted(() => ({value: null as ReviewPresentation | null}));
+vi.mock('../js/components/LightReviewAI.svelte.html.js', async original => {
+  const actual = await original<typeof import('../js/components/LightReviewAI.svelte.html.js')>();
+  return {...actual, renderHTML: ({view}: {view: ReviewPresentation}) => {
+    nativeView.value = view;
+    return actual.renderHTML({view});
+  }};
+});
+
 const fixture = vi.hoisted(() => ({ provider: true, status: 'idle' as AIVerdictStatus }));
 vi.mock('../js/ai-feature-routing.js', async original => ({
   ...await original<typeof import('../js/ai-feature-routing.js')>(), hasAssistantFeatureProvider: () => fixture.provider,
@@ -48,7 +61,7 @@ function semantic(html: string) {
 }
 // The original packet omits a capture clock. Select a fixed instant inside its source-defined 7/14-day eligibility intervals; all original five summaries remain unchanged.
 const originalSummaryClock=Math.max(...original.summaryCases.flatMap(c=>[...c.sunSessions,...c.deviceSessions].map(s=>s.endedAt)))+86400000;
-beforeEach(() => { vi.useFakeTimers();vi.setSystemTime(originalSummaryClock); state.currentProfile = 'review-fixture'; state.importedData = createDefaultProfileData(); });
+beforeEach(() => { nativeView.value = null; vi.useFakeTimers();vi.setSystemTime(originalSummaryClock); state.currentProfile = 'review-fixture'; state.importedData = createDefaultProfileData(); });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 function install(sample: Case) {
   fixture.provider = sample.provider; fixture.status = sample.status;
@@ -67,7 +80,7 @@ function install(sample: Case) {
   data.lightEnvironment ||= { rooms: [], screens: [] };
   data.lightEnvironment.burdenAI = analysis;
 }
-for (const [index, sample] of original.cases.entries()) it(`retains original review ${index}: ${sample.kind}/${sample.status}/provider=${sample.provider}/stale=${sample.stale}/history=${sample.hasData}`, () => {
+for (const [index, sample] of original.cases.entries()) it(`retains original review ${index}: ${sample.kind}/${sample.status}/provider=${sample.provider}/stale=${sample.stale}/history=${sample.hasData}`, async () => {
   install(sample);
   let html: string;
   if (sample.kind === 'today' && sample.trends.length && sample.html) {
@@ -84,6 +97,23 @@ for (const [index, sample] of original.cases.entries()) it(`retains original rev
     expect((button as HTMLButtonElement).type).toBe('button'); expect(button.getAttribute('data-ai-owner')).toBe(aiActionOwner());
     expect(button.hasAttribute('data-ai-target')).toBe(false);
   }
+  const view = nativeView.value as ReviewPresentation | null;
+  if (!view) {
+    expect(html).toBe(sample.kind === 'weekly' ? sample.fallbackHTML : '');
+    return;
+  }
+  const component = load('../js/components/LightReviewAI.svelte.native.js') as typeof import('../js/components/LightReviewAI.svelte.native.js');
+  await expectNativeReview(html, native => {
+    const mounted = component.mount(component.default, {target: native, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, native => {
+    expect(native.querySelector('script, [onclick], [onerror]')).toBeNull();
+    const actions = (root: ParentNode) => [...root.querySelectorAll('[data-ai-action]')].map(action =>
+      [action.getAttribute('data-ai-action'), action.getAttribute('data-ai-owner'), action.getAttribute('data-ai-target')],
+    );
+    expect(actions(native)).toEqual(actions(host));
+  });
 });
 for (const [index, sample] of original.summaryCases.entries()) it(`retains original deterministic weekly summary ${index}`, () => {
   expect(semantic(renderSuggestion({}, {}, sample.sunSessions, sample.deviceSessions))).toEqual(semantic(sample.html));

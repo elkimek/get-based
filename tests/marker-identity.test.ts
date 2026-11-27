@@ -28,7 +28,7 @@ describe('stable built-in marker identity contract', () => {
     const identityDotKeys = BUILTIN_MARKER_IDENTITIES.map(identity => identity.currentDotKey);
     const ids = BUILTIN_MARKER_IDENTITIES.map(identity => identity.id);
 
-    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(210);
+    expect(BUILTIN_MARKER_IDENTITIES).toHaveLength(211);
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(identityDotKeys).size).toBe(identityDotKeys.length);
     expect(new Set(identityDotKeys)).toEqual(new Set(schemaDotKeys));
@@ -40,9 +40,9 @@ describe('stable built-in marker identity contract', () => {
       .update(JSON.stringify(BUILTIN_MARKER_IDENTITIES.map(identity => identity.id).sort()))
       .digest('hex');
 
-    // Adding lymphocyte subsets and ratios extends the set; existing ids are unchanged.
+    // The distinct Lp(a) mass assay has its own id alongside the existing molar assay.
     // A marker move changes currentDotKey, not this checksum or its marker id.
-    expect(checksum).toBe('403f957a0f9b0a1b4773afb98e1464c4fcadd14aa036aefcfb04af1703515ff3');
+    expect(checksum).toBe('5584be62e6f8876b6b62f762a6c3d3f042a78249ffd76ee7714520c291f7446e');
   });
 
   it('keeps authored and generated identity catalogs aligned and immutable at runtime', () => {

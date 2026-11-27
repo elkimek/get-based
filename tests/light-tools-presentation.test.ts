@@ -1,9 +1,22 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { renderHTML } from '../js/components/LightToolPresentation.svelte.html.js';
-import { projectAuditPauseRows, projectGoldenHourLog, projectLightTools, type WalkthroughStatus } from '../js/light-tools-presentation.js';
+import { projectAuditPauseRows, projectGoldenHourLog, projectLightTools, type WalkthroughStatus, type LightToolPresentationProps } from '../js/light-tools-presentation.js';
 import { classifyDayWindow } from '../js/light-tools-solar-time.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+function checkNativeTool(props: LightToolPresentationProps, verify: (root: HTMLElement) => void) {
+  const component = load('../js/components/LightToolPresentation.svelte.native.js') as typeof import('../js/components/LightToolPresentation.svelte.native.js');
+  return expectNativeReview(renderHTML(props), root => {
+    const mounted = component.mount(component.default, {target: root, props});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, verify);
+}
+
 // Original receipts were captured in Europe/Prague; keep their exact local-time inputs on every host.
 beforeEach(() => {
   vi.stubEnv('TZ', 'Europe/Prague');
@@ -32,17 +45,23 @@ function golden(root: Element) {
     subtitle: text(root.querySelector('.modal-body > p:not(.modal-body-hint)')), labelText: text(root.querySelector('label')), input: {type: input.type, min: input.min, max: input.max, value: input.value}, actions: actions(root)};
 }
 afterEach(() => { vi.useRealTimers(); document.querySelectorAll('.modal-overlay').forEach(node => node.remove()); });
-for (const sample of original.launchers) it(`retains launcher content, grouping and actions: ${sample.name}`, () => {
+for (const sample of original.launchers) it(`retains launcher content, grouping and actions: ${sample.name}`, async () => {
   const before = structuredClone(sample.data);
-  const current = host(renderHTML({kind: 'launcher', view: projectLightTools(sample.data.lightMeasurements, sample.data.lightEnvironment, sample.now)}));
-  expect(launcher(current)).toEqual(launcher(host(sample.html)));
+  const props = {kind: 'launcher', view: projectLightTools(sample.data.lightMeasurements, sample.data.lightEnvironment, sample.now)} as const;
+  const current = host(renderHTML(props));
+  const expected = launcher(host(sample.html));
+  expect(launcher(current)).toEqual(expected);
+  await checkNativeTool(props, native => expect(launcher(native)).toEqual(expected));
   expect(sample.data).toEqual(before);
   expect([...current.querySelectorAll('button')].every(button => button.type === 'button')).toBe(true);
 });
-for (const sample of original.golden) it(`retains solar logger fields and window copy: ${sample.name}`, () => {
+for (const sample of original.golden) it(`retains solar logger fields and window copy: ${sample.name}`, async () => {
   const window = classifyDayWindow(sample.coords, new Date(sample.now), date => date.getHours() >= 6 && date.getHours() < 18 ? 70 : 110);
-  const current = host(renderHTML({kind: 'golden', view: projectGoldenHourLog(window)}));
-  expect(golden(current)).toEqual(golden(host(sample.html)));
+  const props = {kind: 'golden', view: projectGoldenHourLog(window)} as const;
+  const current = host(renderHTML(props));
+  const expected = golden(host(sample.html));
+  expect(golden(current)).toEqual(expected);
+  await checkNativeTool(props, native => expect(golden(native)).toEqual(expected));
   expect([...current.querySelectorAll('button')].every(button => button.type === 'button')).toBe(true);
 });
 it('retains the actual walkthrough shell, shared guide and native close actions', async () => {
@@ -61,11 +80,13 @@ it('retains the actual walkthrough shell, shared guide and native close actions'
     expect(text(current.querySelector('#audit-status'))).toBe('Press Start when ready.');
   } finally { tools.closeEyeLevelAudit(); }
 });
-for (const sample of original.walkthroughStates.filter(sample => sample.kind !== 'rows')) it(`retains camera status copy: ${sample.kind}`, () => {
-  const current = host(renderHTML({kind: 'audit-status', state: sample.kind as WalkthroughStatus})), reference = host(sample.html);
+for (const sample of original.walkthroughStates.filter(sample => sample.kind !== 'rows')) it(`retains camera status copy: ${sample.kind}`, async () => {
+  const props = {kind: 'audit-status', state: sample.kind as WalkthroughStatus} as const;
+  const current = host(renderHTML(props)), reference = host(sample.html);
   expect(text(current)).toBe(text(reference));
   expect(texts(current, 'span')).toEqual(texts(reference, 'span'));
   expect(current.querySelectorAll('br').length).toBe(reference.querySelectorAll('br').length);
+  await checkNativeTool(props, native => expect(text(native)).toBe(text(reference)));
 });
 function rows(root: Element) {
   return [...root.querySelectorAll('li')].map(node => {
@@ -73,10 +94,14 @@ function rows(root: Element) {
     return {reading: text(node.querySelector('span')), type: input.type, aria: input.getAttribute('aria-label'), index: input.dataset.idx, value: input.value, placeholder: input.placeholder, list: input.getAttribute('list'), options: [...node.querySelectorAll('option')].map(option => option.value)};
   });
 }
-it('retains pause rows, labels, datalists and literal escaping', () => {
+it('retains pause rows, labels, datalists and literal escaping', async () => {
   const pauses = [{lux: null, levelLabel: 'Medium', label: 'Bedroom "quoted" < &'}, {lux: null, levelLabel: 'Brighter', label: ''}];
-  const before = structuredClone(pauses), current = host(renderHTML({kind: 'audit-rows', rows: projectAuditPauseRows(pauses)}));
-  expect(rows(current)).toEqual(rows(host(original.walkthroughStates.find(sample => sample.kind === 'rows')!.html)));
+  const before = structuredClone(pauses);
+  const props = {kind: 'audit-rows', rows: projectAuditPauseRows(pauses)} as const;
+  const current = host(renderHTML(props));
+  const expected = rows(host(original.walkthroughStates.find(sample => sample.kind === 'rows')!.html));
+  expect(rows(current)).toEqual(expected);
+  await checkNativeTool(props, native => expect(rows(native)).toEqual(expected));
   expect(pauses).toEqual(before);
   const literal = host(renderHTML({kind: 'audit-rows', rows: projectAuditPauseRows([{lux: null, levelLabel: '<img src=x onerror=alert(1)>', label: '"><script>bad</script>'}])}));
   expect(literal.querySelector('script,img,[onerror]')).toBeNull();

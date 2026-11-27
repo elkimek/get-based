@@ -22,8 +22,11 @@ export function shouldShowChatPersonaLabel(message: Pick<Partial<ChatMessage>, '
   return Boolean(name && (message?.discussion || name !== DEFAULT_PERSONA_NAME));
 }
 
+const SAFE_PROFILE_AVATAR_RE = /^data:image\/(?:png|jpe?g|webp|gif|avif);base64,[A-Za-z0-9+/]+={0,2}$/i;
+const MAX_PROFILE_AVATAR_CHARS = 512_000;
+
 function isSafeProfileAvatar(value: unknown) {
-  return typeof value === 'string' && /^data:image\/(?:png|jpe?g|webp|gif|avif|svg\+xml);base64,/i.test(value);
+  return typeof value === 'string' && value.length <= MAX_PROFILE_AVATAR_CHARS && SAFE_PROFILE_AVATAR_RE.test(value);
 }
 
 function getActiveProfile() {

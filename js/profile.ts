@@ -1,7 +1,7 @@
 import { createDefaultProfileData } from './profile-defaults.js';
 export { createDefaultProfileData } from './profile-defaults.js';
 import {tsStateStyles} from './ts-state-ui-inline-style-map.generated.js';
-import { rememberProfileData, profileDataValuesEqual } from './profile-data-writes.js';
+import { rememberProfileData, profileDataValuesEqual, queueProfileDataWrite } from './profile-data-writes.js';
 import { configureProfileSelectionOwner } from './profile-selection-runtime.js';
 import { renderChatMessagesRuntime } from './chat-runtime.js';
 import { beginProfileChatTransition, completeProfileChatTransition, isProfileChatReady } from './profile-chat-state.js';
@@ -63,7 +63,7 @@ export interface ProfileMetaUpdates {
   tags?: string[]; notes?: string; status?: string; avatar?: string | null;
   height?: number | string | null; heightUnit?: string; pinned?: boolean;
 }
-interface CreateProfileOptions extends Omit<ProfileMetaUpdates, 'name' | 'pinned'> { skipInitialSync?: boolean }
+interface CreateProfileOptions extends Omit<ProfileMetaUpdates, 'name'> { skipInitialSync?: boolean; restoredId?: string }
 export interface LocationCacheEntry {
   lat?: unknown; latitude?: unknown; lon?: unknown; longitude?: unknown;
   accuracyKm?: unknown; timezone?: unknown; label?: unknown; resolvedAt?: unknown;
@@ -308,32 +308,51 @@ export async function loadProfile(profileId: string, options: ProfileLoadOptions
   }
 }
 
+const SAFE_PROFILE_AVATAR_RE = /^data:image\/(?:png|jpe?g|webp|gif|avif);base64,[A-Za-z0-9+/]+={0,2}$/i;
+const MAX_PROFILE_AVATAR_CHARS = 512_000;
+
+export function sanitizeProfileAvatar(value: unknown): string | null {
+  return typeof value === 'string' && value.length <= MAX_PROFILE_AVATAR_CHARS && SAFE_PROFILE_AVATAR_RE.test(value) ? value : null;
+}
+
 export async function createProfile(name: string, opts: CreateProfileOptions = {}) {
   const id = await mutateProfiles(profiles => {
     let candidate: string;
-    do candidate = createUniqueId('p_');
-    while (profiles.some(profile => profile.id === candidate));
+    if (opts.restoredId) {
+      if (!/^[a-zA-Z0-9_-]{1,128}$/.test(opts.restoredId) || ['__proto__', 'prototype', 'constructor'].includes(opts.restoredId) || profiles.some(p => p.id === opts.restoredId)) {
+        throw new Error('The restored profile ID is invalid or is already in use. Retry the import.');
+      }
+      candidate = opts.restoredId;
+    } else {
+      do candidate = createUniqueId('p_');
+      while (profiles.some(p => p.id === candidate));
+    }
     const now = Date.now();
     profiles.push({
-      id: candidate, name,
-      sex: opts.sex || null,
-      dob: opts.dob || null,
-      location: opts.location || { country: '', zip: '' },
-      tags: opts.tags || [],
-      notes: opts.notes || '',
-      status: opts.status || 'active',
-      avatar: opts.avatar || null,
-      height: opts.height || null,
-      heightUnit: opts.heightUnit || 'cm',
-      createdAt: now,
-      _syncMetadataAt: now,
-      lastUpdated: now,
-      pinned: false
+      id: candidate, name, sex: opts.sex || null, dob: opts.dob || null,
+      location: opts.location || { country: '', zip: '' }, tags: opts.tags || [], notes: opts.notes || '',
+      status: opts.status || 'active', avatar: sanitizeProfileAvatar(opts.avatar),
+      height: opts.height || null, heightUnit: opts.heightUnit || 'cm',
+      createdAt: now, _syncMetadataAt: now, lastUpdated: now, pinned: opts.pinned === true
     });
     return { changed: true, value: candidate };
   });
   if (!opts.skipInitialSync) queueProfileSync(id, createDefaultProfileData());
   return id;
+}
+
+// A failed first save owns only its empty, untouched registry reservation.
+export function discardEmptyImportedProfile(profileId: string) {
+  return queueProfileDataWrite(profileId, async () => {
+    if (await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true }) !== null) return;
+    await mutateProfiles(profiles => {
+      const index = profiles.findIndex(profile => profile.id === profileId && profile.createdAt === profile._syncMetadataAt
+        && profile.createdAt === profile.lastUpdated);
+      if (index < 0 || state.currentProfile === profileId) return { changed: false, value: undefined };
+      profiles.splice(index, 1);
+      return { changed: true, value: undefined };
+    });
+  });
 }
 
 /** Apply an edit inside the serialized store; stamp only an existing record. */
@@ -370,7 +389,7 @@ export async function updateProfileMeta(profileId: string, updates: ProfileMetaU
     return profileEdit(profileId, profile => {
       for (const [key, val] of Object.entries(updates)) {
         if (key === 'id' || key === 'createdAt') continue;
-        profile[key] = val;
+        profile[key] = key === 'avatar' ? sanitizeProfileAvatar(val) : val;
       }
     })(profiles);
   });
@@ -414,6 +433,12 @@ export async function deleteProfile(profileId: string, onComplete?: () => void) 
     // an old live row and recreating the deleted profile.
     markLocalProfileDeleteIntent(profileId, isDemoProfileId(profileId, profiles) ? 'local-demo' : 'local');
     try {
+      const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true });
+      const agentAccess = raw ? JSON.parse(raw)?.agentAccess : null;
+      if (typeof agentAccess?.token === 'string' && agentAccess.token) {
+        const { captureAgentAccessOperationScope, queueMessengerRevocation } = await import('./sync-messenger.js');
+        await queueMessengerRevocation(agentAccess.token, captureAgentAccessOperationScope(profileId));
+      }
       await clearProfileStorage(profileId);
     } catch (error) {
       clearLocalProfileDeleteIntent(profileId);
@@ -428,6 +453,10 @@ export async function deleteProfile(profileId: string, onComplete?: () => void) 
     // Soft-delete via Evolu's isDeleted column — the query filter drops
     // tombstoned rows; CRDT LWW handles cross-device conflict resolution.
     await Promise.resolve(profileDeps.deleteProfileFromRelay(profileId)).catch(() => {});
+    const { flushQueuedMessengerRevocations } = await import('./sync-messenger.js');
+    void flushQueuedMessengerRevocations().then(done => {
+      if (!done) profileDeps.showNotification('Agent Access relay removal is pending.', 'info');
+    });
     if (state.currentProfile === profileId) {
       await loadProfile(updated[0]!.id);
     } else {

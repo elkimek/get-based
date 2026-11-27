@@ -8,7 +8,8 @@ import {lightDeviceCatalogRoute} from '../helpers/light-device-catalog-fixture.j
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {readComparisonAcceptanceProfile} from '../helpers/nutrition-comparison-fixture.js';
 import {installOfflineStartupDiagnostics,captureOfflineRouteFailureDiagnostics} from '../helpers/offline-launch-diagnostics.js';
-import {readyLightArtifact as ready,openLightArtifact as openLight} from '../helpers/light-artifact-navigation.js';
+import {openLightArtifact as openLight} from '../helpers/light-artifact-navigation.js';
+import {readyControlledKitArtifact as ready} from './kit-native-receipts.js';
 // Observe native worker/cache state only after failure; keep the original
 // readiness requirement, complete assertions and test deadlines unchanged.
 test.afterEach(async({context},info)=>{
@@ -75,14 +76,35 @@ async function inspect(page:Page,url:string,toggle:boolean) {
   if(toggle){await openLight(page);expect((await renderPublicOptions(page,url)).html).not.toBe('');}
 }
 test('static public device options and actual settings opt-out work offline with unchanged profile through two cold launches',async({page,context})=>{
-  test.setTimeout(120000);await installDiscussionFixture(context);await context.route('https://**',route=>route.abort());await installOfflineStartupDiagnostics(context);await context.addInitScript(seed,{defaults:createDefaultProfileData()});
+  test.setTimeout(120000);await installDiscussionFixture(context);await installOfflineStartupDiagnostics(context);await context.addInitScript(seed,{defaults:createDefaultProfileData()});
+  // The seeded Light dashboard also asks for weather. Keep these two external
+  // services unavailable throughout the scenario without intercepting worker traffic.
+  await context.addInitScript(() => {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input, location.href);
+      if (url.origin + url.pathname === 'https://api.open-meteo.com/v1/forecast'
+        || url.origin + url.pathname === 'https://air-quality-api.open-meteo.com/v1/air-quality') {
+        throw new TypeError('Weather is unavailable in the offline Light fixture');
+      }
+      return nativeFetch(input, init);
+    };
+  });
   const errors:string[]=[],csp:string[]=[];const observe=(page:Page)=>page.on('pageerror',error=>errors.push(error.message));observe(page);context.on('page',observe);
   await context.exposeBinding('deviceOptionsCsp',(_,value:string)=>csp.push(value));await context.addInitScript(()=>document.addEventListener('securitypolicyviolation',event=>{void(window as unknown as{deviceOptionsCsp(value:string):Promise<void>}).deviceOptionsCsp(event.violatedDirective);}));
-  const artifact=process.env.GETBASED_KIT_ARTIFACT||path.resolve('.local-notes/sveltekit-build');const url=await recommendationChunk(artifact);const server=await startKitServer(artifact,[lightDeviceCatalogRoute]);
+  const artifact=process.env.GETBASED_KIT_ARTIFACT||path.resolve('.local-notes/sveltekit-build');const url=await recommendationChunk(artifact);const server=await startKitServer(artifact,[lightDeviceCatalogRoute],{sameOriginOnly:true});
+  const external: string[] = [];
+  context.on('request', request => {
+    const url = new URL(request.url());
+    if (['http:', 'https:'].includes(url.protocol) && url.origin !== server.origin) external.push(url.href);
+  });
   try {
+    // The browser enforces the network boundary without intercepting the worker's install.
+    const policy = (await fetch(server.origin + '/app')).headers.get('Content-Security-Policy');
+    expect(policy).toContain("connect-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; frame-src 'self'; form-action 'self'");
     const loading=[{phase:'initial-online',readyMs:await ready(page,server.origin)}];await expect(page.locator('[data-light-device-options]')).toHaveCount(0);const before=await page.evaluate(readComparisonAcceptanceProfile);server.state.offline=true;
     await inspect(page,url,true);expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(before);await page.close();
     for(let launch=0;launch<2;launch++) {const cold=await context.newPage();loading.push({phase:`offline-cold-${launch+1}`,readyMs:await ready(cold,server.origin)});await inspect(cold,url,false);expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(before);await cold.close();}
-    expect(errors).toEqual([]);expect(csp).toEqual([]);await fs.writeFile(test.info().outputPath('device-options-loading.json'),JSON.stringify(loading,null,2));
+    expect(errors).toEqual([]);expect(csp).toEqual([]);expect(external).toEqual([]);await fs.writeFile(test.info().outputPath('device-options-loading.json'),JSON.stringify(loading,null,2));
   } finally {await server.close();}
 });

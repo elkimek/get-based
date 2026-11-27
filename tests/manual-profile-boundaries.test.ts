@@ -101,7 +101,7 @@ it('seeds missing legacy metrics without replacing newer manual readings on the 
   state.importedData.manualMetricTombstones = {};
   mocks.read.mockResolvedValue({ source: 'manual', date: day, weight: 82, rhr: 61, note: 'New manual entry' });
   await migrateBiometricsToManual('a', { weight: [{ date: day, value: 70 }], bp: [{ date: day, systolic: 120, diastolic: 80 }] });
-  expect(mocks.batch).toHaveBeenCalledExactlyOnceWith('a', [{ source: 'manual', date: day, weight: 82, rhr: 61, bp_systolic: 120, bp_diastolic: 80, note: 'New manual entry' }]);
+  expect(mocks.batch).toHaveBeenCalledExactlyOnceWith('a', [{ source: 'manual', date: day, weight: 82, rhr: 61, bp_systolic: 120, bp_diastolic: 80, bpPaired: true, note: 'New manual entry' }]);
 });
 it('preserves a newer reading when retrying migration after metadata commit failure', async () => {
   state.importedData.manualMetricTombstones = {};

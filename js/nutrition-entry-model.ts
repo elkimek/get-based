@@ -81,7 +81,7 @@ export function fluidPreview(draft: FluidDraft) {
 export function fluidDraftError(draft: FluidDraft): { field: string; message: string } | null {
   const amount = Number(draft.amount);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 10000) return { field: 'nutrition-fluid-amount', message: 'Enter a drink amount between 1 and 10,000 mL.' };
-  if (!Number.isFinite(new Date(draft.at).getTime())) return { field: 'nutrition-fluid-at', message: 'Choose a valid drink date and time.' };
+  if (!Number.isFinite(new Date(draft.at).getTime()) || localDateTimeValue(new Date(draft.at)) !== draft.at) return { field: 'nutrition-fluid-at', message: 'Choose a valid drink date and time.' };
   return null;
 }
 export function mealFromFluidDraft(draft: FluidDraft) {
@@ -108,8 +108,8 @@ export function mealFromFluidDraft(draft: FluidDraft) {
 /** Only an explicit native time edit replaces stored timestamp/zone evidence. */
 export function buildMealEntryTiming(localDateTime: string, unchangedLocalDateTime: string | null = null) {
   const date = new Date(localDateTime);
-  if (!Number.isFinite(date.getTime())) throw new Error('Choose a valid meal date and time.');
   if (localDateTime === unchangedLocalDateTime) return {};
+  if (!Number.isFinite(date.getTime()) || localDateTimeValue(date) !== localDateTime) throw new Error('Choose a valid meal date and time.');
   const [, timePart = '00:00'] = localDateTime.split('T');
   const [hour, minute] = timePart.split(':').map(Number);
   let timeZone = '';

@@ -3,6 +3,7 @@
 import type { CompanionRuntimeOptions } from '../lib/companion-install-support.js';
 import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import { createCompanionRuntimeController } from '../lib/companion-runtime-control.js';
 import { GETBASED_COMPANION_VERSION } from '../shared/agent-host-protocol.js';
 
@@ -10,6 +11,18 @@ type InstallImpl = NonNullable<CompanionRuntimeOptions['installImpl']>;
 type RuntimeFetch = NonNullable<CompanionRuntimeOptions['fetchImpl']>;
 
 const VALID_BUNDLE = '#!/usr/bin/env node\nconst title = "getbased Companion"; const service = "getbased-agent-host";\nconst GETBASED_COMPANION_VERSION = "99.0.0";\n';
+
+const signingKey = generateKeyPairSync('ed25519');
+const installedEnv = {
+  GETBASED_COMPANION_SERVICE: '1',
+  GETBASED_COMPANION_UPDATE_PUBLIC_KEY: signingKey.publicKey.export({ type: 'spki', format: 'pem' }).toString(),
+};
+function signatureFor(body: string) {
+  return sign(null, Buffer.from(body), signingKey.privateKey).toString('base64');
+}
+function signedFixture(body = VALID_BUNDLE): RuntimeFetch {
+  return async url => new Response(url.endsWith('.sig') ? signatureFor(body) : body);
+}
 
 describe('running companion controls', () => {
   it('installs automatic startup from a temporary connection without starting a duplicate host', async () => {
@@ -44,7 +57,7 @@ describe('running companion controls', () => {
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() },
       bundlePath: '/tmp/getbased-companion.mjs',
-      env: { GETBASED_COMPANION_SERVICE: '1' }, platform: 'linux', serviceCommandImpl,
+      env: installedEnv, platform: 'linux', serviceCommandImpl,
       scheduleImpl: callback => { scheduled = callback; },
     });
 
@@ -107,11 +120,11 @@ describe('running companion controls', () => {
 
   it('updates only from the fixed official endpoint, never from a calling page', async () => {
     const installImpl = vi.fn<InstallImpl>(() => ({ installed: true }));
-    const fetchImpl = vi.fn<RuntimeFetch>(async () => new Response(VALID_BUNDLE, { status: 200 }));
+    const fetchImpl = vi.fn<RuntimeFetch>(signedFixture());
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() },
       bundlePath: '/tmp/getbased-companion.mjs',
-      env: { GETBASED_COMPANION_SERVICE: '1' },
+      env: installedEnv,
       platform: 'linux',
       installImpl,
       fetchImpl,
@@ -122,15 +135,18 @@ describe('running companion controls', () => {
     expect(fetchImpl).toHaveBeenCalledWith('https://app.getbased.health/getbased-companion.mjs', expect.objectContaining({ cache: 'no-store', redirect: 'error' }));
     expect(installImpl).toHaveBeenCalledWith(expect.objectContaining({ platform: 'linux', startService: false }));
     await controller.handle('update', { origin: 'http://localhost:9999' });
-    expect(fetchImpl.mock.calls.every(([url]) => url === 'https://app.getbased.health/getbased-companion.mjs')).toBe(true);
+    expect(new Set(fetchImpl.mock.calls.map(([url]) => url))).toEqual(new Set([
+      'https://app.getbased.health/getbased-companion.mjs',
+      'https://app.getbased.health/getbased-companion.mjs.sig',
+    ]));
   });
 
   it.each([GETBASED_COMPANION_VERSION, '1.0.0'])('does not install the same or an older release (%s)', async version => {
     const installImpl = vi.fn<InstallImpl>();
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
-      env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
-      fetchImpl: async () => new Response(VALID_BUNDLE.replace('99.0.0', version)),
+      env: installedEnv, installImpl,
+      fetchImpl: signedFixture(VALID_BUNDLE.replace('99.0.0', version)),
     });
     await expect(controller.handle('update', { origin: 'http://localhost:8000' }))
       .resolves.toMatchObject({ updated: false, upToDate: true, restartRequired: false });
@@ -141,8 +157,8 @@ describe('running companion controls', () => {
     const installImpl = vi.fn<InstallImpl>();
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
-      env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
-      fetchImpl: async () => new Response(VALID_BUNDLE),
+      env: installedEnv, installImpl,
+      fetchImpl: signedFixture(),
     });
     await controller.handle('update', { origin: 'http://localhost:8000' });
     expect(controller.getInfo()).toMatchObject({ pendingUpdateVersion: '99.0.0', restartRequired: true });
@@ -155,8 +171,8 @@ describe('running companion controls', () => {
     const installImpl = vi.fn<InstallImpl>();
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/getbased-companion.mjs',
-      env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
-      fetchImpl: async () => new Response(VALID_BUNDLE.replace('99.0.0', 'unknown')),
+      env: installedEnv, installImpl,
+      fetchImpl: signedFixture(VALID_BUNDLE.replace('99.0.0', 'unknown')),
     });
     await expect(controller.handle('update', { origin: 'http://localhost:8000' })).rejects.toThrow('verify');
     expect(installImpl).not.toHaveBeenCalled();
@@ -167,7 +183,7 @@ describe('running companion controls', () => {
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() },
       bundlePath: '/tmp/getbased-companion.mjs',
-      env: { GETBASED_COMPANION_SERVICE: '1' },
+      env: installedEnv,
       platform: 'linux',
       uninstallImpl,
     });
@@ -179,12 +195,13 @@ describe('running companion controls', () => {
 
 
 describe('companion update failure boundaries', () => {
-  function setup(response: Response | null, overrides: Partial<CompanionRuntimeOptions> = {}) {
+  function setup(response: Response | null, overrides: Partial<CompanionRuntimeOptions> = {}, signature = signatureFor(VALID_BUNDLE)) {
     const installImpl = vi.fn<InstallImpl>();
+    const { fetchImpl: download = async () => response as Response, ...options } = overrides;
     const controller = createCompanionRuntimeController({
       appServer: { restart: vi.fn(), initialize: vi.fn() }, bundlePath: '/tmp/unused.mjs',
-      env: { GETBASED_COMPANION_SERVICE: '1' }, installImpl,
-      fetchImpl: vi.fn<RuntimeFetch>().mockResolvedValue(response as Response), ...overrides,
+      env: installedEnv, installImpl,
+      fetchImpl: (url, init) => url.endsWith('.sig') ? Promise.resolve(new Response(signature)) : download(url, init), ...options,
     });
     return { controller, installImpl, update: () => controller.handle('update', { origin: 'https://app.test' }) };
   }
@@ -194,13 +211,31 @@ describe('companion update failure boundaries', () => {
     ['streamed oversize', () => new Response('x'.repeat(250001)), 'large'],
     ['missing body', () => new Response(null), 'empty'],
     ['empty body', () => new Response(''), 'empty'],
-    ['invalid signature', () => new Response('untrusted code'), 'not a getbased'],
-    ['ambiguous version', () => new Response(VALID_BUNDLE + 'const GETBASED_COMPANION_VERSION = "100.0.0";\n'), 'verify'],
+    ['changed bundle bytes', () => new Response(VALID_BUNDLE + '// unexpected change'), 'signature'],
   ])('rejects %s before installing or changing runtime state', async (_label, response, message) => {
     const f = setup(response());
     await expect(f.update()).rejects.toThrow(message);
     expect(f.installImpl).not.toHaveBeenCalled();
     expect(f.controller.getInfo()).toMatchObject({ restartRequired: false, runtimeMode: 'installed' });
+  });
+  it('rejects an ambiguous release version after verifying its signature', async () => {
+    const body = VALID_BUNDLE + 'const GETBASED_COMPANION_VERSION = "100.0.0";\n';
+    const fixture = setup(new Response(body), {}, signatureFor(body));
+    await expect(fixture.update()).rejects.toThrow('version');
+    expect(fixture.installImpl).not.toHaveBeenCalled();
+  });
+  it('rejects a correctly signed file without the Companion bundle metadata', async () => {
+    const body = '#!/usr/bin/env node\nconsole.log("synthetic file");\n';
+    const fixture = setup(new Response(body), {}, signatureFor(body));
+    await expect(fixture.update()).rejects.toThrow('not a getbased Companion bundle');
+    expect(fixture.installImpl).not.toHaveBeenCalled();
+    expect(fixture.controller.getInfo().restartRequired).toBe(false);
+  });
+  it('rejects a valid download when no trusted key is configured', async () => {
+    const fetchImpl = vi.fn<RuntimeFetch>(signedFixture());
+    const fixture = setup(null, { fetchImpl, env: { GETBASED_COMPANION_SERVICE: '1', GETBASED_COMPANION_UPDATE_PUBLIC_KEY: '' } });
+    await expect(fixture.update()).rejects.toThrow('signing key');
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
   it('cancels an oversized stream rather than downloading the remaining data', async () => {
     const cancel = vi.fn();

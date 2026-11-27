@@ -209,7 +209,7 @@ assert('saveChatHistory has personalityIcon', saveSrc.includes('personalityIcon'
 // ── 15. Backup compat ──
 // PER_PROFILE_PREF_SUFFIXES moved from crypto.js to backup.js in the v1.18.5 extraction.
 console.log('15. Backup compat');
-const backupSrc = read('js/backup.js');
+const backupSrc = read('js/backup-restore-plan.js');
 assert('PER_PROFILE_PREF_SUFFIXES has chatPersonalityCustom', backupSrc.includes('chatPersonalityCustom'));
 
 // ── 16. Service worker cache version ──

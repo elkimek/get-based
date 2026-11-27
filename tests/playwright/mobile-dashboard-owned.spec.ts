@@ -1,4 +1,5 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './coverage-fixture.js';
+test.use({seedLegalAcceptance: false});
 test('genuine mobile dashboard composes typed widget frames controls range and navigation',async({page})=>{
  await page.setViewportSize({width:390,height:844});const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto('/app',{waitUntil:'load'});await page.locator('html[data-app-ready]').waitFor({state:'attached'});
@@ -49,4 +50,26 @@ test('whole mobile page hydration preserves existing SSR elements text listeners
   await native.unmount(owner);native.flushSync();result.removed=before.every(node=>!node.isConnected);result.outsideAfterCleanup=outside.isConnected;return result;
  });
  expect(result.identity).toBe(true);expect(result.elements).toBeGreaterThan(30);expect(result.textNodes).toBeGreaterThan(10);expect(result.listenerRetained).toBe(true);expect(result.outsideRetained).toBe(true);expect(result.removed).toBe(true);expect(result.outsideAfterCleanup).toBe(true);
+});
+
+test('the public mobile widget stack mounts and disposes with the page runtime', async ({page}) => {
+  await page.route('**/mobile-widget-native-entry', route => route.fulfill({contentType: 'text/html', body: '<main></main><aside>Keep</aside>'}));
+  await page.goto('/mobile-widget-native-entry');
+  const result = await page.evaluate(async () => {
+    const [parent, child] = await Promise.all([
+      import('/js/components/MobileDashboardPage.svelte.native.js'),
+      import('/js/components/MobileDashboardWidgetStack.svelte.native.js'),
+    ]);
+    const target = document.querySelector('main')!;
+    const owner = child.mount(child.default, {target, props: {view: {count: '0', actions: null, hasEntries: false, widgets: []}}});
+    parent.flushSync();
+    const text = target.querySelector('.dashboard-widget-empty')?.textContent;
+    await parent.unmount(owner);
+    child.flushSync();
+    return {page: Object.keys(parent).sort(), stack: Object.keys(child).sort(),
+      shared: parent.mount === child.mount && parent.unmount === child.unmount && parent.flushSync === child.flushSync,
+      text, disposed: !target.hasChildNodes(), outside: document.querySelector('aside')?.textContent};
+  });
+  expect(result).toEqual({page: ['default', 'flushSync', 'hydrate', 'mount', 'unmount'], stack: ['default', 'flushSync', 'mount', 'unmount'],
+    shared: true, text: 'No widgets are visible.', disposed: true, outside: 'Keep'});
 });

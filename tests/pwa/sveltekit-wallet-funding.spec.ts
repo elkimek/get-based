@@ -1,7 +1,7 @@
 import {openStaticSettings} from './settings-entry.js';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { prepareStaticWallet } from './wallet-static-fixture.js';
+import { prepareStaticWallet, readWalletMetaRecords } from './wallet-static-fixture.js';
 import { startKitServer } from './kit-release-server.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 const mint = 'https://mint.minibits.cash/Bitcoin';
@@ -15,14 +15,7 @@ async function openFunding(page: Page) {
   await page.locator('[data-routstr-wallet-action="wallet-action"][data-wallet-action="deposit"]').click();
   await expect(page.locator('[data-wallet-funding-view]')).toBeVisible();
 }
-async function pendingQuotes(page: Page) {
-  return page.evaluate(() => new Promise<{ key: string; value: { quote?: string; mint?: string; amount?: number } }[]>((resolve, reject) => {
-    const open = indexedDB.open('getbased-cashu'); open.onerror = () => reject(open.error);
-    open.onsuccess = () => { const db = open.result; const tx = db.transaction('meta', 'readonly'); const request = tx.objectStore('meta').getAll();
-      request.onsuccess = () => resolve(request.result.filter((row: { key: string }) => row.key.startsWith('pendingQuote:')));
-      request.onerror = () => reject(request.error); tx.oncomplete = () => db.close(); };
-  }));
-}
+function pendingQuotes(page: Page) { return readWalletMetaRecords(page, 'pendingQuote:'); }
 test('wallet funding loads from cached static assets, preserves original-mint quotes and reconciles after a cold launch', async ({ page, context }) => {
   test.setTimeout(150_000); await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
   await prepareStaticWallet(context);

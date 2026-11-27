@@ -409,19 +409,17 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
       }
     `,
     '**/js/sync-settings-state.js*': `
-      export function primeSyncState() { window.__startupUICalls.push('primeSyncState'); }
       export function isSyncConfigured() { return true; }
-    `,
-    '**/js/sync-ui.js*': `
-      export function renderSyncIndicator() { window.__startupUICalls.push('renderSyncIndicator'); }
-    `,
-    '**/js/sync.js*': `
       export function primeSyncState() {
         window.__startupUICalls.push('primeSyncState');
       }
+    `,
+    '**/js/sync.js*': `
       export async function initSync() {
         window.__startupUICalls.push('initSync');
       }
+    `,
+    '**/js/sync-ui.js*': `
       export function renderSyncIndicator() {
         window.__startupUICalls.push('renderSyncIndicator');
       }

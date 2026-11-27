@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {expect,test} from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import type {DashboardLightWidgetView} from '../../js/dashboard-light-widget-presentation.js';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const styles=['styles.css','themes-extra.css','css/dashboard-widgets.css','css/light-sun.css','css/light-conditions-now.css','css/light-channels.css'].map(name=>fs.readFileSync(path.join(root,name),'utf8')).join('\n');

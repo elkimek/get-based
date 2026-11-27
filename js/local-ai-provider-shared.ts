@@ -1,8 +1,18 @@
 // Shared normalization helpers for Local AI provider adapters.
 
-import { extractModelReasoningMetadata } from './reasoning-capabilities.js';
+import { extractModelReasoningMetadata, normalizeReasoningEffort } from './reasoning-capabilities.js';
 
 import type { ModelReasoningSource } from './reasoning-capabilities.js';
+
+export const LOCAL_AI_REASONING_HEADROOM_TOKENS = 2048;
+export const LOCAL_AI_REASONING_MIN_OUTPUT_TOKENS = 4096;
+const LOCAL_AI_ACTIVE_REASONING_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+
+export interface LocalAiReasoningPlan {
+  reasoningEffort: string | undefined;
+  reasoningDisabled: boolean;
+  mandatoryReasoning: boolean;
+}
 
 export interface LocalAiDiscoveryError extends Record<string, unknown> { kind: string }
 export interface LocalAiModel extends Record<string, unknown> { name: unknown; vramAllocated?: unknown; loaded?: unknown; nativeModelKey?: unknown; loadedInstanceId?: unknown; reasoning?: { allowedOptions?: unknown; default?: unknown } | null }
@@ -199,4 +209,48 @@ export function ollamaPerformanceDiagnostics(event: OllamaMetricsView | null | u
     modelLoadMs: loadDurationNs > 0 ? Math.round(loadDurationNs / 1e6) : 0,
     reasoningTokens: Number(event?.thinking_count) || 0,
   };
+}
+
+export function resolveLocalAiReasoningPlan(
+  opts: { jsonMode?: boolean | undefined; reasoningEffort?: string | undefined },
+  modelDetail?: Pick<LocalAiModel, 'reasoning'> | null,
+): LocalAiReasoningPlan {
+  const rawAllowed = Array.isArray(modelDetail?.reasoning?.allowedOptions)
+    ? modelDetail.reasoning.allowedOptions
+    : [];
+  const allowed = [...new Set(rawAllowed.map(normalizeReasoningEffort).filter(Boolean))];
+  const hasCatalog = allowed.length > 0;
+  const canDisable = !hasCatalog || allowed.includes('none');
+  const mandatoryReasoning = hasCatalog && !allowed.includes('none');
+  const lowestActive = LOCAL_AI_ACTIVE_REASONING_EFFORTS.find(effort => allowed.includes(effort));
+  const requested = normalizeReasoningEffort(opts.reasoningEffort);
+  const wantsDisabled = Boolean(opts.jsonMode) || requested === 'none';
+
+  if (wantsDisabled) {
+    if (canDisable) return { reasoningEffort: 'none', reasoningDisabled: true, mandatoryReasoning: false };
+    return { reasoningEffort: lowestActive, reasoningDisabled: false, mandatoryReasoning: true };
+  }
+  if (!requested || requested === 'on') {
+    return { reasoningEffort: undefined, reasoningDisabled: false, mandatoryReasoning };
+  }
+  if (hasCatalog && !allowed.includes(requested)) {
+    const idx = LOCAL_AI_ACTIVE_REASONING_EFFORTS.indexOf(requested as typeof LOCAL_AI_ACTIVE_REASONING_EFFORTS[number]);
+    const fallback = idx >= 0
+      ? [...LOCAL_AI_ACTIVE_REASONING_EFFORTS.slice(idx + 1), ...LOCAL_AI_ACTIVE_REASONING_EFFORTS.slice(0, idx).reverse()]
+          .find(effort => allowed.includes(effort))
+      : lowestActive;
+    return { reasoningEffort: fallback, reasoningDisabled: false, mandatoryReasoning };
+  }
+  return { reasoningEffort: requested, reasoningDisabled: false, mandatoryReasoning };
+}
+
+export function expandLocalAiOutputTokensForReasoning(requestedMaxTokens: number, availableOutputTokens?: number | null): number {
+  const expanded = Math.max(
+    requestedMaxTokens + LOCAL_AI_REASONING_HEADROOM_TOKENS,
+    LOCAL_AI_REASONING_MIN_OUTPUT_TOKENS,
+  );
+  if (typeof availableOutputTokens === 'number' && Number.isFinite(availableOutputTokens) && availableOutputTokens > 0) {
+    return Math.min(expanded, availableOutputTokens);
+  }
+  return expanded;
 }

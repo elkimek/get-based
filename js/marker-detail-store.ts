@@ -106,24 +106,24 @@ function writeMarkerValueNote(dotKey: string, date: string, noteText: unknown) {
   return changed;
 }
 
-function commitMarkerValue(command: LabMarkerCommand & { kind: 'remove' }): Promise<LabMarkerDeletion | null>;
-function commitMarkerValue(command: LabMarkerCommand & { kind: 'save' | 'edit' | 'revert' }): Promise<LabEntryDraft | null>;
-async function commitMarkerValue(command: LabMarkerCommand) {
+function commitMarkerValue(command: LabMarkerCommand & { kind: 'remove' }, authorized?: () => boolean): Promise<LabMarkerDeletion | null>;
+function commitMarkerValue(command: LabMarkerCommand & { kind: 'save' | 'edit' | 'revert' }, authorized?: () => boolean): Promise<LabEntryDraft | null>;
+async function commitMarkerValue(command: LabMarkerCommand, authorized?: () => boolean) {
   ensureImportedData();
-  try { return await commitLabMarkerCommand(state.currentProfile, state.importedData, command); }
-  catch (error) { if (error instanceof Error && error.message === 'Choose which sample to edit.') showNotification(error.message, 'error'); return null; }
+  try { return await commitLabMarkerCommand(state.currentProfile, state.importedData, command, authorized); }
+  catch (error) { if (error instanceof Error) showNotification(error.message, 'error'); return null; }
 }
-export async function saveManualMarkerValue({ dotKey, date, ...options }: MarkerValueSave = {}) {
+export async function saveManualMarkerValue({ dotKey, date, ...options }: MarkerValueSave = {}, authorized?: () => boolean) {
   if (!dotKey || !date) return null;
-  return commitMarkerValue({ ...options, ...(!Object.hasOwn(options, 'noteText') && !options.newPanel ? { noteText: '' } : {}), dotKey, date, kind: 'save' });
+  return commitMarkerValue({ ...options, ...(!Object.hasOwn(options, 'noteText') && !options.newPanel ? { noteText: '' } : {}), dotKey, date, kind: 'save' }, authorized);
 }
-export async function editManualMarkerValue({ dotKey, date, ...options }: MarkerValueEdit = {}) {
+export async function editManualMarkerValue({ dotKey, date, ...options }: MarkerValueEdit = {}, authorized?: () => boolean) {
   if (!dotKey || !date) return null;
-  return commitMarkerValue({ ...options, dotKey, date, kind: 'edit' });
+  return commitMarkerValue({ ...options, dotKey, date, kind: 'edit' }, authorized);
 }
-export async function deleteManualMarkerValue(dotKey: string, date: string, options: { now?: number; panelId?: string } = {}) {
+export async function deleteManualMarkerValue(dotKey: string, date: string, options: { now?: number; panelId?: string } = {}, authorized?: () => boolean) {
   if (!dotKey || !date) return null;
-  return commitMarkerValue({ ...options, dotKey, date, kind: 'remove' });
+  return commitMarkerValue({ ...options, dotKey, date, kind: 'remove' }, authorized);
 }
 export async function revertManualMarkerValue(dotKey: string, date: string, options: { now?: number; panelId?: string } = {}) {
   if (!dotKey || !date) return null;

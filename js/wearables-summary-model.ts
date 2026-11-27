@@ -1,3 +1,5 @@
+import { WITHINGS_MEASUREMENT_VERSION } from './withings-measurement-version.js';
+import { hasPairedBloodPressure } from './wearables-formatters.js';
 // Pure L2 derivation and write gate; storage and profile effects stay in the orchestrator.
 import type { StoredWearableRow } from './wearable-storage-types.js';
 import { DEFAULT_METRIC_ORDER, isMetricValueMeaningful, CUMULATIVE_METRICS, WEAR_REQUIRED_MINIMUMS, isoDay } from './wearable-adapters.js';
@@ -5,9 +7,11 @@ import { DEFAULT_METRIC_ORDER, isMetricValueMeaningful, CUMULATIVE_METRICS, WEAR
 interface MetricSample { date: string; v: number }
 export interface WearableMetricSummary {
   primarySource: string;
+  withingsMeasurementVersion?: number;
   latest: number;
   latestDate: string;
-  baseline: number;
+  latestBpPaired?: boolean;
+  baseline: number | null;
   baselineP25: number | null;
   baselineP75: number | null;
   rolling: { d7: number | null; d30: number | null; d90: number | null };
@@ -56,12 +60,14 @@ function mean(nums: readonly number[]) {
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
-function linearRegressionSlope(values: readonly number[]) {
+function linearRegressionSlope(values: readonly MetricSample[]) {
   if (values.length < 3) return 0;
   const n = values.length;
   let sx = 0, sy = 0, sxy = 0, sxx = 0;
   for (let i = 0; i < n; i++) {
-    sx += i; sy += values[i]!; sxy += i * values[i]!; sxx += i * i;
+    const point = values[i]!;
+    const days = (Date.parse(point.date) - Date.parse(values[0]!.date)) / 86400000;
+    sx += days; sy += point.v; sxy += days * point.v; sxx += days * days;
   }
   const denom = (n * sxx) - (sx * sx);
   if (denom === 0) return 0;
@@ -73,7 +79,7 @@ function linearRegressionSlope(values: readonly number[]) {
 // ─────────────────────────────────────────────────────────
 
 function isSummaryEligibleRow(row: StoredWearableRow | null | undefined, metricId: string, todayISO = isoDay()) {
-  if (!row) return false;
+  if (!row || row.date > todayISO) return false;
   const v = row[metricId];
   if (CUMULATIVE_METRICS.has(metricId) && row.date === todayISO) return false;
   const wearMin = (WEAR_REQUIRED_MINIMUMS as Readonly<Record<string, number>>)[metricId];
@@ -120,37 +126,36 @@ function deriveMetric(rowsByDate: readonly StoredWearableRow[], metricId: string
   const today = latest.v;
   const todayDate = latest.date;
 
-  // Rolling windows read from the end — series is chronological.
-  const sliceLastN = (n: number) => series.slice(Math.max(0, series.length - n)).map(p => p.v);
-  const d7  = mean(sliceLastN(7));
-  const d30 = mean(sliceLastN(30));
-  const d90 = mean(sliceLastN(90));
-
-  // Baseline: 90d distribution quartiles. Using the FULL history (up to 90d)
-  // rather than excluding the latest window — baseline is "typical for this
-  // person over recent history," not "prior to now."
-  const all90 = sliceLastN(90).slice().sort((a, b) => a - b);
+  const endDay = Date.parse(todayISO);
+  const windowSamples = (days: number) => series.filter(point => Date.parse(point.date) > endDay - days * 86400000);
+  const last30 = windowSamples(30);
+  const last90 = windowSamples(90);
+  const d7 = mean(windowSamples(7).map(point => point.v));
+  const d30 = mean(last30.map(point => point.v));
+  const d90 = mean(last90.map(point => point.v));
+  const all90 = last90.map(point => point.v).sort((a, b) => a - b);
   const baseline    = percentile(all90, 0.5);
   const baselineP25 = percentile(all90, 0.25);
   const baselineP75 = percentile(all90, 0.75);
 
   // Trend direction from last 30 days via slope sign. Threshold normalized
   // to the metric's own baseline so "flat" is consistent across units.
-  const last30 = sliceLastN(30);
   const slope = linearRegressionSlope(last30);
   const baselineAbs = Math.abs(baseline || 1);
   const slopeNorm = slope / (baselineAbs || 1);
-  let trend30d = 'flat';
+  let trend30d = last30.length < 3 ? 'insufficient' : 'flat';
   if (slopeNorm > 0.002)       trend30d = 'rising';
   else if (slopeNorm < -0.002) trend30d = 'declining';
 
-  const weekly = weeklyMeans(series, 12).map(w => Math.round((w.mean ?? 0) * 100) / 100);
+  const weekly = weeklyMeans(windowSamples(84), 12).map(w => Math.round((w.mean ?? 0) * 100) / 100);
 
   return {
     primarySource,
+    ...(primarySource === 'withings' ? { withingsMeasurementVersion: WITHINGS_MEASUREMENT_VERSION } : {}),
     latest: Math.round(today * 100) / 100,
     latestDate: todayDate,
-    baseline: Math.round((baseline ?? 0) * 100) / 100,
+    ...((metricId === 'bp_systolic' || metricId === 'bp_diastolic') && rowsByDate.some(row => row.date === todayDate && hasPairedBloodPressure(row)) ? { latestBpPaired: true } : {}),
+    baseline: baseline === null ? null : Math.round(baseline * 100) / 100,
     baselineP25: baselineP25 != null ? Math.round(baselineP25 * 100) / 100 : null,
     baselineP75: baselineP75 != null ? Math.round(baselineP75 * 100) / 100 : null,
     rolling: {
@@ -172,10 +177,9 @@ function deriveMetric(rowsByDate: readonly StoredWearableRow[], metricId: string
 // primaryOverride:  { [metricId]: sourceId }  — user-set forced primary. Takes
 //                   precedence over the auto-picker. Missing entries fall
 //                   back to most-recent-non-null-date heuristic.
-export function computeWearableSummary(rowsBySource: Readonly<Record<string, readonly StoredWearableRow[]>>, connectedSources: Readonly<Record<string, WearableConnectionSummary>> | null | undefined, primaryOverride: Readonly<Record<string, string>> = {}): WearableSummary {
+export function computeWearableSummary(rowsBySource: Readonly<Record<string, readonly StoredWearableRow[]>>, connectedSources: Readonly<Record<string, WearableConnectionSummary>> | null | undefined, primaryOverride: Readonly<Record<string, string>> = {}, todayISO = isoDay()): WearableSummary {
   const sources: Record<string, WearableSourceSummary> = {};
   const pickedPrimary: Record<string, string> = {}; // metricId → sourceId
-  const todayISO = isoDay();
 
   for (const [sid, rows] of Object.entries(rowsBySource)) {
     // coverageDays counts rows that carry at least ONE non-null canonical
@@ -185,7 +189,7 @@ export function computeWearableSummary(rowsBySource: Readonly<Record<string, rea
     let nonEmpty = 0;
     for (const row of rows) {
       const hasAnyValue = Object.entries(row).some(([k, v]) =>
-        k !== 'source' && k !== 'date' && k !== 'importedAt' && k !== 'tags' &&
+        k !== 'source' && k !== 'date' && k !== 'importedAt' && k !== 'withingsMeasurementVersion' && k !== 'tags' &&
         typeof v === 'number' && isFinite(v)
       );
       if (hasAnyValue) nonEmpty++;
@@ -291,7 +295,7 @@ export function shouldWriteL2(newSummary: WearableSummarySnapshot, oldSummary: W
     // over). The d7 number may not cross the shift threshold but the source
     // label on the card definitely changes, and the user expects their
     // deletion to show up immediately.
-    if (old.primarySource !== neu.primarySource) {
+    if (old.primarySource !== neu.primarySource || old.latestBpPaired !== neu.latestBpPaired) {
       trippedReason = trippedReason || `source-flip:${metricId}`;
     }
 
@@ -310,6 +314,10 @@ export function shouldWriteL2(newSummary: WearableSummarySnapshot, oldSummary: W
       // purpose of this trigger for the users it most needs to help.
       trippedReason = trippedReason || `latest-advanced:${metricId}`;
     }
+    if (neu.latestDate === old.latestDate && neu.latest !== old.latest) {
+      trippedReason ||= `latest-corrected:${metricId}`;
+    }
+    if ((['d7', 'd30', 'd90'] as const).some(window => (old.rolling?.[window] == null) !== (neu.rolling?.[window] == null))) trippedReason ||= `rolling-coverage:${metricId}`;
     // A deletion can move the latest surviving reading backward. Treat that
     // as equally significant: otherwise a small/no-value-change deletion can
     // leave the synced summary pointing at the removed date indefinitely.
@@ -329,7 +337,7 @@ export function shouldWriteL2(newSummary: WearableSummarySnapshot, oldSummary: W
     // 2. trend flip
     if (old.trend30d !== neu.trend30d) {
       trippedReason = trippedReason || `trend-flip:${metricId}`;
-      anomalyEvents.push({
+      if (old.trend30d !== 'insufficient' && neu.trend30d !== 'insufficient') anomalyEvents.push({
         ts: now,
         kind: 'trend-flip',
         metricId,

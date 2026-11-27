@@ -1,8 +1,8 @@
 // Private, stable Agent Host state: pairing token and isolated Codex home.
 
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import {
-  chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync,
+  chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -41,13 +41,33 @@ function defaultDataDirectory(source: NodeJS.ProcessEnv, platform: NodeJS.Platfo
   return join(dataRoot, 'getbased-agent-host');
 }
 
+function replacePrivateFile(destination: string, value: string | Buffer) {
+  const temporary = `${destination}.${randomBytes(8).toString('hex')}`;
+  try {
+    writeFileSync(temporary, value, { flag: 'wx', mode: 0o600 });
+    renameSync(temporary, destination);
+  } finally { rmSync(temporary, { force: true }); }
+}
+
 function refreshCodexAuth(sourceAuth: string, targetAuth: string) {
-  if (!existsSync(sourceAuth)) {
-    if (!existsSync(targetAuth)) throw new Error('Codex login was not found. Run `codex login` first.');
-    return;
+  const sourceDigestPath = `${targetAuth}.source-sha256`;
+  let auth: Buffer;
+  try {
+    auth = readFileSync(sourceAuth);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    rmSync(targetAuth, { force: true });
+    rmSync(sourceDigestPath, { force: true });
+    throw new Error('Codex login was not found. Run `codex login` first.');
   }
-  const shouldCopy = !existsSync(targetAuth) || statSync(sourceAuth).mtimeMs > statSync(targetAuth).mtimeMs;
-  if (shouldCopy) copyFileSync(sourceAuth, targetAuth);
+  const digest = createHash('sha256').update(auth).digest('hex');
+  let previous = '';
+  try { previous = readFileSync(sourceDigestPath, 'utf8'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+  if (!existsSync(targetAuth) || previous !== digest) {
+    replacePrivateFile(targetAuth, auth);
+    replacePrivateFile(sourceDigestPath, digest);
+  }
   chmodSync(targetAuth, 0o600);
 }
 

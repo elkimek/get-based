@@ -9,6 +9,7 @@ import { state } from '../js/state.js';
 import { getActiveData, invalidateActiveDataCache } from '../js/data.js';
 import { computeBiologyScoreAssessments } from '../js/biology-scores.js';
 import { configureBiologyScoreAIDeps, generateBiologyScoreAIAnswers, generateBiologyScoreAIAnswer, scoreLine } from '../js/biology-score-ai.js';
+import { configureBiologyScoreContextAIDeps, generateBiologyScoreContextReview } from '../js/biology-score-context-ai.js';
 
 const answer = { summary: 'The pattern varies across dates. Check the available core markers.', explanation: '## Main signal\nReview the supplied ranges.\n## Context\nResults span several dates.\n## Next check\nCompare the core markers together.' };
 type BudgetRequest={jsonSchema:{properties:Record<string,unknown>};messages:Array<{content:string}>;maxTokens:number;consentKind?:unknown};
@@ -76,11 +77,32 @@ it('bounds score count and output even when the whole profile fits the input lim
   for (const [options] of call.mock.calls) {
     expect(Object.keys(options.jsonSchema.properties).length).toBeLessThanOrEqual(4);
     expect(options.maxTokens).toBeLessThanOrEqual(2800);
-    expect(options).toMatchObject({ requestRetries: 0, reasoningEffort: 'low', strictTokenLimit: true });
+    expect(options).toMatchObject({ requestRetries: 0, reasoningEffort: 'low', strictTokenLimit: true, preferNativeContext: true });
   }
   const before = call.mock.calls.length;
   call.mockResolvedValueOnce({ text: JSON.stringify(answer) });
   await generateBiologyScoreAIAnswer(scores[1]); expect(call).toHaveBeenCalledTimes(before + 1);
+  const contextCall = vi.fn(async (_options: Record<string, unknown>) => ({ text: JSON.stringify({ summary: 'Reviewed.', suggestions: [] }) }));
+  const restoreContext = configureBiologyScoreContextAIDeps({
+    callClaudeAPI: contextCall as unknown as NonNullable<NonNullable<Parameters<typeof configureBiologyScoreContextAIDeps>[0]>['callClaudeAPI']>,
+    hasAIProvider: () => true,
+    isAIPaused: () => false,
+  });
+  try {
+    await generateBiologyScoreContextReview(getActiveData());
+    expect(contextCall).toHaveBeenCalledOnce();
+    expect(contextCall.mock.calls[0]![0]).toMatchObject({
+      jsonMode: true,
+      maxTokens: 1800,
+      requestRetries: 0,
+      reasoningEffort: 'low',
+      strictTokenLimit: true,
+      preferNativeContext: true,
+      jsonSchema: { type: 'object', required: ['summary', 'suggestions'] },
+    });
+  } finally {
+    configureBiologyScoreContextAIDeps(restoreContext);
+  }
 });
 
 it('stops purchasing more groups after a provider failure without automatically retrying', async () => {

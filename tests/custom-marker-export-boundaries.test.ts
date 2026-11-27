@@ -95,6 +95,18 @@ describe('custom marker export boundaries', () => {
     });
   });
 
+  it('exports notes-only clients, excludes continuing credentials, and fails on unreadable stored data', async () => {
+    const notes = [{ date: '2026-11-11', text: 'Fictional' }];
+    runtime.encryptedGetItem.mockImplementation(async key => key === 'labcharts-profile-1-imported' ? JSON.stringify({ notes, agentAccess: { token:'fixture', contextKey:'fixture' }, wearableConnections: { whoop:{} } }) : null);
+    const single = await buildClientExportObject('profile-1');
+    expect(single.notes).toEqual(notes);
+    const bundle = JSON.parse((await buildAllDataBundle())!);
+    expect(bundle.profiles[0].data.notes).toEqual(notes);
+    expect(bundle.profiles[0].data).not.toHaveProperty('agentAccess');
+    expect(bundle.profiles[0].data).not.toHaveProperty('wearableConnections');
+    runtime.encryptedGetItem.mockImplementation(async key => key === 'labcharts-profile-1-imported' ? 'damaged' : null);
+    await expect(buildAllDataBundle()).rejects.toThrow('could not be read');
+  });
   it('includes migrated ids in client exports used by sharing', async () => {
     const exported = await buildClientExportObject('profile-1') as ReturnType<typeof buildClientExportObject> extends Promise<infer R> ? R & { customMarkers: Record<string, unknown>; biologyScoreAI: Record<string, unknown>; entries: {markers: unknown}[] } : never;
 

@@ -194,6 +194,57 @@ const COMPRESSIBLE_EXTENSIONS = new Set([
   '.html', '.css', '.js', '.mjs', '.json', '.svg', '.txt', '.xml', '.webmanifest',
 ]);
 
+const APP_ASSETS = new Set([
+  '/index.html', '/manifest.json', '/service-worker.js', '/service-worker-runtime.js',
+  '/service-worker-assets.js', '/version.js', '/styles.css', '/themes-extra.css',
+  '/icon.svg', '/icon-192.png', '/icon-512.png', '/avatar.svg', '/banner.svg',
+  '/dashboard.png', '/anti-tpo-unavailable.png', '/er.svg', '/er-mask.png',
+  '/robots.txt', '/sitemap.xml', '/getbased-companion.mjs',
+  '/getbased-companion.mjs.sig',
+  '/.well-known/mcp.json', '/.well-known/agent-skills/index.json',
+  '/.well-known/agent-skills/getbased-health-data/SKILL.md',
+  '/data/demo-female.json', '/data/demo-male.json', '/data/emf-assessment-template.html',
+  '/data/haplogroups.json', '/data/import-benchmark-reference-us-v2.gold.json',
+  '/data/import-benchmark-reference-us-v2.pdf', '/data/light-device-presets.json',
+  '/data/mito-compounds.json', '/data/recommendations.example.json', '/data/recommendations.json',
+  '/data/snp-health.json', '/data/sun-action-spectra.json',
+]);
+const SITE_ASSETS = new Set([
+  '/index.html', '/404.html', '/blog.html', '/compare.html', '/thank-you.html',
+  '/self-hosting.html', '/privacy.html', '/terms.html', '/og-image.html', '/og-image.png',
+  '/install.sh', '/install.sh.sha256', '/robots.txt', '/llms.txt', '/sitemap.xml',
+  '/BingSiteAuth.xml', '/icon.svg', '/icon-192.png', '/icon-512.png',
+  '/dashboard-dark.png', '/dashboard-dark.webp', '/dashboard-light.png', '/dashboard-light.webp',
+]);
+const PUBLIC_MODULE = /^\/(?:js|shared|vendor)\/(?:[\w.-]+\/)*[\w.-]+\.(?:[cm]?js|wasm|css|json|woff2?|ttf|svg|png)$/;
+const PUBLIC_MEDIA = /^\/(?:css|brands|fonts)\/(?:[\w.-]+\/)*[\w.-]+\.(?:css|woff2?|ttf|svg|png|jpe?g|webp)$/;
+const TEST_ASSETS = /^\/(?:tests|js|shared|lib|api|scripts)\/(?:[\w.-]+\/)*[\w.-]+\.(?:[cm]?[jt]s|svelte|css|xml|json|pdf|html|csv|txt)$/;
+
+function publicAppAsset(pathname: string, req: IncomingMessage) {
+  return APP_ASSETS.has(pathname) || PUBLIC_MODULE.test(pathname) || PUBLIC_MEDIA.test(pathname)
+    || (process.env.GETBASED_DEV_TEST_FIXTURES === '1'
+      && _isLoopbackSocket(req) && TEST_ASSETS.test(pathname));
+}
+
+function publicSiteAsset(pathname: string) {
+  return SITE_ASSETS.has(pathname) || PUBLIC_MEDIA.test(pathname)
+    || /^\/blog\/(?:[\w-]+\/)*[\w-]+\.(?:html|css|svg|png|jpe?g|webp)$/.test(pathname);
+}
+
+export function resolvePublicDevAsset(root: string, pathname: string, ownsAsset: (value: string) => boolean) {
+  if (!pathname.startsWith('/') || pathname.includes('\\') || pathname.includes('\0')
+      || pathname.split('/').some(part => part.startsWith('.') && part !== '.well-known')
+      || !ownsAsset(pathname)) return null;
+  try {
+    const canonicalRoot = fs.realpathSync(root);
+    const file = fs.realpathSync(path.resolve(canonicalRoot, pathname.slice(1)));
+    const relative = path.relative(canonicalRoot, file);
+    if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) return null;
+    if (!ownsAsset('/' + relative.split(path.sep).join('/')) || !fs.statSync(file).isFile()) return null;
+    return file;
+  } catch { return null; }
+}
+
 function serveFile(req: IncomingMessage, res: ServerResponse, filePath: string) {
   const resolved = path.resolve(filePath);
   fs.readFile(resolved, (err, data) => {
@@ -289,10 +340,27 @@ export function _isPrivateApiPeerAllowed(req: { socket?: { remoteAddress?: unkno
 // for security purposes. Used as an escape hatch for tailscale-served
 // phone tabs where the host the user typed isn't in the static
 // ALLOWED_ORIGINS allowlist.
+const EXTRA_ALLOWED_DEV_HOSTS = new Set(
+  String(process.env.DEV_ALLOWED_HOSTS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean),
+);
+function _isAllowedDevHostHeader(host: string) {
+  const lower = String(host || '').trim().toLowerCase();
+  if (!lower || /[\s/\\@]/.test(lower)) return false;
+  const hostname = lower.startsWith('[')
+    ? lower.slice(0, lower.indexOf(']') + 1)
+    : lower.split(':')[0]!;
+  return hostname === 'localhost'
+    || hostname === '127.0.0.1'
+    || hostname === '[::1]'
+    || hostname.endsWith('.ts.net')
+    || EXTRA_ALLOWED_DEV_HOSTS.has(hostname)
+    || EXTRA_ALLOWED_DEV_HOSTS.has(lower);
+}
+
 export function _isHostOriginMatch(req: Pick<IncomingMessage, 'headers'>) {
   const host = req.headers.host;
   const origin = req.headers.origin;
-  if (!host || !origin) return false;
+  if (!host || !origin || !_isAllowedDevHostHeader(host)) return false;
   // Two valid forms: http://<host> and https://<host>. tailscale serve
   // terminates TLS so phone tabs use https; localhost dev uses http.
   return origin === `http://${host}` || origin === `https://${host}`;
@@ -314,6 +382,7 @@ const PROFILE_SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
 const PROFILE_SHARE_MAX_BYTES = 3_750_000;
 const PROFILE_SHARE_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PROFILE_SHARE_MIN_KDF_ITERATIONS = 100_000;
+const PROFILE_SHARE_MAX_KDF_ITERATIONS = 600_000;
 const PROFILE_SHARE_MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
 export function _sendProfileShareJSON(req: IncomingMessage, res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(req) });
@@ -328,7 +397,7 @@ export function _validateProfileShareEnvelope(envelope: unknown) {
   if (expiresAt - now > PROFILE_SHARE_MAX_TTL_MS) throw new Error('Share expiry cannot exceed 30 days.');
   if ((envelope as ShareEnvelopeReader).kdf?.name !== 'PBKDF2' || (envelope as ShareEnvelopeReader).kdf?.hash !== 'SHA-256') throw new Error('Unsupported key derivation.');
   const iterations = Number((envelope as ShareEnvelopeReader).kdf?.iterations);
-  if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS) throw new Error(`PBKDF2 iterations must be at least ${PROFILE_SHARE_MIN_KDF_ITERATIONS}.`);
+  if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS || iterations > PROFILE_SHARE_MAX_KDF_ITERATIONS) throw new Error(`PBKDF2 iterations must be between ${PROFILE_SHARE_MIN_KDF_ITERATIONS} and ${PROFILE_SHARE_MAX_KDF_ITERATIONS}.`);
   if ((envelope as ShareEnvelopeReader).cipher?.name !== 'AES-GCM') throw new Error('Unsupported cipher.');
   if (typeof (envelope as ShareEnvelopeReader).ciphertext !== 'string' || ((envelope as ShareEnvelopeReader).ciphertext as string).length < 16) throw new Error('Encrypted profile payload is empty.');
   const sizeBytes = Buffer.byteLength(JSON.stringify(envelope));
@@ -417,8 +486,15 @@ export function _handleProfileShareDev(req: IncomingMessage, res: ServerResponse
 }
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url!, `http://localhost:${PORT}`);
-  let pathname = decodeURIComponent(url.pathname);
+  let url: URL;
+  let pathname: string;
+  try {
+    url = new URL(req.url || '/', `http://localhost:${PORT}`);
+    pathname = decodeURIComponent(url.pathname);
+    if (/[\r\n\0]/.test(pathname)) throw new Error('Control character in request path');
+  } catch {
+    res.writeHead(400); res.end('Invalid request path'); return;
+  }
 
   // Same-origin guard for proxy/API endpoints. Blocks SSRF via forged
   // Origin/Referer from browser tabs on malicious sites. See #119.
@@ -523,12 +599,8 @@ const server = http.createServer((req, res) => {
   // preview so users see whether they're about to overwrite uncommitted work.
   if (pathname === '/api/git-status' && req.method === 'GET') {
     const filePath = String(url.searchParams.get('path') || 'data/recommendations.json');
-    // Path-traversal guard runs on the QUERY ARG ITSELF — that's the
-    // attacker-controllable input. Reject `..` and absolute paths so the
-    // resolved path is guaranteed inside ROOT. Maintainer-placed symlinks
-    // whose targets resolve outside ROOT are explicitly allowed; the
-    // realpath check that previously rejected them was over-restrictive.
-    if (filePath.split(/[/\\]/).some(seg => seg === '..') || path.isAbsolute(filePath)) {
+    // Catalog preview is the only client of this endpoint.
+    if (filePath !== 'data/recommendations.json') {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'invalid path' }));
       return;
@@ -587,9 +659,11 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/proxy' && handleDevApiProxy(req, res, { corsHeaders })) return;
 
   // Route: / → landing page (if site repo found) or app
+  const appFile = (candidate: string) => resolvePublicDevAsset(ROOT, candidate, item => publicAppAsset(item, req));
+  const siteFile = (candidate: string) => hasSite ? resolvePublicDevAsset(SITE_DIR, candidate, publicSiteAsset) : null;
   if (pathname === '/') {
-    if (hasSite) return serveFile(req, res, SITE_INDEX);
-    return serveFile(req, res, path.join(ROOT, 'index.html'));
+    const landing = siteFile('/index.html') || appFile('/index.html');
+    if (landing) return serveFile(req, res, landing);
   }
 
   // Route: /app → index.html (redirect trailing slash to avoid broken relative paths)
@@ -597,7 +671,8 @@ const server = http.createServer((req, res) => {
     res.writeHead(301, { 'Location': '/app' }); res.end(); return;
   }
   if (pathname === '/app') {
-    return serveFile(req, res, path.join(ROOT, 'index.html'));
+    const app = appFile('/index.html');
+    if (app) return serveFile(req, res, app);
   }
 
   // Route: /docs/* → 301 to docs.getbased.health (docs moved to Mintlify;
@@ -611,28 +686,9 @@ const server = http.createServer((req, res) => {
   }
 
   // Route: /blog → blog.html, /blog/{slug} → blog/{slug}/index.html (mirrors Vercel rewrites)
-  if (hasSite && pathname === '/blog') {
-    return serveFile(req, res, path.join(SITE_DIR, 'blog.html'));
-  }
-  if (hasSite && /^\/blog\/[^/]+$/.test(pathname)) {
-    let slugIndex = path.join(SITE_DIR, pathname, 'index.html');
-    if (fs.existsSync(slugIndex)) return serveFile(req, res, slugIndex);
-    return serveFile(req, res, path.join(SITE_DIR, 'blog.html'));
-  }
-
-  // Static files from site repo (e.g. /thank-you.html, /icon.svg)
-  // Skip files that also exist in the app root to avoid shadowing (index.html, vercel.json, etc.)
-  if (hasSite) {
-    let siteFile = path.join(SITE_DIR, pathname);
-    let appFile = path.join(ROOT, pathname);
-    // Only serve from site if the file doesn't also exist in the app root
-    if (fs.existsSync(siteFile) && fs.statSync(siteFile).isFile() && !(fs.existsSync(appFile) && fs.statSync(appFile).isFile())) {
-      return serveFile(req, res, siteFile);
-    }
-    // Clean URL: try .html append (only for site-specific pages like /thank-you)
-    if (fs.existsSync(siteFile + '.html') && !(fs.existsSync(appFile + '.html'))) {
-      return serveFile(req, res, siteFile + '.html');
-    }
+  if (pathname === '/blog' || /^\/blog\/[\w-]+$/.test(pathname)) {
+    const article = siteFile(pathname + '/index.html') || siteFile('/blog.html');
+    if (article) return serveFile(req, res, article);
   }
 
   // Proxy: /proxy?url=... — fetches external URLs (dev only, for test tools)
@@ -643,11 +699,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Static files from root
-  let filePath = path.join(ROOT, pathname);
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    return serveFile(req, res, filePath);
-  }
+  const filePath = appFile(pathname) || siteFile(pathname) || siteFile(pathname + '.html');
+  if (filePath) return serveFile(req, res, filePath);
 
   res.writeHead(404); res.end('Not found');
 });

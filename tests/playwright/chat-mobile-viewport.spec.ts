@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 test('mobile chat keeps its header and composer inside the keyboard viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

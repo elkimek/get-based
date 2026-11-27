@@ -26,6 +26,7 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         if: github.event_name == 'pull_request'
         with:
@@ -66,6 +67,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Check out pinned disposable relay
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -90,17 +93,22 @@ jobs:
           npm run build --prefix .ci/getbased-relay
 
       - name: Install browser engines
+        env:
+          PEER_BROWSER: ${{ matrix.peer-browser }}
         run: |
           browser_args=(chromium)
-          if [[ "${{ matrix.peer-browser }}" == "firefox" ]]; then browser_args+=(firefox); fi
+          if [[ "$PEER_BROWSER" == "firefox" ]]; then browser_args+=(firefox); fi
           npx playwright install --with-deps "${browser_args[@]}"
 
       - name: Run real-relay transport scenario
         shell: bash
+        env:
+          EVOLU_CLIENT: ${{ matrix.evolu-client }}
+          PEER_BROWSER: ${{ matrix.peer-browser }}
         run: |
           set -euo pipefail
-          client="${{ matrix.evolu-client }}"
-          peer="${{ matrix.peer-browser }}"
+          client="$EVOLU_CLIENT"
+          peer="$PEER_BROWSER"
           relay_data_dir="${RUNNER_TEMP}/getbased-relay-${client}-${peer}"
           relay_log="${RUNNER_TEMP}/getbased-relay-${client}-${peer}.log"
           mkdir -p "${relay_data_dir}"
@@ -185,6 +193,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -196,14 +206,20 @@ jobs:
 
       - name: Install browser engine and Linux dependencies
         if: runner.os == 'Linux'
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: npx playwright install --with-deps "$BROWSER"
 
       - name: Install browser engine
         if: runner.os == 'macOS'
-        run: npx playwright install ${{ matrix.browser }}
+        env:
+          BROWSER: ${{ matrix.browser }}
+        run: npx playwright install "$BROWSER"
 
       - name: Run Evolu 8 browser compatibility suite
-        run: npm run test:evolu8-browsers -- --project=${{ matrix.project }}
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: npm run test:evolu8-browsers -- --project="$PROJECT"
 
       - name: Upload browser logs on failure
         if: failure()

@@ -122,7 +122,7 @@ export const CANONICAL_METRICS = {
   nerve_health_score: { id: 'nerve_health_score', label: 'Nerve health', sub: 'score', unit: '',      worseWhen: 'down'   },
   body_temp:          { id: 'body_temp',          label: 'Body temp',    sub: '',      unit: '°C',    worseWhen: 'either' }, // measType 71 — absolute reading (Body Scan IR sensor)
   skin_temp:          { id: 'skin_temp',          label: 'Skin temp',    sub: '',      unit: '°C',    worseWhen: 'either' }, // measType 73 — wrist sensor (ScanWatch)
-  // Sleep architecture — Withings getsleepsummary returns these as seconds;
+  // Sleep architecture — Withings getsummary returns these as seconds;
   // the fetcher converts to minutes for display sanity.
   sleep_total_min:      { id: 'sleep_total_min',      label: 'Sleep total', sub: '',      unit: 'min', worseWhen: 'down'   },
   sleep_deep_min:       { id: 'sleep_deep_min',       label: 'Deep sleep',  sub: '',      unit: 'min', worseWhen: 'down'   },
@@ -474,14 +474,14 @@ export const ADAPTERS: WearableAdapter[] = [
       water_mass_kg:        { endpoint: 'measure',  measType: 77  }, // hydration
       bone_mass_kg:         { endpoint: 'measure',  measType: 88  },
       pwv:                  { endpoint: 'measure',  measType: 91  }, // pulse wave velocity (m/s)
-      vascular_age:         { endpoint: 'measure',  measType: 130 }, // Withings PWV-derived age
-      visceral_fat:         { endpoint: 'measure',  measType: 167 },
-      nerve_health_score:   { endpoint: 'measure',  measType: 168 },
-      cardio_fitness:       { endpoint: 'measure',  measType: 169 }, // VO2 estimate
-      // /v2/sleep getsleepsummary — nightly aggregates.
+      vascular_age:         { endpoint: 'measure',  measType: 155 }, // Withings PWV-derived age
+      visceral_fat:         { endpoint: 'measure',  measType: 170 },
+      nerve_health_score:   { endpoint: 'measure',  measType: 167 },
+      cardio_fitness:       { endpoint: 'measure',  measType: 123 }, // VO2 estimate
+      // /v2/sleep getsummary — nightly aggregates.
       rhr:                  { endpoint: 'v2/sleep', field: 'hr_min' }, // sleep min HR is the true overnight RHR
       sleep_score:          { endpoint: 'v2/sleep', field: 'sleep_score' },
-      sleep_total_min:      { endpoint: 'v2/sleep', field: 'asleepduration', transform: 'sec→min' },
+      sleep_total_min:      { endpoint: 'v2/sleep', field: 'total_sleep_time', transform: 'sec→min' },
       sleep_deep_min:       { endpoint: 'v2/sleep', field: 'deepsleepduration', transform: 'sec→min' },
       sleep_light_min:      { endpoint: 'v2/sleep', field: 'lightsleepduration', transform: 'sec→min' },
       sleep_rem_min:        { endpoint: 'v2/sleep', field: 'remsleepduration', transform: 'sec→min' },

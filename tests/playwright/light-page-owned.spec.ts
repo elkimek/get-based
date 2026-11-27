@@ -2,6 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 import { createDefaultProfileData } from '../../js/profile.js';
 import { seedLightPageFixture } from '../helpers/light-page-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import type { LightPagePresentationProps } from '../../js/light-page-presentation.js';
 // Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
 test.describe('coarse-pointer touch targets', () => {
   test.use({ hasTouch: true });
@@ -13,14 +14,14 @@ test.describe('coarse-pointer touch targets', () => {
     }))).toEqual({ coarse: true, fine: false, touch: true });
   });
 
-  test('authored Light surfaces preserve actions and read-only data across themes, narrow widths and keyboard use', async ({ page, context }, info) => {
+  for (const mode of ['server-rendered', 'native client'] as const) test(`authored Light surfaces preserve actions and read-only data across themes, narrow widths and keyboard use (${mode})`, async ({ page, context }, info) => {
     test.setTimeout(120000);
     await installDiscussionFixture(context);
     await context.addInitScript(seedLightPageFixture, { defaults: createDefaultProfileData() });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto('/app');
-    await page.evaluate(async () => {
+    await page.evaluate(async mode => {
       await (await import('/js/light-sun-loader.js')).loadLightSunUI();
       const [{ renderHTML }, models, today, { configureLightPageView }] = await Promise.all([
         import('/js/components/LightPagePresentation.svelte.html.js'), import('/js/light-page-presentation.js'),
@@ -36,15 +37,22 @@ test.describe('coarse-pointer touch targets', () => {
       // Keep fixed app navigation from obscuring this isolated visual fixture.
       host.style.cssText = 'position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg-primary);padding:16px;box-sizing:border-box';
       document.body.append(host);
-      document.getElementById('light-owned-acceptance')!.innerHTML = [
-        renderHTML({ kind: 'location', country: false }),
-        renderHTML({ kind: 'actions', view: models.projectLightSessionActions({ sunActive: false, deviceActive: false, hasDevices: false, totalSessions: 0 }) }),
-        renderHTML({ kind: 'prompt', view: { status: 'No rooms mapped', label: 'Open assessment', action: 'open-light-environment', hint: 'Literal <img src=x> & retained.', extraClass: '' } }),
-        renderHTML({ kind: 'safety', view: models.projectLightUVSafety(0.72, 0.8) }),
-        renderHTML({ kind: 'methods', skinBasis: 'The current model uses Fitzpatrick II as a rough base-MED reference, not a personal safe exposure time.', dataSource: null }),
-        renderHTML({ kind: 'today', view: strip, dashboard: null, conditions: { kind: 'message', message: '' }, pills: [{ key: 'circadian', name: 'Circadian', icon: '☀', title: 'Not logged', label: 'Circadian, Not logged, tap to open detail', active: false, days: 'Not logged', chart: null }] }),
-      ].join('');
-    });
+      const parts: LightPagePresentationProps[] = [
+        { kind: 'location', country: false },
+        { kind: 'actions', view: models.projectLightSessionActions({ sunActive: false, deviceActive: false, hasDevices: false, totalSessions: 0 }) },
+        { kind: 'prompt', view: { status: 'No rooms mapped', label: 'Open assessment', action: 'open-light-environment', hint: 'Literal <img src=x> & retained.', extraClass: '' } },
+        { kind: 'safety', view: models.projectLightUVSafety(0.72, 0.8) },
+        { kind: 'methods', skinBasis: 'The current model uses Fitzpatrick II as a rough base-MED reference, not a personal safe exposure time.', dataSource: null },
+        { kind: 'today', view: strip, dashboard: null, conditions: { kind: 'message', message: '' }, pills: [{ key: 'circadian', name: 'Circadian', icon: '☀', title: 'Not logged', label: 'Circadian, Not logged, tap to open detail', active: false, days: 'Not logged', chart: null }] },
+      ];
+      if (mode === 'server-rendered') {
+        host.innerHTML = parts.map(props => renderHTML(props)).join('');
+      } else {
+        const native = await import('/js/components/LightPagePresentation.svelte.native.js');
+        for (const props of parts) native.mount(native.default, {target: host, props});
+        native.flushSync();
+      }
+    }, mode);
     const root = page.locator('#light-owned-acceptance');
     const before = await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData));
     await expect(root.locator('img,script')).toHaveCount(0);

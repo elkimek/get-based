@@ -1,9 +1,23 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { SunSessionRecord } from '../js/sun-sessions-store.js';
 import type { DeviceSessionRecord } from '../js/light-devices-store.js';
 import type { AIVerdictStatus } from '../js/ai-verdict-engine.js';
+import type { SessionAIView } from '../js/light-session-ai-presentation.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+const rendered = vi.hoisted(() => ({view: null as SessionAIView | null}));
+vi.mock('../js/components/LightSessionAI.svelte.html.js', async original => {
+  const actual = await original<typeof import('../js/components/LightSessionAI.svelte.html.js')>();
+  return {...actual, renderHTML: ({view}: {view: SessionAIView}) => {
+    rendered.view = view;
+    return actual.renderHTML({view});
+  }};
+});
+
 const fixture = vi.hoisted(() => ({ provider: true, status: 'idle' as AIVerdictStatus }));
 vi.mock('../js/ai-feature-routing.js', async original => ({ ...await original<typeof import('../js/ai-feature-routing.js')>(), hasAssistantFeatureProvider: () => fixture.provider }));
 vi.mock('../js/ai-verdict-engine-runtime.js', async original => ({ ...await original<typeof import('../js/ai-verdict-engine-runtime.js')>(), hasAIVerdictRuntime: () => false }));
@@ -26,13 +40,29 @@ export function semanticAIHTML(html: string): unknown {
 }
 const renderers = { sun: { inline: renderSessionAIInline, detail: renderSessionAIDetail }, device: { inline: renderDeviceSessionAIInline, detail: renderDeviceSessionAIDetail } };
 const cases = (JSON.parse(readFileSync('tests/fixtures/light-session-ai-original.json', 'utf8')) as { cases: Case[] }).cases;
-for (const [index, sample] of cases.entries()) it(`retains original semantic tree ${index}: ${sample.feature}/${sample.mode}/${sample.status}/provider=${sample.provider}`, () => {
+for (const [index, sample] of cases.entries()) it(`retains original semantic tree ${index}: ${sample.feature}/${sample.mode}/${sample.status}/provider=${sample.provider}`, async () => {
+  rendered.view = null;
   fixture.provider = sample.provider; fixture.status = sample.status;
   const session = { id: 'session-1', endedAt: 1, doses: {}, safety: {}, aiAnalysis: sample.analysis } as unknown as SunSessionRecord & DeviceSessionRecord;
   const html = renderers[sample.feature][sample.mode](session);
   expect(semanticAIHTML(html)).toEqual(semanticAIHTML(sample.html));
   const host = document.createElement('div'); host.innerHTML = html;
   for (const button of host.querySelectorAll('button')) { expect(button.type).toBe('button'); expect(button.dataset.aiOwner).toBe(aiActionOwner()); }
+  const view = rendered.view as SessionAIView | null;
+  if (!view) {
+    expect(html).toBe('');
+    return;
+  }
+  const component = load('../js/components/LightSessionAI.svelte.native.js') as typeof import('../js/components/LightSessionAI.svelte.native.js');
+  await expectNativeReview(html, root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('[data-light-session-ai]')?.getAttribute('data-ai-state')).toBe(view.status);
+    expect([...root.querySelectorAll('button')].map(button => [button.type, button.dataset.aiOwner, button.dataset.aiTarget]))
+      .toEqual([...host.querySelectorAll('button')].map(button => [button.type, button.dataset.aiOwner, button.dataset.aiTarget]));
+  });
 });
 it('escapes imported text and owner/target attributes while restricting dot classes', () => {
   fixture.provider = true; fixture.status = 'ok';

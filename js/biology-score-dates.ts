@@ -15,7 +15,8 @@ export function getAgeDays(dateStr?: string | null): number | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return null;
   const ts = new Date(`${dateStr}T00:00:00Z`).getTime();
   if (!Number.isFinite(ts) || new Date(ts).toISOString().slice(0, 10) !== dateStr) return null;
-  return Math.floor((Date.now() - ts) / DAY_MS);
+  const now = new Date(Date.now());
+  return (Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - ts) / DAY_MS;
 }
 
 export function formatAge(ageDays: number | null | undefined): string {

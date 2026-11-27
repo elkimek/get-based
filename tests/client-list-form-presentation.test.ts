@@ -1,10 +1,15 @@
+// @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import {describe,expect,it} from 'vitest';
 import {JSDOM} from 'jsdom';
 import {projectClientFormAvatar,projectClientFormTag,projectClientListForm,type ClientFormInput} from '../js/client-list-form-presentation.js';
 import {renderClientFormAvatar,renderClientFormTagBody,renderClientListForm} from '../js/client-list-form-rendering.js';
 
-const original=readFileSync(new URL('./fixtures/client-list-form/original-new-form.html',import.meta.url),'utf8');
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+const original=readFileSync('tests/fixtures/client-list-form/original-new-form.html','utf8');
 function fragment(markup:string):Document {
   const document=new JSDOM('<!doctype html><html><head></head><body></body></html>').window.document;
   document.body.innerHTML=markup;return document;
@@ -47,7 +52,7 @@ function reverseReviewedNewFormAccessibility(document:Document):void {
   }
 }
 function exactNewForm(document:Document):void {
-  const policy=JSON.parse(readFileSync(new URL('./fixtures/client-list-form/compiler-comments.json',import.meta.url),'utf8')) as {
+  const policy=JSON.parse(readFileSync('tests/fixtures/client-list-form/compiler-comments.json','utf8')) as {
     active:boolean;renders:null|{newForm:{anchors:Anchor[];joins:Join[]}};
   };
   expect(policy.active,'Actual compiler inventory must be reviewed before full literal parity').toBe(true);
@@ -178,4 +183,76 @@ describe('Client List form presentation',()=>{
     expect(d.querySelector('.cl-health-link')!.getAttribute('href')).toBe('#dashboard');
   });
 
+});
+
+const savedName = '<em>Saved client name</em>';
+const savedTag = '<b>Research</b>';
+const savedNotes = 'Synthetic note with  spacing\nand a second line.';
+
+it.each([
+  {label: 'new default', input: {}, title: 'New Client', status: 'active', unit: 'cm', haplogroup: '', hosted: false},
+  {
+    label: 'hosted flagged profile',
+    input: {
+      editing: true, name: savedName, avatar: {kind: 'image', source: 'data:image/png;base64,AA'},
+      removeAvatar: true, notes: savedNotes, tags: [savedTag], heightUnit: 'in', heightDisplay: '65.5',
+      status: 'flagged', sex: 'female', officialHost: () => true, readHaplogroups: () => ['H1', 'J'],
+      readSelectedHaplogroup: () => 'H1', readCouplingLabel: () => 'Recorded group',
+    },
+    title: 'Edit Client', status: 'flagged', unit: 'in', haplogroup: 'H1', hosted: true,
+  },
+  {
+    label: 'self-hosted archived profile with invalid imported units',
+    input: {editing: true, status: 'archived', sex: 'male', dob: 'unknown', heightDisplay: 'unknown'},
+    title: 'Edit Client', status: 'archived', unit: 'cm', haplogroup: '', hosted: false,
+  },
+] satisfies Array<{label: string; input: Partial<ClientFormInput>; title: string; status: string; unit: string; haplogroup: string; hosted: boolean}>)
+('mounts the native form with the saved defaults for $label', async scenario => {
+  const view = projectClientListForm(input(scenario.input));
+  const component = load('../js/components/ClientListFormPresentation.svelte.native.js') as typeof import('../js/components/ClientListFormPresentation.svelte.native.js');
+  await expectNativeReview(renderClientListForm(view), root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    expect(root.querySelector('h2')?.textContent).toBe(scenario.title);
+    expect(root.querySelector('[name="cl-status"]:checked')?.getAttribute('value')).toBe(scenario.status);
+    expect(root.querySelector<HTMLInputElement>('#cl-height-unit')?.value).toBe(scenario.unit);
+    expect(root.querySelector<HTMLSelectElement>('#cl-haplogroup')?.value).toBe(scenario.haplogroup);
+    expect(root.querySelector('form')?.getAttribute('data-cl-submit-action')).toBe('save-form');
+    expect(root.querySelector('#cl-name')?.hasAttribute('autofocus')).toBe(true);
+    expect(root.querySelector('.cl-form-help')?.textContent).toContain(scenario.hosted
+      ? 'stay in this browser' : 'privacy-rounded postal area');
+    expect(root.querySelector<HTMLInputElement>('#cl-name')?.value).toBe(scenario.input.name ?? '');
+    expect(root.querySelector<HTMLTextAreaElement>('#cl-notes')?.value).toBe(scenario.input.notes ?? '');
+    expect(root.querySelector('.cl-tag-pill')?.textContent ?? '').toBe(scenario.input.tags?.[0] ?? '');
+    expect(root.querySelector('em, b')).toBeNull();
+    if (scenario.input.heightDisplay === 'unknown') {
+      expect(root.querySelector<HTMLInputElement>('#cl-dob')?.value).toBe('');
+      expect(root.querySelector<HTMLInputElement>('#cl-height')?.value).toBe('');
+    }
+  });
+});
+
+it('mounts the exact native photo and tag fragments used when editing an open form', async () => {
+  const avatar = projectClientFormAvatar('data:image/png;base64,AA', true, '', '');
+  const fragment = projectClientFormTag(savedTag);
+  const component = load('../js/components/ClientListFormPresentation.svelte.native.js') as typeof import('../js/components/ClientListFormPresentation.svelte.native.js');
+  for (const [view, html] of [
+    [{kind: 'avatar', avatar}, renderClientFormAvatar(avatar)],
+    [fragment, renderClientFormTagBody(fragment)],
+  ] as const) {
+    await expectNativeReview(html, root => {
+      const mounted = component.mount(component.default, {target: root, props: {view}});
+      component.flushSync();
+      return () => component.unmount(mounted);
+    }, root => {
+      if (view.kind === 'avatar') expect(root.querySelector('img')?.getAttribute('src')).toBe(avatar.kind === 'image' && avatar.source);
+      else {
+        expect(root.textContent).toContain(savedTag);
+        expect(root.querySelector('[data-cl-action="remove-tag"]')?.getAttribute('aria-label')).toBe('Remove tag');
+        expect(root.querySelector('b')).toBeNull();
+      }
+    });
+  }
 });

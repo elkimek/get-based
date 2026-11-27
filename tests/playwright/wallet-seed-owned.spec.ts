@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 const words = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
 // Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.

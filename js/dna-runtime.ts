@@ -17,6 +17,7 @@ export interface StoredSnpCall extends SnpAnnotation {
 export interface GeneticsData {
   updatedAt?: number; genomeGeneration?: number;
   snps?: Record<string, StoredSnpCall> | null; apoe?: string | null; source?: string | null; importDate?: string | null;
+  unverifiedReportCalls?: Record<string, StoredSnpCall>;
   coverage?: { found?: number; total?: number } | null | undefined;
   effects?: Partial<Record<'significant' | 'moderate' | 'mild' | 'normal', number>>;
   catalogVersion?: { size: number; hash: string } | null;

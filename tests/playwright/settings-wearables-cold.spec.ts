@@ -1,4 +1,5 @@
-import {expect,test,type Page} from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 async function settings(page:Page){
  await page.addInitScript(()=>{
   localStorage.setItem('labcharts-analytics-consent-seen','1');

@@ -7,7 +7,7 @@ type CommitInput = Pick<PendingImport, 'date'> & { markers?: CommitInputRow[] | 
 
 import { MARKER_SCHEMA, normalizeClinicalUnit } from './schema.js';
 import { LEGACY_INSULIN_MARKER_KEYS } from './lab-entry.js';
-import { convertGenericImportValueUnit } from './pdf-import-unit-conversions.js';
+import { convertGenericImportValueUnit, isRecognizedUnitForMarker } from './pdf-import-unit-conversions.js';
 
 export function prepareImportCommit(result: CommitInput, excluded: ReadonlySet<number>, customMarkers: Record<string, Pick<CustomMarkerDefinition, 'unit'>> = {}) {
   const date = result.date;
@@ -33,6 +33,15 @@ export function prepareImportCommit(result: CommitInput, excluded: ReadonlySet<n
     seen.set(canonicalKey, index + 1);
     const marker = { ...row } as ImportReviewMarker;
     const [category, name] = key.split('.') as [string, string];
+    const schema = MARKER_SCHEMA[category]?.markers?.[name];
+    if (schema && !isRecognizedUnitForMarker(canonicalKey, row.unit)) {
+      return { error: `Row ${index + 1}: verify the reported unit for ${schema.name} or keep it as a separate marker. The reported unit cannot be converted to ${schema.unit || 'the canonical ratio'}.`, errorRows: [index], markers: [] };
+    }
+    if (canonicalKey === 'biochemistry.urea' && normalizeClinicalUnit(row.unit) === 'mg/dl'
+        && !/\bbun\b|urea|urée|močovina|močovinový dusík|harnstoff/i.test(String(row.rawName || ''))) {
+      return { error: `Row ${index + 1}: choose mg/dl BUN or mg/dl urea to identify the reported measurand.`, errorRows: [index], markers: [] };
+    }
+    marker.unitConversionVersion = 2;
     const unit = customMarkers[key]?.unit;
     if (!MARKER_SCHEMA[category]?.markers?.[name] && unit != null && normalizeClinicalUnit(unit) !== ''
         && normalizeClinicalUnit(unit) !== normalizeClinicalUnit(row.unit || '')) {

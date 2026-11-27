@@ -6,6 +6,8 @@ const catalog = JSON.parse(fs.readFileSync('data/snp-health.json', 'utf8')) as R
 
 async function prepareReport(page:Page) {
   await page.addInitScript(() => {
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+    localStorage.setItem('labcharts-analytics-disabled', 'true');
     for (const profile of ['default', 'synthetic-report']) {
       localStorage.setItem(`labcharts-${profile}-tour`, 'completed');
       localStorage.setItem(`labcharts-${profile}-emptyTour`, 'completed');

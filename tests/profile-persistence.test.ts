@@ -208,4 +208,22 @@ describe('durable profile persistence', () => {
       now.mockRestore();
     }
   });
+
+  it('sanitizes profile avatars to anchored base64 raster data URIs', async () => {
+    configureProfileDeps({
+      encryptedSetItem: vi.fn<ProfileListStoreDeps['encryptedSetItem']>().mockResolvedValue(undefined),
+    });
+    const validAvatar = 'data:image/png;base64,iVBORw0KGgo=';
+    const id = await createProfile('Valid Avatar', { avatar: validAvatar, skipInitialSync: true });
+    expect(getProfiles().find(item => item.id === id)?.avatar).toBe(validAvatar);
+
+    for (const unsafe of [
+      'https://evil.example/tracker.png',
+      'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      'data:image/png;base64,AAAA") background:url(https://evil.example)',
+    ]) {
+      const badId = await createProfile('Unsafe Avatar', { avatar: unsafe, skipInitialSync: true });
+      expect(getProfiles().find(item => item.id === badId)?.avatar).toBeNull();
+    }
+  });
 });

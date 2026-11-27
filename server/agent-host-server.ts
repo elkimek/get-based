@@ -163,7 +163,11 @@ const service = createAgentHostService({
 const server = createServer(createCompanionRequestHandler({
   handleRequest: request => service.handleRequest(request),
   host, getPort: () => port, maxRequestBytes, maxImageRequestBytes,
+  canAcceptUpload: headers => /^Bearer\s+\S+/i.test(String(headers.get('authorization') || '')),
 }));
+server.headersTimeout = 10_000;
+server.keepAliveTimeout = 5_000;
+server.requestTimeout = 300_000;
 
 function listen() {
   server.listen(port, host);
@@ -171,7 +175,7 @@ function listen() {
 
 server.on('listening', () => {
   process.stdout.write(`getbased Companion listening at http://${host}:${port}\n`);
-  process.stdout.write('Automatic browser discovery enabled.\n');
+  process.stdout.write('Run the Companion pair command to connect a browser. Use pair --manage for local management.\n');
   process.stdout.write(`Private agent state: ${agentStorage.dataDirectory}\n`);
   process.stdout.write(`Local management: http://${host}:${port}/manage\n`);
   process.stdout.write(process.env.GETBASED_COMPANION_SERVICE === '1'

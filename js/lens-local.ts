@@ -14,6 +14,7 @@
 // so a query issued during an ingest waits its turn rather than racing.
 
 import type { IngestProgress, LensInputFile } from './lens-local-ingest.js';
+import { registerAppErasureHook } from './app-erasure-hooks.js';
 import type { IngestStats, ReadyReply, StatsReply, ReplyPayloads, WorkerReply, LensQueryChunk } from './lens-local-protocol.js';
 export type { LensQueryChunk } from './lens-local-protocol.js';
 
@@ -33,6 +34,7 @@ interface LocalLens extends Omit<ReadyReply, 'type'> {
   deleteLibrary(libraryId: unknown): Promise<Omit<ReplyPayloads['delete_library'], 'type' | 'id'>>;
 }
 let _ready: Promise<LocalLens> | null = null;
+let retiredForErasure = false;
 let _inflight: { type: string; resolve(value: unknown): void; reject(reason?: unknown): void } | null = null;
 const _progressSubs = new Set<(progress: IngestProgress & { type: 'progress' }) => void>();
 function retireWorker(worker: Worker) {
@@ -41,6 +43,7 @@ function retireWorker(worker: Worker) {
 }
 
 function ensureWorker() {
+  if (retiredForErasure) throw new Error('Local library is being erased. Reload to open it again.');
   if (_worker) return _worker;
   const worker = new Worker(new URL('./lens-local-worker.js', import.meta.url), {
     type: 'module',
@@ -88,6 +91,13 @@ function ensureWorker() {
   });
   return _worker;
 }
+
+registerAppErasureHook(() => {
+  retiredForErasure = true;
+  if (_worker) retireWorker(_worker);
+  _inflight?.reject(new Error('Local library is being erased.'));
+  _inflight = null;
+});
 
 // Simple serial queue — enforces one request at a time. transformers.js
 // doesn't tolerate reentrant inference calls, and OPFS writes can race

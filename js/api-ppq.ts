@@ -12,6 +12,7 @@ import {
   syncPpqModelSelection,
 } from './api-provider-storage.js';
 import {
+  GPT_62_DEFAULT_CANDIDATES,
   deduplicateModels,
   findPreferredModel,
   isRecommendedModel,
@@ -32,8 +33,8 @@ type PpqApiWindow = Window & typeof globalThis & { _ppqAttestation?: unknown };
 
 const apiWindow = (typeof window !== 'undefined' ? window : {}) as PpqApiWindow;
 
-const PPQ_CURATED = ['deepseek/deepseek', '~deepseek/deepseek', 'gemini-4', 'google/gemini-4', 'muse-', 'meta/muse-', 'claude-', 'anthropic/claude-', 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6-sol', 'openai/gpt-6-sol', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', 'gpt-6.1-terra', 'openai/gpt-6.1-terra', 'openai/gpt-5', 'gpt-5', 'gpt-4', 'gpt-oss', 'gemini-3', 'gemini-2', 'google/gemini-3', 'google/gemini-2', 'glm-5', 'z-ai/glm-5', 'moonshotai/kimi-', 'grok-', 'x-ai/grok-4', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'kimi', 'perplexity'];
-const PPQ_DEFAULT_CANDIDATES = ['gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', 'gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
+const PPQ_CURATED = [...GPT_62_DEFAULT_CANDIDATES, 'deepseek/deepseek', '~deepseek/deepseek', 'gemini-4', 'google/gemini-4', 'muse-', 'meta/muse-', 'claude-', 'anthropic/claude-', 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6-sol', 'openai/gpt-6-sol', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', 'gpt-6.1-terra', 'openai/gpt-6.1-terra', 'openai/gpt-5', 'gpt-5', 'gpt-4', 'gpt-oss', 'gemini-3', 'gemini-2', 'google/gemini-3', 'google/gemini-2', 'glm-5', 'z-ai/glm-5', 'moonshotai/kimi-', 'grok-', 'x-ai/grok-4', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'kimi', 'perplexity'];
+const PPQ_DEFAULT_CANDIDATES = [...GPT_62_DEFAULT_CANDIDATES, 'gpt-6-astra', 'openai/gpt-6-astra', 'gpt-6.1-sol', 'openai/gpt-6.1-sol', 'gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
 const PPQ_EXCLUDE = ['codex', 'audio', 'image', 'embed', 'tts', 'whisper', 'video', 'nano-banana'];
 // The PPQ API is authoritative for private-model availability, names, and
 // pricing. This map only fills capability metadata that the current private
@@ -216,7 +217,13 @@ export async function callPpqPrivateAPI(opts: ProviderRequestOptions) {
 export async function callPpqAPI(opts: ProviderRequestOptions) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
-  const modelId = String(opts?.modelOverride || getPpqModel());
+  const modelOverride = String(opts?.modelOverride || '').trim();
+  const savedModel = getPpqModel();
+  const modelId = modelOverride || savedModel;
+  const privateRequested = getPpqPrivateMode() || isPpqPrivateModel(savedModel) || isPpqPrivateModel(modelId);
+  if (privateRequested && !isPpqPrivateModel(modelId)) {
+    throw new Error('PPQ Private TEE is enabled, so non-private models are blocked. Choose a PPQ Private TEE model or turn off Private mode in Settings.');
+  }
   if (isPpqPrivateModel(modelId)) return callPpqPrivateAPI({ ...opts, webSearch: false });
   const extraBody = opts.webSearch ? { plugins: [{ id: 'web' }] } : {};
   return callOpenAICompatibleAPI(

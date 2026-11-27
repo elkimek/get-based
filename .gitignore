@@ -80,6 +80,8 @@ deploy/profile-share/data/
 /tests/.native-coverage-producer-*/
 
 # TypeScript compiler output beside canonical source
+/tests/helpers/native-review-dom.js
+/tests/helpers/native-review-dom.js.map
 /scripts/vendor-packages/svelte-config-merge/index.js
 /js/backup-storage.js
 /js/backup-snapshot-download.js
@@ -1569,6 +1571,15 @@ deploy/profile-share/data/
 # Generated native-browser Svelte pilot
 /js/components/*.svelte.native.js
 /js/components/*.svelte.native.js.map
+/js/components/MobileDashboardWidgetStack.svelte.shared.js
+/js/components/MobileDashboardWidgetStack.svelte.shared.js.map
+/js/components/**/svelte-compat-*.js
+/js/components/**/svelte-compat-*.js.map
+/js/kit/**/svelte-compat-*.js
+/js/kit/**/svelte-compat-*.js.map
+/js/svelte-compatibility.generated.json
+/scripts/svelte-compatibility-outputs.mjs
+/scripts/svelte-compatibility-outputs.mjs.map
 /scripts/build-svelte.mjs
 
 /scripts/svelte-source.mjs
@@ -3359,6 +3370,7 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /tests/helpers/migration-review-context-runtime.js
 /tests/helpers/migration-review-exact-source-inverse.js
 /tests/helpers/migration-review-marker-placement.js
+/tests/helpers/compiled-svelte-graph.js
 
 /tests/helpers/biometric-pwa-expected-annotations.js
 /tests/helpers/biometric-pwa-expected-annotations.js.map
@@ -4127,7 +4139,6 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /js/marker-baseline.js
 
 /js/marker-chart-scale.js
-
 # Self-host server runtime output
 /server/self-host-server.js
 
@@ -4151,7 +4162,6 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /js/storage-object-codec.js
 
 /js/migration-snapshots.js
-
 
 /js/sync-delta-reset.js
 
@@ -4178,5 +4188,25 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /scripts/readonly-demo-data.mjs
 
 /js/hosted-transition-monitor.js
+/js/portable-profile-data.js
+/js/withings-measurement-version.js
+/tests/helpers/synthetic-openrouter.js
+/getbased-companion.mjs.sig
+/tests/backup-replacement.test.js
+/js/profile-share-history.js
+/tests/measurement-audit-regressions.test.js
+/js/app-erasure-hooks.js
+/tests/profile-share-history.test.js
+/tests/audit-protected-storage.test.js
+/js/backup-restore-plan.js
+/js/portable-profile-import.js
+/js/crypto-passphrase-key.js
+/js/agent-context-crypto.js
+/js/cashu-wallet-payloads.js
+/js/cashu-wallet-seed-restore.js
+/tests/helpers/companion-pairing-fixture.js
+/tests/audit-insight-caches.test.js
 
-/tests/helpers/controlled-openrouter.js
+/tests/pwa/cli-companion-fixture.js
+/tests/pwa/agent-access-fixture.js
+/tests/helpers/companion-pairing-browser.js

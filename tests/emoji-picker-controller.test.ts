@@ -12,7 +12,7 @@ function run(source:string,action:(dom:JSDOM,ports:PickerPort,callback:Array<str
   const timers:Array<{delay:number;fn:()=>void}>=[],callback:Array<string|null|undefined>=[];
   const document=dom.window.document,anchor=document.querySelector('#anchor')!;
   const ports=vm.runInNewContext(source.replace(/^import[\s\S]*?;\n/gm,'').replace(/export /g,'')+'\n;({showEmojiPicker})',{
-    document,Node:dom.window.Node,Element:dom.window.Element,escapeHTML,renderEmojiPicker,
+    document,Node:dom.window.Node,Element:dom.window.Element,HTMLElement:dom.window.HTMLElement,escapeHTML,renderEmojiPicker,
     navigateCategoryCustomizationRuntime:()=>{throw new Error('unrelated navigation port must not run');},
     getCategoryCustomizationViewportSize:()=>({width:800,height:600}),
     setTimeout:(fn:()=>void,delay:number)=>{timers.push({fn,delay});return timers.length;},
@@ -22,9 +22,14 @@ function run(source:string,action:(dom:JSDOM,ports:PickerPort,callback:Array<str
 }
 function compare(action:Parameters<typeof run>[1]){expect(run(candidate,action)).toEqual(run(original,action));}
 describe('real emoji controller original lifecycle',()=>{
-  it('keeps original fixed position, delayed focus and native button defaults',()=>compare((dom,_ports,callback,flush)=>{
+  it('keeps the picker inside the viewport with delayed focus and native button defaults',()=>expect(run(candidate,(dom,_ports,callback,flush)=>{
     flush(50);const picker=dom.window.document.querySelector('.emoji-picker') as HTMLElement;
     return {left:picker.style.left,top:picker.style.top,focus:dom.window.document.activeElement?.tagName,callbacks:callback,buttonType:picker.querySelector('button')!.type};
+  })).toEqual({left:'8px',top:'8px',focus:'INPUT',callbacks:[],buttonType:'submit'}));
+  it('selects a focused emoji with the keyboard and restores the trigger',()=>run(candidate,(dom,_ports,callback)=>{
+    const doc=dom.window.document, option=doc.querySelector<HTMLElement>('[data-emoji]')!;
+    option.focus();option.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    expect(callback).toEqual([option.dataset.emoji]);expect(doc.activeElement).toBe(doc.querySelector('#anchor'));
   }));
   it('retains filtering, input replacement, focus and caret at search end',()=>compare((dom,_ports,callback)=>{
     const input=dom.window.document.querySelector('input')!;input.value='medical';input.dispatchEvent(new dom.window.Event('input',{bubbles:true}));

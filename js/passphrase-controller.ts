@@ -163,9 +163,11 @@ export function openChangeDialog(services: PassphraseServices): void {
             owner.close();
             showNotification('Passphrase changed successfully', 'success');
         }
-        catch {
+        catch (error) {
             busy = false;
-            owner.update({ pending: false, error: 'Current passphrase is incorrect', primaryLabel: 'Change Passphrase' });
+            owner.update({ pending: false, error: (error as { name?: string })?.name === 'OperationError'
+                ? 'Current passphrase is incorrect'
+                : getErrorMessage(error, 'Could not change the passphrase'), primaryLabel: 'Change Passphrase' });
         }
     };
     owner = openPassphraseDialog('change', {

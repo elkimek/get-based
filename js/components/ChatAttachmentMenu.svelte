@@ -18,7 +18,7 @@
   function files(input: HTMLInputElement) { const files = Array.from(input.files || []); input.value = ''; void chatAttachmentActions(root)?.files(files); }
 </script>
 <svelte:document onclick={outside} onkeydowncapture={escape}/>
-<details class="chat-context-menu gb:attachment:relative" id="chat-context-menu" bind:this={menu} ontoggle={()=>{open=menu.open;}}>
+<details class="chat-context-menu gb:attachment:relative" id="chat-context-menu" bind:this={menu} ontoggle={event=>{if(event.currentTarget===menu && menu.isConnected) open=menu.open;}}>
   <summary bind:this={trigger} class="chat-context-menu-toggle {COMPOSER_TOOL_BUTTON} gb:attachment:list-none gb:attachment:[&::-webkit-details-marker]:hidden" id="chat-attach-btn" aria-label="Add to message" title="Add to message" aria-expanded={open} onclick={event=>{event.preventDefault();open=!open;menu.open=open;}}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary>
   <div class={ATTACHMENT_MENU} role="group" aria-label="Add to message" data-chat-owned-attachment-actions>
     <button type="button" id="chat-add-photo-action" class={ATTACHMENT_ACTION} hidden={!canAttach} disabled={discussionActive} title={discussionActive ? 'End the discussion to attach photos' : undefined} data-chat-action="attach-image" onclick={()=>choose('photo')}>

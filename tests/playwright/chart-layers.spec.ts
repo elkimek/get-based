@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {expect, test, type Page} from '@playwright/test';
 import {createBlankPage} from '../helpers/browser-blank-page.js';
+import {startPageCoverage, stopPageCoverage} from './coverage-fixture.js';
 
 interface ChartLayerEvent {
   type: string;
@@ -56,6 +57,7 @@ for (const scenario of scenarios) {
     const page = await context.newPage(), errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
     try {
+      await startPageCoverage(page);
       await open(page);
       await page.evaluate(async theme => {
         document.documentElement.dataset.theme = theme;
@@ -95,7 +97,7 @@ for (const scenario of scenarios) {
         if (scenario.touch) await checkbox.tap(); else await checkbox.click();
         await expect(checkbox).toBeChecked();
         await expect(menu).toBeVisible();
-        expect(await page.evaluate(key => localStorage.getItem(`labcharts-synthetic-chart-layers-${key}`), key)).toBe('on');
+        await expect.poll(() => page.evaluate(key => localStorage.getItem(`labcharts-synthetic-chart-layers-${key}`), key)).toBe('on');
       }
       expect(await page.evaluate(() => (window as unknown as ObservedWindow).chartLayerCalls.map(call => call[0])))
         .toEqual(['metabolic', 'metabolic', 'metabolic']);
@@ -109,7 +111,7 @@ for (const scenario of scenarios) {
       await expect(page.locator('[data-lab-data-change="set-note-overlay"]')).toBeFocused();
       await page.keyboard.press('Space');
       await expect(page.locator('[data-lab-data-change="set-note-overlay"]')).not.toBeChecked();
-      expect(await page.evaluate(() => localStorage.getItem('labcharts-synthetic-chart-layers-noteOverlay'))).toBe('off');
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('labcharts-synthetic-chart-layers-noteOverlay'))).toBe('off');
       await capture('keyboard-note-off');
       await page.keyboard.press('Escape');
       await expect(trigger).toBeFocused();
@@ -132,6 +134,9 @@ for (const scenario of scenarios) {
       // Optional local parity output; ordinary maintained tests need no temporary directory.
       const output = process.env.CHART_LAYERS_RECEIPTS;
       if (output) {await fs.mkdir(output, {recursive: true}); await fs.writeFile(path.join(output, scenario.name + '.json'), receipt);}
-    } finally {await context.close();}
+    } finally {
+      try { await stopPageCoverage(page, info); }
+      finally { await context.close(); }
+    }
   });
 }

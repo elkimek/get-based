@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import type { VeniceSettingsSnapshot } from '../../js/venice-settings-contract.js';
 // The 44px target contract applies to coarse pointer input. Desktop density

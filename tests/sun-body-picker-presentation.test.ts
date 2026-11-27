@@ -1,11 +1,30 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { expect, it } from 'vitest';
 import { renderHTML } from '../js/components/SunBodyPicker.svelte.html.js';
 import { projectBodyPicker, type BodyPickerInput } from '../js/sun-body-picker-presentation.js';
-import { BODY_REGIONS, renderBodySilhouette, resetBodySilhouetteState } from '../js/sun-body-silhouette.js';
+import { BODY_REGIONS, projectBodySilhouette, renderBodySilhouette, resetBodySilhouetteState } from '../js/sun-body-silhouette.js';
 import { configureSunBodySilhouetteRuntimeDeps } from '../js/sun-body-silhouette-runtime.js';
 
-for (const sex of ['female', 'male'] as const) it(`preserves ${sex} anatomy, independent front/back regions, SVG namespaces and keyboard metadata`, () => {
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+function checkNativeSilhouette(view: ReturnType<typeof projectBodyPicker>, html: string, selected: readonly string[]) {
+  const component = load('../js/components/SunBodyPicker.svelte.native.js') as typeof import('../js/components/SunBodyPicker.svelte.native.js');
+  return expectNativeReview(html, root => {
+    const mounted = component.mount(component.default, {target: root, props: {view}});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, root => {
+    const regions = [...root.querySelectorAll('[data-region]')];
+    expect(regions.every(region => region.namespaceURI === 'http://www.w3.org/2000/svg')).toBe(true);
+    expect(regions.filter(region => region.getAttribute('aria-pressed') === 'true')
+      .map(region => region.getAttribute('data-region')).sort()).toEqual([...selected].sort());
+    expect(root.querySelector('img, script, [onerror]')).toBeNull();
+  });
+}
+
+for (const sex of ['female', 'male'] as const) it(`preserves ${sex} anatomy, independent front/back regions, SVG namespaces and keyboard metadata`, async () => {
   const previous = configureSunBodySilhouetteRuntimeDeps({ getActiveProfileId: () => 'profile', getProfiles: () => [{ id: 'profile', sex, name: 'Profile', dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: 1, lastUpdated: 1, pinned: false }] });
   try {
     resetBodySilhouetteState();
@@ -26,10 +45,11 @@ for (const sex of ['female', 'male'] as const) it(`preserves ${sex} anatomy, ind
     expect(host.querySelector('#sun-fig-mask-front')?.getAttribute('mask-type')).toBe('alpha');
     expect(host.querySelectorAll('image[href="/er.svg"]')).toHaveLength(2); expect(host.querySelectorAll('image[href="/er-mask.png"]')).toHaveLength(2);
     expect([...selected]).toEqual(['face', 'arms-back']);
+    await checkNativeSilhouette(projectBodySilhouette(selected), host.innerHTML, [...selected]);
   } finally { resetBodySilhouetteState(); configureSunBodySilhouetteRuntimeDeps(previous); }
 });
 
-for (const stock of [true, false]) it(`renders ${stock ? 'stock overlay' : 'parametric fallback'} geometry and literal region metadata`, () => {
+for (const stock of [true, false]) it(`renders ${stock ? 'stock overlay' : 'parametric fallback'} geometry and literal region metadata`, async () => {
   const literal = '<img src=x onerror=alert(1)> & "';
   const input: BodyPickerInput = { sex: 'female', stock, source: '/er.svg', mask: '/er-mask.png', overlay: 'blob:selection', overlayState: 'ready', selected: new Set(['face']), labels: [{ key: 'face', label: literal }],
     views: [{ side: 'front', outline: 'M 0 0 Z', landmarks: ['M 1 2 Z'], details: ['M 3 4 Z'], regions: { face: 'M 5 6 Z', unknown: 'M 7 8 Z' }, placement: { imgX: -1.234, imgY: -2.345, fullW: 123.456, fullH: 456.789 } }] };
@@ -47,4 +67,5 @@ for (const stock of [true, false]) it(`renders ${stock ? 'stock overlay' : 'para
     expect(host.querySelector('.sun-silhouette-landmark')?.getAttribute('d')).toBe('M 1 2 Z');
     expect(host.querySelector('.sun-silhouette-detail')?.getAttribute('d')).toBe('M 3 4 Z');
   }
+  await checkNativeSilhouette(view, host.innerHTML, ['face']);
 });

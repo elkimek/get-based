@@ -11,7 +11,9 @@ test('authored Light and dashboard pills preserve source SVGs, themes, responsiv
   await page.evaluate(async css=>{
     await(await import('/js/light-sun-loader.js')).loadLightSunUI();
     const style=document.createElement('style');// Preserve the declared empty-card ink and 44px narrow/coarse Dashboard targets on both sides.
-    style.textContent=css+':where([data-original]) .light-channels-section .light-pill-tier-0,:where([data-original]) .light-channels-section .light-pill-tier-0 .light-pill-daycount{color:var(--text-secondary);}@media(pointer:coarse),(max-width:480px){:where([data-original]) .light-pill-dashboard{min-height:44px;min-width:44px}}';document.head.append(style);
+    // The desktop audit moved scores below labels so their complete names remain readable.
+    const readableCards = '@media(min-width:601px){:where([data-original]) .light-channels-section .light-pill{grid-template-columns:34px minmax(0,1fr);grid-template-areas:"icon label" "spark count"}:where([data-original]) .light-channels-section .light-pill-label{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}}';
+    style.textContent=css+readableCards+':where([data-original]) .light-channels-section .light-pill-tier-0,:where([data-original]) .light-channels-section .light-pill-tier-0 .light-pill-daycount{color:var(--text-secondary);}@media(pointer:coarse),(max-width:480px){:where([data-original]) .light-pill-dashboard{min-height:44px;min-width:44px}}';document.head.append(style);
     const host=document.createElement('div');host.id='pill-acceptance';host.style.cssText='position:fixed;inset:16px;overflow:auto;z-index:20000;background:var(--bg-primary);padding:12px';document.body.append(host);
   },scopedFrozenStyles(original.styleBlocks).replaceAll('[data-original]',':where([data-original])'));
   const host=page.locator('#pill-acceptance');let pairs=0;

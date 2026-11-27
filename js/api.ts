@@ -1,9 +1,11 @@
 // api.js - AI provider facade and call router.
 
-import { getAIProvider, getRoutstrKey } from './api-provider-storage.js';
+import { getAIProvider, getRoutstrKey, getCustomApiUrl, getOllamaConfig, isAIPaused } from './api-provider-storage.js';
 import type { ProviderRequestOptions } from './api-openai-compatible.js';
 import type { LocalAiRequestOptions } from './api-local.js';
 import { getVeniceE2EESessionRuntime } from './api-runtime.js';
+import { state } from './state.js';
+import { getActiveModelId } from './api-models.js';
 
 export interface AIProviderRequestOptions extends ProviderRequestOptions, LocalAiRequestOptions {consentKind?: string | undefined}
 
@@ -252,22 +254,43 @@ export async function callCustomAPI(...args: Parameters<typeof import('./api-cus
 }
 
 export async function callClaudeAPI(opts: AIProviderRequestOptions, provider = getAIProvider()) {
-  opts.signal?.throwIfAborted();
-  if (opts.requestCurrent && !opts.requestCurrent()) throw new Error('The AI request recipient or owner changed.');
-  const { requireAIProcessingApproval } = await import('./cloud-ai-consent.js');
-  opts.signal?.throwIfAborted();
-  if (opts.requestCurrent && !opts.requestCurrent()) throw new Error('The AI request recipient or owner changed.');
+  const profileId = state.currentProfile;
+  const originatingProvider = getAIProvider();
+  const modelId = opts.modelOverride || getActiveModelId(provider);
+  const getRecipient = () => {
+    if (provider === 'custom') return getCustomApiUrl();
+    if (provider === 'ollama') return getOllamaConfig().url;
+    if (provider === 'routstr') return localStorage.getItem('labcharts-routstr-node') || '';
+    return '';
+  };
+  const endpoint = getRecipient();
+  const requestCurrent = () => state.currentProfile === profileId && getAIProvider() === originatingProvider
+    && !isAIPaused()
+    && (opts.modelOverride || getActiveModelId(provider)) === modelId
+    && getRecipient() === endpoint
+    && opts.requestCurrent?.() !== false;
+  const assertCurrent = () => {
+    opts.signal?.throwIfAborted();
+    if (!requestCurrent()) throw new Error('The AI request recipient or owner changed.');
+  };
+  assertCurrent();
+  const dispatchers = {
+    ollama: async () => (await loadLocalApi()).callOpenAICompatibleLocalAPI,
+    venice: async () => (await loadVeniceApi()).callVeniceAPI,
+    openrouter: async () => (await loadOpenRouterApi()).callOpenRouterAPI,
+    routstr: async () => (await loadRoutstrApi()).callRoutstrAPI,
+    ppq: async () => (await loadPpqApi()).callPpqAPI,
+    custom: async () => (await loadCustomApi()).callCustomAPI,
+  };
+  const load = dispatchers[provider as keyof typeof dispatchers];
+  if (!Object.hasOwn(dispatchers, provider) || !load) throw new Error('Choose a supported AI provider in Settings.');
+  const [{ requireAIProcessingApproval }, dispatch] = await Promise.all([import('./cloud-ai-consent.js'), load()]);
+  assertCurrent();
   await requireAIProcessingApproval(provider, {
     kind: opts?.consentKind || 'text',
-    modelId: opts?.modelOverride || '',
+    modelId,
+    endpoint,
   });
-  opts.signal?.throwIfAborted();
-  if (opts.requestCurrent && !opts.requestCurrent()) throw new Error('The AI request recipient or owner changed.');
-  if (provider === 'ollama') return callOpenAICompatibleLocalAPI(opts);
-  if (provider === 'venice') return callVeniceAPI(opts);
-  if (provider === 'openrouter') return callOpenRouterAPI(opts);
-  if (provider === 'routstr') return callRoutstrAPI(opts);
-  if (provider === 'ppq') return callPpqAPI(opts);
-  if (provider === 'custom') return callCustomAPI(opts);
-  throw new Error('Unknown AI provider: ' + provider + '. Please select a provider in Settings.');
+  assertCurrent();
+  return dispatch({ ...opts, requestCurrent });
 }

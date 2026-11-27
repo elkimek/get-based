@@ -3,15 +3,15 @@
   "scope": "Reviewed native storage-safety changes; original public HTML and worker regression fixtures remain immutable.",
   "dependencies": {
     "js/lens-local.ts": {
-      "reason": "Restart retired workers, recover request queues and guard native library identity.",
+      "reason": "Restart retired workers, recover request queues, guard library identity and retire pending native library work during app erasure.",
       "hashes": {
         "js/lens-local.ts": {
           "original": "e1e8e03abc493b98abf64e05882cdcdc9f23d740cab903913983471867a2dd6c",
-          "reviewed": "0960ed1bc9943ddd6d83661363491210520e094f73d500984ed8ab67156a66d5"
+          "reviewed": "25029967fe9288fef5738f376ca1fb9db73c639e0167a895a046b4e350e6114d"
         },
         "js/lens-local.js": {
           "original": "60a26111f7e3d3b1cd440b15960eeeadf855ecad26a72bbefe835a8eb9d94bd9",
-          "reviewed": "4c44efdd581da900e11fb93ec8536ab90c208acc6928b8d31d338d3a21c6e43a"
+          "reviewed": "7842346d5d2f43d8b01a96cef32924f6ff9634304e7c9f19aae368968256fe90"
         }
       }
     },
@@ -90,6 +90,19 @@
         "js/lens-local-utils.js": {
           "original": "1a65e943a994e4377d5de52285f820abf3440785fbced35b81e459204880ce1b",
           "reviewed": "b1d720eb3845d374641871ff9de21710b4562cf270e4c1e90a7c8021720346af"
+        }
+      }
+    },
+    "js/lens-local-parsers.ts": {
+      "reason": "Bound file, expanded archive, extracted text, page, entry and document sizes, and stop unfinished extraction when cancelled.",
+      "hashes": {
+        "js/lens-local-parsers.ts": {
+          "original": "7d4bc2a677d4db48e43e4f821a4256be99c14f85feb16239100a0d300983f7ae",
+          "reviewed": "9015e7c000c4205badf9ff1d9f0766f2a44fc114d45553554add89f59e98ff02"
+        },
+        "js/lens-local-parsers.js": {
+          "original": "9aea9c320e38300af2b6cb43d734be3a1886df06942b3f6f11c5f546541c033f",
+          "reviewed": "7ad697c1642a87a801e1a413b2156c934c2c64f34c4448a9555fd382faac0791"
         }
       }
     }

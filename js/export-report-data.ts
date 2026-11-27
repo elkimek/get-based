@@ -1,3 +1,4 @@
+import { labPanelId } from './lab-panel-identity.js';
 import type { JSONDetached } from './export-report.js';
 import type { ActiveData, ActiveCategory, ActiveMarker } from './data-view-types.js';
 import type { GeneticsData, StoredSnpCall } from './dna-runtime.js';
@@ -61,9 +62,12 @@ export interface BuildReportDataSnapshotInput {
   rangeMode?: string; unitSystem?: string;
   contextSections?: ReportContextSection[];
   generatedAt?: string; snpTable?: ReportSnpCatalog | null;
+  sampleResults?: Map<string, ReportResult[]>;
 }
 export interface ReportResult {
   date: string | null; dateIndex: number; value: number; displayValue: string;
+  sampleLabel?: string;
+  panelId?: string;
   status: ReturnType<typeof statusForResult>; ranges: ReturnType<typeof rangesForResult>;
   collectionContext: LabCollectionContext | null;
   collectionContextSources: Record<string, string> | null;
@@ -331,7 +335,34 @@ function buildEntryProvenance(importedData: ReportImportedData) {
   return { resultSources, sourceReportedRanges, collectionContextSourcesByDate };
 }
 
-function buildLabs(data: ReportActiveData, importedData: ReportImportedData, rangeMode: string) {
+/** Resolve every stored observation with the same projection as its marker detail view. */
+export function buildReportSampleResults(data: ActiveData, entries: readonly LabEntry[], splitDays: Set<string>, importedData: ReportImportedData, rangeMode: string, project: (entries: LabEntry[]) => ActiveData) {
+  const target = new Map<string, ReportResult[]>();
+  const dates = new Set(data.dates);
+  for (const category of Object.values(data.categories)) for (const marker of Object.values(category.markers)) {
+    if (marker.singleDate && marker.values.some(value => value != null)) dates.add(marker.singleDate);
+  }
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    if (!splitDays.has(entry.date) || !dates.has(entry.date)) continue;
+    const count = (counts.get(entry.date) || 0) + 1;
+    counts.set(entry.date, count);
+    const sampleData = project([entry]);
+    const context = sampleData.entryContextByDate?.[entry.date];
+    const sampleLabel = [`Sample ${count}`, context?.sampleTime, context?.fasting === true ? 'Fasting' : context?.fasting === false ? 'Not fasting' : ''].filter(Boolean).join(' · ');
+    const sample = buildLabs(sampleData, { ...importedData, entries: [entry] }, rangeMode);
+    for (const category of sample.categories) for (const marker of category.markers) {
+      if (!Object.hasOwn(entry.markers || {}, marker.storageDotKey)) continue;
+      const key = JSON.stringify([entry.date, marker.storageDotKey]);
+      const results = target.get(key) || [];
+      results.push({ ...marker.latestResult, sampleLabel, panelId: labPanelId(entry) });
+      target.set(key, results);
+    }
+  }
+  return target;
+}
+
+function buildLabs(data: ReportActiveData, importedData: ReportImportedData, rangeMode: string, sampleResults?: Map<string, ReportResult[]>) {
   const categories: ReportCategory[] = [];
   const flags: ReportFlag[] = [];
   const notableTrends: ReportTrend[] = [];
@@ -349,12 +380,18 @@ function buildLabs(data: ReportActiveData, importedData: ReportImportedData, ran
       const results: ReportResult[] = [];
       for (let index = 0; index < (marker.values || []).length; index++) {
         const value = marker.values[index];
-        if (value == null) continue;
         const date = markerResultDate(data, category, marker, index);
+        const storageDotKey = marker.storageDotKey || `${categoryKey}.${markerKey}`;
+        const samples = sampleResults?.get(JSON.stringify([date, storageDotKey]));
+        if (samples?.length) {
+          if (date) allDates.add(date);
+          results.push(...samples.map(result => ({ ...result, dateIndex: index })));
+          continue;
+        }
+        if (value == null) continue;
         if (date) allDates.add(date);
         const ranges = rangesForResult(marker, index, rangeMode);
         const status = statusForResult(value, ranges.judging);
-        const storageDotKey = marker.storageDotKey || `${categoryKey}.${markerKey}`;
         results.push({
           date,
           dateIndex: index,
@@ -682,7 +719,7 @@ export function buildReportDataSnapshot(input: BuildReportDataSnapshotInput = {}
       unitSystem,
     },
     profile: buildProfile(profile || {}, sections.has('context') && !Array.isArray(options.contextTitles)),
-    labs: includesLabs ? buildLabs(data || { dates: [], categories: {} }, safeImportedData, normalizedRangeMode) : null,
+    labs: includesLabs ? buildLabs(data || { dates: [], categories: {} }, safeImportedData, normalizedRangeMode, input.sampleResults) : null,
     notes: sections.has('notes') ? cloneSerializable(safeImportedData.notes || []) : [],
     supplements: sections.has('supplements') ? cloneSerializable(safeImportedData.supplements || []) : [],
     genetics: sections.has('genetics') ? buildReportGenetics(safeImportedData.genetics, snpTable) : null,

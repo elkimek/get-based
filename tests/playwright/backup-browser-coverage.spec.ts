@@ -15,9 +15,10 @@ test('backup browser coverage exercises export import auto backup and folder sta
   expect(backupCycleRequests).toBe(0);
 
   const results = await page.evaluate(async ({ backupUrl }) => {
-    const [backup, blobStorage] = await Promise.all([
+    const [backup, blobStorage, storageCrypto] = await Promise.all([
       (import(backupUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/backup.js'), "configureBackupRuntimeDeps" | "openBackupDB" | "buildBackupSnapshot" | "serializeBackupSnapshot" | "parseBackupSnapshot" | "buildFullBackupSnapshot" | "exportEncryptedBackup" | "importEncryptedBackup" | "scheduleAutoBackup" | "getAutoBackupSnapshots" | "restoreAutoBackup" | "getFolderBackupState" | "renderFolderBackupSection" | "installBackupActionDelegates" | "removeFolderBackup" | "initFolderBackup" | "reauthorizeFolderBackup">>,
       import('/js/blob-storage.js'),
+      import('/js/crypto.js'),
     ]);
     const outcomes: Record<string, unknown> = {};
     const profileId = `backup-browser-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -43,9 +44,10 @@ test('backup browser coverage exercises export import auto backup and folder sta
         if (key === `labcharts-${profileId}-chat-threads`) {
           return JSON.stringify([{ id: threadId, title: 'Thread', projectName: 'Metabolic project' }]);
         }
+        if (key === 'labcharts-profiles') return storageCrypto.encryptedGetItem(key);
         return localStorage.getItem(key);
       },
-      getEncryptionEnabled: () => true,
+      getEncryptionEnabled: storageCrypto.getEncryptionEnabled,
     });
     const delay = (ms: number) => new Promise((resolve) => originalSetTimeout(resolve, ms));
     const waitFor = async (predicate: () => unknown | Promise<unknown>, attempts = 100) => {
@@ -87,7 +89,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       version: 1,
       createdAt: '2026-06-10T08:00:00.000Z',
       encrypted: true,
-      encryptionSalt: 'restored-salt',
+      encryptionSalt: '',
       settings: {
         'labcharts-theme': 'glass',
         'labcharts-active-profile': restoredProfileId,
@@ -99,8 +101,8 @@ test('backup browser coverage exercises export import auto backup and folder sta
         keys: {
           imported: JSON.stringify({ entries: [{ date: '2026-06-10', markers: { glucose: 88 } }] }),
           chat: JSON.stringify([{ role: 'user', content: 'restore me' }]),
-          chatPersonalityCustom: 'v1:restored-encrypted-personas',
-          chatPersonalityDeleted: 'v1:restored-encrypted-persona-tombstones',
+          chatPersonalityCustom: JSON.stringify([{ id: 'synthetic-restored-persona', name: 'Synthetic persona' }]),
+          chatPersonalityDeleted: JSON.stringify(['synthetic-deleted-persona']),
           units: 'US',
         },
       }],
@@ -114,6 +116,24 @@ test('backup browser coverage exercises export import auto backup and folder sta
       await blobStorage.deleteBlob(importedKey);
       await blobStorage.deleteBlob(restoredImportedKey);
 
+      (window as Window & { __WEARABLES_TEST?: boolean }).__WEARABLES_TEST = true;
+      const salt = await storageCrypto._setTestSessionKey('Synthetic restore profile list');
+      backupPayload.encryptionSalt = btoa(String.fromCharCode(...salt!));
+      localStorage.setItem('labcharts-encryption-salt', backupPayload.encryptionSalt);
+      localStorage.setItem('labcharts-encryption-enabled', 'true');
+      await storageCrypto.encryptedSetItem('labcharts-profiles', backupPayload.profileList);
+      backupPayload.profileList = localStorage.getItem('labcharts-profiles')!;
+      const restoreKeys = backupPayload.profiles[0]!.keys;
+      for (const suffix of ['imported', 'chat', 'chatPersonalityCustom', 'chatPersonalityDeleted'] as const) {
+        const key = `labcharts-${restoredProfileId}-${suffix}`;
+        await storageCrypto.encryptedSetItem(key, restoreKeys[suffix]);
+        const envelope = await blobStorage.getBlob(key) ?? localStorage.getItem(key);
+        if (!envelope?.startsWith('v1:')) throw new Error('Expected encrypted restore fixture for ' + suffix);
+        restoreKeys[suffix] = envelope;
+        await storageCrypto.encryptedRemoveItem(key);
+      }
+      localStorage.removeItem('labcharts-encryption-enabled');
+      localStorage.removeItem('labcharts-encryption-salt');
       localStorage.setItem('labcharts-profiles', originalProfileList);
       localStorage.setItem(importedKey, JSON.stringify({ entries: [{ date: '2026-06-09', markers: { ferritin: 41 } }] }));
       localStorage.setItem(`labcharts-${profileId}-chat`, JSON.stringify([{ role: 'user', content: 'hello' }]));
@@ -123,12 +143,12 @@ test('backup browser coverage exercises export import auto backup and folder sta
       localStorage.setItem(`labcharts-${profileId}-chatRailOpen`, 'true');
       localStorage.setItem('labcharts-theme', 'light');
       localStorage.setItem('labcharts-active-profile', profileId);
-      localStorage.setItem('labcharts-encryption-salt', 'current-salt');
+
 
       const snapshot = backup.buildBackupSnapshot();
       outcomes.snapshotIncludesProfilesSettingsThreadsAndPrefs = snapshot?.format === 'labcharts-backup'
-        && snapshot.encrypted === true
-        && snapshot.encryptionSalt === 'current-salt'
+        && snapshot.encrypted === false
+        && snapshot.encryptionSalt === null
         && snapshot.settings?.['labcharts-theme'] === 'light'
         && snapshot.settings?.['labcharts-active-profile'] === profileId
         && snapshot.profiles?.[0]?.profileId === profileId
@@ -216,16 +236,16 @@ test('backup browser coverage exercises export import auto backup and folder sta
       backup.importEncryptedBackup(importBackupFile(backupPayload));
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-ok')?.click();
-      await waitFor(async () => (await blobStorage.getBlob(restoredImportedKey))?.includes('glucose'));
-      const restoredImported = await blobStorage.getBlob(restoredImportedKey);
+      await waitFor(async () => (await blobStorage.getBlob(restoredImportedKey)) === restoreKeys.imported);
+      const restoredImported = await storageCrypto.encryptedGetItem(restoredImportedKey);
       outcomes.importConfirmRestoresSettingsProfileKeysAndDefersReload =
         localStorage.getItem('labcharts-encryption-enabled') === 'true'
-        && localStorage.getItem('labcharts-encryption-salt') === 'restored-salt'
+        && localStorage.getItem('labcharts-encryption-salt') === backupPayload.encryptionSalt
         && localStorage.getItem('labcharts-profiles') === backupPayload.profileList
         && localStorage.getItem('labcharts-theme') === 'glass'
-        && localStorage.getItem(`labcharts-${restoredProfileId}-chat`)?.includes('restore me') === true
-        && localStorage.getItem(`labcharts-${restoredProfileId}-chatPersonalityCustom`) === 'v1:restored-encrypted-personas'
-        && localStorage.getItem(`labcharts-${restoredProfileId}-chatPersonalityDeleted`) === 'v1:restored-encrypted-persona-tombstones'
+        && (await storageCrypto.encryptedGetItem(`labcharts-${restoredProfileId}-chat`))?.includes('restore me') === true
+        && localStorage.getItem(`labcharts-${restoredProfileId}-chatPersonalityCustom`) === restoreKeys.chatPersonalityCustom
+        && localStorage.getItem(`labcharts-${restoredProfileId}-chatPersonalityDeleted`) === restoreKeys.chatPersonalityDeleted
         && localStorage.getItem(`labcharts-${restoredProfileId}-units`) === 'US'
         && restoredImported?.includes('glucose') === true
         && restoreTimeouts.some(t => t.ms === 1000)
@@ -259,8 +279,8 @@ test('backup browser coverage exercises export import auto backup and folder sta
       document.getElementById('confirm-ok')?.click();
       await restoreAuto;
       await waitFor(() => localStorage.getItem('labcharts-profiles') === backupPayload.profileList);
-      await waitFor(async () => (await blobStorage.getBlob(restoredImportedKey))?.includes('glucose'));
-      const autoRestoredImported = await blobStorage.getBlob(restoredImportedKey);
+      await waitFor(async () => (await blobStorage.getBlob(restoredImportedKey)) === restoreKeys.imported);
+      const autoRestoredImported = await storageCrypto.encryptedGetItem(restoredImportedKey);
       await waitFor(() => toasts().some(text => text.includes('Backup restored'))
         && autoRestoreTimeouts.some(t => t.ms === 1000));
       outcomes.restoreAutoBackupRestoresSnapshotAndDefersReload =
@@ -324,6 +344,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       else delete (window as {showDirectoryPicker?: unknown}).showDirectoryPicker;
       await blobStorage.deleteBlob(importedKey);
       await blobStorage.deleteBlob(restoredImportedKey);
+      await storageCrypto._setTestSessionKey(null);
       await clearBackupStores().catch(() => {});
       localStorage.clear();
       for (const [key, value] of saved.storage) {

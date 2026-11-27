@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   INITIAL_CHAT_DISCUSSION, configureChatDiscussionContext, currentChatDiscussion,
@@ -79,4 +80,58 @@ it('lets the current Svelte input own backend placeholders and retires its publi
   const presentation = ownChatComposerPlaceholder(input, render); publishChatComposerPlaceholder('AI features are paused');
   expect(render).toHaveBeenCalledExactlyOnceWith('AI features are paused');
   inputOwner.destroy(); publishChatComposerPlaceholder(null); expect(render).toHaveBeenCalledTimes(1); presentation.destroy();
+});
+
+const load = createRequire(import.meta.url);
+it('keeps the native discussion controls scoped through selection, pause, and save', async () => {
+  dispose();
+  const model = load('../js/chat-discussion-view.js') as typeof import('../js/chat-discussion-view.js');
+  model.configureChatDiscussionContext(() => scope);
+  const native = load('../js/components/ChatComposer.svelte.native.js') as typeof import('../js/components/ChatComposer.svelte.native.js');
+  const host = document.createElement('section');
+  document.body.replaceChildren(host);
+  const mounted = native.mount(native.default, {target: host});
+  native.flushSync();
+  const action = (id: string) => host.querySelector<HTMLButtonElement>('[data-chat-message-action="' + id + '"]')!;
+  const pick = (id: string) => host.querySelector<HTMLInputElement>('input[type="checkbox"][value="' + id + '"]')!;
+  const start = () => action('start-discussion-from-picker');
+  try {
+    model.publishDiscussionButton(scope, {visible: true, dim: false, active: false});
+    model.publishDiscussionPicker(scope, {options, selected: [], addingToExisting: false});
+    expect(start().disabled).toBe(true);
+    expect(pick('a').disabled).toBe(true);
+    expect(host.querySelector('img')).toBeNull();
+
+    pick('b').click();
+    expect(model.discussionPickerSelection(model.currentChatDiscussion()?.picker ?? null)?.newPersonas[0]?.id).toBe('b');
+    expect(start().disabled).toBe(false);
+    expect(pick('c').disabled).toBe(true);
+    expect(host.querySelector('[role="note"]')?.textContent).toContain('Future messages use 2 sequential responses');
+
+    pick('b').focus();
+    const escape = new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true});
+    pick('b').dispatchEvent(escape);
+    expect(escape.defaultPrevented).toBe(true);
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement?.id).toBe('chat-discuss-btn');
+
+    model.publishDiscussionRound(scope, {participants: ['Analyst', 'House'], pending: 1, progress: ''});
+    expect(action('resume-discussion').textContent).toBe('Resume 1');
+    expect(action('pause-discussion').hidden).toBe(true);
+    expect(host.querySelector('#chat-input')?.getAttribute('aria-describedby')).toBe('chat-discussion-composer-help');
+    model.publishDiscussionProgress('Fixture round in progress');
+    expect(action('pause-discussion').hidden).toBe(false);
+    model.publishDiscussionSaving(true);
+    expect(action('end-discussion').disabled).toBe(true);
+    expect(host.querySelector('[role="status"]')?.textContent).toBe('Saving discussion…');
+    model.publishDiscussionSaving(false);
+    const stale = new MouseEvent('click', {bubbles: true, cancelable: true});
+    scope = 'new-thread';
+    expect(action('end-discussion').dispatchEvent(stale)).toBe(false);
+    expect(model.currentChatDiscussion()).toBeNull();
+  } finally {
+    await native.unmount(mounted);
+    model.configureChatDiscussionContext(() => '');
+    host.remove();
+  }
 });

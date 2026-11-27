@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+type ConnectOptions = {isCurrent?: () => boolean; persistConnection?: boolean};
+type Connection = {endpoint: string; token: string};
 const state = vi.hoisted(() => ({ agent: 'codex', target: 'local', model: 'first', effort: '', backend: 'codex', token:'PRIVATE TOKEN',
-  connect: vi.fn(async (_agent?:string,_options?:{ isCurrent?:() => boolean }) => {}), models: vi.fn(), targets: vi.fn(), discover: vi.fn(), save: vi.fn(), cache: vi.fn(), notify: vi.fn() }));
+  connect: vi.fn<(agent?: string, options?: ConnectOptions) => Promise<Connection>>(), models: vi.fn(), targets: vi.fn(), discover: vi.fn(), save: vi.fn(), cache: vi.fn(), notify: vi.fn() }));
 vi.mock('../js/agent-chat-settings.js', () => ({
   getAgentHostAgent: () => state.agent, getAgentHostTarget: () => state.target, getAgentHostModel: () => state.model,
   getAgentHostEffort: () => state.effort, getAgentHostEndpoint: () => 'http://127.0.0.1:8324', getAgentHostToken: () => state.token,
@@ -16,11 +18,12 @@ import { cliSettingsFixture } from './helpers/cli-settings-fixture.js';
 import { disposeCliAgentSettings } from '../js/cli-agent-settings-component.js';
 import { disposeCliAgentModels, getCliAgentModelsView } from '../js/cli-agent-models-component.js';
 import type { AgentModel } from '../js/agent-model-catalog.js';
+const verified = {endpoint: 'http://127.0.0.1:8324', token: 'SYNTHETIC REQUEST TOKEN'};
 const model = (id: string): AgentModel => ({ id, model: id, displayName: id, isDefault: true, description: '', defaultReasoningEffort: '', supportedReasoningEfforts: [], inputModalities: ['text'] });
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r; }); return { resolve,promise }; }
 beforeEach(() => {
   Object.assign(state, { agent:'codex',target:'local',model:'first',effort:'',backend:'codex',token:'PRIVATE TOKEN' }); vi.clearAllMocks();
-  state.connect.mockResolvedValue(undefined); state.models.mockResolvedValue([model('first')]);
+  state.connect.mockResolvedValue(verified); state.models.mockResolvedValue([model('first')]);
   state.targets.mockResolvedValue([{ id:'local',label:'Local CLI' }, { id:'gateway',label:'Personal gateway',kind:'gateway' }]);
   state.discover.mockResolvedValue([{ id:'codex', name:'Codex', compatible:true,status:'available' }]);
   state.save.mockImplementation(async (settings: Record<string,string>) => Object.assign(state,settings));
@@ -29,6 +32,18 @@ beforeEach(() => {
 });
 afterEach(() => { disposeCliAgentSettings(); document.body.replaceChildren(); });
 async function ready() { await refreshDetectedAgentList(); await vi.waitFor(() => expect(document.getElementById('cli-agent-model-summary')?.textContent).toContain('first')); }
+it('loads targets and models with a verified request credential without saving it', async () => {
+  await ready();
+  await vi.waitFor(() => expect(state.models).toHaveBeenCalledOnce());
+  expect(state.connect).toHaveBeenCalledExactlyOnceWith('codex', {
+    persistConnection: false, isCurrent: expect.any(Function),
+  });
+  expect(state.targets).toHaveBeenCalledExactlyOnceWith({...verified, agent: 'codex'});
+  expect(state.models).toHaveBeenCalledExactlyOnceWith({...verified, agent: 'codex', target: 'local', model: 'first'});
+  expect(state.token).toBe('PRIVATE TOKEN');
+  expect(state.save).not.toHaveBeenCalled();
+});
+
 it('rejects an older discovery result before it overwrites a newer model catalog', async () => {
   const late = deferred<AgentModel[]>(); state.models.mockReturnValueOnce(late.promise);
   await refreshDetectedAgentList(); await vi.waitFor(() => expect(state.models).toHaveBeenCalledOnce());
@@ -97,7 +112,7 @@ it('rejects programmatic model helpers after teardown even when the Settings DOM
 });
 it('guards model connection publication against a replaced initiating credential', async () => {
   await ready(); const late=deferred<void>(); let guard:(() => boolean) | undefined;
-  state.connect.mockImplementationOnce(async (_agent?:string,options?:{ isCurrent?:() => boolean }) => { guard=options?.isCurrent; await late.promise; if (!guard?.()) throw new Error('superseded'); });
+  state.connect.mockImplementationOnce(async (_agent,options) => { guard=options?.isCurrent; await late.promise; if (!guard?.()) throw new Error('superseded'); return verified; });
   const selecting=setCLIAgentModel('obsolete'); expect(guard?.()).toBe(true); state.token='REPLACEMENT'; expect(guard?.()).toBe(false); late.resolve(); await selecting;
   expect(state.save).not.toHaveBeenCalled(); expect(state.notify).not.toHaveBeenCalled();
 });

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { openIsolatedSyncSetupPage } from '../helpers/sync-settings-page.js';
 
 // Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.

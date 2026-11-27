@@ -25,10 +25,11 @@ import type { createVeniceE2EE } from '../vendor/venice-e2ee.js';
 
 type VeniceClient = ReturnType<typeof createVeniceE2EE>;
 interface VeniceApiWindow {
-  _veniceE2EE?: VeniceClient; _veniceE2EEKey?: string;
+  _veniceE2EE?: VeniceClient;
   _veniceE2EEDcapRequired?: boolean; _veniceE2EEGpuRequired?: boolean;
   _veniceAttestation?: unknown; _veniceLastStreamDiagnostics?: unknown;
 }
+let _veniceE2EEKey: string | null = null;
 interface EncryptedChoice {
   finish_reason?: unknown; native_finish_reason?: unknown;
   message?: { content?: string; reasoning_content?: string };
@@ -192,7 +193,7 @@ export async function callVeniceAPI(opts: ProviderRequestOptions) {
     import('../vendor/venice-nvidia.js'),
   ]);
   const { createVeniceE2EE, encryptMessage, decryptChunk } = e2eeModule;
-  if (!apiWindow._veniceE2EE || apiWindow._veniceE2EEKey !== key
+  if (!apiWindow._veniceE2EE || _veniceE2EEKey !== key
       || !apiWindow._veniceE2EEDcapRequired || !apiWindow._veniceE2EEGpuRequired) {
     const tokenVerifier = nvidiaModule.createNrasTokenVerifier();
     apiWindow._veniceE2EE = createVeniceE2EE({
@@ -205,7 +206,7 @@ export async function callVeniceAPI(opts: ProviderRequestOptions) {
       }),
       requireGpu: true,
     });
-    apiWindow._veniceE2EEKey = key;
+    _veniceE2EEKey = key;
     apiWindow._veniceE2EEDcapRequired = true;
     apiWindow._veniceE2EEGpuRequired = true;
   }

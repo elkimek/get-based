@@ -33,7 +33,7 @@ export function validateAppNavigation(request: AppNavigationRequest): void {
   if (recordId && !['nutritionEditor', 'lightDevice', 'sunSession', 'deviceSession', 'emfAssessment', 'profileShare', 'wearablesSettings'].includes(view)
     || ['lightDevice', 'sunSession', 'deviceSession'].includes(view) && !recordId) throw new Error('Use an exact recordId for this destination.');
   if (view === 'wearablesSettings' && !!recordId !== !!request.snapshotId) throw new Error('A source refresh handoff requires exact recordId and fresh wearables.sources snapshotId together.');
-  if (subview && !(view === 'nutritionHistory' && ['meals', 'trends'].includes(subview) || view === 'reportBuilder' && REPORT_HANDOFF_PRESETS.some(id => id === subview))) throw new Error('subview requires a declared nutritionHistory tab or reportBuilder template.');
-  if (range && (!['labs', 'category', 'reportBuilder'].includes(view) || marker || !LAB_VIEW_RANGES.includes(range as typeof LAB_VIEW_RANGES[number]))) throw new Error('range is all, 3m, 6m or 1y in labs, an exact category or reportBuilder.');
+  if (subview && !(view === 'nutritionHistory' && ['meals', 'trends'].includes(subview))) throw new Error('subview requires a declared nutritionHistory tab.');
+  if (range && (!['labs', 'category'].includes(view) || marker || !LAB_VIEW_RANGES.includes(range as typeof LAB_VIEW_RANGES[number]))) throw new Error('range is all, 3m, 6m or 1y in labs or an exact category.');
   if (layout && (view !== 'category' || !LAB_CATEGORY_LAYOUTS.includes(layout as typeof LAB_CATEGORY_LAYOUTS[number]))) throw new Error('layout is charts, table or heatmap for an exact category.');
 }

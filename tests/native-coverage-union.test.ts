@@ -4,7 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {describe, expect, it} from 'vitest';
 import {createNativeCoverageFixture} from './helpers/native-coverage-fixture.js';
-import {createCoverageInventory, qualifyCoverageUnion, qualifyNativeCoverageUnion} from '../scripts/ci-results.mjs';
+import {createCoverageInventory, qualifyCoverageUnion, qualifyNativeCoverageUnion, readQualifiedNativeCoverageUnion} from '../scripts/ci-results.mjs';
 import {nativeDigest, type NativeCoverageFile} from '../scripts/native-coverage-receipt.mjs';
 import {productionFunctionIndex} from '../scripts/coverage-source.mjs';
 import {sourceFingerprint} from '../scripts/coverage-model-helpers.mjs';
@@ -179,5 +179,19 @@ describe('native unit union consumes authenticated synthetic codec transport', (
     await expect(qualifyNativeCoverageUnion(raw, [inventory], 1, fixture.file, options)).rejects.toThrow('Coverage body differs');
     fs.writeFileSync(body, original); fs.writeFileSync(path.join(raw, 'extra.json'), original);
     await expect(qualifyNativeCoverageUnion(raw, [inventory], 1, fixture.file, options)).rejects.toThrow('Missing or unexpected raw coverage files');
+  }));
+  it('supplies the checked browser bytes and independently replayed native receipt to the reporter', async () => withNativeFixture(async (fixture, raw, inventory, options) => {
+    const shard = path.join(raw, 'one.json');
+    const accepted: unknown[] = [];
+    const result = await readQualifiedNativeCoverageUnion(raw, [inventory], 1, fixture.file, options, (name, body) => {
+      accepted.push({name, body});
+      fs.writeFileSync(shard, JSON.stringify({entries: [{url: '/js/unrelated.js'}]}));
+    });
+    expect(accepted).toEqual([{name: 'one.json', body: {entries: [{url: `/${file}`}]}}]);
+    expect(result.native.files[0]!.called).toEqual([{...fixture.key, count: 1}]);
+    expect(result.qualification.unit.calledFunctions).toBe(1);
+    await expect(readQualifiedNativeCoverageUnion(raw, [inventory], 1, fixture.file, options,
+      (name, body) => { accepted.push({name, body}); })).rejects.toThrow('Coverage body differs');
+    expect(accepted).toHaveLength(1);
   }));
 });

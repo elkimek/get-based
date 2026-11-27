@@ -686,7 +686,7 @@ export function ocularActinicUVdose({ spectrum, eyeExposure, zenithDeg = null, g
     else if (elevation < 10) elevationGate = (elevation - 5) / 5; // 0→1 over 5°-10°
   }
   if (elevationGate === 0) return 0;
-  const seconds = (eyeExposure.durationSec || 0);
+  const seconds = Math.max(0, Number(eyeExposure.durationSec) || 0);
   const dlambda = 5;
   let actinic_irradiance = 0;
   for (let i = 0; i < spectrum.irradiance.length; i++) {

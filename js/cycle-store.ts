@@ -397,6 +397,30 @@ export async function clearCycleDB(profileId: string) {
   return txPromise(tx);
 }
 
+/** Replace only the stores represented by this backup generation. */
+export async function replaceCycleBackupRows(profileId: string, observations: StoredCycleObservation[] | null, imports: StoredCycleImportMeta[] | null) {
+  const names = [...(observations ? [STORE_DAILY] : []), ...(imports ? [STORE_IMPORTS] : [])];
+  if (!names.length) return;
+  const db = await openCycleDB(profileId);
+  const tx = db.transaction(names, 'readwrite');
+  const done = txPromise(tx);
+  try {
+    if (observations) {
+      const store = tx.objectStore(STORE_DAILY);
+      store.clear();
+      for (const row of observations) store.put(withObservationIdentity(row));
+    }
+    if (imports) {
+      const store = tx.objectStore(STORE_IMPORTS);
+      store.clear();
+      for (const row of imports) store.put(row);
+    }
+  } catch (error) {
+    tx.abort(); await done.catch(() => {}); throw error;
+  }
+  await done;
+}
+
 export async function deleteCycleDB(profileId: string): Promise<void> {
   const name = dbNameFor(profileId);
   const cached = _dbPromises.get(name);

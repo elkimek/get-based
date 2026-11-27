@@ -43,6 +43,7 @@ import {
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
+import { logSyncEvent } from './sync-state.js';
 import { _mergeItemRowsIntoImported, acknowledgePulledScalarSnapshots, acknowledgePulledArrayVersions, acknowledgePulledMapSnapshots } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
 import { CONTEXT_REVIEW_RANGES } from './biology-score-context-contract.js';
@@ -113,7 +114,10 @@ export async function prepareSyncPullRows(rawRows: readonly (SyncProfileRow | nu
     if (typeof row.dataJson !== 'string' || !row.dataJson) continue;
     try {
       const parsed = await parseSyncPayload(row.dataJson);
-      if (isMalformedPulledImportedData(parsed.importedData)) continue;
+      if (isMalformedPulledImportedData(parsed.importedData)) {
+        if (isSafeProfileId(row.profileId)) logSyncEvent('skip', `Pull ${row.profileId.slice(0, 8)} — malformed importedData shape, skipping row`);
+        continue;
+      }
       complete.push(row);
     } catch (error) {
       console.error('[sync] Pull failed for row:', error);

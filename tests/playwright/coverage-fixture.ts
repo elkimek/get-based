@@ -7,13 +7,14 @@ import { sourceFingerprint } from '../../scripts/coverage-model-helpers.mjs';
 
 interface BrowserCoverageEntry {
   url: string;
+  scriptId?: string;
   source?: unknown;
   text?: unknown;
   ranges?: unknown;
   functions?: unknown;
   rawScriptCoverage?: { functions?: unknown } | undefined;
 }
-interface WorkerCoverageReply { result?: BrowserCoverageEntry[] | undefined; }
+interface WorkerCoverageReply { result?: BrowserCoverageEntry[]; scriptSource?: string; }
 interface ParsedWorkerReply {
   id?: unknown;
   error?: { message?: unknown } | null;
@@ -27,8 +28,12 @@ type WorkerState = Awaited<ReturnType<typeof startWorkerCoverage>>;
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const coverageDir = process.env.PLAYWRIGHT_COVERAGE_DIR ||
   path.join(repoRoot, 'tests', '.playwright-coverage');
-const startedPages = new WeakSet<Page>();
-const coverageStates = new WeakMap<Page, { workerState: WorkerState | null }>();
+interface PageCoverageState {
+  workerState: WorkerState | null;
+  entries: ReturnType<typeof shrinkEntry>[];
+}
+const coverageStates = new WeakMap<Page, PageCoverageState>();
+const coverageNavigationInstalled = new WeakSet<Page>();
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
 const TEST_LEGAL_ACCEPTANCE = {
   accepted: true,
@@ -200,7 +205,10 @@ async function startWorkerCoverage(page: Page) {
     session.ready = (async () => {
       try {
         if (isWorker) {
-          await sendToTarget(sessionId, 'Profiler.enable');
+          await Promise.all([
+            sendToTarget(sessionId, 'Profiler.enable'),
+            sendToTarget(sessionId, 'Debugger.enable'),
+          ]);
           await sendToTarget(sessionId, 'Profiler.startPreciseCoverage', {
             callCount: true,
             detailed: true,
@@ -240,13 +248,15 @@ async function stopWorkerCoverage(workerState: WorkerState | null | undefined) {
       if (!session.started || session.detached) continue;
       try {
         const coverage = await workerState.sendToTarget(sessionId, 'Profiler.takePreciseCoverage');
-        for (const entry of coverage.result || []) {
-          entries.push({
-            url: entry.url,
-            functions: entry.functions,
-            rawScriptCoverage: { functions: entry.functions },
-          });
-        }
+        const scripts = await Promise.all((coverage.result || []).map(async entry => {
+          if (!entry.url || !entry.scriptId) return null;
+          const source = await workerState.sendToTarget(sessionId, 'Debugger.getScriptSource', {scriptId: entry.scriptId})
+            .catch(() => null);
+          if (!source?.scriptSource) return null;
+          return {url: entry.url, source: source.scriptSource, functions: entry.functions,
+            rawScriptCoverage: {functions: entry.functions}};
+        }));
+        for (const script of scripts) if (script) entries.push(script);
         await workerState.sendToTarget(sessionId, 'Profiler.stopPreciseCoverage').catch(() => {});
         await workerState.sendToTarget(sessionId, 'Profiler.disable').catch(() => {});
       } catch {
@@ -264,20 +274,43 @@ async function stopWorkerCoverage(workerState: WorkerState | null | undefined) {
   return entries;
 }
 
+async function beginPageRecording(page: Page) {
+  await page.coverage.startJSCoverage({ resetOnNavigation: false, reportAnonymousScripts: false });
+}
+
+async function appendPageRecording(page: Page, state: PageCoverageState) {
+  for (const entry of await page.coverage.stopJSCoverage()) state.entries.push(shrinkEntry(entry));
+}
+
+function installCoverageNavigation(page: Page) {
+  if (coverageNavigationInstalled.has(page)) return;
+  coverageNavigationInstalled.add(page);
+  for (const method of ['goto', 'reload', 'goBack', 'goForward'] as const) {
+    const original = (page[method] as (...args: unknown[]) => Promise<Response | null>).bind(page);
+    page[method] = async (...args) => {
+      const state = coverageStates.get(page);
+      if (state && page.url() !== 'about:blank') {
+        // V8 may collect the old document before the test ends even with
+        // resetOnNavigation disabled. Capture its evidence before leaving it.
+        await appendPageRecording(page, state);
+        await beginPageRecording(page);
+      }
+      return original(...args);
+    };
+  }
+}
+
 export async function startPageCoverage(page: Page) {
-  if (!isCoverageEnabled() || startedPages.has(page)) return;
+  if (!isCoverageEnabled() || coverageStates.has(page)) return;
   let workerState: WorkerState | null = null;
   try {
     workerState = await startWorkerCoverage(page);
   } catch {
     workerState = null;
   }
-  await page.coverage.startJSCoverage({
-    resetOnNavigation: false,
-    reportAnonymousScripts: false,
-  });
-  startedPages.add(page);
-  coverageStates.set(page, { workerState });
+  await beginPageRecording(page);
+  coverageStates.set(page, { workerState, entries: [] });
+  installCoverageNavigation(page);
 }
 
 /** Playwright also resumes new workers; await profiler setup before measured work. */
@@ -287,19 +320,17 @@ export async function waitForWorkerCoverage(page: Page) {
 }
 
 export async function stopPageCoverage(page: Page, testInfo: CoverageTestInfo, label = 'page') {
-  if (!isCoverageEnabled() || !startedPages.has(page)) return;
-  const state: { workerState?: WorkerState | null } = coverageStates.get(page) || {};
-  let entries: BrowserCoverageEntry[] = [];
+  const state = coverageStates.get(page);
+  if (!state) return;
   let coverageError: unknown = null;
   try {
-    entries = await page.coverage.stopJSCoverage();
+    await appendPageRecording(page, state);
   } catch (error) {
     coverageError = error;
   } finally {
-    startedPages.delete(page);
     coverageStates.delete(page);
   }
-  entries.push(...await stopWorkerCoverage(state.workerState));
+  for (const entry of await stopWorkerCoverage(state.workerState)) state.entries.push(shrinkEntry(entry));
   fs.mkdirSync(coverageDir, { recursive: true });
   fs.writeFileSync(coverageFile(testInfo, label), JSON.stringify({
     title: testInfo.title,
@@ -307,17 +338,15 @@ export async function stopPageCoverage(page: Page, testInfo: CoverageTestInfo, l
     file: path.relative(repoRoot, testInfo.file).split(path.sep).join('/'),
     label,
     generatedAt: new Date().toISOString(),
-    entries: entries.map(shrinkEntry),
+    entries: state.entries,
   }));
   if (coverageError) throw coverageError;
 }
 
-export const test = base.extend<{ seedLegalAcceptance: boolean }>({
-  seedLegalAcceptance: [true, { option: true }],
-  page: async ({ page, seedLegalAcceptance }, use, testInfo) => {
-    if (seedLegalAcceptance) await seedCurrentLegalAcceptance(page);
-    installAppReadinessAwareNavigation(page);
-
+// Component and lifecycle fixtures own their initial browser state. Collect
+// their real execution without adding acceptance data or readiness waits.
+export const coverageOnlyTest = base.extend({
+  page: async ({ page }, use, testInfo) => {
     if (!isCoverageEnabled()) {
       await use(page);
       return;
@@ -329,6 +358,15 @@ export const test = base.extend<{ seedLegalAcceptance: boolean }>({
     } finally {
       await stopPageCoverage(page, testInfo);
     }
+  },
+});
+
+export const test = coverageOnlyTest.extend<{ seedLegalAcceptance: boolean }>({
+  seedLegalAcceptance: [true, { option: true }],
+  page: async ({ page, seedLegalAcceptance }, use) => {
+    if (seedLegalAcceptance) await seedCurrentLegalAcceptance(page);
+    installAppReadinessAwareNavigation(page);
+    await use(page);
   },
 });
 

@@ -60,6 +60,13 @@ export function parseModuleSpecifiers(source: string, fileName = 'module.js') {
   return withParsedSource(scriptSource(fileName, source), syntaxFile(fileName), moduleSpecifiersFromFile);
 }
 
+export function parseModuleSpecifiersBatch(sources: ReadonlyMap<string, string>) {
+  const syntaxSources = new Map([...sources].map(([file, source]) => [syntaxFile(file), scriptSource(file, source)]));
+  return withParsedSources(syntaxSources, files => new Map(
+    [...sources.keys()].map(file => [file, moduleSpecifiersFromFile(files.get(syntaxFile(file))!)]),
+  ));
+}
+
 function moduleSpecifiersFromFile(sourceFile: ts.SourceFile) {
   const dependencies: Array<{ specifier: string; kind: ImportKind }> = [];
   const nonLiteralDynamicImports: string[] = [];

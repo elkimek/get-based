@@ -2,11 +2,14 @@ import type { AddressInfo } from 'node:net';
 import type { ServerOptions } from '../server/profile-share-server.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createSqliteProfileShareStore } from '../lib/profile-share-sqlite-store.js';
-import { createProfileShareServer } from '../server/profile-share-server.js';
+// Exercise the emitted Node adapter through Node's native module loader.
+const load = createRequire(import.meta.url);
+const { createSqliteProfileShareStore } = load('../lib/profile-share-sqlite-store.js') as typeof import('../lib/profile-share-sqlite-store.js');
+const { createProfileShareServer } = load('../server/profile-share-server.js') as typeof import('../server/profile-share-server.js');
 
 const resources: (() => Promise<void>)[] = [];
 
@@ -64,13 +67,27 @@ const forwardedHeaders = {
 };
 
 describe('SQLite profile-share Node adapter', () => {
-  it('strips caller-controlled rate-limit identities and injects the proxy address', async () => {
+  it('ignores spoofed X-Forwarded-For by default and trusts proxy headers only when trustForwarded is enabled', async () => {
     let receivedHeaders: Record<string, string> | undefined;
     const handler = async (request: Request) => {
       receivedHeaders = Object.fromEntries(request.headers);
       return new Response('{}', { status: 200 });
     };
-    const { port } = await makeServer({ handler });
+    const { port: untrustedPort } = await makeServer({ handler });
+    const untrustedRes = await fetch(endpoint(untrustedPort), {
+      headers: {
+        Origin: 'https://app.getbased.health',
+        'X-Forwarded-For': '203.0.113.99, 198.51.100.22',
+        'X-Real-IP': '203.0.113.98',
+        'X-Vercel-Forwarded-For': '203.0.113.97',
+        'CF-Connecting-IP': '203.0.113.96',
+      },
+    });
+    expect(untrustedRes.status).toBe(200);
+    expect(receivedHeaders?.['x-forwarded-for']).toBe('127.0.0.1');
+    expect(receivedHeaders).not.toHaveProperty('x-real-ip');
+
+    const { port } = await makeServer({ handler, trustForwarded: true });
     const response = await fetch(endpoint(port), {
       headers: {
         Origin: 'https://app.getbased.health',
@@ -92,7 +109,7 @@ describe('SQLite profile-share Node adapter', () => {
   });
 
   it('serves health and a complete synthetic create/read/delete flow', async () => {
-    const { port, store } = await makeServer();
+    const { port, store } = await makeServer({ trustForwarded: true });
     const health = await fetch(`http://127.0.0.1:${port}/health`);
     expect(health.status).toBe(200);
     await expect(health.json()).resolves.toEqual({ status: 'ok' });

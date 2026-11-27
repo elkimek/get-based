@@ -4,7 +4,20 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import type {AddressInfo} from 'node:net';
-import type {BrowserContext, BrowserContextOptions, BrowserType, LaunchOptions, TestInfo} from '@playwright/test';
+import type {BrowserContext, BrowserContextOptions, BrowserType, LaunchOptions, Page, TestInfo} from '@playwright/test';
+
+const linuxRestarts = new WeakMap<BrowserContext, () => Promise<BrowserContext>>();
+
+/** WPE needs a new process after the last persistent view closes. The origin
+ * stays stopped and all browser state must survive the restart on disk. */
+export async function openColdKnowledgePage(context: BrowserContext, configure: (fresh: BrowserContext) => Promise<void>): Promise<Page> {
+  assert.equal(context.pages().length, 0, 'Every client must close before cold launch');
+  const restart = linuxRestarts.get(context);
+  if (!restart) return context.newPage();
+  const fresh = await restart();
+  await configure(fresh);
+  return fresh.newPage();
+}
 
 const proofBytes = [0, 1, 2, 3, 127, 128, 254, 255];
 const workerSource = `self.onmessage = async ({data}) => {
@@ -42,23 +55,24 @@ interface NativeProof {
   worker: {status: string; phase: string; bytes?: number[]; written?: number; read?: number; size?: number; deleted?: boolean; name?: string; message?: string};
 }
 
-/** Native Cocoa OPFS needs an on-disk data store in the pinned WebKit build.
+/** Native WebKit OPFS needs an on-disk data store in the pinned browser build.
  * Qualify real sync writes across a browser restart, then use that same isolated
  * persistent context for the unchanged KB acceptance. No application API is mocked. */
-export async function withNativeCocoaOpfsContext(
+export async function withPersistentWebKitOpfsContext(
   {browserType, privateContext, launchOptions, contextOptions, info}: {
     browserType: BrowserType; privateContext: BrowserContext; launchOptions: LaunchOptions;
     contextOptions: BrowserContextOptions; info: TestInfo;
   },
   use: (context: BrowserContext) => Promise<void>,
 ): Promise<void> {
-  assert.equal(process.platform, 'darwin', 'Native Cocoa OPFS acceptance requires macOS');
-  assert.equal(browserType.name(), 'webkit', 'Native Cocoa OPFS acceptance requires WebKit');
+  assert(['darwin', 'linux'].includes(process.platform), 'Persistent native OPFS context requires macOS or Linux');
+  const receiptName = process.platform === 'darwin' ? 'native-cocoa-opfs-control' : 'linux-webkit-opfs-control';
+  assert.equal(browserType.name(), 'webkit', 'Native OPFS acceptance requires WebKit');
   assert(['kit-webkit', 'kit-mobile-webkit'].includes(info.project.name), 'Existing native WebKit project identity');
-  assert.notEqual(launchOptions.headless, false, 'Native Cocoa acceptance stays headless');
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-cocoa-opfs-'));
-  const receipt: {status: string; project: string; private?: unknown; persistentWrite?: NativeProof; persistentColdRead?: NativeProof; limitation: string; cleanup?: {errors: string[]; ownedProfileRemoved: boolean}} = {
-    status: 'incomplete', project: info.project.name,
+  assert.notEqual(launchOptions.headless, false, 'Native WebKit acceptance stays headless');
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-webkit-opfs-'));
+  const receipt: {status: string; project: string; platform: string; private?: unknown; persistentWrite?: NativeProof; persistentColdRead?: NativeProof; limitation: string; cleanup?: {errors: string[]; ownedProfileRemoved: boolean}} = {
+    status: 'incomplete', project: info.project.name, platform: process.platform,
     limitation: 'Real synthetic native Worker/OPFS control. Private-store behavior is diagnostic; persistent write/flush/read and durability after full browser restart are required.',
   };
   const server = http.createServer((request, response) => {
@@ -96,7 +110,9 @@ export async function withNativeCocoaOpfsContext(
     };
     try {receipt.private = await probe(privateContext, 'private-check');}
     catch (error) {receipt.private = {diagnosticError: String(error)};}
-    const launch = () => browserType.launchPersistentContext(directory, {...launchOptions, ...contextOptions, headless: true});
+    const linux = process.platform === 'linux';
+    const env = linux ? {...launchOptions.env, XDG_DATA_HOME: path.join(directory, 'data'), XDG_CACHE_HOME: path.join(directory, 'cache'), XDG_CONFIG_HOME: path.join(directory, 'config')} : launchOptions.env;
+    const launch = () => browserType.launchPersistentContext(linux ? path.join(directory, 'profile') : directory, {...launchOptions, ...contextOptions, ...(env ? {env} : {}), headless: true});
     context = await launch();
     receipt.persistentWrite = await probe(context, 'write');
     assert.equal(receipt.persistentWrite.window.status, 'passed', 'Persistent native Window getDirectory');
@@ -113,6 +129,15 @@ export async function withNativeCocoaOpfsContext(
     assert.deepEqual(receipt.persistentColdRead.worker.bytes, proofBytes, 'Exact native bytes survive a complete browser restart');
     assert.equal(receipt.persistentColdRead.worker.deleted, true, 'Owned native proof file and directory deleted');
     receipt.status = 'passed';
+    if (linux) {
+      const restart = async () => {
+        await context!.close();
+        context = await launch();
+        linuxRestarts.set(context, restart);
+        return context;
+      };
+      linuxRestarts.set(context, restart);
+    }
     await use(context);
   } catch (error) {
     primaryFailure = true;
@@ -135,12 +160,12 @@ export async function withNativeCocoaOpfsContext(
     else cleanupErrors.push('Owned temporary profile retained because browser closure failed');
     receipt.cleanup = {errors: cleanupErrors, ownedProfileRemoved};
     await clean('attach native control receipt', async () => {
-      const output = info.outputPath('native-cocoa-opfs-control.json');
+      const output = info.outputPath(receiptName + '.json');
       await fs.writeFile(output, JSON.stringify(receipt, null, 2)+'\n');
-      await info.attach('native-cocoa-opfs-control', {path: output, contentType: 'application/json'});
+      await info.attach(receiptName, {path: output, contentType: 'application/json'});
     });
     // Fixture use may resolve after an already recorded acceptance failure.
     // Preserve that original error; cleanup still fails a successful case closed.
-    if (cleanupErrors.length && !primaryFailure && info.status === 'passed') throw new Error('Native Cocoa cleanup failed: '+cleanupErrors.join('; '));
+    if (cleanupErrors.length && !primaryFailure && info.status === 'passed') throw new Error('Native WebKit cleanup failed: '+cleanupErrors.join('; '));
   }
 }

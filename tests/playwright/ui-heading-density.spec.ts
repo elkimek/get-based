@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 for (const width of [1280, 390]) {
   test(`curated headings keep context and navigation at ${width}px`, async ({ page }) => {

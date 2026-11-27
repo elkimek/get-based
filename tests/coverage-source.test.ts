@@ -5,7 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { Profiler } from 'node:inspector';
 import { describe, expect, it } from 'vitest';
-import { COVERAGE_INCLUDE, isProductionSource, productionSources, sourceFunctions, matchSourceFunction, summarizeFeatures } from '../scripts/coverage-source.mjs';
+import { COVERAGE_INCLUDE, isProductionSource, productionSources, productionFunctionIndex, productionFunctionIndexes, sourceFunctions, matchSourceFunction, summarizeFeatures } from '../scripts/coverage-source.mjs';
 import { renderCoverageHtml, renderCoverageMarkdown } from '../scripts/coverage-report.mjs';
 
 describe('complete production coverage scope', () => {
@@ -30,6 +30,17 @@ describe('complete production coverage scope', () => {
 
 describe('source function identity', () => {
   const source = 'const a = { run() { return 1; } }; const b = { run() { return 2; } };';
+  it('preserves exact function ranges and ownership across compiler batches', () => {
+    const sources = new Map(Array.from({ length: 33 }, (_, number) =>
+      [`lib/virtual-coverage-${number}.mjs`, `export function wrapper${number}() { return (x => x + ${number}); }`]));
+    const component = 'js/components/ChatComposer.svelte.native.js';
+    sources.set(component, fs.readFileSync(component, 'utf8'));
+    const separate = new Map([...sources].map(([file, text]) => [file, productionFunctionIndex(text, file)]));
+    const verifiedMaps = new Map([[component, fs.readFileSync(`${component}.map`, 'utf8')]]);
+    expect(productionFunctionIndexes(sources, undefined, verifiedMaps)).toEqual(separate);
+    expect(() => productionFunctionIndexes(new Map([[component, sources.get(component)!]]), undefined, new Map()))
+      .toThrow('Missing verified component source map');
+  });
   it('keeps identically named methods distinct across V8 signature and Istanbul body locations', () => {
     const functions = sourceFunctions(source);
     expect(functions).toHaveLength(2);

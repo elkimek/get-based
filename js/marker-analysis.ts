@@ -208,10 +208,10 @@ export function getPhaseRefEnvelope(marker: ActiveMarker) {
   let min = Infinity, max = -Infinity;
   for (const r of marker.phaseRefRanges) {
     if (!r) continue;
-    if (r.min! < min) min = r.min!;
-    if (r.max! > max) max = r.max!;
+    if (r.min != null && r.min < min) min = r.min;
+    if (r.max != null && r.max > max) max = r.max;
   }
-  return min === Infinity ? null : { min, max };
+  return min === Infinity || max === -Infinity ? null : { min, max };
 }
 
 function contextRangeEnvelope(ranges: NonNullable<ActiveMarker['contextRefRanges']>) {
@@ -319,18 +319,19 @@ export function detectTrendAlerts(data: ActiveData) {
       const latestEntry = nonNull[nonNull.length - 1]!;
       const latestVal = latestEntry.v!;
       const lr = getEffectiveRangeForDate(marker, latestEntry.i); // phase-aware range for latest
+      if (lr.min == null && lr.max == null) continue;
       const prevVal = nonNull[nonNull.length - 2]!.v!;
       const sparkVals = nonNull.slice(-Math.min(5, nonNull.length));
 
       // Sudden change detection (2+ values)
       const jump = Math.abs(latestVal - prevVal);
       if (jump > range * TREND_SUDDEN_JUMP_FRAC) {
-        if (latestVal > lr.max!) {
+        if (lr.max != null && latestVal > lr.max) {
           alerts.push({ id, name: marker.name, category: cat.label, concern: 'sudden_high',
             spark: sparkVals.map(x => formatValue(x.v)), direction: 'rising' });
           continue;
         }
-        if (latestVal < lr.min!) {
+        if (lr.min != null && latestVal < lr.min) {
           alerts.push({ id, name: marker.name, category: cat.label, concern: 'sudden_low',
             spark: sparkVals.map(x => formatValue(x.v)), direction: 'falling' });
           continue;
@@ -347,10 +348,10 @@ export function detectTrendAlerts(data: ActiveData) {
       if (nonNull.length >= 4 && reg.r2 < TREND_MIN_R2) continue;
       const rising = normSlope > 0;
       let concern: string | null = null;
-      if (rising && latestVal > lr.max!) concern = 'past_high';
-      else if (!rising && latestVal < lr.min!) concern = 'past_low';
-      else if (rising && latestVal >= lr.max! - range * TREND_APPROACH_BAND) concern = 'approaching_high';
-      else if (!rising && latestVal <= lr.min! + range * TREND_APPROACH_BAND) concern = 'approaching_low';
+      if (rising && lr.max != null && latestVal > lr.max) concern = 'past_high';
+      else if (!rising && lr.min != null && latestVal < lr.min) concern = 'past_low';
+      else if (rising && lr.max != null && latestVal >= lr.max - range * TREND_APPROACH_BAND) concern = 'approaching_high';
+      else if (!rising && lr.min != null && latestVal <= lr.min + range * TREND_APPROACH_BAND) concern = 'approaching_low';
       if (!concern) continue;
       alerts.push({ id, name: marker.name, category: cat.label, concern,
         spark: sparkVals.map(x => formatValue(x.v)), direction: rising ? 'rising' : 'falling' });

@@ -2,13 +2,20 @@
 import {it,expect,afterEach,beforeEach,vi} from 'vitest';
 import * as candidate from '../js/therapy-correlation-view.js';
 import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 import path from 'node:path';
 import {compareGenuineReceipt} from './helpers/compare-genuine-native-receipts.js';
 import {expectedCorrelationWorkspaceHTML} from './helpers/correlations-workspace-owned-receipts.js';
 import {prepareCorrelationSelection} from '../js/therapy-correlations.js';
 import {state} from '../js/state.js';
-const fault=vi.hoisted(()=>({apply:(raw:string)=>raw}));
-vi.mock('../js/components/CorrelationWorkspaceChrome.svelte.html.js',async original=>{const actual=await original<typeof import('../js/components/CorrelationWorkspaceChrome.svelte.html.js')>();return {...actual,renderHTML:(props:Parameters<typeof actual.renderHTML>[0])=>fault.apply(actual.renderHTML(props))};});
+type WorkspaceProps = Parameters<typeof import('../js/components/CorrelationWorkspaceChrome.svelte.html.js').renderHTML>[0];
+const fault=vi.hoisted(()=>({apply:(raw:string)=>raw, observe: null as null | ((props: WorkspaceProps, html: string) => void)}));
+vi.mock('../js/components/CorrelationWorkspaceChrome.svelte.html.js',async original=>{const actual=await original<typeof import('../js/components/CorrelationWorkspaceChrome.svelte.html.js')>();return {...actual,renderHTML(props: WorkspaceProps) {
+  const html = actual.renderHTML(props);
+  fault.observe?.(props, html);
+  return fault.apply(html);
+}};});
 const boundary=vi.hoisted(()=>({charts:0,saves:0}));
 vi.mock('../js/charts-runtime.js',async importOriginal=>({...await importOriginal<typeof import('../js/charts-runtime.js')>(),createChartRuntime:()=>{boundary.charts++;return null;}}));
 vi.mock('../js/correlation-workspace-store.js',()=>({saveCorrelationWorkspace:()=>{boundary.saves++;return Promise.resolve();}}));
@@ -87,6 +94,28 @@ const scenarios:Scenario[]=[
  {name:'current-getter-order',current:'confirmed',trace:'chrome-getters'}, {name:'current-native-throw',current:'confirmed',trace:'chrome-throw'},
  {name:'inspector-analysis-and-pair-delegates',multiple:true,chromeActions:true}, {name:'usage-inspector-actions',usageOnly:true,chromeActions:true},
 ];
+it.each(scenarios.filter(scenario => !scenario.trace))('keeps native workspace controls for $name', async scenario => {
+ const renders: Array<{props: WorkspaceProps; html: string}> = [];
+ fault.observe = (props, html) => renders.push({props, html});
+ const result = (() => {
+  try { return capture(candidate, 'therapy-timeline', 'none', false, {...scenario, chromeActions: false}); }
+  finally { fault.observe = null; }
+ })();
+ expect(result.saves).toBe(0);
+ expect(renders).toHaveLength(1);
+ const {props, html} = renders[0]!;
+ const native = createRequire(import.meta.url)('../js/components/CorrelationWorkspaceChrome.svelte.native.js') as typeof import('../js/components/CorrelationWorkspaceChrome.svelte.native.js');
+ await expectNativeReview(html, root => {
+  const owned = native.mount(native.default, {target: root, props});
+  native.flushSync();
+  return () => native.unmount(owned);
+ }, root => {
+  expect(root.querySelector('script,img')).toBeNull();
+  const pressedTabs = root.querySelectorAll('[data-corr-tab][aria-pressed="true"]');
+  expect(pressedTabs).toHaveLength(1);
+  expect(pressedTabs[0]!.getAttribute('data-corr-tab')).toBe(props.view.controls.tabs.find(tab => tab.pressed)!.action);
+ });
+});
 it.each(scenarios)('$name preserves genuine original full raw setters, ordered tree, native getter/throw/action receipts',scenario=>{
  const old=before.find(r=>r.name===scenario.name)!.original;
  const current=capture(candidate,'therapy-timeline',scenario.trace||'none',scenario.interact||false,scenario);

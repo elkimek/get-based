@@ -4,14 +4,14 @@ import { expect, test, type Page } from '@playwright/test';
 import { getDecodedToken } from '@cashu/cashu-ts';
 import { startKitServer } from './kit-release-server.js';
 import { prepareStaticWithdraw } from './withdraw-static-fixture.js';
-import { seedStaticWalletMints } from './wallet-static-fixture.js';
+import { readWalletMetaValue, seedStaticWalletMints } from './wallet-static-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page: Page) { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30_000 }); await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true); }
 async function wallet(page: Page) {
   await openStaticSettings(page);
   await page.locator('#settings-nav-ai').click(); await expect(page.locator('[data-routstr-settings-view]')).toBeVisible();
 }
-async function journal(page: Page) { return page.evaluate(() => new Promise<unknown>((resolve, reject) => { const request = indexedDB.open('getbased-cashu', 2); request.onerror = () => reject(request.error); request.onsuccess = () => { const db = request.result, tx = db.transaction('meta', 'readonly'), read = tx.objectStore('meta').get('pendingWithdraw'); read.onsuccess = () => resolve(read.result?.value ?? null); tx.oncomplete = () => db.close(); }; })); }
+function journal(page: Page) { return readWalletMetaValue(page, 'pendingWithdraw'); }
 test('static Routstr shell recovers actual SDK outgoing tokens privately after cached cold launch', async ({ page, context }) => {
   test.setTimeout(150_000); const synthetic = await prepareStaticWithdraw(context), server = await startKitServer(artifact, [synthetic.handleRequest]), errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   try {

@@ -27,6 +27,24 @@ function box(html:string):HTMLDivElement {const result=document.createElement('d
 // Only these seven fixed presentation attributes moved to scoped CSS. Preserve
 // ordered attributes, every Text/comment node and native control defaults.
 function restoreFixedStyles(root:HTMLElement):void {
+  // Assert the accessible form contract before comparing the original retained markup.
+  const title = root.querySelector('.gb-modal-title')!;
+  expect(title.id).toBe('cm-form-title'); title.removeAttribute('id');
+  for (const field of ['cm-category', 'cm-name', 'cm-unit']) {
+    const label = root.querySelector<HTMLLabelElement>(`label[for="${field}"]`)!;
+    expect(label.control).toBe(root.querySelector('#' + field)); label.removeAttribute('for');
+  }
+  const names: Record<string,string> = {'cm-new-cat':'Category name', 'cm-new-cat-icon':'Choose category icon',
+    'cm-ref-min':'Minimum reference value','cm-ref-max':'Maximum reference value','cm-opt-min':'Minimum optimal value','cm-opt-max':'Maximum optimal value'};
+  for (const [id, name] of Object.entries(names)) {
+    const field = root.querySelector('#'+id)!; expect(field.getAttribute('aria-label')).toBe(name); field.removeAttribute('aria-label');
+  }
+  for (const id of ['cm-ref-label', 'cm-opt-label']) {
+    const group = root.querySelector(`[aria-labelledby="${id}"]`)!;
+    expect(group.getAttribute('role')).toBe('group'); group.removeAttribute('role'); group.removeAttribute('aria-labelledby');
+    const title = root.querySelector('#'+id)!; const label = document.createElement('label');
+    label.textContent = title.textContent; title.replaceWith(label);
+  }
   const row=root.querySelector('#cm-new-cat-row');expect(row?.getAttribute('style')).toBe('display:none');row?.setAttribute('style','display:none;margin-top:6px;gap:8px;align-items:center');
   const icon=root.querySelector('#cm-new-cat-icon');expect(icon).not.toBeNull();expect(icon?.hasAttribute('style')).toBe(false);
   if (!icon) throw new Error('Missing category icon');

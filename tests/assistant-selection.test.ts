@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('../js/chat-images.js', () => ({ hasPendingAttachments: vi.fn(() => false) }));
 vi.mock('../js/chat-runtime.js', async original => ({ ...await original<typeof import('../js/chat-runtime.js')>(), updateChatHeaderModelRuntime: vi.fn() }));
 import { captureAssistantSelection, commitAssistantSelection, previewAssistantSelection, readAssistantSelection } from '../js/assistant-selection.js';
-import { setAIProvider, setCustomApiModel, saveCustomApiKey } from '../js/api.js';
+import { setAIProvider, setCustomApiModel, setCustomApiUrl, saveCustomApiKey } from '../js/api.js';
 import { saveAgentChatSettings, setChatBackend } from '../js/agent-chat-settings.js';
 import { cacheAgentModelCatalog } from '../js/agent-model-catalog.js';
 import { setDirectChatReasoningEffort } from '../js/chat-model-preferences.js';
@@ -22,7 +22,7 @@ function installLocks() {
 }
 beforeEach(async () => {
   vi.clearAllMocks(); localStorage.clear(); installLocks(); state.currentProfile = 'selection-fixture'; state.currentThreadId = 'selection-thread'; state.importedData = structuredClone(initial.data);
-  configureApiProviderStorageRuntimeDeps({ encryptedSetItem: async () => {} }); await saveCustomApiKey('original-synthetic-key');
+  configureApiProviderStorageRuntimeDeps({ encryptedSetItem: async () => {} }); setCustomApiUrl('https://custom.example.invalid/v1'); await saveCustomApiKey('original-synthetic-key');
   state.importedData.contextNotes = 'Synthetic retained private context'; state.importedData.notes = [{ date: '2026-10-27', text: 'Retain this saved note' }];
   setChatBackend('direct'); setAIProvider('custom'); setCustomApiModel('model-a');
   localStorage.setItem('labcharts-custom-models', JSON.stringify(['model-a', 'model-b', 'model-c'].map(id => ({ id, name: id, reasoning: { supported_efforts: ['low', 'high'] } }))));

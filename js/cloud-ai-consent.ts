@@ -485,6 +485,7 @@ function processingApprovalSatisfied(provider: string, options: AIProcessingOpti
     endpoint: details.endpoint,
     modelId: options.modelId,
     agentId: options.agentId,
+    targetId: options.targetId,
   });
 }
 
@@ -492,7 +493,7 @@ function processingApprovalSatisfied(provider: string, options: AIProcessingOpti
  * Provider-neutral first-use gate. The transparency record is separate from
  * route confirmation and remote sensitive-data approval records.
  */
-export function requestAIProcessingApproval(provider: string, { kind = 'text', endpoint = '', modelId = '', agentId }: AIProcessingApprovalOptions = {}) {
+export function requestAIProcessingApproval(provider: string, { kind = 'text', endpoint = '', modelId = '', agentId, targetId }: AIProcessingApprovalOptions = {}) {
   if (isAppExtensionAICredentialOwned(provider)) {
     return (async () => {
       if (!hasAcknowledgedAITransparency()) {
@@ -502,7 +503,7 @@ export function requestAIProcessingApproval(provider: string, { kind = 'text', e
         interactive: kind !== 'automatic-insight' });
     })();
   }
-  const options = { endpoint, modelId, agentId };
+  const options = { endpoint, modelId, agentId, targetId };
   const initialDetails = cloudAIConsentDetails(provider, options);
   const promptKey = initialDetails.boundary === 'same-device'
     ? 'transparency'
@@ -513,7 +514,7 @@ export function requestAIProcessingApproval(provider: string, { kind = 'text', e
     const needsDestination = details.boundary === 'private-network'
       ? !hasAIRouteConfirmation(provider, { endpoint: details.endpoint })
       : details.boundary === 'remote'
-        ? !hasCloudAIConsent(provider, { endpoint: details.endpoint, modelId, agentId })
+        ? !hasCloudAIConsent(provider, { endpoint: details.endpoint, modelId, agentId, targetId })
         : false;
     if (needsTransparency && needsDestination) return requestCombinedDestinationActivation(details, kind);
     if (needsTransparency && !await showAITransparencyPrompt()) return false;

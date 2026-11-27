@@ -1,9 +1,28 @@
 // pdf-import-spreadsheet.js - text/spreadsheet import helpers for lab import.
 
-interface SpreadsheetZipEntry { async(type: 'text'): Promise<string> }
+interface SpreadsheetZipStream {
+  on(event: 'data', cb: (chunk: Uint8Array) => void): SpreadsheetZipStream;
+  on(event: 'end', cb: () => void): SpreadsheetZipStream;
+  on(event: 'error', cb: (err: unknown) => void): SpreadsheetZipStream;
+  pause?(): void;
+  resume(): void;
+}
+interface SpreadsheetZipEntry {
+  async(type: 'text'): Promise<string>;
+  internalStream?(type: 'uint8array'): SpreadsheetZipStream;
+}
 interface SpreadsheetZipArchive { file(path: string): SpreadsheetZipEntry | null; files?: Record<string, unknown> }
 interface SpreadsheetZipReader { loadAsync(data: ArrayBuffer): Promise<SpreadsheetZipArchive> }
 const spreadsheetWindow = window as unknown as { JSZip?: SpreadsheetZipReader };
+
+const MAX_XLSX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_XLSX_ZIP_ENTRIES = 500;
+const MAX_XLSX_ENTRY_BYTES = 16 * 1024 * 1024;
+const MAX_XLSX_TOTAL_EXPANDED_BYTES = 32 * 1024 * 1024;
+const MAX_XLSX_SHEETS = 50;
+const MAX_XLSX_COLUMN_INDEX = 16_383;
+const MAX_XLSX_ROWS_PER_SHEET = 25_000;
+const MAX_XLSX_OUTPUT_CHARS = 2_000_000;
 
 export function isCsvTextFile(file: Pick<File, 'name' | 'type'>) {
   return /\.csv$/i.test(file.name) || file.type === 'text/csv';
@@ -45,9 +64,56 @@ function parseXmlDocument(xml: string, label: string) {
   return doc;
 }
 
-async function readZipText(zip: SpreadsheetZipArchive, path: string) {
-  const entry = zip.file(path);
-  return entry ? await entry.async('text') : null;
+async function readZipText(
+  zip: SpreadsheetZipArchive,
+  path: string,
+  budget: { remaining: number } = { remaining: MAX_XLSX_TOTAL_EXPANDED_BYTES },
+): Promise<string | null> {
+  const entry = zip.file(path) || zip.file(path.replace(/^\/+/, ''));
+  if (!entry) return null;
+  const maxBytes = Math.min(MAX_XLSX_ENTRY_BYTES, budget.remaining);
+  if (maxBytes <= 0) throw new Error('Excel workbook exceeds maximum uncompressed size');
+  if (typeof entry.internalStream === 'function') {
+    const bytes = await new Promise<Uint8Array>((resolve, reject) => {
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      let settled = false;
+      const stream = entry.internalStream!('uint8array');
+      stream
+        .on('data', chunk => {
+          if (settled) return;
+          total += chunk.byteLength;
+          if (total > maxBytes) {
+            settled = true;
+            try { stream.pause?.(); } catch {}
+            reject(new Error('Excel workbook exceeds maximum uncompressed size'));
+            return;
+          }
+          chunks.push(chunk);
+        })
+        .on('end', () => {
+          if (settled) return;
+          settled = true;
+          const out = new Uint8Array(total);
+          let offset = 0;
+          for (const c of chunks) { out.set(c, offset); offset += c.byteLength; }
+          resolve(out);
+        })
+        .on('error', err => {
+          if (settled) return;
+          settled = true;
+          reject(err);
+        })
+        .resume();
+    });
+    budget.remaining -= bytes.byteLength;
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+  const text = await entry.async('text');
+  const size = new TextEncoder().encode(text).byteLength;
+  if (size > maxBytes) throw new Error('Excel workbook exceeds maximum uncompressed size');
+  budget.remaining -= size;
+  return text;
 }
 
 function normalizeSpreadsheetCellText(value: unknown) {
@@ -128,10 +194,12 @@ function excelSerialDateToISO(value: unknown, date1904 = false) {
 function getCellColumnIndex(cell: Element, fallbackIndex: number) {
   const ref = cell.getAttribute('r') || '';
   const letters = ref.match(/^[A-Z]+/i)?.[0];
-  if (!letters) return fallbackIndex;
+  if (!letters) return Math.min(fallbackIndex, MAX_XLSX_COLUMN_INDEX);
+  if (letters.length > 4) return -1;
   let index = 0;
   for (const char of letters.toUpperCase()) index = index * 26 + char.charCodeAt(0) - 64;
-  return index - 1;
+  const col = index - 1;
+  return col >= 0 && col <= MAX_XLSX_COLUMN_INDEX ? col : -1;
 }
 
 function getFirstChildText(element: Element, localName: string) {
@@ -154,22 +222,34 @@ function extractWorksheetRows(worksheetXml: string, sharedStrings: string[], dat
   const doc = parseXmlDocument(worksheetXml, 'Excel worksheet');
   const rows: string[][] = [];
   for (const row of getXmlElements(doc, 'row')) {
-    const values: string[] = [];
+    const cellMap = new Map<number, string>();
+    let maxCol = -1;
     let fallbackColumn = 0;
     const cells = Array.from(row.children).filter(el => el.localName === 'c');
     for (const cell of cells) {
       const columnIndex = getCellColumnIndex(cell, fallbackColumn);
+      if (columnIndex < 0) continue;
       fallbackColumn = columnIndex + 1;
-      values[columnIndex] = getXlsxCellValue(cell, sharedStrings, dateStyleIndexes, date1904);
+      const text = normalizeSpreadsheetCellText(getXlsxCellValue(cell, sharedStrings, dateStyleIndexes, date1904));
+      if (text) {
+        cellMap.set(columnIndex, text);
+        if (columnIndex > maxCol) maxCol = columnIndex;
+      }
     }
-    const normalized = values.map(value => normalizeSpreadsheetCellText(value));
-    if (normalized.some(Boolean)) rows.push(normalized);
+    if (maxCol >= 0) {
+      if (rows.length >= MAX_XLSX_ROWS_PER_SHEET) {
+        throw new Error(`Excel worksheet exceeds the ${MAX_XLSX_ROWS_PER_SHEET.toLocaleString('en-US')} row import limit`);
+      }
+      const normalized = new Array<string>(maxCol + 1).fill('');
+      for (const [col, val] of cellMap) normalized[col] = val;
+      rows.push(normalized);
+    }
   }
   return rows;
 }
 
-async function getWorkbookSheets(zip: SpreadsheetZipArchive, workbookDoc: Document) {
-  const relsXml = await readZipText(zip, 'xl/_rels/workbook.xml.rels');
+async function getWorkbookSheets(zip: SpreadsheetZipArchive, workbookDoc: Document, budget: { remaining: number }) {
+  const relsXml = await readZipText(zip, 'xl/_rels/workbook.xml.rels', budget);
   const relationshipTargets = new Map<string | null, string | null>();
   if (relsXml) {
     const relsDoc = parseXmlDocument(relsXml, 'Excel workbook relationships');
@@ -178,6 +258,7 @@ async function getWorkbookSheets(zip: SpreadsheetZipArchive, workbookDoc: Docume
     }
   }
 
+  const seenPaths = new Set<string>();
   const sheets = getXmlElements(workbookDoc, 'sheet').map((sheet, index) => {
     const relId = getRelationshipId(sheet);
     const target = relId ? relationshipTargets.get(relId) : null;
@@ -185,42 +266,67 @@ async function getWorkbookSheets(zip: SpreadsheetZipArchive, workbookDoc: Docume
       name: sheet.getAttribute('name') || `Sheet ${index + 1}`,
       path: target ? resolveZipPath('xl', target) : `xl/worksheets/sheet${index + 1}.xml`,
     };
+  }).filter(sheet => {
+    if (!sheet.path || seenPaths.has(sheet.path)) return false;
+    seenPaths.add(sheet.path);
+    return true;
   });
+  if (sheets.length > MAX_XLSX_SHEETS) {
+    throw new Error(`Excel workbook exceeds the ${MAX_XLSX_SHEETS} sheet import limit`);
+  }
 
   if (sheets.length > 0) return sheets;
-  return Object.keys(zip.files || {})
+  const fallbackSheets = Object.keys(zip.files || {})
     .filter(path => /^xl\/worksheets\/sheet\d+\.xml$/i.test(path))
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-    .map((path, index) => ({ name: `Sheet ${index + 1}`, path }));
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  if (fallbackSheets.length > MAX_XLSX_SHEETS) {
+    throw new Error(`Excel workbook exceeds the ${MAX_XLSX_SHEETS} sheet import limit`);
+  }
+  return fallbackSheets.map((path, index) => ({ name: `Sheet ${index + 1}`, path }));
 }
 
-export async function extractXLSXText(file: Pick<File, 'name' | 'arrayBuffer'>) {
+export async function extractXLSXText(file: Pick<File, 'name' | 'arrayBuffer'> & { size?: number }) {
+  if (typeof file.size === 'number' && file.size > MAX_XLSX_FILE_BYTES) {
+    throw new Error('Excel workbook exceeds the 25 MB import limit');
+  }
   const JSZip = await loadJSZip();
-  const zip = await JSZip.loadAsync(await file.arrayBuffer());
-  const workbookXml = await readZipText(zip, 'xl/workbook.xml');
+  const buffer = await file.arrayBuffer();
+  if (buffer.byteLength > MAX_XLSX_FILE_BYTES) {
+    throw new Error('Excel workbook exceeds the 25 MB import limit');
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  if (Object.keys(zip.files || {}).length > MAX_XLSX_ZIP_ENTRIES) {
+    throw new Error('Excel workbook contains too many archive entries');
+  }
+  const budget = { remaining: MAX_XLSX_TOTAL_EXPANDED_BYTES };
+  const workbookXml = await readZipText(zip, 'xl/workbook.xml', budget);
   if (!workbookXml) throw new Error('Workbook metadata is missing');
 
   const workbookDoc = parseXmlDocument(workbookXml, 'Excel workbook');
   const workbookPr = getXmlElements(workbookDoc, 'workbookPr')[0];
   const date1904 = ['1', 'true'].includes(String(workbookPr?.getAttribute('date1904') || '').toLowerCase());
-  const sharedStringsXml = await readZipText(zip, 'xl/sharedStrings.xml');
+  const sharedStringsXml = await readZipText(zip, 'xl/sharedStrings.xml', budget);
   const sharedStrings = sharedStringsXml
     ? getXmlElements(parseXmlDocument(sharedStringsXml, 'Excel shared strings'), 'si')
       .map(si => normalizeSpreadsheetCellText(si.textContent || ''))
     : [];
-  const dateStyleIndexes = getDateStyleIndexes(await readZipText(zip, 'xl/styles.xml'));
-  const sheets = await getWorkbookSheets(zip, workbookDoc);
+  const dateStyleIndexes = getDateStyleIndexes(await readZipText(zip, 'xl/styles.xml', budget));
+  const sheets = await getWorkbookSheets(zip, workbookDoc, budget);
   const blocks: string[] = [];
+  let totalChars = 0;
 
   for (const sheet of sheets) {
-    const worksheetXml = await readZipText(zip, sheet.path);
+    const worksheetXml = await readZipText(zip, sheet.path, budget);
     if (!worksheetXml) continue;
     const rows = extractWorksheetRows(worksheetXml, sharedStrings, dateStyleIndexes, date1904);
     if (rows.length === 0) continue;
-    blocks.push([
+    const block = [
       `Sheet: ${sheet.name}`,
       ...rows.map(row => row.map(value => normalizeSpreadsheetCellText(value)).join('\t')),
-    ].join('\n'));
+    ].join('\n');
+    totalChars += block.length;
+    if (totalChars > MAX_XLSX_OUTPUT_CHARS) throw new Error('Excel workbook text exceeds the maximum import size');
+    blocks.push(block);
   }
 
   if (blocks.length === 0) return '';

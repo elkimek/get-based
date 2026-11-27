@@ -433,11 +433,19 @@ test('in-browser lens render covers local panel status and backend switching wit
         && !!section.querySelector('#lens-enabled-toggle[data-lens-action="toggle-enabled"]')
         && !!section.querySelector('[data-lens-action="save-config"]');
 
+      const waitForControl = async (ready: () => boolean) => {
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if (ready()) return;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        throw new Error('Lens controls did not reflect the committed preference');
+      };
       const enabledToggle = /** @type {HTMLInputElement | null} */ (section.querySelector('#lens-enabled-toggle') as HTMLInputElement | null);
       if (enabledToggle) {
         enabledToggle.checked = false;
         enabledToggle.dispatchEvent(new Event('change', { bubbles: true }));
       }
+      await waitForControl(() => document.getElementById('lens-status-chip')?.textContent.includes('Ready, currently off') === true);
       outcomes.toggleUpdatesConfigAndStatusChipWithoutRerender = lens.getLensConfig().enabled === false
         && document.getElementById('lens-status-chip')?.textContent.includes('Ready, currently off');
 
@@ -445,6 +453,7 @@ test('in-browser lens render covers local panel status and backend switching wit
       outcomes.clearCacheKeepsStatusCallable = typeof lens.getLensStatus().state === 'string';
 
       section.querySelector<HTMLElement>('[data-lens-action="set-backend"][data-lens-backend="external-server"]')?.click();
+      await waitForControl(() => !!section.querySelector('#lens-url-input'));
       const remoteFieldsAfterSwitch = /** @type {HTMLElement | null} */ (section.querySelector('#lens-remote-fields'));
       const localFieldsAfterSwitch = /** @type {HTMLElement | null} */ (section.querySelector('#lens-local-fields'));
       outcomes.backendSwitchRerendersRemoteFieldsAndRemovesLegacyIndicator = lens.getLensConfig().backend === 'external-server'

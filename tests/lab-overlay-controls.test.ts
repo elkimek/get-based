@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { createProfile, createDefaultProfileData, getProfiles, saveProfiles, profileStorageKey } from '../js/profile.js';
 import { saveImportedData } from '../js/data.js';
@@ -8,7 +8,9 @@ import { clearSyncSaveTimers } from '../js/sync-save-hooks.js';
 import { commitLabOverlayPreferences, readLabOverlayPreferences } from '../js/lab-overlay-preferences.js';
 import { setNoteOverlay, configureDataRuntimeDeps } from '../js/data-view-controls.js';
 import { setContextSourceEnabled } from '../js/context-source-registry.js';
-import type { LabOverlayPatch } from '../shared/lab-overlay-contract.js';
+import { projectChatMessageActions } from '../js/chat-message-actions-contract.js';
+import type { AppControlRecord } from '../shared/agent-control-contract.js';
+import { labOverlaySignature, type LabOverlayControlIdentity, type LabOverlayPatch } from '../shared/lab-overlay-contract.js';
 const patch: LabOverlayPatch = { notes: true, supplements: true, cycle: true };
 const original = { profile: state.currentProfile, data: state.importedData, history: state.chatHistory, thread: state.currentThreadId, sex: state.profileSex, notes: state.noteOverlayMode, supps: state.suppOverlayMode, cycle: state.phaseOverlayMode }, active = localStorage.getItem('labcharts-active-profile');
 const locks = Object.getOwnPropertyDescriptor(navigator, 'locks'); let profile: string;
@@ -24,12 +26,50 @@ afterEach(async () => {
   state.currentProfile = original.profile; state.importedData = original.data; state.chatHistory = original.history; state.currentThreadId = original.thread; state.profileSex = original.sex; state.noteOverlayMode = original.notes; state.suppOverlayMode = original.supps; state.phaseOverlayMode = original.cycle;
   if (active === null) localStorage.removeItem('labcharts-active-profile'); else localStorage.setItem('labcharts-active-profile', active);
 });
-import { retiredManagementCases } from './helpers/chat-management-retirement.js';
-describe('labs.overlays remains native-only', () => {
-  const cases = retiredManagementCases('labs.overlays');
-  it('creates no snapshot or proposal and invokes no injected native handler', cases.noProposal);
-  it.each(['pending','applying','changed','undone','discarded','expired','conflict','unknown'])('cannot execute or grant Undo from a stored %s label', cases.storedLabel);
-  it('does not restore management authority after off/on or a fresh native-looking lease', cases.noAuthority);
+import { defineRetiredManagement } from './helpers/chat-management-retirement.js';
+defineRetiredManagement('labs.overlays', (title, run) => it(title, run));
+
+it('canonicalizes historical chart-layer signatures while binding them to their owner and exact settings', () => {
+  const record: LabOverlayControlIdentity = {
+    id: 'historical-layers', action: 'labs.overlays', profileId: profile, threadId: 'layer-thread', leaseId: 'previous-review',
+    parameters: { notes: true, supplements: false }, baseline: { notes: false, supplements: true },
+    reason: 'Update the chart layers', evidence: 'Show my notes.',
+  };
+  const signature = labOverlaySignature(record);
+  expect(labOverlaySignature({
+    ...record, parameters: { supplements: false, notes: true }, baseline: { supplements: true, notes: false },
+    reason: ` ${record.reason} `, evidence: ` ${record.evidence} `,
+  })).toBe(signature);
+  for (const change of [
+    { profileId: 'other-profile' }, { threadId: 'other-thread' }, { leaseId: 'other-review' },
+    { parameters: { notes: true, supplements: true } }, { baseline: { notes: false, supplements: false } },
+  ]) expect(labOverlaySignature({ ...record, ...change })).not.toBe(signature);
+});
+
+it('keeps historical chart-layer reviews native-only and hides them when their profile or sources are unavailable', () => {
+  const history: AppControlRecord = {
+    version: 1, id: 'historical-layers', action: 'labs.overlays', status: 'changed', profileId: profile,
+    threadId: 'layer-thread', leaseId: 'previous-review', reason: 'Update my chart layers', evidence: 'Show my notes and supplements.',
+    parameters: patch, baseline: {notes: false, supplements: false, cycle: false}, undoAvailable: true,
+  };
+  state.chatHistory = [{role: 'assistant', content: 'Saved chart-layer settings', appControls: [history]}];
+  const reviews = () => projectChatMessageActions(state.chatHistory, 0)!.reviews;
+  expect(reviews()).toMatchObject([{kind: 'app', control: {id: history.id}, lifecycle: {canReview: false, label: 'Managed in native UI'}}]);
+
+  for (const source of ['lab-markers', 'insight-cards', 'supplements-meds'] as const) {
+    setContextSourceEnabled(source, false);
+    expect(reviews()).toEqual([]);
+    setContextSourceEnabled(source, true);
+  }
+  state.profileSex = null;
+  expect(reviews()).toEqual([]);
+  state.profileSex = 'female';
+  expect(reviews()).toHaveLength(1);
+
+  state.currentProfile = 'another-profile';
+  expect(reviews()).toEqual([]);
+  state.currentProfile = profile;
+  expect(readLabOverlayPreferences()).toEqual({notes: false, supplements: false, cycle: false});
 });
 
 it('rolls back a partially failed multi-switch save before publishing cached modes', async () => {

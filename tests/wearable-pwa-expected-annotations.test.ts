@@ -1,6 +1,7 @@
 import {expect,it} from 'vitest';
 import {JSDOM} from 'jsdom';
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {expectedWearablePwaRaw} from './helpers/wearable-pwa-expected-annotations.js';
 import {normalizeWearableTree} from './helpers/wearable-genuine-dom.js';
 import {wearableDetailBodyReceipt} from './helpers/wearable-detail-pwa-receipt.js';
@@ -33,10 +34,37 @@ it.each([
 ] as const)('keeps complete normalized body/action/input comparison sensitive to %s',(_name,change)=>{
  expect(normalizeWearableTree(structuredClone(body(change(fixture.actualCapturedRaw))))).not.toEqual(normalizeWearableTree(structuredClone(body(fixture.originalRaw))));
 });
-it('leaves the old normalizer byte-identical and keeps all nonrepresentation PWA assertions intact',()=>{
- const source=readFileSync(new URL('./pwa/sveltekit-wearable-detail.spec.ts',import.meta.url),'utf8');
- expect(source).toContain('normalizeWearableTree(structuredClone(await modal.evaluate(wearableDetailBodyReceipt)))');
- expect(source).toContain('normalizeWearableTree(structuredClone(receipt.body))');
- expect(source).toContain("expect(receipt.raw).toBe(expectedRawStates['phase-'+currentPhase+'/'+profileState+'/'+name]);");
- for(const guard of ['const originalExpected=chartQualification.qualify(native.rawStates[phaseKey]!.chart) as ChartReceipt','const pairedPaint=await reference.compare(page,phaseKey,chart,artifact.state,wearableActualChartReceipt)','expect(chart).toEqual({...originalExpected,datasetMetadata:referenceFrame.datasetMetadata,paint:pairedPaint})','expect(events).toEqual(oracle.eventChronology)','expect(events).toEqual(reference.eventChronology)','expect(reference.eventChronology).toEqual(reference.expectedEventChronology)','expect(receipt.profile).toEqual(qualifyWearableManualProfile(native.rawStates','expect(receipt.device).toEqual(qualifyWearableManualDevice(native.rawStates','expect(actualProfile).toEqual(oracle.profileStates','expect(chart.rawNativeConfiguration).toEqual(chartQualification.qualify(oracle.chartStates','expect(createHash(\'sha256\').update(bytes).digest(\'hex\')).toBe(input.identity.sha256)'])expect(source).toContain(guard);
+it('binds exact historical observations and calendar-adjusted native receipts to the shipping PWA comparison', () => {
+  const normalizer = readFileSync(new URL('./helpers/wearable-genuine-dom.ts', import.meta.url));
+  expect(createHash('sha256').update(normalizer).digest('hex')).toBe('cc2fa6467b738887eabfe91de7e79905fb4e04de7f6c2fadc3f9f383845c7054');
+  const reference = readFileSync(new URL('./helpers/wearable-chart-reference.ts', import.meta.url), 'utf8');
+  for (const guard of [
+    "assert.deepEqual(nonChart,oldNonChart,'Exact complete historical original non-chart receipt')",
+    "assert.deepEqual(chart.rawNativeConfiguration,history.oracle.chartStates[receipt.profileState+'/'+receipt.name])",
+    'const restore=await applyWindowPresentation(target,actualArtifact.state,calendarView(receipt.profileState,receipt.name))',
+    'const correctedChart=await target.evaluate(wearableActualChartReceipt,actualArtifact.state)',
+    'correctedStates[key]={chart:correctedChart,body:await modal.evaluate(wearableDetailBodyReceipt),raw:await modal.evaluate(el=>el.innerHTML)}',
+    "assert.deepEqual(restored,chart,'Complete same-browser historic chart restored')",
+    "assert.equal(await target.locator('#detail-modal').evaluate(el=>el.innerHTML),receipt.raw,'Complete historic modal restored')",
+    'assertWearableChartFrame(expected,actual)',
+  ]) expect(reference).toContain(guard);
+
+  const source = readFileSync(new URL('./pwa/sveltekit-wearable-detail.spec.ts', import.meta.url), 'utf8');
+  for (const guard of [
+    "const phaseKey='phase-'+currentPhase+'/'+profileState+'/'+name;const amended=reference.correctedStates[phaseKey]!",
+    'normalizeWearableTree(structuredClone(await modal.evaluate(wearableDetailBodyReceipt)))).toEqual(normalizeWearableTree(structuredClone(amended.body)))',
+    'expect(normalizeWearableTree(structuredClone(receipt.body))).toEqual(normalizeWearableTree(structuredClone(amended.body)))',
+    'expect(receipt.raw).toBe(expectedWearablePwaRaw(amended.raw))',
+    'const originalExpected=chartQualification.qualify(amended.chart!) as ChartReceipt',
+    'const pairedPaint=await reference.compare(page,phaseKey,chart,artifact.state,wearableActualChartReceipt)',
+    'expect(chart).toEqual({...originalExpected,datasetMetadata:referenceFrame.datasetMetadata,paint:pairedPaint})',
+    'expect(events).toEqual(oracle.eventChronology)', 'expect(events).toEqual(reference.eventChronology)',
+    'expect(reference.eventChronology).toEqual(reference.expectedEventChronology)',
+    'expect(receipt.profile).toEqual(qualifyWearableManualProfile(native.rawStates',
+    'expect(receipt.device).toEqual(qualifyWearableManualDevice(native.rawStates',
+    'expect(actualProfile).toEqual(oracle.profileStates',
+    'expect(chart.rawNativeConfiguration).toEqual(chartQualification.qualify(amended.chart!.rawNativeConfiguration))',
+    'expect({cases:chart.nativeCallbackCases,outputs:chart.nativeCallbackOutputs}).toEqual({cases:amended.chart!.nativeCallbackCases,outputs:amended.chart!.nativeCallbackOutputs})',
+    "expect(createHash('sha256').update(bytes).digest('hex')).toBe(input.identity.sha256)",
+  ]) expect(source).toContain(guard);
 });

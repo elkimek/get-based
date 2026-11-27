@@ -1,11 +1,23 @@
-import{nativeBurdenView,expectedGenuineLightChildren,genuineLightChildReceipts}from'./helpers/light-genuine-child-native-receipts.js';
+import{nativeBurdenView,nativeEnvironmentView,expectedGenuineLightChildren,genuineLightChildReceipts}from'./helpers/light-genuine-child-native-receipts.js';
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
+import {createRequire} from 'node:module';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { configureLightEnv, renderEnvironmentAssessmentSummary, renderEnvironmentSection, computeIndoorBurden } from '../js/light-env.js';
 import { renderHTML } from '../js/components/LightEnvironmentSummary.svelte.html.js';
 import type { EnvironmentSummaryView } from '../js/light-environment-summary-presentation.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+
+type PresentedEnvironment = Parameters<typeof import('../js/components/LightEnvironmentPresentation.svelte.html.js').renderHTML>[0];
+const observation = vi.hoisted(() => ({read: null as null | ((props: PresentedEnvironment) => void)}));
+vi.mock('../js/components/LightEnvironmentPresentation.svelte.html.js', async importActual => {
+  const actual = await importActual<typeof import('../js/components/LightEnvironmentPresentation.svelte.html.js')>();
+  return {renderHTML(props: PresentedEnvironment) {
+    observation.read?.(props);
+    return actual.renderHTML(props);
+  }};
+});
 interface Sample { name:string;data:unknown;expanded:boolean;callbacks:boolean;embedded:boolean;section:string;summary:string }
 const original=JSON.parse(readFileSync('tests/fixtures/light-environment-room-original.json','utf8')) as {now:number;cases:Sample[]};
 const saved=state.importedData;
@@ -28,6 +40,36 @@ for(const sample of original.cases)it(`preserves independent assessment and load
   const before=JSON.stringify(state.importedData);
   expect(describe(renderEnvironmentAssessmentSummary(),'.light-env-assessment-summary')).toEqual(describe(sample.summary,'.light-env-assessment-summary'));
   expect(describe(renderEnvironmentSection({embedded:sample.embedded}),'.light-env-summary')).toEqual(describe(expectedGenuineLightChildren(sample.section),'.light-env-summary'));
+  expect(JSON.stringify(state.importedData)).toBe(before);
+});
+it.each(original.cases)('mounts the actual native Environment graph for $name', async sample => {
+  (state as {importedData:unknown}).importedData=structuredClone(sample.data);
+  const priorRoom = state.importedData?.lightEnvironment?.rooms[0]?.id;
+  localStorage.setItem('labcharts-light-env-active-room', sample.expanded ? String(priorRoom || '') : '__none__');
+  configureLightEnv({
+    getMeasurementsForRoom: (id: unknown) => (state.importedData.lightMeasurements || []).filter(measurement => measurement.roomId === id),
+    getBurdenInterpretationView: sample.callbacks ? () => nativeBurdenView() : null,
+    getMeasurementAIView: sample.callbacks ? () => nativeEnvironmentView('measurement') : null,
+    getRoomAIView: sample.callbacks ? () => nativeEnvironmentView('room') : null,
+  });
+
+  const before = JSON.stringify(state.importedData);
+  const presented: PresentedEnvironment[] = [];
+  observation.read = props => presented.push(props);
+  let html: string;
+  try { html = renderEnvironmentSection({embedded: sample.embedded}); }
+  finally { observation.read = null; }
+  expect(presented).toHaveLength(1);
+  const props = presented[0]!;
+  const native = createRequire(import.meta.url)('../js/components/LightEnvironmentPresentation.svelte.native.js') as typeof import('../js/components/LightEnvironmentPresentation.svelte.native.js');
+  await expectNativeReview(html, root => {
+    const owned = native.mount(native.default, {target: root, props});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    expect(root.querySelectorAll('[data-light-environment-room]')).toHaveLength(props.view.rooms.length);
+    expect(root.querySelector('[data-light-env-action="add-room"]')).not.toBeNull();
+  });
   expect(JSON.stringify(state.importedData)).toBe(before);
 });
 for(const result of [undefined,null])it(`preserves trusted callback coercion for ${String(result)} and live model authority`,()=>{

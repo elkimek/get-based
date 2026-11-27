@@ -95,7 +95,6 @@ test('chat history browser coverage saves loads clears and updates thread state'
         createdAt: firstUpdatedAt,
         updatedAt: firstUpdatedAt,
         messageCount: 1,
-        personality: 'default',
         summary: 'old summary',
         summaryDate: '2026-06-01T00:00:00.000Z',
         summaryModel: 'Old Model',
@@ -115,6 +114,7 @@ test('chat history browser coverage saves loads clears and updates thread state'
         && savedMessages[1]!.content === 'Ferritin is improving.';
       outcomes.saveUpdatesThreadMetadata = savedThread!.messageCount === 2
         && savedThread!.updatedAt !== firstUpdatedAt
+        && savedThread!.personality === 'default'
         && savedThread!.personalityName === 'AI Lab Analyst'
         && savedThread!.personalityIcon === '\uD83D\uDD2C';
       outcomes.saveRendersThreadList = document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="thread-a"]')

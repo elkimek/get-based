@@ -8,6 +8,7 @@ export interface UpdateWorkerView {
   addEventListener?: ServiceWorker['addEventListener'];
 }
 export interface UpdateRegistrationView {
+  active?: UpdateWorkerView | null;
   waiting?: UpdateWorkerView | null;
   installing?: UpdateWorkerView | null;
   update?: () => Promise<unknown>;
@@ -470,6 +471,52 @@ async function unregisterDevServiceWorkers(serviceWorkerContainer: UpdateContain
   }
 }
 
+function observeFirstInstall(worker: UpdateWorkerView, win: UpdateWindowView) {
+  return new Promise<'installed' | 'failed' | 'departed'>(resolve => {
+    const listeners = new AbortController();
+    const finish = (result: 'installed' | 'failed' | 'departed') => {
+      listeners.abort();
+      resolve(result);
+    };
+    const onStateChange = () => {
+      if (worker.state === 'parsed' || worker.state === 'installing') return;
+      finish(worker.state === 'redundant' ? 'failed' : 'installed');
+    };
+    win.addEventListener?.('pagehide', event => {
+      if (!event.persisted) finish('departed');
+    }, { signal: listeners.signal });
+    worker.addEventListener!('statechange', onStateChange, { signal: listeners.signal });
+    onStateChange();
+  });
+}
+
+async function registerWithFirstInstallRetry(container: UpdateContainerView, win: UpdateWindowView) {
+  const register = () => container.register!('/service-worker.js', { updateViaCache: 'none' });
+  if (container.controller) return register();
+  let registration: UpdateRegistrationView;
+  try {
+    registration = await register();
+  } catch (error) {
+    if (container.controller) throw error;
+    return register();
+  }
+  if (container.controller || registration.active !== null || registration.waiting) return registration;
+
+  // register() can resolve before precaching finishes. A failed first install
+  // leaves no usable worker, even when that registration promise fulfilled.
+  const first = registration.installing;
+  if (first?.addEventListener) {
+    const result = await observeFirstInstall(first, win);
+    if (result === 'departed') return null;
+    if (result === 'installed') return registration;
+  }
+
+  const installing = registration.installing;
+  if (container.controller || registration.active || registration.waiting
+      || (installing && installing.state !== 'redundant')) return registration;
+  return register();
+}
+
 export async function registerServiceWorkerUpdates({
   win = getDefaultServiceWorkerWindow(),
   serviceWorkerContainer = getDefaultServiceWorkerContainer(),
@@ -485,7 +532,8 @@ export async function registerServiceWorkerUpdates({
   }
 
   try {
-    const registration = await serviceWorkerContainer.register!('/service-worker.js', { updateViaCache: 'none' });
+    const registration = await registerWithFirstInstallRetry(serviceWorkerContainer, win);
+    if (!registration) return null;
     registeredContainer = serviceWorkerContainer;
     reloadPage = () => win.location!.reload();
     win.addEventListener?.('pagehide', suspendVersionUpdateBanner);

@@ -2,8 +2,8 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 const mocks = vi.hoisted(() => ({ wearable: vi.fn(), cycle: vi.fn(), notify: vi.fn() }));
 vi.mock('../js/utils.js', () => ({ showConfirmDialog: async () => true, showNotification: mocks.notify, escapeAttr: (value: unknown) => value, escapeHTML: (value: unknown) => value }));
-vi.mock('../js/wearables-store.js', () => ({ getDailyRangeRaw: vi.fn(), upsertDailyBatchRaw: mocks.wearable }));
-vi.mock('../js/backup-cycle.js', () => ({ restoreCycleBackup: mocks.cycle }));
+vi.mock('../js/wearables-store.js', async importOriginal => ({ ...await importOriginal<typeof import('../js/wearables-store.js')>(), getDailyRangeRaw: async () => [], replaceWearableBackupRows: mocks.wearable }));
+vi.mock('../js/backup-cycle.js', () => ({ collectCycleBackup: async () => ({ observations: {}, importMeta: {} }), replaceCycleBackup: mocks.cycle }));
 import { openBackupDB, restoreAutoBackup } from '../js/backup.js';
 import { LENS_CONFIG_STORAGE_KEY, LENS_CONFIG_COMMIT_KEY } from '../js/lens-config-store.js';
 beforeEach(() => { vi.resetAllMocks(); localStorage.clear(); globalThis.indexedDB = new IDBFactory(); });
@@ -11,12 +11,12 @@ it('waits for the remaining store after one dependency fails and never announces
   const db = await openBackupDB();
   const id = await new Promise<IDBValidKey>((resolve, reject) => {
     const tx = db.transaction('snapshots', 'readwrite');
-    const request = tx.objectStore('snapshots').add({ snapshot: { createdAt: '2026-09-21', profileList: '[]', profiles: [], wearableIDB: { a: { manual: [{ date: '2026-09-21' }] } } } });
+    const request = tx.objectStore('snapshots').add({ snapshot: { createdAt: '2026-09-21', profileList: JSON.stringify([{id:'a'}]), profiles: [{profileId:'a',keys:{}}], wearableIDB: { a: { manual: [{ source:'manual', date:'2026-09-21' }] } }, cycleIDB:{} } });
     tx.oncomplete = () => resolve(request.result); tx.onabort = () => reject(tx.error);
   });
   let release: (() => void) | undefined;
-  mocks.wearable.mockRejectedValue(new Error('Quota'));
-  mocks.cycle.mockImplementation(() => new Promise<void>(resolve => { release = resolve; }));
+  mocks.wearable.mockRejectedValueOnce(new Error('Quota')).mockResolvedValue(undefined);
+  mocks.cycle.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; })).mockResolvedValue(undefined);
   let settled = false;
   const restore = restoreAutoBackup(id).finally(() => { settled = true; });
   const rejection = expect(restore).rejects.toThrow('Backup restore incomplete');

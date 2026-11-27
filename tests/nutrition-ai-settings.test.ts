@@ -372,26 +372,29 @@ describe('meal-photo model routing', () => {
     expect(renderNutritionAISettings()).toContain('$0.5 in · $2 out / 1M');
   });
 
-  it('recommends Venice Astra and preserves the selected legacy Sol route', () => {
+  it('offers both GPT-6.2 Venice vision tiers and preserves the selected legacy Sol route', () => {
     updateKeyCache('labcharts-venice-key', 'test-venice-key');
     setAIProvider('venice');
     setVeniceModel('openai-gpt-56-sol');
     localStorage.setItem('labcharts-venice-models', JSON.stringify([
-      { id: 'openai-gpt-6-astra', name: 'OpenAI GPT 6 Astra' },
+      { id: 'openai-gpt-62-astra', name: 'GPT-6.2 Astra' },
+      { id: 'openai-gpt-62-sol', name: 'GPT-6.2 Sol' },
       { id: 'openai-gpt-56-sol', name: 'OpenAI GPT 5.6 Sol' },
     ]));
     localStorage.setItem('labcharts-venice-vision-models', JSON.stringify([
-      'openai-gpt-6-astra', 'openai-gpt-56-sol',
+      'openai-gpt-62-astra', 'openai-gpt-62-sol', 'openai-gpt-56-sol',
     ]));
 
     expect(getMealAISelection()).toMatchObject({
       provider: 'venice', model: 'openai-gpt-56-sol', usesChatModel: true, available: true,
     });
     expect(listNutritionVisionModels().filter(model => model.provider === 'venice')).toEqual([
-      expect.objectContaining({ provider: 'venice', model: 'openai-gpt-6-astra' }),
+      expect.objectContaining({ provider: 'venice', model: 'openai-gpt-62-astra' }),
+      expect.objectContaining({ provider: 'venice', model: 'openai-gpt-62-sol' }),
     ]);
     expect(renderNutritionAISettings()).toContain('Follow chat assistant — OpenAI GPT 5.6 Sol');
-    expect(renderNutritionAISettings()).toContain('OpenAI GPT 6 Astra');
+    expect(renderNutritionAISettings()).toContain('GPT-6.2 Astra');
+    expect(renderNutritionAISettings()).toContain('GPT-6.2 Sol');
     expect(renderNutritionAISettings()).toContain('OpenAI GPT 5.6 Sol');
   });
 
@@ -438,4 +441,20 @@ it('keeps an unavailable dedicated model selected until its confirmed catalog re
   const recovered = buildNutritionAISettingsSnapshot();
   expect(recovered.selectedValue).toBe(missing.selectedValue);
   expect(recovered.groups.some(group => group.label === 'Saved choice unavailable')).toBe(false);
+});
+it('hides non-private vision models when PPQ Private Mode is active', () => {
+  localStorage.clear();
+  updateKeyCache('labcharts-ppq-key', 'sk-ppq-test');
+  localStorage.setItem('labcharts-ppq-private-mode', 'on');
+  localStorage.setItem('labcharts-ppq-model', 'private/qwen-vl-private');
+  localStorage.setItem('labcharts-ppq-models', JSON.stringify([
+    { id: 'anthropic/claude-opus-5', name: 'Claude Opus 5' },
+  ]));
+  localStorage.setItem('labcharts-ppq-private-models', JSON.stringify([
+    { id: 'private/qwen-vl-private', name: 'Private Vision' },
+  ]));
+  localStorage.setItem('labcharts-ppq-vision-models', JSON.stringify(['anthropic/claude-opus-5']));
+  localStorage.setItem('labcharts-ppq-private-vision-models', JSON.stringify(['private/qwen-vl-private']));
+  const models = listNutritionVisionModels().filter(m => m.provider === 'ppq');
+  expect(models.map(m => m.model)).toEqual(['private/qwen-vl-private']);
 });

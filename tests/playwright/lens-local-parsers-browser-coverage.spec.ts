@@ -25,57 +25,19 @@ async function openParserCoveragePage(page: Page) {
         };
       }
     `);
-  await routeJavaScript(page, '**/vendor/mammoth.browser.min.js', `
-      window.__mammothLoadCount = (window.__mammothLoadCount || 0) + 1;
-      window.mammoth = {
-        extractRawText: async ({ arrayBuffer }) => ({
-          value: 'DOCX text bytes=' + arrayBuffer.byteLength,
-        }),
-      };
-    `);
-  await routeJavaScript(page, '**/vendor/jszip.min.js', `
-      window.__jszipLoadCount = (window.__jszipLoadCount || 0) + 1;
-      window.JSZip = {
-        loadAsync: async () => ({
-          files: {
-            'folder/': { dir: true, name: 'folder/' },
-            'folder/readme.MD': {
-              dir: false,
-              name: 'folder/readme.MD',
-              async: async () => new Blob(['zip markdown body'], { type: 'text/markdown' }),
-            },
-            'folder/manual.pdf': {
-              dir: false,
-              name: 'folder/manual.pdf',
-              async: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'application/pdf' }),
-            },
-            'folder/report.docx': {
-              dir: false,
-              name: 'folder/report.docx',
-              async: async () => new Blob([new Uint8Array([5, 6, 7, 8, 9])], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
-            },
-            'folder/broken.pdf': {
-              dir: false,
-              name: 'folder/broken.pdf',
-              async: async () => new Blob([new Uint8Array([9, 9, 9, 9])], { type: 'application/pdf' }),
-            },
-            'folder/image.png': {
-              dir: false,
-              name: 'folder/image.png',
-              async: async () => new Blob(['ignored'], { type: 'image/png' }),
-            },
-          },
-        }),
-      };
-    `);
   await page.goto('/lens-local-parsers-browser-coverage', { waitUntil: 'load' });
 }
 
 test('lens local parsers browser coverage extracts text docx pdf and zip entries', async ({ page }) => {
   await openParserCoveragePage(page);
 
+  const vendorRequests: string[] = [];
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    if (path === '/vendor/jszip.min.js' || path === '/vendor/mammoth.browser.min.js') vendorRequests.push(path);
+  });
   const { outcomes, errors } = await page.evaluate(async ({ parserUrl }) => {
-    const parsers = (await import(parserUrl) as unknown) as Pick<typeof import('../../js/lens-local-parsers.js'), "extractFromFile">;
+    const parsers = (await import(parserUrl) as unknown) as Pick<typeof import('../../js/lens-local-parsers.js'), "extractFromFile" | "createLensExtractionScope">;
     const outcomes: Record<string, unknown> = {};
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -120,15 +82,9 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
         return csv.length === 1 && csv[0]!.text === csvText;
       });
 
-      await runScenario('unsupportedExtensionReturnsEmptyAndWarns', async () => {
-        const { value: unsupported, warnings: unsupportedWarnings } = await captureWarnings(() => (
-          parsers.extractFromFile(new File(['ignored'], 'scan.exe', {
-            type: 'application/octet-stream',
-          }))
-        ));
-        return Array.isArray(unsupported)
-          && unsupported.length === 0
-          && unsupportedWarnings.some(line => line.includes('scan.exe') && line.includes('application/octet-stream'));
+      await runScenario('unsupportedExtensionReturnsEmpty', async () => {
+        const unsupported = await parsers.extractFromFile(new File(['ignored'], 'scan.exe', { type: 'application/octet-stream' }));
+        return Array.isArray(unsupported) && unsupported.length === 0;
       });
 
       await runScenario('pdfUsesLoaderAndJoinsPages', async () => {
@@ -141,26 +97,42 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
           && pdf[0]!.text.includes('\n\n');
       });
 
-      await runScenario('docxLoadsMammothOnceAndExtractsText', async () => {
-        const docxA = await parsers.extractFromFile(new File([new Uint8Array([1, 2, 3, 4])], 'report.docx', {
-          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        }));
-        const docxB = await parsers.extractFromFile(new File([new Uint8Array([1, 2])], 'second.docx', {
-          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        }));
-        return docxA[0]?.text === 'DOCX text bytes=4'
-          && docxB[0]?.text === 'DOCX text bytes=2'
-          && (window as unknown as {__mammothLoadCount?: number}).__mammothLoadCount === 1;
+      // The shipped JSZip and Mammoth bundles read an actual synthetic Word document.
+      await parsers.extractFromFile(new File(['invalid archive'], 'invalid.zip')).catch(() => {});
+      const Zip = (window as unknown as { JSZip: new () => {
+        file(name: string, body: string | Blob | Uint8Array): void;
+        generateAsync(options: { type: 'blob' }): Promise<Blob>;
+      } }).JSZip;
+      const docxType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const makeDocx = async (text: string) => {
+        const doc = new Zip();
+        doc.file('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+        doc.file('_rels/.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+        doc.file('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>' + text + '</w:t></w:r></w:p></w:body></w:document>');
+        return doc.generateAsync({ type: 'blob' });
+      };
+      const document = await makeDocx('Synthetic lab notes');
+      await runScenario('docxLoadsMammothAndExtractsText', async () => {
+        const docxA = await parsers.extractFromFile(new File([document], 'report.docx', { type: docxType }));
+        const docxB = await parsers.extractFromFile(new File([await makeDocx('A second document')], 'second.docx', { type: docxType }));
+        return docxA[0]?.text.trim() === 'Synthetic lab notes' && docxB[0]?.text.trim() === 'A second document';
       });
-
+      await runScenario('rejectsMalformedDocx', async () => {
+        try { await parsers.extractFromFile(new File(['not a valid document'], 'invalid.docx')); }
+        catch { return true; }
+        return false;
+      });
+      const archive = new Zip();
+      archive.file('folder/readme.MD', 'zip markdown body');
+      archive.file('folder/manual.pdf', new Uint8Array([1, 2, 3]));
+      archive.file('folder/report.docx', document);
+      archive.file('folder/broken.pdf', new Uint8Array([9, 9, 9, 9]));
+      archive.file('folder/image.png', 'ignored');
+      const archiveFile = new File([await archive.generateAsync({ type: 'blob' })], 'archive.zip', { type: 'application/zip' });
       let zip: Awaited<ReturnType<typeof parsers.extractFromFile>> = [];
       let zipWarnings: string[] = [];
       await runScenario('zipExtractsArchiveEntries', async () => {
-        const captured = await captureWarnings(() => (
-          parsers.extractFromFile(new File([new Uint8Array([80, 75])], 'archive.zip', {
-            type: 'application/zip',
-          }))
-        ));
+        const captured = await captureWarnings(() => parsers.extractFromFile(archiveFile));
         if (!Array.isArray(captured.value)) return false;
         zip = captured.value;
         zipWarnings = captured.warnings;
@@ -176,10 +148,18 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
         });
         await runScenario('zipEntryFailureIsSkippedWithWarning', async () => (
           zip.length === 3
-            && zipWarnings.some(line => line.includes('zip entry failed: folder/broken.pdf'))
+            && zipWarnings.some(line => line.includes('Could not extract an archive entry'))
         ));
-        await runScenario('zipLoadsJsZipOnce', async () => (window as unknown as {__jszipLoadCount?: number}).__jszipLoadCount === 1);
       }
+      await runScenario('archiveStopInterruptsExtraction', async () => {
+        let checks = 0;
+        try {
+          await parsers.extractFromFile(archiveFile, parsers.createLensExtractionScope(() => ++checks === 5));
+        } catch (error) {
+          return (error as DOMException).name === 'AbortError' && checks === 5;
+        }
+        return false;
+      });
     } finally {
       console.warn = originalWarn;
     }
@@ -187,6 +167,7 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
     return { outcomes, errors };
   }, { parserUrl: moduleUrl('/js/lens-local-parsers.js') });
 
+  expect(vendorRequests.sort()).toEqual(['/vendor/jszip.min.js', '/vendor/mammoth.browser.min.js']);
   expect(errors, errors.join('\n')).toEqual([]);
   for (const [name, passed] of Object.entries(outcomes)) {
     expect(passed, name).toBe(true);

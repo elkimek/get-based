@@ -46,7 +46,10 @@ for (const encrypted of [false, true]) {
         await crypto.encryptedSetItem('labcharts-profiles', JSON.stringify(profileList));
         localStorage.setItem('labcharts-active-profile', 'portable');
         await crypto.encryptedSetItem('labcharts-portable-imported', JSON.stringify({ entries: [], contextNotes: notes }));
-        for (const key of providerKeys) await crypto.encryptedSetCredentialItem(key, `synthetic-secret-${key}`);
+        for (const key of providerKeys.filter(key => key !== 'labcharts-custom-key')) await crypto.encryptedSetCredentialItem(key, `synthetic-secret-${key}`);
+        await (await import('/js/api-provider-storage.js')).saveCustomApiConnection('https://synthetic-custom.example/v1', 'synthetic-secret-labcharts-custom-key');
+        localStorage.setItem('labcharts-lens-config', JSON.stringify({ backend: 'external-server', url: 'https://synthetic-lens.example', enabled: false }));
+        localStorage.setItem('labcharts-routstr-node', 'https://synthetic-routstr.example');
         await (await import('/js/wearables-store.js')).upsertDailyBatch('portable', [{ source: 'manual', date: '2026-10-31', weight: 81 }]);
         await (await import('/js/cycle-store.js')).upsertCycleObservationBatch('portable', [{ source: 'manual', date: '2026-10-31', importId: 'portable-cycle', bleeding: { flow: 'light' } }]);
       }, { encrypted, passphrase, providerKeys, notes, profileList });
@@ -66,6 +69,11 @@ for (const encrypted of [false, true]) {
       try {
         const target = await fresh.newPage();
         await prepare(target, origin + '/app');
+        // Existing remote Lens and legacy Routstr node configurations must match before their credentials can be restored.
+        await target.evaluate(() => {
+          localStorage.setItem('labcharts-lens-config', JSON.stringify({ backend: 'external-server', url: 'https://synthetic-lens.example', enabled: false }));
+          localStorage.setItem('labcharts-routstr-node', 'https://synthetic-routstr.example');
+        });
         const before = await target.evaluate(() => localStorage.getItem('labcharts-profiles'));
         const choose = async () => {
           const file = { name: download.suggestedFilename(), mimeType: 'application/json', buffer: bytes };
@@ -105,7 +113,7 @@ for (const encrypted of [false, true]) {
           return {
             profiles: await crypto.encryptedGetItem('labcharts-profiles'),
             data: await crypto.encryptedGetItem('labcharts-portable-imported'),
-            keys: await Promise.all(providerKeys.map(key => crypto.encryptedGetItem(key))),
+            keys: await Promise.all(providerKeys.map(async key => key === 'labcharts-custom-key' ? (await import('/js/api-provider-storage.js')).getCustomApiKey() || null : crypto.encryptedGetItem(key))),
             wearableWeight: wearable[0]?.weight,
             cycleCount: cycle.length,
           };

@@ -8,8 +8,36 @@ import {JSDOM} from 'jsdom';
 import {build} from 'rolldown';
 import {buildSvelte} from '../scripts/build-svelte.mjs';
 import {createSvelteFacadePlugin} from '../scripts/svelte-facade-plugin.mjs';
+import {productionSources, productionFunctionIndex} from '../scripts/coverage-source.mjs';
+import {MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK, isSvelteCompatibilityChunk} from '../scripts/svelte-compatibility-outputs.mjs';
+import {readCompiledSvelteGraph} from './helpers/compiled-svelte-graph.js';
 import type {HeaderRangeView} from '../js/header-date-range.js';
 type Runtime={default:import('svelte').Component<{view:HeaderRangeView}>; mount:typeof import('svelte').mount; unmount:typeof import('svelte').unmount; flushSync:typeof import('svelte').flushSync};
+
+it('authenticates the dashboard entry points and each authored implementation in the shared graph', async () => {
+  const root = process.cwd(), runtime = productionSources(root, {runtime: true});
+  const page = MOBILE_DASHBOARD_PAGE + '.native.js', stack = MOBILE_DASHBOARD_STACK + '.native.js';
+  const graph = readCompiledSvelteGraph([page, stack], root);
+  expect(graph.some(({file}) => isSvelteCompatibilityChunk(file))).toBe(true);
+  const owners = new Map<string, string[]>();
+  for (const {file, map} of graph) {
+    expect(runtime.filter(owner => owner === file)).toHaveLength(1);
+    for (const [i, name] of map.sources.entries()) {
+      if (!name.endsWith('.svelte')) continue;
+      const authored = path.resolve(path.dirname(file), name);
+      expect(map.sourcesContent[i]).toBe(await fs.readFile(authored, 'utf8'));
+      const files = owners.get(authored) ?? [];
+      files.push(file);
+      owners.set(authored, files);
+    }
+  }
+  for (const component of [MOBILE_DASHBOARD_PAGE, MOBILE_DASHBOARD_STACK]) {
+    const files = owners.get(path.resolve(component));
+    expect(files).toHaveLength(1);
+    const file = files![0]!;
+    expect(productionFunctionIndex(await fs.readFile(file, 'utf8'), file, root).owned.length).toBeGreaterThan(0);
+  }
+});
 
 it('retains native facade exports and actual mounted defaults/attributes/disposal with a shared client runtime',async()=>{
   const root=process.cwd(),directory=await fs.mkdtemp(path.join(os.tmpdir(),'getbased-shared-client-'));

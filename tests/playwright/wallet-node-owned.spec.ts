@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 const node = 'https://node.original.test/with/a/long/path/that/must/remain-readable-on-narrow-screens';
 const mint = 'https://mint.original.test/with/a/long/path/that/must/remain-readable-on-narrow-screens';

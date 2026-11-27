@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import { expect, it } from 'vitest';
 import {projectBodySilhouette} from '../js/sun-body-silhouette.js';
 import { renderHTML } from '../js/components/LightSessionPresentation.svelte.html.js';
 import { projectStartSunSessionForm } from '../js/light-session-presentation.js';
+import {expectNativeReview} from './helpers/native-review-dom.js';
 const options = {
   eyeModes: [{ key: 'direct', label: 'Eyes uncovered', pickerLabel: 'Ambient <light>' }, { key: 'sunglasses', label: 'UV-blocking sunglasses' }],
   lensTints: [{ key: 'clear', label: 'Clear' }, { key: 'dark', label: 'Dark' }],
@@ -51,4 +53,29 @@ it('escapes all preflight metadata while preserving the warning tier and complet
   const host = document.createElement('div'); host.innerHTML = renderHTML({ kind: 'preflight', view: { className: 'sun-uvi-extreme', icon: '⚠', title: '<img src=x>', text: '<literal> & uncertainty.' } });
   expect(host.querySelector('.sun-uvi-extreme')).toBeTruthy(); expect(host.querySelector('img,literal')).toBeNull();
   expect(host.textContent).toContain('⚠ <img src=x> <literal> & uncertainty. Use shade, clothing, and suitable sun protection; shorten or skip the session when warnings apply.');
+});
+
+const load = createRequire(import.meta.url);
+it.each(['start', 'coverage'] as const)('preserves the native %s form and its separate controls', async kind => {
+  const native = load('../js/components/LightSessionPresentation.svelte.native.js') as typeof import('../js/components/LightSessionPresentation.svelte.native.js');
+  const silhouetteView = projectBodySilhouette(new Set());
+  const view = projectStartSunSessionForm({...options,
+    lastUsed: {eyeExposure: {mode: 'sunglasses', lensTint: 'dark'}, posture: 'lying', surfaceAlbedo: 'snow', bodyExposure: {glassBetween: true}},
+  });
+  const props = kind === 'start' ? {kind, view, silhouetteView} : {kind, silhouetteView};
+  await expectNativeReview(renderHTML(props), root => {
+    const owned = native.mount(native.default, {target: root, props});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    expect(root.querySelector('[data-sun-body-picker]')).not.toBeNull();
+    if (kind === 'coverage') {
+      expect(root.querySelectorAll('select')).toHaveLength(0);
+      expect(root.querySelector('#coverage-confirm')?.textContent).toBe('Apply coverage');
+    } else {
+      expect(root.querySelector<HTMLInputElement>('#start-glass')?.checked).toBe(true);
+      expect(root.querySelector<HTMLSelectElement>('#start-eye-mode')?.value).toBe('sunglasses');
+      expect(root.querySelector('#start-confirm')).not.toBeNull();
+    }
+  });
 });

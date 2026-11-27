@@ -19,7 +19,7 @@ interface VaultOptions {
   tokenFactory?: () => string;
   lockManager?: VaultLockManager | null;
 }
-interface VaultRecord { version?: unknown; token?: unknown; ownerId?: unknown; mnemonic?: unknown }
+interface VaultRecord { version?: unknown; token?: unknown; ownerId?: unknown; mnemonic?: unknown; envelope?: unknown }
 type VaultOperation<Result> = (store: IDBObjectStore) => IDBRequest<Result> | void;
 
 export const EVOLU8_IDENTITY_TOKEN_KEY = 'labcharts-sync-evolu8-identity-token';
@@ -28,6 +28,16 @@ const STORE_NAME = 'identity';
 const RECORD_KEY = 'app-owner';
 const RECORD_VERSION = 1;
 const OPERATION_TIMEOUT_MS = 5_000;
+
+interface IdentityProtection {
+  getEncryptionEnabled(): boolean;
+  encryptObject(value: unknown): Promise<unknown>;
+  decryptObject(value: unknown): Promise<unknown>;
+}
+let passphraseProtection: IdentityProtection | undefined;
+export function configureEvoluIdentityProtection(protection: IdentityProtection) {
+  passphraseProtection = protection;
+}
 
 function openVaultDatabase(indexedDb: IDBFactory) {
   return new Promise<IDBDatabase>((resolve, reject) => {
@@ -112,6 +122,26 @@ function readCommitToken(storage: EvoluIdentityStorage | null | undefined) {
   try { return String(storage?.getItem?.(EVOLU8_IDENTITY_TOKEN_KEY) || ''); } catch { return ''; }
 }
 
+async function sealMnemonic(token: string, mnemonic: string, mode?: 'encrypted' | 'plain') {
+  if (mode === 'encrypted' || (mode === undefined && passphraseProtection?.getEncryptionEnabled())) {
+    const envelope = await passphraseProtection?.encryptObject({ token, mnemonic });
+    if (!envelope) throw new Error('Unlock storage before protecting the Sync identity.');
+    return envelope;
+  }
+  const { encryptDeviceCredential } = await import('./wearables-credential-vault.js');
+  return encryptDeviceCredential(`evolu-identity:${token}`, mnemonic);
+}
+
+async function openMnemonic(record: VaultRecord, token: string) {
+  if (!record.envelope) return typeof record.mnemonic === 'string' ? record.mnemonic : null;
+  if (typeof record.envelope === 'string') {
+    const { decryptDeviceCredential } = await import('./wearables-credential-vault.js');
+    return decryptDeviceCredential(`evolu-identity:${token}`, record.envelope);
+  }
+  const plain = await passphraseProtection?.decryptObject(record.envelope) as { token?: unknown; mnemonic?: unknown } | null | undefined;
+  return plain?.token === token && typeof plain.mnemonic === 'string' ? plain.mnemonic : null;
+}
+
 export function createEvolu8IdentityVault({
   storage = globalThis.localStorage,
   indexedDb = globalThis.indexedDB,
@@ -125,23 +155,17 @@ export function createEvolu8IdentityVault({
     const startedRevision = revision;
     const token = readCommitToken(storage);
     if (!token || !indexedDb) return null;
-    try {
-      const record = (await accessVault(
-        indexedDb,
-        'readonly',
-        store => store.get(RECORD_KEY),
-      ) as VaultRecord | null | undefined);
-      if (revision !== startedRevision || readCommitToken(storage) !== token
-          || record?.version !== RECORD_VERSION
-          || record?.token !== token
-          || typeof record?.ownerId !== 'string'
-          || !record.ownerId
-          || typeof record?.mnemonic !== 'string'
-          || !record.mnemonic) return null;
-      return { ownerId: record.ownerId, mnemonic: record.mnemonic };
-    } catch {
-      return null;
+    const record = (await accessVault(indexedDb, 'readonly', store => store.get(RECORD_KEY)) as VaultRecord | undefined);
+    if (revision !== startedRevision || readCommitToken(storage) !== token || record?.token !== token) return null;
+    if (record.version !== RECORD_VERSION || typeof record.ownerId !== 'string' || !record.ownerId) {
+      throw new Error('The stored Sync identity could not be verified.');
     }
+    const mnemonic = await openMnemonic(record, token);
+    if (!mnemonic) throw new Error('The stored Sync identity could not be unlocked.');
+    if (revision !== startedRevision || readCommitToken(storage) !== token) return null;
+    if (!record.envelope) await reprotect();
+    if (revision !== startedRevision || readCommitToken(storage) !== token) return null;
+    return { ownerId: record.ownerId, mnemonic };
   };
 
   const withWriteLock = (operation: () => Promise<void>) => {
@@ -149,6 +173,26 @@ export function createEvolu8IdentityVault({
       throw new Error('Evolu 8 identity vault coordination is unavailable');
     }
     return lockManager.request('getbased-evolu8-identity-write', operation);
+  };
+
+  const reprotect = async (mode?: 'encrypted' | 'plain') => {
+    if (!indexedDb || !readCommitToken(storage)) return;
+    return withWriteLock(async () => {
+      const token = readCommitToken(storage);
+      if (!token) return;
+      const record = (await accessVault(indexedDb, 'readonly', store => store.get(RECORD_KEY)) as VaultRecord | undefined);
+      if (record?.token !== token || record.version !== RECORD_VERSION) return;
+      if (mode === undefined && record.envelope) return;
+      if (mode === 'plain' && typeof record.envelope === 'string') return;
+      if (mode === 'encrypted' && record.envelope && typeof record.envelope !== 'string') return;
+      const mnemonic = await openMnemonic(record, token);
+      if (!mnemonic) throw new Error('The stored Sync identity could not be unlocked.');
+      const envelope = await sealMnemonic(token, mnemonic, mode);
+      if (readCommitToken(storage) !== token) return;
+      await accessVault(indexedDb, 'readwrite', store => store.put({
+        version: RECORD_VERSION, token, ownerId: record.ownerId, envelope,
+      }, RECORD_KEY));
+    });
   };
 
   const write = async ({ ownerId, mnemonic }: { ownerId: unknown; mnemonic: unknown }) => {
@@ -163,11 +207,15 @@ export function createEvolu8IdentityVault({
       const previousToken = readCommitToken(storage);
       const token = String(tokenFactory() || '');
       if (!token) throw new Error('Evolu 8 identity vault token is unavailable');
+      const envelope = await sealMnemonic(token, String(mnemonic));
+      if (revision !== startedRevision || readCommitToken(storage) !== previousToken) {
+        throw new Error('Evolu 8 identity vault write was invalidated or superseded');
+      }
       await accessVault(indexedDb, 'readwrite', store => store.put({
         version: RECORD_VERSION,
         token,
         ownerId: String(ownerId),
-        mnemonic: String(mnemonic),
+        envelope,
       }, RECORD_KEY));
       if (revision !== startedRevision || readCommitToken(storage) !== previousToken) {
         throw new Error('Evolu 8 identity vault write was invalidated or superseded');
@@ -202,5 +250,5 @@ export function createEvolu8IdentityVault({
     }));
   };
 
-  return { invalidate, read, write };
+  return { invalidate, read, write, reprotect };
 }

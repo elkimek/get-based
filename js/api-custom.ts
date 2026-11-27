@@ -8,13 +8,13 @@ import {
   notifyAIModelCatalogChanged,
   setCustomApiModel,
 } from './api-provider-storage.js';
-import { findPreferredModel, modelMetadataIsAvailable, modelMetadataSupportsVision } from './api-models.js';
+import { GPT_62_DEFAULT_CANDIDATES, findPreferredModel, modelMetadataIsAvailable, modelMetadataSupportsVision } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
 import type { CatalogModel } from './api-models.js';
 import type { ProviderRequestOptions } from './api-openai-compatible.js';
 
-const CUSTOM_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
+const CUSTOM_DEFAULT_CANDIDATES = [...GPT_62_DEFAULT_CANDIDATES, 'openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
 
 function _customApiFetchModels(url: string, key: unknown) {
   return fetch(url, {

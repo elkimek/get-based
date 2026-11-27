@@ -314,6 +314,9 @@ const engine = createAIVerdict<DayTarget>({
   systemPrompt: SYSTEM_PROMPT,
   maxTokens: 600,
   getAllTargets: _allDateTargets,
+  onStateChange: () => {
+    if (state.currentView === 'light') refreshDailyVerdictSurfaces('.light-page .light-today-hero');
+  },
 });
 
 export const analyzeDayAI = (date?: Date | null, opts?: AnalyzeOptions) => engine.analyze(_wrapDate(date || new Date()), opts) as Promise<unknown>;
@@ -375,21 +378,23 @@ export function getLightTodayDashboardView() {
 }
 export function renderLightTodayDashboardChip(){const view=getLightTodayDashboardView();return view?renderHTML({view}):'';}
 
-// Cross-page live-update — when a verdict completes elsewhere (e.g. an
-// auto-fire on the Light & Sun page while the user is reading the
-// dashboard), re-render the dashboard chip in place without rebuilding
-// the whole dashboard view. Surgical replace of the chip's outerHTML.
-// No-op when the user isn't on the dashboard.
-if (typeof globalThis.addEventListener === 'function') {
-  globalThis.addEventListener('labcharts-ai-verdict-updated', () => {
-    if (state.currentView !== 'dashboard') return;
-    const existing = document.querySelector('.dashboard-widget[data-widget-id="light-today"] .light-today-hero, .light-today-strip .light-today-dash-ai');
-    if (!existing) return;
+// A background verdict can finish during a click on another widget. Keep
+// the rest of the route mounted so the browser can deliver the release.
+function refreshDailyVerdictSurfaces(selector: string) {
+  for (const existing of document.querySelectorAll(selector)) {
     const wrapper = document.createElement('div');
     wrapper.innerHTML = (existing.classList.contains('light-today-hero')
       ? renderLightTodayHero()
       : renderLightTodayDashboardChip()).trim();
-    const fresh = wrapper.firstChild;
+    const fresh = wrapper.firstElementChild;
     if (fresh) existing.replaceWith(fresh);
+  }
+}
+
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('labcharts-ai-verdict-updated', () => {
+    if (state.currentView === 'dashboard') {
+      refreshDailyVerdictSurfaces('.dashboard-widget[data-widget-id="light-today"] .light-today-hero, .light-today-strip .light-today-dash-ai');
+    }
   });
 }

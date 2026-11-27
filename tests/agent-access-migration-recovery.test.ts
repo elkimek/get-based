@@ -28,7 +28,7 @@ beforeEach(async () => {
   delete state.importedData.agentAccessWearableSeriesDays;
   configureSyncMessenger({ getAppOwner: () => null });
   vi.spyOn(sync, 'pushContextToGateway').mockImplementation(() => {});
-  vi.spyOn(sync, 'revokeMessengerTokenRemote').mockImplementation(() => {});
+  vi.spyOn(sync, 'flushQueuedMessengerRevocations').mockResolvedValue(true);
   expect(await data.saveImportedData({ skipSync: true })).toBe(true);
   expect(await getBlob(key)).toMatch(/^v1:/);
 });

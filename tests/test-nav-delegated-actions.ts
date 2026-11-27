@@ -92,7 +92,8 @@ assert('group lookup avoids selector interpolation',
     navSrc.includes('el.dataset.groupName === groupName'));
 assert('mobile sidebar controls tolerate missing sidebar DOM',
   /export function toggleMobileSidebar[^{]*\{[\s\S]{0,250}if \(!sidebar\) \{[\s\S]{0,120}closeModalOverlay\('sidebar-backdrop'/.test(navSrc) &&
-    navSrc.includes("document.getElementById('sidebar-nav')?.classList.remove('mobile-open')"));
+    navSrc.includes("const sidebar = document.getElementById('sidebar-nav');") &&
+    navSrc.includes("sidebar?.classList.remove('mobile-open')"));
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 if (legacyAssertions.fail > 0) process.exit(1);

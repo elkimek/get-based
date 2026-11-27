@@ -123,11 +123,11 @@ export function nutrientRollup(meals: unknown) {
   const nutrientCoverage: Record<string, NutrientCoverage> = {};
   for (const nutrientKey of NUTRITION_KEYS) {
     const eventMetric = INTAKE_EVENT_KEYS.has(nutrientKey);
-    const relevantMeals = (eventMetric ? rows : rows.filter(meal => !isVolumeOnlyDrink(meal)))
-      .filter(meal => nutrientHasReviewableProvenance(meal, nutrientKey));
+    const relevantMeals = eventMetric ? rows : rows.filter(meal => !isVolumeOnlyDrink(meal));
     let observedMeals = 0;
     let observedTotal = 0;
     for (const meal of relevantMeals) {
+      if (!nutrientHasReviewableProvenance(meal, nutrientKey)) continue;
       const value = finiteNonNegative(meal?.nutrients?.[nutrientKey]);
       if (value === null) continue;
       observedMeals += 1;
@@ -139,11 +139,10 @@ export function nutrientRollup(meals: unknown) {
     let completeDayTotal = 0;
     let nutrientLoggedDays = 0;
     for (const dayMeals of byDay.values()) {
-      const relevantDayMeals = (eventMetric ? dayMeals : dayMeals.filter(meal => !isVolumeOnlyDrink(meal)))
-        .filter(meal => nutrientHasReviewableProvenance(meal, nutrientKey));
+      const relevantDayMeals = eventMetric ? dayMeals : dayMeals.filter(meal => !isVolumeOnlyDrink(meal));
       if (!relevantDayMeals.length) continue;
       nutrientLoggedDays += 1;
-      const values = relevantDayMeals.map(meal => finiteNonNegative(meal?.nutrients?.[nutrientKey]));
+      const values = relevantDayMeals.map(meal => nutrientHasReviewableProvenance(meal, nutrientKey) ? finiteNonNegative(meal?.nutrients?.[nutrientKey]) : null);
       // Beverage-volume fields are explicit intake events. A meal without a
       // fluid entry remains unknown, but must not erase a separately logged
       // glass of water from that day's observed total.
@@ -200,6 +199,15 @@ function mealLocalMinutes(meal: SummaryMeal | null | undefined) {
 function averageRounded(values: number[]) {
   if (!values.length) return null;
   return Math.round(values.reduce<number>((sum, value) => sum + value, 0) / values.length);
+}
+
+function averageClockMinutes(values: number[]) {
+  const radiansPerMinute = Math.PI / 720;
+  const x = values.reduce((sum, value) => sum + Math.cos(value * radiansPerMinute), 0);
+  const y = values.reduce((sum, value) => sum + Math.sin(value * radiansPerMinute), 0);
+  // Opposing times have no representative clock direction.
+  if (!values.length || Math.hypot(x, y) / values.length < 0.1) return null;
+  return (Math.round(Math.atan2(y, x) / radiansPerMinute) + 1440) % 1440;
 }
 
 function clockTime(minutes: number | null) {
@@ -293,8 +301,8 @@ function timingSummary(meals: SummaryMeal[], sleepIntervals: unknown = []) {
     const gap = instantGap !== null && instantGap > 0 ? instantGap : clockGap;
     if (gap > 0 && gap <= 48 * 60) fastingWindows.push(gap);
   }
-  const averageFirstMealMinutes = averageRounded(days.map(day => day.first));
-  const averageLastMealMinutes = averageRounded(days.map(day => day.last));
+  const averageFirstMealMinutes = averageClockMinutes(days.map(day => day.first));
+  const averageLastMealMinutes = averageClockMinutes(days.map(day => day.last));
   const averageEatingWindowMinutes = averageRounded(eatingWindows);
   const averageFastingWindowMinutes = averageRounded(fastingWindows);
   const averageFirstMealLocalTime = clockTime(averageFirstMealMinutes);
@@ -490,7 +498,11 @@ export function computeNutritionHistory(meals: unknown, { rangeKey = '30d', now 
 
 export function computeNutritionSummary(meals: unknown, { now = new Date(), sleepIntervals = [] }: { now?: Date; sleepIntervals?: unknown } = {}) {
   const validMeals = (Array.isArray(meals) ? meals as Array<SummaryMeal | null | undefined> : []).filter(meal => mealDayKey(meal)) as SummaryMeal[];
-  const sorted = [...validMeals].sort((a, b) => new Date(b.eatenAt as DateInput).getTime() - new Date(a.eatenAt as DateInput).getTime());
+  const sorted = [...validMeals].sort((a, b) => {
+    const bt = new Date((b.eatenAt || `${b.localDate || ''}T00:00:00Z`) as DateInput).getTime();
+    const at = new Date((a.eatenAt || `${a.localDate || ''}T00:00:00Z`) as DateInput).getTime();
+    return (Number.isFinite(bt) ? bt : -Infinity) - (Number.isFinite(at) ? at : -Infinity);
+  });
   const previous23 = windowSummary(validMeals, 23, now, [], 7);
   const previous83 = windowSummary(validMeals, 83, now, [], 7);
   const summary = {

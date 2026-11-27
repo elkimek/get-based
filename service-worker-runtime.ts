@@ -201,7 +201,11 @@ function installServiceWorkerRuntime({
     for (let attempt = 1; attempt <= PRECACHE_ATTEMPTS; attempt += 1) {
       try {
         const response = await fetch(url, { cache: 'reload' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          // Release the failed transfer before retrying alongside other shell downloads.
+          void response.body?.cancel().catch(() => {});
+          throw new Error(`HTTP ${response.status}`);
+        }
         await cache.put(url, await networkCacheResponse(url, response));
         return;
       } catch (error) {
@@ -244,6 +248,10 @@ function installServiceWorkerRuntime({
 
   function cacheResponse(request: RequestInfo | URL, response: Response) {
     if (response.status === 206 || !response.ok) return Promise.resolve();
+    const reqHeaders = typeof request === 'object' && request !== null && 'headers' in request ? (request as Request).headers : null;
+    if (reqHeaders && typeof reqHeaders.has === 'function' && reqHeaders.has('authorization')) return Promise.resolve();
+    const cacheControl = response.headers?.get?.('cache-control') || '';
+    if (/\bprivate\b/i.test(cacheControl)) return Promise.resolve();
     const clone = response.clone();
     return resolveCacheName()
       .then((name) => caches.open(name))
@@ -332,6 +340,22 @@ function installServiceWorkerRuntime({
   // Keep its immutable assets until every live client identifies its build.
   // Unknown clients include pre-protocol releases and are retained safely.
   const clientBuilds = new Map<string, string>();
+  // A cached navigation has a reserved client ID before the new window is
+  // visible to clients.matchAll(). Hold its exact shell proof through startup.
+  const navigationProofs = new Map<string, ReturnType<typeof setTimeout>>();
+  function clearNavigationProof(id: string) {
+    clearTimeout(navigationProofs.get(id));
+    navigationProofs.delete(id);
+  }
+  function bindNavigationProof(id: string) {
+    clearNavigationProof(id);
+    // An abandoned navigation may never become enumerable or report a build.
+    if (navigationProofs.size >= 128) clearNavigationProof(navigationProofs.keys().next().value!);
+    navigationProofs.set(id, setTimeout(() => navigationProofs.delete(id), 60_000));
+  }
+  function knownClientBuild(id: string) {
+    return clientBuilds.get(id) ?? (navigationProofs.has(id) ? buildId : undefined);
+  }
   const pendingClientBuilds = new Map<string, {
     promise: Promise<string | undefined>;
     complete: (id: string | undefined) => void;
@@ -340,7 +364,7 @@ function installServiceWorkerRuntime({
   // A reply must come from the requesting document. Build support in a cache
   // cannot establish which build any particular live window is executing.
   async function requestClientBuild(clientId: string, fresh = false): Promise<string | undefined> {
-    const known = clientBuilds.get(clientId);
+    const known = knownClientBuild(clientId);
     if (!clientId || (known && !fresh)) return known;
     const pending = pendingClientBuilds.get(clientId);
     if (pending) return pending.promise;
@@ -350,7 +374,8 @@ function installServiceWorkerRuntime({
     if (!client || new URL(client.url).origin !== scope.location.origin) return undefined;
     const concurrent = pendingClientBuilds.get(clientId);
     if (concurrent) return concurrent.promise;
-    if (!fresh && clientBuilds.has(clientId)) return clientBuilds.get(clientId);
+    const recent = knownClientBuild(clientId);
+    if (!fresh && recent) return recent;
     let complete!: (id: string | undefined) => void;
     const promise = new Promise<string | undefined>(resolve => {
       const timer = setTimeout(() => complete(undefined), 2000);
@@ -414,13 +439,18 @@ function installServiceWorkerRuntime({
       if (!old.length) { retainedCaches = false; return; }
       const keep = new Set([current]);
       if (buildId) {
+        const previouslyKnown = [...clientBuilds.keys()];
         const clients = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
         const liveIds = new Set(clients.map(client => client.id));
-        for (const id of clientBuilds.keys()) if (!liveIds.has(id)) clientBuilds.delete(id);
+        for (const id of previouslyKnown) if (!liveIds.has(id)) clientBuilds.delete(id);
         let unknown = false;
         for (const client of clients) {
-          const id = clientBuilds.get(client.id);
-          if (id) keep.add(`labcharts-vbuild-${id}`);
+          const id = knownClientBuild(client.id);
+          if (id) {
+            clientBuilds.set(client.id, id);
+            clearNavigationProof(client.id);
+            keep.add(`labcharts-vbuild-${id}`);
+          }
           else { unknown = true; client.postMessage({ type: 'REQUEST_CLIENT_BUILD_ID' }); }
         }
         if (unknown) return;
@@ -455,6 +485,7 @@ function installServiceWorkerRuntime({
       || !source || !('id' in source) || typeof source.id !== 'string'
       || typeof data.buildId !== 'string' || !/^[a-z\d._-]{1,128}$/i.test(data.buildId)) return;
     clientBuilds.set(source.id, data.buildId);
+    clearNavigationProof(source.id);
     pendingClientBuilds.get(source.id)?.complete(data.buildId);
     // Messages can arrive during activate's client census. Recheck after that
     // census rather than reusing a result which saw this client as unknown.
@@ -474,7 +505,7 @@ function installServiceWorkerRuntime({
       && (/^\/css\/.+\.css$/.test(url.pathname)
         || url.pathname === '/styles.css' || url.pathname === '/themes-extra.css')) {
       try {
-        const selectedBuild = clientBuilds.get(event.clientId)
+        const selectedBuild = knownClientBuild(event.clientId)
           || (await hasRetainedBuilds() ? await requestClientBuild(event.clientId) : undefined);
         if (selectedBuild) {
           const selectedCache = `labcharts-vbuild-${selectedBuild}`;
@@ -536,7 +567,7 @@ function installServiceWorkerRuntime({
   }
 
   async function matchRetryChunk(event: FetchEvent, url: URL): Promise<Response | undefined> {
-    const selectedBuild = clientBuilds.get(event.clientId) || buildId;
+    const selectedBuild = knownClientBuild(event.clientId) || buildId;
     if (!/^[a-f0-9]{64}$/.test(selectedBuild)) return undefined;
     const selectedCache = `labcharts-vbuild-${selectedBuild}`;
     if (selectedBuild === buildId && await resolveCacheName() !== selectedCache) return undefined;
@@ -618,7 +649,7 @@ function installServiceWorkerRuntime({
       const shell = await cachedAppShell();
       if (shell?.status === 200 && buildId && event.resultingClientId
         && await resolveCacheName() === `labcharts-vbuild-${buildId}`) {
-        clientBuilds.set(event.resultingClientId, buildId);
+        bindNavigationProof(event.resultingClientId);
       }
       return shell;
     };
@@ -640,7 +671,7 @@ function installServiceWorkerRuntime({
         if (cached) {
           if ((appDocument || url.pathname === '/app/migration.html') && cached.status === 200 && buildId && event.resultingClientId
             && await resolveCacheName() === `labcharts-vbuild-${buildId}`) {
-            clientBuilds.set(event.resultingClientId, buildId);
+            bindNavigationProof(event.resultingClientId);
           }
           return cached;
         }

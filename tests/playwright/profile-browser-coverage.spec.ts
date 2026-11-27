@@ -75,6 +75,7 @@ test('profile browser coverage exercises migration height and latitude helpers',
         createdAt: Date.now() - 1000,
         lastUpdated: Date.now() - 1000,
       }];
+      localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
       localStorage.setItem('labcharts-active-profile', profileId);
       localStorage.setItem('labcharts-sync-enabled', 'false');
       await (await import('/js/crypto.js')).encryptedSetItem('labcharts-profiles', JSON.stringify(state.profiles));

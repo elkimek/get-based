@@ -29,6 +29,7 @@ const markerDetailStylesheetLoadCache = createRetryingStylesheetLoader({
 export function setDetailModalShell(...classes: unknown[]) {
   const modal = document.getElementById('detail-modal');
   if (!modal) return null;
+  if (modal.getAttribute('aria-labelledby') === 'cm-form-title') modal.removeAttribute('aria-labelledby');
   modal.className = ['modal', ...classes.filter(Boolean)].join(' ');
   return modal;
 }

@@ -60,7 +60,8 @@ describe('active marker placement projection', () => {
     expect(data.categories.lipids!.markers.glucose).toMatchObject({
       markerId: glucoseMarkerId,
       storageDotKey: 'biochemistry.glucose',
-      values: [93.69],
+      values: [93.6936],
+      canonicalScoring: { values: [5.2] },
       unit: 'mg/dl',
     });
     expect(data.categories.oatEnergy!.markers.acetoaceticAcid).toBeUndefined();

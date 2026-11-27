@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { prepareAgentHostStorage } from './agent-host-storage.js';
 import { AGENT_TOOL_CONTRACT_VERSION } from '../shared/agent-tool-contract.js';
 import {
-  detectLocalAgents, findBundledOpenClawExecutable, isLocalAgentSpecEnabled, publicAgentDescriptors,
+  buildLocalAgentEnvironment, detectLocalAgents, findBundledOpenClawExecutable, isLocalAgentSpecEnabled, publicAgentDescriptors,
   normalizeAgentVersion, readCommandJson, LOCAL_AGENT_SPECS,
 } from './local-agent-registry.js';
 import {
@@ -52,6 +52,7 @@ function detectLocalClis(execImpl: typeof execFileSync, env: NodeJS.ProcessEnv, 
   if (platform === 'win32') {
     return publicAgentDescriptors(detectLocalAgents({ env, platform, execFileSyncImpl: execImpl }));
   }
+  const childEnv = buildLocalAgentEnvironment(env);
   return LOCAL_CLI_SPECS.flatMap(spec => {
     if (!isLocalAgentSpecEnabled(spec, env)) return [];
     const configured = String(env[spec.env] || '').trim();
@@ -60,14 +61,14 @@ function detectLocalClis(execImpl: typeof execFileSync, env: NodeJS.ProcessEnv, 
       : spec.command);
     try {
       const version = normalizeAgentVersion(spec.id, execImpl(command, ['--version'], {
-        encoding: 'utf8', env, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
+        encoding: 'utf8', env: childEnv, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
       }));
       let status = 'detected';
       let message = '';
       if (spec.id === 'claude') {
         try {
           const auth = readCommandJson<{ loggedIn?: unknown } | null>(() => execImpl(command, ['auth', 'status', '--json'], {
-            encoding: 'utf8', env, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
+            encoding: 'utf8', env: childEnv, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'],
           }));
           if (auth?.loggedIn !== true) {
             status = 'login_required';
@@ -187,7 +188,7 @@ export function startDevAgentHost(options: DevAgentHostOptions): DevAgentHostCon
     ...agent,
     ...hostInfo,
     status: agent.status === 'login_required' ? agent.status : status,
-    endpoint, token: status === 'available' ? storage.token : '',
+    endpoint, token: '', controlAuthorized: false,
     ...(agent.message ? { message: agent.message } : message ? { message } : {}),
   })) });
   return {

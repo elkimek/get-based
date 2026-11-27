@@ -133,14 +133,18 @@ Normal tracking works without AI. Select a provider in Settings:
 | CLI agents | Supported capabilities through the local Companion; setup below. |
 | Custom API | Your OpenAI-compatible endpoint or proxy. |
 
-Model pickers share the recommendation policy in `js/api-models.ts`. The
-current additions are Qwen4-Max, Gemini 4 Carbon and Hydrogen, Claude Fable 5.2,
-and GPT-6.1 Sol. Argon remains a separate Gemini tier; Hydrogen replaces Gemini
-3.8 Flash, Fable 5.2 replaces 5.1, and Sol 6.1 replaces Sol 6 in Recommended.
-Older models remain selectable when the provider still lists them, and a catalog
-refresh preserves an existing selection. GPT-6.1 Terra is available for evaluation
-under Other models. PPQ's private recommendations use its exact published IDs
-for Kimi K3.1 Pro, DeepSeek V4.1 Flash and GLM 5.3. Provider catalogs remain
+Model pickers share the recommendation policy in `js/api-models.ts`. GPT-6.2
+Sol and Astra replace older GPT recommendations where the provider offers them.
+On OpenRouter, PPQ, Routstr and Custom API, the initial selection prefers Sol,
+then Astra, with provider-specific fallbacks. Older models remain selectable
+when the provider still lists them, and a catalog refresh preserves a valid saved
+selection. Custom API connections to OpenAI use getbased's structured chat tool
+protocol with these models because native tool calling requires the Responses API.
+Recommended models also include DeepSeek V4.1 Flash 1017 or the provider's
+current Flash alias, Qwen4-Max, Claude Fable 5.2, and Gemini 4 Neon. DeepSeek V4 Pro,
+its aliases, and other Gemini tiers appear under Other models when listed by the
+provider. PPQ's private recommendations use its exact published IDs for Kimi K3.1
+Pro, DeepSeek V4.1 Flash and GLM 5.3. Provider catalogs remain
 authoritative for availability, pricing and capabilities; a recommendation does
 not establish health-analysis accuracy or change the provider's privacy tier.
 
@@ -668,14 +672,17 @@ storage change. The raw stored card remains the conflict baseline.
 
 Settings supplies an OS-specific bootstrap command for temporary use. It downloads
 the auditable single-file `getbased-companion.mjs` emitted by the production
-build. Temporary mode stops with its Terminal/PowerShell session. Once connected,
-Settings can register automatic startup, pause/resume AI work, restart Codex,
-update the installed bundle or uninstall it. A recovery start command remains
-available if the process has stopped completely.
+build. Temporary mode stops with its terminal session. In a second terminal run
+`node /path/to/getbased-companion.mjs pair`, then enter the private chat code under
+**Settings → AI → CLI agents → Pair this browser with Companion**. A checkout
+can use `node bin/getbased-companion.js pair` after compilation. The browser
+verifies the paired loopback endpoint and exchanges its chat credential for an
+origin-bound session. Re-pair after moving the listener to another port.
 
-Installed mode uses a systemd user service, macOS LaunchAgent or current-user
-Windows scheduled task, without root/administrator access. The browser does not
-expose a port or pairing token. Sources for the entry point, host, installers,
+To enable automatic startup, pause, resume, update or uninstall, run the same
+command with `pair --manage`. Enter the short-lived management code in the
+Companion control panel. Installed mode uses a systemd user service, macOS
+LaunchAgent or current-user Windows scheduled task. Sources for the entry point, host, installers,
 protocol and bundle are in [`bin/`](../bin/), [`server/`](../server/),
 [`lib/`](../lib/), [`shared/`](../shared/) and [`scripts/`](../scripts/).
 

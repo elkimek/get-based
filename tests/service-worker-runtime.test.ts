@@ -521,15 +521,19 @@ it.each([['offline string', 'offline string'], [null, 'network error']] as const
   expect(matches.has('/styles.css')).toBe(true);
 });
 
-it('rejects repeated HTTP failures for a required precache entry with its status and original URL', async () => {
+it('releases each failed precache body and reports the required URL and last HTTP status', async () => {
+  const release = vi.fn();
   const fetchImpl = vi.fn(async (request: string | Request) => {
     const url = typeof request === 'string' ? request : request.url;
-    return new Response('synthetic response', {status: url === '/js/main.js' ? 503 : 200});
+    return url === '/js/main.js'
+      ? new Response(new ReadableStream({cancel: release}), {status: 503})
+      : new Response('synthetic response');
   });
   const {listeners, matches, self} = await loadServiceWorker({hostname: 'app.getbased.health', fetchImpl});
   const install = makeWaitEvent(); listeners.get('install')!(install);
   await expect(install.done()).rejects.toThrow('Failed to precache /js/main.js: HTTP 503');
   expect(fetchImpl.mock.calls.filter(([request]) => request === '/js/main.js')).toHaveLength(3);
+  expect(release).toHaveBeenCalledTimes(3);
   expect(matches.has('/js/main.js')).toBe(false); expect(matches.has('/styles.css')).toBe(true);
   expect(self.clients.claim).not.toHaveBeenCalled(); expect(self.skipWaiting).not.toHaveBeenCalled();
 });
@@ -608,4 +612,26 @@ it.each(['data:text/plain,synthetic', 'file:///synthetic/not-an-app-file'])('doe
   const fetchImpl = vi.fn(async () => new Response('must not fetch')); (globalThis as unknown as {fetch: unknown}).fetch = fetchImpl;
   const event = makeFetchEvent(url); listeners.get('fetch')!(event);
   expect(event.response()).toBeNull(); await event.done(); expect(fetchImpl).not.toHaveBeenCalled(); expect(cache.match).not.toHaveBeenCalled();
+});
+
+it('does not cache authenticated requests or Cache-Control: private responses', async () => {
+  const fetchImpl = vi.fn(async (request: string | Request) => {
+    const href = typeof request === 'string' ? request : request.url;
+    if (href.endsWith('/api/commit')) return jsonResponse({ sha: 'deadbeefcafebabe' });
+    if (href.includes('private.json')) return new Response('secret', { status: 200, headers: { 'Cache-Control': 'private, max-age=60' } });
+    return new Response('ok', { status: 200 });
+  });
+  const { listeners, cache } = await loadServiceWorker({ fetchImpl });
+
+  const privateEvent = makeFetchEvent('https://preview.getbased.health/data/private.json');
+  listeners.get('fetch')!(privateEvent);
+  expect(await (await privateEvent.response()!).text()).toBe('secret');
+  await privateEvent.done();
+
+  const authEvent = makeFetchEvent('https://preview.getbased.health/data/auth.json', { headers: { Authorization: 'Bearer secret' } });
+  listeners.get('fetch')!(authEvent);
+  expect(await (await authEvent.response()!).text()).toBe('ok');
+  await authEvent.done();
+
+  expect(cache.put).not.toHaveBeenCalled();
 });

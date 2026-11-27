@@ -70,7 +70,34 @@ for (const protocol of ['native', 'structured'] as const) for (const mode of ['m
     await expect(row).toContainText('plasma'); await expect(row).toContainText('09:30'); await expect(row).toContainText('not fasting');
     await expect(page.getByRole('button', { name: 'Edit sample', exact: true })).toHaveCount(0); await openLabSampleEditorForTest(page, 'biochemistry_glucose', 'morning'); await expect(page.locator('#lab-sample-form')).toBeVisible();
     await expect(page.getByLabel('Collection date', { exact: true })).toHaveValue('2026-10-21'); await expect(page.getByLabel('Collection time', { exact: true })).toHaveValue('09:30'); await expect(page.getByLabel('Specimen', { exact: true })).toHaveValue('plasma');
-    await page.getByLabel('Collection date', { exact: true }).fill('2026-10-20'); await page.getByLabel('Collection time', { exact: true }).fill('10:00'); await page.getByLabel('Fasting', { exact: true }).selectOption('yes'); await page.getByRole('button', { name: 'Save sample', exact: true }).click();
+    const date = page.getByLabel('Collection date', { exact: true });
+    const time = page.getByLabel('Collection time', { exact: true });
+    const fasting = page.getByLabel('Fasting', { exact: true });
+    const save = page.getByRole('button', { name: 'Save sample', exact: true });
+    await date.fill('2026-10-20'); await time.fill('10:00'); await fasting.selectOption('yes');
+    if (protocol === 'native') {
+      await page.evaluate(async () => {
+        const { state } = await import('/js/state.js');
+        const { profileStorageKey } = await import('/js/profile.js');
+        const key = profileStorageKey(state.currentProfile, 'imported');
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<typeof put>) {
+          if (this.transaction.db.name === 'labcharts-blobs' && args[1] === key) {
+            IDBObjectStore.prototype.put = put;
+            throw new DOMException('Synthetic storage limit', 'QuotaExceededError');
+          }
+          return put.apply(this, args);
+        };
+      });
+      await save.click();
+      await expect(page.locator('#lab-sample-status')).toHaveText('Could not save this sample change.');
+      await expect(save).toBeEnabled();
+      await expect(date).toHaveValue('2026-10-20');
+      await expect(time).toHaveValue('10:00');
+      await expect(fasting).toHaveValue('yes');
+      expect((await saved()).entries).toEqual(accepted.entries);
+    }
+    await save.click();
     await expect(page.locator('#lab-sample-form')).toHaveCount(0); const edited = await saved(); expect(edited.entries.find((entry: { panelId: string }) => entry.panelId === 'morning')).toMatchObject({ date: '2026-10-20', context: { sampleTime: '10:00', fasting: true } }); expect(edited.entries.find((entry: { panelId: string }) => entry.panelId === 'evening')).toEqual(before.entries[1]); expect(edited.markerValueNotes['diabetes.insulin:2026-10-20']).toBe('Unshared insulin note');
     await page.reload(); expect((await saved()).entries).toEqual(edited.entries);
   });

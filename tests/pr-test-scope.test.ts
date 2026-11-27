@@ -59,6 +59,16 @@ describe('affected PR test planning', () => {
     for (const suite of ['unit', 'browser', 'firefox', 'pwa', 'kit']) expect(testCommands(plan, suite)).toEqual([]);
   });
 
+  it('runs the exact compiler command contract when the main test workflow changes', () => {
+    const sources = fixture({
+      '.github/workflows/test.yml': '',
+      'tests/pr-test-scope.test.ts': '',
+      'tests/quality-guardrails.test.ts': '',
+    });
+    expect(createTestPlan(sources, ['.github/workflows/test.yml']).unit)
+      .toEqual(['tests/pr-test-scope.test.ts', 'tests/quality-guardrails.test.ts']);
+  });
+
   it('scopes catalog changes to provider and model UI contracts rather than the app-startup barrel', () => {
     const plan = createTestPlan(fixture({
       'js/api-models.js': '',
@@ -124,8 +134,8 @@ describe('affected PR test planning', () => {
     expect(workflow).toContain('node node_modules/vitest/vitest.mjs run --config vitest.critical.config.js');
     expect(workflow).toContain('INCLUDE_VITEST_COVERAGE: \'1\'');
     expect(workflow).toContain('REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS: \'1\'');
-    expect(workflow).toContain('run: node scripts/playwright-coverage.mjs');
-    expect(workflow).toContain('ci-results.mjs coverage-verify');
+    expect(workflow).toContain('EXPECTED_COVERAGE_SHARDS: ${{ needs.prepare.outputs.native_coverage_shards }}');
+    expect(workflow).toContain('run: node scripts/playwright-coverage.mjs --verify-inventories .local-notes/ci/coverage-inventories "$EXPECTED_COVERAGE_SHARDS" .local-notes/ci/coverage-inputs.json');
     expect(workflow).toMatch(/name: Affected unit tests and mandatory changed-source checks\n\s+if: needs.prepare.outputs.full != 'true'/);
     expect(release).toMatch(/uses: \.\/\.github\/workflows\/test.yml\n\s+with:\n\s+full_suite: true/);
   });

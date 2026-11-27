@@ -1,5 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 import { createDefaultProfileData } from '../../js/profile.js';
+import type { LightSessionPresentationProps } from '../../js/light-session-presentation.js';
 import { seedLightPageFixture } from '../helpers/light-page-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import type { DeviceSessionRecord } from '../../js/light-devices-store.js';
@@ -23,19 +24,42 @@ test.describe('coarse-pointer touch targets', () => {
     }))).toEqual({ coarse: true, fine: false, touch: true });
   });
 
-  test('authored session forms and history retain themes, narrow layout, literal fields and accessible controls', async ({ page }, info) => {
+  for (const mode of ['server-rendered', 'native client'] as const) test(
+    `authored session forms and history retain themes, narrow layout, literal fields and accessible controls (${mode})`, async ({ page }, info) => {
     test.setTimeout(120000);
     const before = await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData));
-    await page.evaluate(async () => {
-      const [{ renderHTML }, model] = await Promise.all([import('/js/components/LightSessionPresentation.svelte.html.js'), import('/js/light-session-presentation.js')]);
+    await page.evaluate(async mode => {
+      const model = await import('/js/light-session-presentation.js');
       const host = document.createElement('div'); host.id = 'light-session-acceptance'; host.className = 'modal-overlay show';
       host.style.cssText = 'position:fixed;inset:0;z-index:10000;overflow:auto;background:var(--bg-primary);padding:16px;box-sizing:border-box;display:block';
       const past = model.projectPastSessionForm({ lastUsed: { posture: 'standing', surfaceAlbedo: 'grass' }, lastRegions: new Set(), eyeMode: 'open', lensTint: 'clear', localStartDefault: '2026-06-10T09:30', localNow: '2026-06-10T09:45', eyeModes: [{ key: 'open', pickerLabel: 'Ambient <light>' }], lensTints: [{ key: 'clear', label: 'Clear' }], postureOptions: [{ key: 'standing', label: 'Standing' }], surfaceOptions: [{ key: 'grass', label: 'Grass' }] });
       const device = model.projectDeviceSessionForm({ device: { id: 'dev', brand: '<Brand>', model: 'Panel & One' }, validModes: [{ id: 'red', label: 'Red' }, { id: 'uv', label: 'UV' }], defaultMode: 'red', defaultDuration: 10, defaultDistanceCm: 15, useUS: false, isUVDevice: false, isEyeLightDevice: false, defaultEyeControlChecked: true });
       const row = model.projectCompletedDeviceSession({ id: 'literal-id', startedAt: 1, durationMin: 12, mode: 'uv', safety: { hasUV: true, uvDoseStatus: 'unavailable', erythemalSED: null, conservativeBaseMedFraction: null, ocularActinicUV: null, ocularUvaJPerM2: null, unsafeEyeExposure: true } }, { id: 'dev', brand: '<Brand>', model: 'Panel & One', modes: [{ id: 'red', label: 'Red' }, { id: 'uv', label: 'UV' }] }, { date: '10 Jun 2026', time: '09:30' });
-      host.innerHTML = renderHTML({ kind: 'past', view: past, silhouetteView: (await import('/js/sun-body-silhouette.js')).projectBodySilhouette(new Set(['face'])) }) + renderHTML({ kind: 'device', view: device, silhouetteView: (await import('/js/sun-body-silhouette.js')).projectBodySilhouette(new Set(['breast-chest'])) }) + renderHTML({ kind: 'history', rows: [{ kind: 'row', view: row }], total: 4, sunCount: 3, deviceCount: 1, modal: true, showMore: false });
+      const {projectBodySilhouette} = await import('/js/sun-body-silhouette.js');
+      const parts: {target: HTMLElement; props: LightSessionPresentationProps}[] = [
+        {target: host, props: {kind: 'past', view: past, silhouetteView: projectBodySilhouette(new Set(['face']))}},
+        {target: host, props: {kind: 'device', view: device, silhouetteView: projectBodySilhouette(new Set(['breast-chest']))}},
+        {target: host, props: {kind: 'history', rows: [{kind: 'row', view: row}], total: 4, sunCount: 3, deviceCount: 1, modal: true, showMore: false}},
+      ];
       document.body.append(host);
-    });
+      if (mode === 'server-rendered') {
+        const {renderHTML} = await import('/js/components/LightSessionPresentation.svelte.html.js');
+        for (const {target, props} of parts) target.insertAdjacentHTML('beforeend', renderHTML(props));
+      } else {
+        const client = await import('/js/components/LightSessionPresentation.svelte.native.js');
+        const originalChildCounts = parts.map(({target}) => target.childElementCount);
+        const instances = parts.map(({target, props}) => client.mount(client.default, {target, props}));
+        client.flushSync();
+        Object.assign(host, {
+          async dispose() {
+            for (const instance of instances) await client.unmount(instance);
+            if (parts.some(({target}, index) => target.childElementCount !== originalChildCounts[index])) {
+              throw new Error('Light session nodes leaked after disposal');
+            }
+          },
+        });
+      }
+    }, mode);
     const root = page.locator('#light-session-acceptance');
     for (const width of [320, 1100]) {
       await page.setViewportSize({ width, height: 1000 });
@@ -56,6 +80,7 @@ test.describe('coarse-pointer touch targets', () => {
     }
     expect(await page.evaluate(async () => JSON.stringify((await import('/js/state.js')).state.importedData))).toBe(before);
     await expect(root.locator('img,script,[onerror]')).toHaveCount(0);
+    await root.evaluate(element => (element as HTMLElement & {dispose?: () => Promise<void>}).dispose?.());
   });
 });
 

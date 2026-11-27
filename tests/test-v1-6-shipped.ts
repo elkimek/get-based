@@ -646,7 +646,7 @@ const _origProfileSex = state ? state.profileSex : null;
     assert('data.js: active data cache avoids rebuilding marker data during modal browsing',
       /let _activeDataCache\s*=\s*null/.test(dataSrc)
       && /export function invalidateActiveDataCache\(\)/.test(dataSrc)
-      && /if \(_activeDataCacheMatches\(cacheMeta\)\) return _activeDataCache/.test(dataSrc)
+      && /if \(!reportEntries && _activeDataCacheMatches\(cacheMeta\)\) return _activeDataCache/.test(dataSrc)
       && /profileDob:\s*state\.profileDob/.test(dataSrc)
       && /wearableWeightLatest/.test(dataSrc)
       && /legacyWeightStamp/.test(dataSrc)

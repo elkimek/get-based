@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import type { LightDeviceRecord } from '../js/light-devices-store.js';
 import { renderHTML } from '../js/components/LightDeviceSetup.svelte.html.js';
-import { projectDevicePresets, projectDeviceCustomSetup, formatDevicePresetSpecification, deviceTypeOptions } from '../js/light-device-setup-presentation.js';
+import { projectDevicePresets, projectDeviceCustomSetup, formatDevicePresetSpecification, deviceTypeOptions, type LightDeviceSetupProps } from '../js/light-device-setup-presentation.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
+
+const load = createRequire(import.meta.url);
+
 interface OriginalCase {
   kind: 'custom' | 'presets'; name: string; hasAI: boolean; hasVision?: boolean; unit?: string;
   presets?: LightDeviceRecord[]; types?: Record<string, { icon?: string; label?: string }>; html: string;
@@ -23,14 +28,30 @@ function semantic(html: string) {
   });
   return [...root.children].map(tree);
 }
-for (const sample of original.cases) it(`preserves original setup semantics: ${sample.name}`, () => {
-  const html = sample.kind === 'presets'
-    ? renderHTML({kind:'presets',view:projectDevicePresets({presets:sample.presets!,types:sample.types!,hasAI:sample.hasAI})})
-    : renderHTML({kind:'custom',view:projectDeviceCustomSetup({hasAI:sample.hasAI,hasVision:!!sample.hasVision,unitSystem:sample.unit})});
+for (const sample of original.cases) it(`preserves original setup semantics: ${sample.name}`, async () => {
+  const props: LightDeviceSetupProps = sample.kind === 'presets'
+    ? {kind:'presets',view:projectDevicePresets({presets:sample.presets!,types:sample.types!,hasAI:sample.hasAI})}
+    : {kind:'custom',view:projectDeviceCustomSetup({hasAI:sample.hasAI,hasVision:!!sample.hasVision,unitSystem:sample.unit})};
+  const html = renderHTML(props);
   expect(semantic(html)).toEqual(semantic(sample.html));
   const root = document.createElement('div'); root.innerHTML = html;
   expect(root.querySelector('[style]')).toBeNull();
   expect([...root.querySelectorAll('button')].every(button => button.type === 'button')).toBe(true);
+  const component = load('../js/components/LightDeviceSetup.svelte.native.js') as typeof import('../js/components/LightDeviceSetup.svelte.native.js');
+  await expectNativeReview(html, host => {
+    const mounted = component.mount(component.default, {target: host, props});
+    component.flushSync();
+    return () => component.unmount(mounted);
+  }, host => {
+    expect(host.querySelector('[style], script, [onerror]')).toBeNull();
+    if (props.kind === 'custom') {
+      expect(host.querySelector('#custom-dev-url')?.getAttribute('aria-label') ?? null)
+        .toBe(props.view.hasAI ? 'Product page URL' : null);
+    } else {
+      expect([...host.querySelectorAll('[data-preset-id]')].map(preset => preset.getAttribute('data-preset-id')))
+        .toEqual(props.view.groups.flatMap(group => group.rows.map(row => row.id)));
+    }
+  });
 });
 it('retains curated type order, per-group record order, safe labels and immutable input', () => {
   const sample = original.cases.find(sample => sample.name === 'presets-manual-full')!;

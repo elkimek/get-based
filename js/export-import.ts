@@ -1,7 +1,7 @@
 // export-import.js — JSON import/restore helpers for the export facade.
 import type { JSONImportOptions } from '../types/export-import.js';
 
-import type { ImportBodyOperations, ImportedDataOperations, ImportProfileOperations, ImportRowOperations, RawReplace, RawClear, RawTrim, RawFindLab, RawRestoreLab, RawCreateProfile, RawSaveProfile, RawMigrateProfile } from '../types/export-import.js';
+import type { ImportBodyOperations, ImportedDataOperations, ImportProfileOperations, ImportRowOperations, RawReplace, RawClear, RawTrim, RawRestoreLab, RawCreateProfile, RawSaveProfile, RawMigrateProfile } from '../types/export-import.js';
 import { mergeLabOrdering } from './lab-ordering-core.js';
 import { mergeRestoredDisplayMetadata } from './lab-display-import.js';
 import { mergeBiologyScoreAIRecords } from './biology-score-persistence.js';
@@ -22,7 +22,11 @@ import {
   sortImportedArray,
   trimImportedArray,
 } from './data-merge.js';
-import { findOrCreateLabEntry } from './lab-entry-mutations.js';
+import { saveNewPortableProfile } from './portable-profile-import.js';
+export { importNewSharedProfile } from './portable-profile-import.js';
+import { labPanelPeerIndex } from './data-merge-lab-entries.js';
+import type { LabEntryDraft } from './lab-entry.js';
+import { projectPortableProfileData, hasPortableProfileContent, readStoredPortableProfile } from './portable-profile-data.js';
 import { mergeRestoredLabEntry } from './lab-entry-restore.js';
 import { planCustomMarkerRestore, reconcileCustomMarkerLifecycle } from './custom-marker-lifecycle.js';
 import {
@@ -111,6 +115,14 @@ async function _importChatDataLocked(profileId: string, chat: unknown) {
   }
 }
 
+function restorePortableLabEntry(data: ImportedDataOperations, entry: ImportRowOperations, at: number) {
+  const entries = ensureImportedArray(data, 'entries');
+  const index = labPanelPeerIndex(entries as LabEntryDraft[], entry as LabEntryDraft);
+  (clearTombstone as RawClear)(data, 'entries', entry.date);
+  if (index < 0) appendImportedArrayItem(data, 'entries', entry);
+  else (replaceImportedArrayItem as RawReplace)(data, 'entries', index, (mergeRestoredLabEntry as RawRestoreLab)(entries[index], entry, at));
+}
+
 export function importDataJSON(file: File, options: JSONImportOptions = {}) {
   if (Number(file?.size || 0) > MAX_PORTABLE_JSON_BYTES) {
     showNotification('This backup is too large to import safely in the browser.', 'error');
@@ -166,7 +178,7 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
             avatar: p.avatar || null,
             height: p.height || null, heightUnit: p.heightUnit || 'cm',
           });
-          await loadProfile(profileId);
+          if (await loadProfile(profileId) === false || state.currentProfile !== profileId) throw new Error('Profile changed before import. Retry.');
         }
         if (hasManualReadings) {
           const pendingProfile = state.currentProfile, pendingData = state.importedData;
@@ -191,19 +203,10 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
         const importTs = markerRestore.at;
         for (const entry of json.entries || []) {
           if (!entry.date || !entry.markers) continue;
-          // Earlier draft did `filter(ex => ex.date !== entry.date)` — same-
-          // date entries clobbered each other. The demos legitimately ship
-          // two entries per date (comprehensive panel + specialty add-on
-          // like an OmegaQuant fatty-acid run on the same draw day) and the
-          // second entry was silently dropped, losing every fatty-acid /
-          // specialty marker on import. Merge markers + markerSources
-          // instead so all data lands; later entries win on key conflicts.
-          const existing = ((findOrCreateLabEntry as RawFindLab)((state.importedData as ImportedDataOperations), entry.date, { now: importTs }));
-          const restored = (mergeRestoredLabEntry as RawRestoreLab)(existing, entry, importTs);
-          (replaceImportedArrayItem as RawReplace)((state.importedData as ImportedDataOperations), 'entries', (state.importedData as ImportedDataOperations).entries!.indexOf(existing as ImportRowOperations), restored);
+          restorePortableLabEntry(state.importedData as ImportedDataOperations, entry, importTs);
           count++;
         }
-        if (count === 0 && (!json.notes || json.notes.length === 0) && !json.chat && !hasNutrition && !hasManualReadings && !Object.keys(json.customMarkers || {}).length && !Object.keys(markerRestore.lifecycle).length && !Object.keys(json.labOrdering || {}).length) {
+        if (count === 0 && !hasPortableProfileContent({ ...json, entries: [] }) && !json.chat && !hasNutrition && !hasManualReadings) {
           showNotification('No valid entries found in JSON', 'error');
           return;
         }
@@ -298,18 +301,26 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
             if (!(state.importedData as ImportedDataOperations).refOverrides![key]) (state.importedData as ImportedDataOperations).refOverrides![key] = ovr;
           }
         }
+function assignSafeRecord(target: Record<string, unknown>, source: unknown) {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return;
+  for (const [k, v] of Object.entries(source)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+    target[k] = v;
+  }
+}
+
         // Import category label/icon overrides
-        if (json.categoryLabels && typeof json.categoryLabels === 'object') {
+        if (json.categoryLabels && typeof json.categoryLabels === 'object' && !Array.isArray(json.categoryLabels)) {
           if (!(state.importedData as ImportedDataOperations).categoryLabels) (state.importedData as ImportedDataOperations).categoryLabels = {};
-          Object.assign((state.importedData as ImportedDataOperations).categoryLabels!, json.categoryLabels);
+          assignSafeRecord((state.importedData as ImportedDataOperations).categoryLabels!, json.categoryLabels);
         }
-        if (json.categoryIcons && typeof json.categoryIcons === 'object') {
+        if (json.categoryIcons && typeof json.categoryIcons === 'object' && !Array.isArray(json.categoryIcons)) {
           if (!(state.importedData as ImportedDataOperations).categoryIcons) (state.importedData as ImportedDataOperations).categoryIcons = {};
-          Object.assign((state.importedData as ImportedDataOperations).categoryIcons!, json.categoryIcons);
+          assignSafeRecord((state.importedData as ImportedDataOperations).categoryIcons!, json.categoryIcons);
         }
-        if (json.markerLabels && typeof json.markerLabels === 'object') {
+        if (json.markerLabels && typeof json.markerLabels === 'object' && !Array.isArray(json.markerLabels)) {
           if (!(state.importedData as ImportedDataOperations).markerLabels) (state.importedData as ImportedDataOperations).markerLabels = {};
-          Object.assign((state.importedData as ImportedDataOperations).markerLabels!, json.markerLabels);
+          assignSafeRecord((state.importedData as ImportedDataOperations).markerLabels!, json.markerLabels);
         }
         // Import menstrual cycle
         if (json.menstrualCycle && typeof json.menstrualCycle === 'object') {
@@ -379,19 +390,19 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
           }
         }
         // Import marker notes
-        if (json.markerNotes && typeof json.markerNotes === 'object') {
+        if (json.markerNotes && typeof json.markerNotes === 'object' && !Array.isArray(json.markerNotes)) {
           if (!(state.importedData as ImportedDataOperations).markerNotes) (state.importedData as ImportedDataOperations).markerNotes = {};
-          Object.assign((state.importedData as ImportedDataOperations).markerNotes!, json.markerNotes);
+          assignSafeRecord((state.importedData as ImportedDataOperations).markerNotes!, json.markerNotes);
         }
         // Import per-value notes (keyed "category.markerKey:date")
-        if (json.markerValueNotes && typeof json.markerValueNotes === 'object') {
+        if (json.markerValueNotes && typeof json.markerValueNotes === 'object' && !Array.isArray(json.markerValueNotes)) {
           if (!(state.importedData as ImportedDataOperations).markerValueNotes) (state.importedData as ImportedDataOperations).markerValueNotes = {};
-          Object.assign((state.importedData as ImportedDataOperations).markerValueNotes!, json.markerValueNotes);
+          assignSafeRecord((state.importedData as ImportedDataOperations).markerValueNotes!, json.markerValueNotes);
         }
         // Import manual value flags
-        if (json.manualValues && typeof json.manualValues === 'object') {
+        if (json.manualValues && typeof json.manualValues === 'object' && !Array.isArray(json.manualValues)) {
           if (!(state.importedData as ImportedDataOperations).manualValues) (state.importedData as ImportedDataOperations).manualValues = {};
-          Object.assign((state.importedData as ImportedDataOperations).manualValues!, json.manualValues);
+          assignSafeRecord((state.importedData as ImportedDataOperations).manualValues!, json.manualValues);
         }
         // Manual wearable deletions are privacy state. Merge by the newest
         // deletion clock so importing an older backup cannot resurrect a
@@ -399,8 +410,8 @@ export function importDataJSON(file: File, options: JSONImportOptions = {}) {
         if (json.manualBodyReadings && typeof json.manualBodyReadings === 'object' && !Array.isArray(json.manualBodyReadings)) {
           const target = state.importedData.manualBodyReadings || (state.importedData.manualBodyReadings = {});
           for (const [key, value] of Object.entries(json.manualBodyReadings)) {
-            if (['__proto__', 'constructor', 'prototype'].includes(key)) continue;
-            if (!Object.hasOwn(target, key)) target[key] = value as import('../types/app-state.js').ManualBodyReading;
+            const entry = manual?.parseManualMirrorEntry(key, value);
+            if (entry && !Object.hasOwn(target, key)) target[key] = {value: entry.value, updatedAt: entry.updatedAt};
           }
         }
         if (json.manualMetricTombstones && typeof json.manualMetricTombstones === 'object'
@@ -623,15 +634,13 @@ async function _importDatabaseBundle(json: ImportBodyOperations, options: JSONIm
   const plans: Array<{bp: ImportProfileOperations; existing: ReturnType<typeof getProfiles>[number] | undefined; importData: ImportedDataOperations; key: string; raw: string | null; current: ImportedDataOperations; replaceRegimens: boolean}> = [];
   for (const bp of json.profiles!) {
     if (!bp.name && !bp.id) continue;
-    // Match by id first, then by name
-    let existing = profiles.find(p => p.id === bp.id);
-    if (!existing && bp.name) existing = profiles.find(p => p.name === bp.name);
-    const importData = (bp.data || {}) as ImportedDataOperations;
+    const names = !bp.id && bp.name ? profiles.filter(profile => profile.name === bp.name) : [];
+    const existing = bp.id ? profiles.find(profile => profile.id === bp.id) : names.length === 1 ? names[0] : undefined;
+    const importData = projectPortableProfileData(bp.data ?? {}) as ImportedDataOperations;
     if (existing && plans.some(p => p.existing?.id === existing.id)) throw new Error('Duplicate profile in bundle.');
     const key = existing ? profileStorageKey(existing.id, 'imported') : '';
     const raw = key ? await encryptedGetItem(key, { throwOnDecryptError: true }) : null;
-    let current: ImportedDataOperations;
-    try { current = raw ? JSON.parse(raw) : {}; } catch { current = {}; }
+    const current = readStoredPortableProfile(raw) as ImportedDataOperations;
     const restoredOrdering = mergeLabOrdering(current.labOrdering, importData.labOrdering);
     if (current.labOrdering != null || importData.labOrdering != null) importData.labOrdering = restoredOrdering;
     const markerRestore = planCustomMarkerRestore(current, importData);
@@ -646,14 +655,11 @@ async function _importDatabaseBundle(json: ImportBodyOperations, options: JSONIm
     for (const { bp, existing, importData, raw, current, replaceRegimens } of plans) {
       if (existing) {
         const markerRestore = planCustomMarkerRestore(current, importData);
-        // Entries: date-keyed upsert
+        // Preserve independent collections on the same date.
         if (Array.isArray(importData.entries)) {
-          const entries = ensureImportedArray(current, 'entries');
           for (const entry of importData.entries) {
             if (!entry.date || !entry.markers) continue;
-            const idx = entries.findIndex(ex => ex.date === entry.date);
-            if (idx >= 0) { (replaceImportedArrayItem as RawReplace)(current, 'entries', idx, (mergeRestoredLabEntry as RawRestoreLab)(entries[idx], entry, markerRestore.at)); }
-            else { appendImportedArrayItem(current, 'entries', entry); }
+            restorePortableLabEntry(current, entry, markerRestore.at);
           }
         }
         // Notes: deduplicate by date+text
@@ -759,20 +765,8 @@ async function _importDatabaseBundle(json: ImportBodyOperations, options: JSONIm
         if (bp.chat) await _importChatData(existing.id, bp.chat);
         await _importNutritionData(existing.id, bp.nutrition);
       } else {
-        reconcileCustomMarkerLifecycle(importData);
-        const id = await (createProfile as RawCreateProfile)(bp.name || 'Imported', {
-          sex: bp.sex || null, dob: bp.dob || null,
-          location: bp.location || { country: '', zip: '' },
-          tags: bp.tags || [], notes: bp.notes || '',
-          status: bp.status || 'active', avatar: bp.avatar || null,
-          height: bp.height || null, heightUnit: bp.heightUnit || 'cm',
-        });
+        const id = await saveNewPortableProfile(bp, importData, typeof bp.id === 'string' ? bp.id : undefined);
         if (!firstImportedId) firstImportedId = id;
-        if (bp.pinned) await updateProfileMeta(id, { pinned: true });
-        const persisted = await (saveImportedDataForProfile as RawSaveProfile)(id, importData, {
-          forceProfileScope: true,
-        });
-        if (!persisted) throw new Error('Could not save.');
         created++;
         if (bp.chat) await _importChatData(id, bp.chat);
         await _importNutritionData(id, bp.nutrition);

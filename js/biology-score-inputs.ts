@@ -118,6 +118,7 @@ function getDerivedMarkerHit(data: ScoringData | null | undefined, candidates: s
         || (key === 'omega3Index' ? pairedHits(data, `${catKey}.dha`, `${catKey}.epa`, options) : null);
     if (!pair) continue;
     const [a, b] = pair;
+    if (recipe?.multiply && (a.entryContext?.fasting === false || b.entryContext?.fasting === false)) continue;
     if (fatty && (a.unit !== b.unit || a.specimen !== b.specimen || a.method !== b.method)) continue;
     if (fatty && !/^(%|%.*fatty.*)$/i.test(a.unit)) continue;
     if (b.canonicalValue <= 0 && key !== 'omega3Index' && !recipe?.subtract) continue;

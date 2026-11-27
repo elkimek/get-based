@@ -107,7 +107,10 @@ export function createProfileShareTransitionHandler(settings: TransitionSettings
     if (!['GET', 'POST', 'DELETE', 'OPTIONS'].includes(req.method)) {
       return legacyHandler(req, settings.legacyStore);
     }
-    if (['POST', 'OPTIONS'].includes(req.method) || currentTime >= transition.legacyBlobUntil) {
+    if (req.method === 'OPTIONS') {
+      return legacyHandler(req, settings.legacyStore);
+    }
+    if (req.method === 'POST' || currentTime >= transition.legacyBlobUntil) {
       return redirectToUpstream(req, transition.upstreamUrl);
     }
     if (!settings.legacyStore) return unavailableResponse();

@@ -66,18 +66,24 @@ test('Kit delegates navigation inside its island and preserves native form chron
         form.addEventListener('submit',event=>{record('target',event);if(id==='outside-target-cancel')event.preventDefault();if(id==='outside-target-stop'){event.preventDefault();event.stopPropagation();}});
         (id==='inside-kit'?inside:host).append(form);
       }
-      // Position below the measured diagnostic host; retain real trusted clicks.
-      inside.style.top=`${host.getBoundingClientRect().bottom+16}px`;
+      // Keep the separate fixture below the host as fonts and its iframe lay out.
+      const align=()=>{inside.style.top=`${host.getBoundingClientRect().bottom+16}px`;};
+      const observer=new ResizeObserver(align);
+      observer.observe(host);
+      align();
       // Retain a document marker and check that navigation makes no document request.
       document.documentElement.dataset.ownershipDocument='retained';
     });
-    const fixtureGeometry=await page.evaluate(()=>{
-      const outside=document.getElementById('ownership-outside')!.getBoundingClientRect();
-      const inside=document.getElementById('ownership-inside')!.getBoundingClientRect();
-      return {outsideBottom:outside.bottom,insideTop:inside.top,insideBottom:inside.bottom,viewportHeight:innerHeight};
-    });
-    expect(fixtureGeometry.insideTop).toBe(fixtureGeometry.outsideBottom+16);
-    expect(fixtureGeometry.insideBottom).toBeLessThanOrEqual(fixtureGeometry.viewportHeight);
+    let fixtureGeometry: {outsideBottom:number;insideTop:number;insideBottom:number;viewportHeight:number}|undefined;
+    await expect(async()=>{
+      fixtureGeometry=await page.evaluate(()=>{
+        const outside=document.getElementById('ownership-outside')!.getBoundingClientRect();
+        const inside=document.getElementById('ownership-inside')!.getBoundingClientRect();
+        return {outsideBottom:outside.bottom,insideTop:inside.top,insideBottom:inside.bottom,viewportHeight:innerHeight};
+      });
+      expect(fixtureGeometry.insideTop).toBe(fixtureGeometry.outsideBottom+16);
+      expect(fixtureGeometry.insideBottom).toBeLessThanOrEqual(fixtureGeometry.viewportHeight);
+    }).toPass({timeout:5000});
     await test.info().attach('framework-fixture-geometry.json',{body:JSON.stringify(fixtureGeometry,null,2),contentType:'application/json'});
     const reset=async()=>page.locator('#ownership-events').evaluate(node=>{node.textContent='[]';});
     const initial=page.url(); const initialRequests=navigation.length;

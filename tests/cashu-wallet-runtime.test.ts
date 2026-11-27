@@ -1,4 +1,4 @@
-type CashuWalletOperations = Pick<typeof import('../js/cashu-wallet.js'), "checkProofStates" | "checkFundingStatus" | "clearPendingDeposit" | "clearPendingWithdraw" | "createFundingInvoice" | "createWithdrawQuote" | "depositToNode" | "destroyWalletDB" | "executeWithdraw" | "exportWallet" | "generateWalletSeed" | "getFeeBalance" | "getFeePct" | "getLocalWalletBalance" | "getMaxWithdrawable" | "getMintUrl" | "getWalletBalance" | "getWalletMints" | "getWalletMnemonic" | "hasWalletSeed" | "receiveToken" | "recoverPendingDeposit" | "recoverPendingFunding" | "recoverPendingWalletOperation" | "recoverPendingWithdraw" | "redeemFees" | "restoreWalletFromSeed" | "retryFeeAutoMelt" | "savePendingWithdrawToken" | "sendAsToken" | "setMintUrl" | "subscribeFundingQuotes" | "withdrawToAddress">;
+type CashuWalletOperations = Pick<typeof import('../js/cashu-wallet.js'), "checkProofStates" | "checkFundingStatus" | "clearPendingDeposit" | "clearPendingWithdraw" | "acknowledgeWalletSeedBackup" | "createFundingInvoice" | "createWithdrawQuote" | "depositToNode" | "destroyWalletDB" | "executeWithdraw" | "exportWallet" | "generateWalletSeed" | "getFeeBalance" | "getFeePct" | "getLocalWalletBalance" | "getMaxWithdrawable" | "getMintUrl" | "getWalletBalance" | "getWalletMints" | "getWalletMnemonic" | "hasWalletSeed" | "receiveToken" | "recoverPendingDeposit" | "recoverPendingFunding" | "recoverPendingWalletOperation" | "recoverPendingWithdraw" | "redeemFees" | "restoreWalletFromSeed" | "retryFeeAutoMelt" | "savePendingWithdrawToken" | "sendAsToken" | "setMintUrl" | "subscribeFundingQuotes" | "withdrawToAddress">;
 import { proof, AmountStub, installCashuStub, loadWallet, readCashuStore, openCashuTestDB, seedExistingUserCashuState, readIdbMeta, readIdbStore, jsonResponse } from './helpers/cashu-wallet.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
@@ -37,6 +37,7 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = realFetch;
+  vi.restoreAllMocks();
 });
 
 describe('Cashu wallet runtime behavior', () => {
@@ -431,7 +432,7 @@ describe('Cashu wallet runtime behavior', () => {
       });
       await store._createCounterSource('encrypt-test', false).reserve('keyset-stub', 3);
 
-      expect((await readCashuStore('proofs') as RawRowReader[])[0]!.secret).toBe('wallet-bearer-secret');
+      expect((await readCashuStore('proofs') as RawRowReader[])[0]!._payload).toMatch(/^d1:/);
       expect((await readCashuStore('meta') as RawRowReader[]).some(row => row.key === 'pendingQuote:legacy-secret-quote')).toBe(true);
 
       localStorage.setItem('labcharts-encryption-enabled', 'true');
@@ -472,11 +473,12 @@ describe('Cashu wallet runtime behavior', () => {
       }]);
 
       await cryptoModule._migrateAllStorageForTest('plain');
-      expect((await readCashuStore('proofs') as RawRowReader[]).map(row => row.secret).sort()).toEqual([
-        'new-encrypted-wallet-secret', 'wallet-bearer-secret',
-      ]);
-      expect((await readCashuStore('fee-proofs') as RawRowReader[])[0]!.secret).toBe('fee-bearer-secret');
-      expect((await readCashuStore('meta') as RawRowReader[]).find(row => row.key === 'pendingWithdraw')?.value).toContain('cashu-sensitive-token');
+      const deviceRows = await readCashuStore('proofs') as RawRowReader[];
+      expect(deviceRows).toHaveLength(2);
+      expect(deviceRows.every(row => typeof row._payload === 'string' && row._payload.startsWith('d1:'))).toBe(true);
+      expect((await readCashuStore('fee-proofs') as RawRowReader[])[0]!._payload).toMatch(/^d1:/);
+      expect((await readCashuStore('meta') as RawRowReader[]).find(row => row.key === 'pendingWithdraw')?._payload).toMatch(/^d1:/);
+      await expect(store._getMeta('pendingWithdraw')).resolves.toContain('cashu-sensitive-token');
     } finally {
       try { await cryptoModule._migrateAllStorageForTest('plain'); } catch {}
       localStorage.removeItem('labcharts-encryption-enabled');
@@ -500,6 +502,8 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.generateWalletSeed()).resolves.toEqual({
       mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
     });
+    await expect(wallet.hasWalletSeed()).resolves.toBe(false);
+    wallet.acknowledgeWalletSeedBackup();
     await expect(wallet.hasWalletSeed()).resolves.toBe(true);
     await expect(wallet.getWalletMnemonic()).resolves.toBe('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
     await expect(wallet.generateWalletSeed()).resolves.toEqual({
@@ -955,6 +959,13 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.redeemFees(makeTestInvoice(1))).rejects.toThrow('No fee proofs to redeem');
   });
 
+  it('shares the first wallet database open so clearing data can close every connection', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    await Promise.all([wallet.getMintUrl(), wallet.getMintUrl(), wallet.getWalletBalance()]);
+    await expect(wallet.destroyWalletDB()).resolves.toBeUndefined();
+    expect(await indexedDB.databases()).not.toContainEqual(expect.objectContaining({ name: 'getbased-cashu' }));
+  });
+
   it('keeps existing proofs and the original seed when restore cannot be proven', async () => {
     const stub = installCashuStub();
     const wallet = await loadWallet() as CashuWalletOperations;
@@ -977,6 +988,26 @@ describe('Cashu wallet runtime behavior', () => {
       'legal winner thank year wave sausage worth useful legal winner thank yellow'
     )).rejects.toThrow('Cannot replace the wallet seed');
     await expect(wallet.getWalletBalance()).resolves.toBe(10);
+  });
+
+  it('finishes a seed replacement after the proof commit survives a failed mnemonic write', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const original = await wallet.generateWalletSeed();
+    const replacement = 'legal winner thank year wave sausage worth useful legal winner thank yellow';
+    const setItem = localStorage.setItem.bind(localStorage);
+    const fault = vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+      if (key === 'labcharts-cashu-wallet-mnemonic') throw new DOMException('Synthetic quota error', 'QuotaExceededError');
+      return setItem(key, value);
+    });
+    try {
+      await expect(wallet.restoreWalletFromSeed(replacement)).rejects.toThrow('Synthetic quota error');
+    } finally { fault.mockRestore(); }
+    const reloaded = await loadWallet() as CashuWalletOperations;
+    await expect(reloaded.getWalletMnemonic()).resolves.toBe(original.mnemonic);
+    await expect(reloaded.restoreWalletFromSeed(original.mnemonic)).rejects.toThrow('same seed');
+    await expect(reloaded.restoreWalletFromSeed(replacement)).resolves.toEqual({ balance: 7, restoredCount: 7 });
+    await expect(reloaded.getWalletMnemonic()).resolves.toBe(replacement);
+    await expect(reloaded.getWalletBalance()).resolves.toBe(7);
   });
 
   it('preserves the selected mint after failed receive and keeps balances at both mints', async () => {
@@ -1026,6 +1057,23 @@ describe('Cashu wallet runtime behavior', () => {
     expect(new Set(counters).size).toBe(7);
     expect(counters.sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     await expect(sourceA.reserve('keyset-concurrent', 0)).resolves.toEqual({ start: 7, count: 0 });
+  });
+
+  it('advances atomic counters monotonically while isolating seed namespaces and legacy offsets', async () => {
+    await loadWallet();
+    const store = await import('../js/cashu-wallet-store.js');
+    const legacy = store._createCounterSource(), restored = store._createCounterSource('restored');
+    const separate = store._createCounterSource('separate', false);
+    await legacy.advanceToAtLeast('synthetic-keyset', 7);
+    await expect(restored.reserve('synthetic-keyset', 0)).resolves.toEqual({start: 7, count: 0});
+    await restored.advanceToAtLeast('synthetic-keyset', 12);
+    await restored.advanceToAtLeast('synthetic-keyset', 2);
+    await expect(restored.reserve('synthetic-keyset', 3)).resolves.toEqual({start: 12, count: 3});
+    await expect(restored.advanceToAtLeast('synthetic-keyset', -1)).rejects.toThrow('invalid value');
+    await expect(restored.reserve('synthetic-keyset', 0.5)).rejects.toThrow('invalid count');
+    await expect(restored.reserve('synthetic-keyset', 0)).resolves.toEqual({start: 15, count: 0});
+    await expect(legacy.reserve('synthetic-keyset', 0)).resolves.toEqual({start: 7, count: 0});
+    await expect(separate.reserve('synthetic-keyset', 0)).resolves.toEqual({start: 0, count: 0});
   });
 
   it('retains ISSUED funding records until quote-specific proofs are recovered', async () => {

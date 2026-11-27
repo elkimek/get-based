@@ -70,3 +70,87 @@ test('shared lens chrome preserves frozen geometry and themes with independently
   expect(errors).toEqual([]);
   fs.writeFileSync(info.outputPath('lens-shell-parity.json'), JSON.stringify({pairs,controls,widths,themes:6,pageErrors:errors}));
 });
+
+test('native Lens grid matches server-rendered controls and persists keyboard reordering', async ({page}) => {
+  await page.route('**/lens-compatibility-entry', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><main></main><aside>Outside the lens</aside>',
+  }));
+  await page.goto('/lens-compatibility-entry');
+
+  const snapshot = await page.evaluate(async () => {
+    const [native, content, presentation, shell, ordering, {state}] = await Promise.all([
+      import('/js/components/LensShellPresentation.svelte.native.js'),
+      import('/js/lens-content-presentation.js'),
+      import('/js/lens-shell-presentation.js'),
+      import('/js/lens-page-shell.js'),
+      import('/js/lens-page-shell-core.js'),
+      import('/js/state.js'),
+    ]);
+    const target = document.querySelector('main')!;
+    const route = 'body';
+    const sources = [
+      {
+        id: 'connected-sources', title: 'Connected sources', description: 'Sources in this profile',
+        body: {kind: 'body-sources', view: content.projectBodySources({manual: {coverageDays: 5}}, null)},
+        opts: {dashboardId: 'connected-sources'},
+      },
+      {
+        id: 'lab-coverage', title: 'No lab results <yet>',
+        body: null,
+      },
+    ];
+    state.currentView = route;
+    shell.configureLensPageShell({
+      getAvailableDashboardFixedWidgetIds: () => ['connected-sources'],
+      getDashboardWidgetPrefs: () => ({hidden: ['connected-sources']}),
+      navigate: value => { target.dataset.lastNavigation = value; },
+      addDashboardWidgetFromLens: id => { target.dataset.lastDashboardWidget = id; },
+    });
+    const render = () => {
+      const widgets = ordering.orderLensPageWidgets(route, sources).map((row, index) => {
+        const opts = {...row.opts, pageRoute: route, pageIndex: index, pageCount: sources.length};
+        const chrome = ordering.lensWidgetChromeFacts(row.id, row.description, opts);
+        return presentation.projectLensWidget(row.id, row.title, chrome.headerDescription, row.body, 'full', chrome.tools);
+      });
+      return native.mount(native.default, {target, props: {kind: 'grid', view: {route, orderKey: route, widgets}}});
+    };
+    const elements = (area: HTMLElement) => [...area.querySelectorAll('*')].map(node => ({
+      tag: node.tagName,
+      attributes: [...node.attributes].map(attribute => [attribute.name, attribute.value]).sort(),
+      text: [...node.childNodes].filter(child => child.nodeType === Node.TEXT_NODE).map(child => child.textContent!.trim()).filter(Boolean),
+    }));
+    const serverMarkup = document.createElement('section');
+    serverMarkup.innerHTML = shell.renderLensPageWidgets(route, sources);
+    const view = render();
+    native.flushSync();
+    target.addEventListener('rerender-lens', async () => {
+      await native.unmount(view);
+      render();
+      native.flushSync();
+    }, {once: true});
+    return {sameElements: JSON.stringify(elements(target)) === JSON.stringify(elements(serverMarkup)), elementCount: elements(target).length};
+  });
+  expect(snapshot.sameElements).toBe(true);
+  expect(snapshot.elementCount).toBeGreaterThan(15);
+  const lens = page.locator('main');
+  const sources = lens.locator('[data-widget-id="connected-sources"]');
+  const labs = lens.locator('[data-widget-id="lab-coverage"]');
+  await expect(sources.getByRole('button', {name: /Manual logs.*5d coverage/})).toBeVisible();
+  await expect(labs).toContainText('No lab results <yet>');
+  await expect(labs).toContainText('No data available yet.');
+  await expect(sources.getByRole('button', {name: 'Move page section up'})).toBeDisabled();
+  await expect(labs.getByRole('button', {name: 'Move page section down'})).toBeDisabled();
+
+  await sources.getByRole('button', {name: 'Add to Dashboard'}).press('Enter');
+  await expect(lens).toHaveAttribute('data-last-dashboard-widget', 'connected-sources');
+  await labs.getByRole('button', {name: 'Move page section up'}).press('Space');
+  await expect(lens).toHaveAttribute('data-last-navigation', 'body');
+  expect(await page.evaluate(async () => (await import('/js/lens-page-shell.js')).getLensPageWidgetOrder('body', ['connected-sources', 'lab-coverage']))).toEqual(['lab-coverage', 'connected-sources']);
+
+  await lens.dispatchEvent('rerender-lens');
+  await expect(lens.locator('.lens-page-widgets > section').first()).toHaveAttribute('data-widget-id', 'lab-coverage');
+  await expect(labs.getByRole('button', {name: 'Move page section up'})).toBeDisabled();
+  await expect(sources.getByRole('button', {name: 'Move page section down'})).toBeDisabled();
+  await expect(page.locator('aside')).toHaveText('Outside the lens');
+});

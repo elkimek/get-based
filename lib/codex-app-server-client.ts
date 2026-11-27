@@ -185,6 +185,17 @@ export class CodexAppServerClient extends EventEmitter {
     const error = new CodexAppServerError('Codex app-server client closed.', 'client_closed');
     rejectPendingRequests(() => this.pending, () => error);
     child.stdin.end();
-    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill('SIGTERM');
+      if (typeof child.pid === 'number' && child.pid > 0) {
+        const forceKill = setTimeout(() => {
+          if (child.exitCode === null && child.signalCode === null) {
+            try { child.kill('SIGKILL'); } catch {}
+          }
+        }, 2_000);
+        forceKill.unref?.();
+        child.once('exit', () => clearTimeout(forceKill));
+      }
+    }
   }
 }

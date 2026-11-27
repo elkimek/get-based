@@ -4,11 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { SourceMap } from 'node:module';
 import type { SourceMapPayload } from 'node:module';
 import * as ts from 'typescript/unstable/ast';
-import { withParsedSource } from './native-typescript-ast.js';
+import { withParsedSource, withParsedSources } from './native-typescript-ast.js';
 import { isSourceFile, sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 import { ownedVendorSources } from './project-owned-vendor.mjs';
+import {isMappedSvelteOutput, isSvelteCompatibilityChunk, readSvelteCompatibilityManifest, SVELTE_COMPATIBILITY_ROOT} from './svelte-compatibility-outputs.mjs';
 
 export interface CoverageSourceFunction { start: number; end: number; bodyStart: number; bodyEnd: number; nameStart: number | undefined; nameEnd: number | undefined; collectorEnds: number[]; name: string; }
+export interface CoverageFunctionIndex { owned: CoverageSourceFunction[]; thirdParty: CoverageSourceFunction[]; }
 export interface CoverageFeatureRow { file: string; fnTotal: number; fnCalled: number; total: number; covered: number; }
 
 export const COVERAGE_ROOTS = ['js', 'api', 'lib', 'server', 'shared', 'bin'];
@@ -26,20 +28,33 @@ export function coverageFilePattern(file: string): string {
   return /\.[cm]?js$/.test(file) && !/[*?\[\]{}]/.test(file) ? file.replace(/s$/, '[s]') : file;
 }
 const OWNED_VENDOR_RUNTIME = new Set(COVERAGE_INCLUDE.filter(file => file.startsWith('vendor/')));
+const compatibilityOutputs = new Map<string, ReadonlySet<string>>();
 
 export function isProductionSource(file: string, root = ROOT) {
+  if (isSvelteCompatibilityChunk(file)) {
+    const outputs = compatibilityOutputs.get(root) ?? new Set(readSvelteCompatibilityManifest(root));
+    compatibilityOutputs.set(root, outputs);
+    return outputs.has(file);
+  }
   return COVERAGE_FILES.includes(file.replace(/\.[cm]?ts$/, '.js'))
     || (COVERAGE_ROOTS.includes(file.split('/')[0]!) && isSourceFile(file))
     || (isSourceFile(file) && (root === ROOT ? OWNED_VENDOR_RUNTIME : new Set(ownedVendorSources(root).map(runtimePath))).has(runtimePath(file)));
 }
 
 export function productionSources(root: string, { runtime = false }: { runtime?: boolean } = {}) {
-  return [...new Set([
+  const authored = [...new Set([
     ...COVERAGE_FILES.map(file => sourcePath(path.join(root, file))).filter(file => fs.existsSync(file)),
     ...COVERAGE_ROOTS.flatMap(directory => walkSourceFiles(path.join(root, directory))),
     ...ownedVendorSources(root).map(file => path.join(root, file)),
-  ])].flatMap(file => runtime && file.endsWith('.svelte') && fs.existsSync(`${file}.html.js`)
-    ? [runtimePath(file), `${file}.html.js`] : [runtime ? runtimePath(file) : file]).map(target => {
+  ])].flatMap(file => {
+    if (!runtime) return [file];
+    const outputs = [runtimePath(file)];
+    if (file.endsWith('.svelte') && fs.existsSync(`${file}.html.js`)) outputs.push(`${file}.html.js`);
+    return outputs;
+  });
+  const shared = runtime && fs.existsSync(path.join(root, SVELTE_COMPATIBILITY_ROOT))
+    ? readSvelteCompatibilityManifest(root).map(file => path.join(root, file)) : [];
+  return [...authored, ...shared].map(target => {
     if (!fs.existsSync(target)) throw new Error(`Missing emitted runtime ${target}; run npm run typescript:build`);
     return path.relative(root, target).replaceAll(path.sep, '/');
   }).sort();
@@ -48,40 +63,38 @@ export function productionSources(root: string, { runtime = false }: { runtime?:
 // Both Istanbul and V8 must map to a source function, never to its display name.
 // Istanbul often reports only the body; V8 includes the signature. AST identity
 // preserves separate same-named methods, nested functions and anonymous callbacks.
-export function sourceFunctions(source: string, file = 'source.js') {
-  return withParsedSource(source, file, (ast) => {
-    const functions: CoverageSourceFunction[] = [];
-    function visit(node: ts.Node) {
-      if (ts.isFunctionLikeDeclaration(node) && (node as ts.FunctionLikeDeclaration).body) {
-        let body = (node as ts.FunctionLikeDeclaration).body!;
-        while (ts.isParenthesizedExpression(body)) body = body.expression;
-        const closingLineStart = source.lastIndexOf('\n', body.end - 2) + 1;
-        const indentedClosingBrace = ts.isBlock(body)
-          && /^[ \t\r]*$/.test(source.slice(closingLineStart, body.end - 1));
-        const name = 'name' in node ? node.name : undefined;
-        functions.push({
-          start: node.getStart(ast), end: node.end,
-          bodyStart: body.getStart(ast), bodyEnd: body.end,
-          nameStart: name?.getStart(ast), nameEnd: name?.end,
-          // Istanbul's block location ends before the closing brace; expression
-          // bodies can omit surrounding parentheses. V8 includes the full end.
-          collectorEnds: [...new Set([node.end, body.end, ...(ts.isBlock(body) ? [body.end - 1] : []),
-            ...(indentedClosingBrace ? [closingLineStart] : [])])],
-          name: name?.getText(ast) || '(anonymous)',
-        });
-      }
-      node.forEachChild(visit);
+function functionsInSource(source: string, ast: ts.SourceFile): CoverageSourceFunction[] {
+  const functions: CoverageSourceFunction[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isFunctionLikeDeclaration(node) && (node as ts.FunctionLikeDeclaration).body) {
+      let body = (node as ts.FunctionLikeDeclaration).body!;
+      while (ts.isParenthesizedExpression(body)) body = body.expression;
+      const closingLineStart = source.lastIndexOf('\n', body.end - 2) + 1;
+      const indentedClosingBrace = ts.isBlock(body)
+        && /^[ \t\r]*$/.test(source.slice(closingLineStart, body.end - 1));
+      const name = 'name' in node ? node.name : undefined;
+      functions.push({
+        start: node.getStart(ast), end: node.end,
+        bodyStart: body.getStart(ast), bodyEnd: body.end,
+        nameStart: name?.getStart(ast), nameEnd: name?.end,
+        // Istanbul's block location ends before the closing brace; expression
+        // bodies can omit surrounding parentheses. V8 includes the full end.
+        collectorEnds: [...new Set([node.end, body.end, ...(ts.isBlock(body) ? [body.end - 1] : []),
+          ...(indentedClosingBrace ? [closingLineStart] : [])])],
+        name: name?.getText(ast) || '(anonymous)',
+      });
     }
-    visit(ast);
-    return functions;
-  });
+    node.forEachChild(visit);
+  }
+  visit(ast);
+  return functions;
 }
 
-/** Keep compiled first-party functions, separating only positively mapped
- * third-party runtime functions. Missing maps fail closed; unmapped functions
- * remain in the owned denominator and in the collector's range diagnostics. */
-export function partitionComponentFunctions(source: string, payload: SourceMapPayload) {
-  const functions = sourceFunctions(source);
+export function sourceFunctions(source: string, file = 'source.js') {
+  return withParsedSource(source, file, ast => functionsInSource(source, ast));
+}
+
+function partitionFunctions(source: string, payload: SourceMapPayload, functions: CoverageSourceFunction[]): CoverageFunctionIndex {
   const map = new SourceMap(payload);
   const starts = [0];
   for (let offset = 0; offset < source.length; offset++) if (source[offset] === '\n') starts.push(offset + 1);
@@ -103,13 +116,45 @@ export function partitionComponentFunctions(source: string, payload: SourceMapPa
   return { owned, thirdParty };
 }
 
-export function productionFunctionIndex(source: string, file: string, root = ROOT) {
-  if (!/\.svelte\.(?:native|html)\.js$/.test(file)) return { owned: sourceFunctions(source, file), thirdParty: [] };
-  const payload: SourceMapPayload = JSON.parse(fs.readFileSync(path.join(root, `${file}.map`), 'utf8'));
+/** Keep unproven origins in the owned denominator and range diagnostics. */
+export function partitionComponentFunctions(source: string, payload: SourceMapPayload) {
+  return partitionFunctions(source, payload, sourceFunctions(source));
+}
+
+function indexProductionFunctions(
+  source: string, file: string, root: string, functions: CoverageSourceFunction[], sourceMaps?: ReadonlyMap<string, string>,
+): CoverageFunctionIndex {
+  if (!isMappedSvelteOutput(file)) return { owned: functions, thirdParty: [] };
+  const mapText = sourceMaps ? sourceMaps.get(file) : fs.readFileSync(path.join(root, `${file}.map`), 'utf8');
+  if (mapText === undefined) throw new Error(`Missing verified component source map: ${file}`);
+  const payload: SourceMapPayload = JSON.parse(mapText);
   if (payload.version !== 3 || !Array.isArray(payload.sources) || typeof payload.mappings !== 'string') {
     throw new Error(`Invalid component source map: ${file}`);
   }
-  return partitionComponentFunctions(source, payload);
+  return partitionFunctions(source, payload, functions);
+}
+
+export function productionFunctionIndex(source: string, file: string, root = ROOT) {
+  return indexProductionFunctions(source, file, root, sourceFunctions(source, file));
+}
+
+/** Share compiler startup in bounded groups and return only scalar source facts. */
+export function productionFunctionIndexes(
+  sources: ReadonlyMap<string, string>, root = ROOT, sourceMaps?: ReadonlyMap<string, string>,
+): Map<string, CoverageFunctionIndex> {
+  const entries = [...sources];
+  const indexes = new Map<string, CoverageFunctionIndex>();
+  const batchSize = 32;
+  for (let start = 0; start < entries.length; start += batchSize) {
+    const batch = new Map(entries.slice(start, start + batchSize));
+    withParsedSources(batch, files => {
+      for (const [file, source] of batch) {
+        const functions = functionsInSource(source, files.get(file)!);
+        indexes.set(file, indexProductionFunctions(source, file, root, functions, sourceMaps));
+      }
+    });
+  }
+  return indexes;
 }
 
 export function matchSourceFunction(functions: readonly CoverageSourceFunction[], start: number, end: number, collector = 'v8') {

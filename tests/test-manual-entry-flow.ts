@@ -78,12 +78,12 @@ console.log('=== Manual Entry Flow Tests ===\n');
   // ═══════════════════════════════════════
   console.log('%c 3. Duplicate-date confirm ', 'font-weight:bold;color:#f59e0b');
 
-  assert('Duplicate check inspects existing entry for the chosen date',
-    /existingEntry\s*=\s*state\.importedData\.entries\?\.find\(e => e\.date === date\)/.test(markerDetailEditingSrc));
+  assert('Duplicate check inspects the selected collection in the reviewed date',
+    markerDetailEditingSrc.includes('const panels = identifyLabPanels(review.rows);') && markerDetailEditingSrc.includes('panels.find(panel => labPanelId(panel) === panelId)'));
   assert('Confirm dialog message includes existing value + unit + date',
     /already exists for \$\{date\}\. Overwrite\?/.test(markerDetailEditingSrc));
-  assert('Duplicate check uses display-unit value (marker.values[dateIdx]) not raw SI',
-    /const dateIdx = data\.dates\.indexOf\(date\)[\s\S]{0,300}marker\.values\[dateIdx\]/.test(markerDetailEditingSrc));
+  assert('Duplicate check converts the selected sample value into the chosen input unit',
+    markerDetailEditingSrc.includes('const priorValue = existingEntry?.markers?.[dotKey]') && markerDetailEditingSrc.includes('convertCanonicalToInputUnit(dotKey, priorValue, inputUnit, state.unitSystem, customCanonicalUnit)'));
   assert('Manual overwrite remembers imported original for revert',
     mutationSrc.includes('rememberLabManualOriginal(data, entry, dotKey);') && panelSrc.includes('data.manualValues[`${key}:${entry.date}`] = original.value;') && /saveManualEntry[\s\S]{0,6000}saveManualMarkerValue\(\{[\s\S]{0,300}dotKey,[\s\S]{0,300}collectionContext:/.test(markerDetailEditingSrc));
   assert('Manual original detection reads the canonical entry and accepts sourceFiles',
@@ -93,7 +93,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
   assert('Manual value saves stamp lab entry updatedAt for sync freshness',
     /function stampLabEntryUpdated\(entry, now = Date\.now\(\)\)/.test(labEntrySrc) && mutationSrc.includes('setLabEntryMarker(entry, dotKey, command.storedValue, { now, source: provenance });') && mutationSrc.includes('setLabEntryMarker(entry, dotKey, original.value, { now, source });') && ['save','edit','revert'].every(kind => markerDetailStoreSrc.includes("dotKey, date, kind: '" + kind + "'")));
   assert('Manual marker delete stamps remaining lab entry for sync freshness',
-    markerDetailEditingSrc.includes('await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) });') && mutationSrc.includes('return deleteLabEntryMarkerFromImportedData(data, entry, dotKey, { now });') && /deleteLabEntryMarker[\s\S]{0,1800}stampLabEntryUpdated\(entry, now\)/.test(labEntrySrc));
+    markerDetailEditingSrc.includes('await deleteManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) }, review.current);') && mutationSrc.includes('return deleteLabEntryMarkerFromImportedData(data, entry, dotKey, { now });') && /deleteLabEntryMarker[\s\S]{0,1800}stampLabEntryUpdated\(entry, now\)/.test(labEntrySrc));
   const actionId = 'biochemistry_glucose', actionDate = '2026-01-01', actionPanel = 'sample-manual-revert-contract';
   const revertDOM = new JSDOM(renderMarkerHistory({ view: {
     kind: 'manual-revert', actions: projectMarkerDetailAction('revert-marker-value', { id: actionId, date: actionDate, panelId: actionPanel }),
@@ -187,7 +187,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /let saveStarted = false/.test(markerDetailEditingSrc) &&
     /if \(saveStarted\) return;[\s\S]{0,80}saveStarted = true/.test(markerDetailEditingSrc));
   assert('Inline edit awaits persistence before refreshing the modal',
-    markerDetailEditingSrc.includes('const updated = await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) }); if (!updated) { saveStarted = false; return; }') && /await editManualMarkerValue[\s\S]{0,300}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
+    markerDetailEditingSrc.includes('const updated = await editManualMarkerValue({ dotKey, date, storedValue, ...(panelId ? { panelId } : {}) }, review.current); if (!updated || !review.owns()) { saveStarted = false; return; }') && /await editManualMarkerValue[\s\S]{0,300}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
   assert('revertMarkerValue awaits persistence before refreshing the modal',
     markerDetailEditingSrc.includes('const updated = await revertManualMarkerValue(dotKey, date, { ...(panelId ? { panelId } : {}) }); if (!updated) return;') && /await revertManualMarkerValue[\s\S]{0,300}markerDetailDeps\.navigate/.test(markerDetailEditingSrc));
   assert('editMarkerValue calls injected navigate() to rebuild Table/Heatmap after save',

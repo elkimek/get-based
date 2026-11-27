@@ -347,8 +347,8 @@ test('data browser coverage applies sourced phase ranges only to predictable nat
           && estradiol!.phaseDisplayLabels?.[0] === 'Late follicular'
           && estradiol!.phaseCycleDays?.[0] === 10
           && estradiol!.phaseSources?.[0] === 'recorded',
-        usConversionPreservesMetadata: usMenstrualE2?.min === Number((46 * 0.2724).toPrecision(4))
-          && usMenstrualE2?.max === Number((609 * 0.2724).toPrecision(4))
+        usConversionPreservesMetadata: usMenstrualE2?.min === 46 * 0.2724
+          && usMenstrualE2?.max === 609 * 0.2724
           && usMenstrualE2?.label === menstrualE2?.label
           && (usMenstrualE2 as {source?:unknown}|null|undefined)?.source === (menstrualE2 as {source?:unknown}|null|undefined)?.source,
         uncertainCyclesSuppressed: irregular!.phaseRefRanges?.[0]?.phaseSource === 'recorded'

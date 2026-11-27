@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
+import {isMappedSvelteOutput} from './svelte-compatibility-outputs.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {productionSources, productionFunctionIndex} from './coverage-source.mjs';
+import {productionSources, productionFunctionIndexes} from './coverage-source.mjs';
 import {nativeDigest, readNativeRegular, readNativeBlob, readNativeCapture, portable} from './native-coverage-storage.mjs';
 import {NativeCaptureMapper} from './native-coverage-capture.mjs';
 import {validateNativeCases} from './native-coverage-cases.mjs';
@@ -53,14 +54,24 @@ export function validateNativeFunctionCoverage(value: unknown, {root = process.c
   const expected = productionSources(root, {runtime: true});
   const files = receipt['files'].map(raw => record(raw));
   assert.deepEqual(files.map(file => file['file']), expected, 'Native coverage must inventory every current production source once, in canonical order');
+  const sources = new Map<string, string>();
+  const sourceMaps = new Map<string, string>();
   for (const file of files) {
     portable(file['file']); hash(file['sourceHash']); integer(file['sourceLength']);
     const bytes = readNativeRegular(path.join(root, file['file'])), source = bytes.toString('utf8');
     assert.equal(nativeDigest(bytes), file['sourceHash'], `Stale native source: ${file['file']}`);
     assert.equal(source.length, file['sourceLength'], 'Native coverage source length mismatch');
-    if (/\.svelte\.(?:native|html)\.js$/.test(file['file'])) {hash(file['mapHash']); assert.equal(nativeDigest(readNativeRegular(path.join(root, `${file['file']}.map`))), file['mapHash'], 'Stale native component ownership map');}
-    else assert(file['mapHash'] === undefined, 'Unexpected component ownership map');
-    const index = productionFunctionIndex(source, file['file'], root), owned = new Set(index.owned.map(fn => `${fn.start}:${fn.end}`)), seen = new Set<string>();
+    if (isMappedSvelteOutput(file['file'])) {
+      hash(file['mapHash']);
+      const map = readNativeRegular(path.join(root, `${file['file']}.map`));
+      assert.equal(nativeDigest(map), file['mapHash'], 'Stale native component ownership map');
+      sourceMaps.set(file['file'], map.toString('utf8'));
+    } else assert(file['mapHash'] === undefined, 'Unexpected component ownership map');
+    sources.set(file['file'], source);
+  }
+  const indexes = productionFunctionIndexes(sources, root, sourceMaps);
+  for (const [position, file] of files.entries()) {
+    const index = indexes.get(expected[position]!)!, owned = new Set(index.owned.map(fn => `${fn.start}:${fn.end}`)), seen = new Set<string>();
     assert(Array.isArray(file['called']) && Array.isArray(file['unmapped']));
     for (const raw of file['called']) {const fn = record(raw); integer(fn['start']); integer(fn['end']); integer(fn['count']); const key = `${fn['start']}:${fn['end']}`; assert(Number(fn['count']) > 0 && Number(fn['end']) > Number(fn['start']) && owned.has(key) && !seen.has(key), 'Invalid, duplicate or non-owned canonical native function'); seen.add(key);}
     for (const raw of file['unmapped']) {const fn = record(raw); for (const field of ['start', 'end', 'count', 'runtimeLength']) integer(fn[field]); assert(Number(fn['end']) > Number(fn['start']) && Number(fn['end']) <= Number(fn['runtimeLength']) && typeof fn['reason'] === 'string' && fn['reason'].length > 0, 'Malformed unmapped native entry');}
@@ -83,7 +94,7 @@ export function nativeCoverageSummary(config: NativeContext, mapped: readonly Na
   }
   return config.sources.map(file => {
     const bytes = readNativeRegular(path.join(config.root, file)), result: NativeCoverageFile = {file, sourceHash: nativeDigest(bytes), sourceLength: bytes.toString('utf8').length, called: [...(called.get(file)?.values() ?? [])].sort((a, b) => a.start - b.start || a.end - b.end), unmapped: [...(unmapped.get(file)?.values() ?? [])].sort((a, b) => a.start - b.start || a.end - b.end || a.runtimeLength - b.runtimeLength || a.reason.localeCompare(b.reason))};
-    if (/\.svelte\.(?:native|html)\.js$/.test(file)) result.mapHash = nativeDigest(readNativeRegular(path.join(config.root, file + '.map'))); return result;
+    if (isMappedSvelteOutput(file)) result.mapHash = nativeDigest(readNativeRegular(path.join(config.root, file + '.map'))); return result;
   });
 }
 /** Hash all transport, replay whole public transforms, rederive exact scalar keys/counts, and bind actual test membership. */

@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
+import { createRequire } from 'node:module';
 import { expect, it } from 'vitest';
 import { projectOnboardingAI } from '../js/light-onboarding-ai-presentation.js';
 import { renderHTML } from '../js/components/LightOnboardingAI.svelte.html.js';
 import type { OnboardingAIDot } from '../js/light-onboarding-ai-presentation.js';
+import { expectNativeReview } from './helpers/native-review-dom.js';
 const base = { completed: true, provider: true, status: 'idle' as const, analysis: null, prefix: '·' };
 function render(input: Parameters<typeof projectOnboardingAI>[0]) {
   const view = projectOnboardingAI(input), host = document.createElement('div');
@@ -51,4 +53,29 @@ it('normalizes imported dot classes and omits absent detail/non-array actions', 
   const host = render({ ...base, status: 'ok', analysis: { status: 'ok', dot: 'green" onclick="danger()', actions: 'Not an array' } });
   expect(host.querySelector('.light-setup-ai-block-gray')).not.toBeNull();
   expect(host.querySelector('[onclick], .sun-detail-ai-body, ul')).toBeNull();
+});
+
+const load = createRequire(import.meta.url);
+const nativeOnboardingCases = [
+  base,
+  {...base, status: 'analyzing'},
+  {...base, status: 'error', analysis: {status: 'error', errorMessage: 'Synthetic service unavailable'}},
+  {...base, provider: false, status: 'ok', analysis: {status: 'ok', dot: 'yellow', tip: 'Saved offline context'}},
+  {...base, status: 'ok', analysis: {status: 'ok', dot: 'green', tip: 'Saved context', detail: 'Synthetic detail', actions: ['Synthetic action']}},
+] satisfies Parameters<typeof projectOnboardingAI>[0][];
+
+it.each(nativeOnboardingCases)('preserves the delegated native onboarding owner in $status', async sample => {
+  const view = projectOnboardingAI({...sample, actionOwner: 'synthetic-onboarding-owner'});
+  expect(view).not.toBeNull();
+  const native = load('../js/components/LightOnboardingAI.svelte.native.js') as typeof import('../js/components/LightOnboardingAI.svelte.native.js');
+  await expectNativeReview(renderHTML({view: view!}), root => {
+    const owned = native.mount(native.default, {target: root, props: {view: view!}});
+    native.flushSync();
+    return () => native.unmount(owned);
+  }, root => {
+    const control = root.querySelector('[data-ai-action="refresh-onboarding"]');
+    if (sample.status === 'analyzing') expect(control).toBeNull();
+    else expect(control?.getAttribute('data-ai-owner')).toBe('synthetic-onboarding-owner');
+    expect(root.querySelector('[data-light-onboarding-ai]')?.getAttribute('data-ai-state')).toBe(sample.status);
+  });
 });

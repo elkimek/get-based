@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 const LEGACY_BUNDLE = '**/vendor/evolu/evolu-bundle.js';
 
@@ -8,7 +8,7 @@ test('v8 repeat startup skips v7 and v7 restore invalidates the handoff', async 
     localStorage.setItem('labcharts-sync-enabled', 'true');
     localStorage.setItem('labcharts-sync-relay', 'ws://127.0.0.1:9');
   });
-  let blockLegacy = false;
+  let blockLegacy = true;
   let legacyRequests = 0;
   await page.route(LEGACY_BUNDLE, route => {
     legacyRequests += 1;
@@ -25,11 +25,10 @@ test('v8 repeat startup skips v7 and v7 restore invalidates the handoff', async 
   await expect.poll(readOwner, { timeout: 30_000 }).not.toBeNull();
   const firstOwner = await readOwner();
   expect(firstOwner?.id).toBeTruthy();
-  expect(legacyRequests).toBeGreaterThan(0);
+  expect(legacyRequests).toBe(0);
   expect(await page.evaluate(mnemonic => Object.values(localStorage).includes(mnemonic), firstOwner!.mnemonic))
     .toBe(false);
 
-  blockLegacy = true;
   legacyRequests = 0;
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect.poll(readOwner, { timeout: 30_000 }).not.toBeNull();

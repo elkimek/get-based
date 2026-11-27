@@ -377,6 +377,19 @@ const {
   assert('Bucket has device split field (=0 with no device sessions)',
     buckets.every(b => b.device === 0));
 
+  const localClockCheck = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    import './tests/_node-shim.js';
+    import { buildMealEntryTiming, fluidDraftError, buildNutritionFluidView } from './js/nutrition-entry-model.js';
+    import { getAgeDays } from './js/biology-score-dates.js';
+    Date.now = () => Date.parse('2026-05-01T22:30:00Z');
+    let invalidMeal = false;
+    try { buildMealEntryTiming('2026-03-29T02:30'); } catch { invalidMeal = true; }
+    const invalidDrink = fluidDraftError({ ...buildNutritionFluidView().initial, at: '2026-03-29T02:30' });
+    if (!invalidMeal || invalidDrink?.field !== 'nutrition-fluid-at' || getAgeDays('2026-05-02') !== 0) process.exit(1);
+  `], { cwd: ROOT, env: { ...process.env, TZ: 'Europe/Prague' }, stdio: 'inherit' });
+  assert('DST gaps are rejected for local meal and drink edits, and the score uses the local collection day',
+    !localClockCheck.error && localClockCheck.status === 0, localClockCheck.error);
+
   // ─── 8. rollingVitaminDIU ────────────────────────────────────────────
   console.log('%c 8. rollingVitaminDIU ', 'font-weight:bold;color:#f59e0b');
 
@@ -445,6 +458,11 @@ const {
       && separatedBudget.totalIntakeIU === 1000
       && separatedBudget.total === 1000,
       JSON.stringify(separatedBudget));
+    state.importedData.supplements[0]!.ingredients = [{ name: 'Vitamin D3', amount: '0.125 mg', timesPerDay: 1 }, { name: 'Vitamin D3', amount: '1 tablet', timesPerDay: 1 }];
+    const mixedBudget = vitaminDBudgetStatus();
+    assert('A measured 0.125 mg dose contributes 5000 IU even with a second unknown-potency product',
+      mixedBudget.supplementIU === 5000 && mixedBudget.exceedsSupplementUL && mixedBudget.unknownPotency);
+
     await reset();
     const beforeMidnight = todayStart - 10 * 60 * 1000;
     const afterMidnight = todayStart + 60 * 1000;

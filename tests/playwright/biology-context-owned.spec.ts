@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import type { BiologyContextProps } from '../../js/biology-context-presentation.js';
 import type {Page} from '@playwright/test';
 import {expect, test} from './coverage-fixture.js';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
@@ -23,30 +24,47 @@ const frozenCSS = original.styleBlocks.map(block => {
   return rule;
 }).join('\n');
 
-test('authored Biology context preserves frozen section geometry themes and keyboard focus', async ({page}, info) => {
+for (const mode of ['server-rendered', 'native client'] as const) test(
+  `authored Biology context preserves frozen section geometry themes and keyboard focus (${mode})`, async ({page}, info) => {
   test.setTimeout(180000); await installDiscussionFixture(page.context()); await prepareDemoProfile(page);
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   await expect(page.locator('[data-biology-context-view].biology-context-review-details')).toBeVisible();
   await page.emulateMedia({reducedMotion: 'reduce'});
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  await page.evaluate(async ({samples, css}) => {
-    const {renderHTML} = await import('/js/components/BiologyContextPresentation.svelte.html.js');
+  await page.evaluate(async ({samples, css, mode}) => {
+    const server = mode === 'server-rendered' ? await import('/js/components/BiologyContextPresentation.svelte.html.js') : null;
+    const client = mode === 'native client' ? await import('/js/components/BiologyContextPresentation.svelte.native.js') : null;
+    const dispose: (() => Promise<void>)[] = [];
     const {projectBiologyContextReview, projectBiologyContextLabels} = await import('/js/biology-context-presentation.js');
     const style = document.createElement('style'); style.textContent = css; document.head.append(style);
     const host = document.createElement('div'); host.id = 'biology-context-acceptance';
     host.style.cssText = 'position:fixed;inset:0;z-index:20000;overflow:auto;background:var(--bg-primary);padding:12px';
     document.body.append(host);
     for (const sample of samples) {
-      const current = renderHTML({kind: 'section', view: {review: projectBiologyContextReview(sample.input), labels: projectBiologyContextLabels(sample.profileContext)}});
+      const props: BiologyContextProps = {kind: 'section', view: {review: projectBiologyContextReview(sample.input), labels: projectBiologyContextLabels(sample.profileContext)}};
       const pair = document.createElement('div'); pair.dataset.pair = `${sample.sex}-${sample.name}`;
-      for (const [key, html] of [['original', sample.section], ['current', current]]) {
-        const side = document.createElement('section'); side.dataset[key!] = '';
-        const context = document.createElement('div'); context.className = 'biology-scores-page'; context.innerHTML = html!;
+      for (const key of ['original', 'current'] as const) {
+        const side = document.createElement('section'); side.dataset[key] = '';
+        const context = document.createElement('div'); context.className = 'biology-scores-page';
         side.append(context); pair.append(side);
+        if (key === 'original') context.innerHTML = sample.section;
+        else if (client) {
+          const instance = client.mount(client.default, {target: context, props});
+          dispose.push(async () => {
+            await client.unmount(instance);
+            if (context.childElementCount) throw new Error(`Mounted Biology context nodes leaked from ${sample.name}`);
+          });
+        } else if (server) context.innerHTML = server.renderHTML(props);
       }
       host.append(pair);
     }
-  }, {samples, css: frozenCSS});
+    client?.flushSync();
+    Object.assign(host, {
+      dispose: async () => {
+        for (const unmount of dispose) await unmount();
+      },
+    });
+  }, {samples, css: frozenCSS, mode});
   const host = page.locator('#biology-context-acceptance'); let pairs = 0;
   for (const width of [320, 390, 600, 650, 651, 900, 1200]) for (const theme of ['dark', 'light', 'glass', 'synth-sunrise', 'neuromancer', 'cyberterm']) for (const open of [false, true]) {
     await page.setViewportSize({width, height: 1000}); await page.mouse.move(0, 0);
@@ -77,8 +95,9 @@ test('authored Biology context preserves frozen section geometry themes and keyb
     await control.focus(); await expect(control).toBeFocused();
     expect(await control.evaluate(node => parseFloat(getComputedStyle(node).outlineWidth))).toBeGreaterThanOrEqual(2); controls++;
   }
+  await host.evaluate(element => (element as HTMLElement & {dispose: () => Promise<void>}).dispose());
   expect(errors).toEqual([]);
-  fs.writeFileSync(info.outputPath('biology-context-parity.json'), JSON.stringify({pairs, controls, widths: [320,390,600,650,651,900,1200], themes: 6, states: ['closed','open'], pageErrors: errors}));
+  fs.writeFileSync(info.outputPath('biology-context-parity.json'), JSON.stringify({mode, pairs, controls, widths: [320,390,600,650,651,900,1200], themes: 6, states: ['closed','open'], pageErrors: errors}));
 });
 
 interface StoredProfile {

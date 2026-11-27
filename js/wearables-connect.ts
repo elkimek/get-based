@@ -17,7 +17,7 @@ interface OAuthDispatch {
   commitAfterWrite?: typeof commitPolarTransactions;
   displayName: string;
 }
-type FetchRows = StoredWearableRow[] & { _polarTransactions?: PolarPendingTransaction[] };
+type FetchRows = StoredWearableRow[] & { _polarTransactions?: PolarPendingTransaction[]; withingsCursors?: WithingsCursors };
 
 // wearables-connect.js — Connect/disconnect/backfill orchestration
 //
@@ -41,6 +41,7 @@ import { fetchFitbitDailyRange, fetchFitbitPersonalInfo } from './wearables-fitb
 import { beginOAuth as beginFitbitOAuth, completeOAuthCallback as completeFitbitCallback, isFitbitCallback, withFreshToken as fitbitWithFreshToken, DEFAULT_FITBIT_SCOPES } from './wearables-fitbit-auth.js';
 import { fetchUltrahumanDailyRange, fetchUltrahumanPersonalInfo } from './wearables-ultrahuman.js';
 import { beginOAuth as beginUltrahumanOAuth, completeOAuthCallback as completeUltrahumanCallback, isUltrahumanCallback, withFreshToken as ultrahumanWithFreshToken, DEFAULT_ULTRAHUMAN_SCOPES } from './wearables-ultrahuman-auth.js';
+import type { WithingsCursors } from './wearables-withings.js';
 import { fetchWithingsDailyRange, fetchWithingsPersonalInfo } from './wearables-withings.js';
 import { beginOAuth as beginWithingsOAuth, completeOAuthCallback as completeWithingsCallback, isWithingsCallback, withFreshToken as withingsWithFreshToken, DEFAULT_WITHINGS_SCOPES } from './wearables-withings-auth.js';
 import { fetchPolarDailyRange, fetchPolarPersonalInfo, registerPolarUser, commitPolarTransactions } from './wearables-polar.js';
@@ -458,7 +459,7 @@ async function callWithRefresh<T>(adapter: WearableAdapter, fetcher: (token: str
   }
 }
 
-async function fetchRange(adapter: WearableAdapter, startDate: string, endDate: string, opts: { lastSyncUnix?: unknown } = {}) {
+async function fetchRange(adapter: WearableAdapter, startDate: string, endDate: string, opts: { withingsCursors?: WithingsCursors } = {}) {
   if (adapter.id === 'oura') {
     return callWithRefresh(adapter, (token) => fetchOuraDailyRange(token, startDate, endDate));
   }
@@ -466,7 +467,7 @@ async function fetchRange(adapter: WearableAdapter, startDate: string, endDate: 
     return callWithRefresh(adapter, (token) => fetchWhoopDailyRange(token, startDate, endDate));
   }
   if (adapter.id === 'withings') {
-    return callWithRefresh(adapter, (token) => fetchWithingsDailyRange(token, startDate, endDate, (opts.lastSyncUnix ?? null) as number | null));
+    return callWithRefresh(adapter, (token) => fetchWithingsDailyRange(token, startDate, endDate, opts.withingsCursors ?? null));
   }
   if (adapter.id === 'ultrahuman') {
     return callWithRefresh(adapter, (token) => fetchUltrahumanDailyRange(token, startDate, endDate));
@@ -514,7 +515,7 @@ async function persistFetchedRows(adapterId: string, profileId: string, rows: Fe
       if (isVaulted && !written) return false;
     }
     await commitAfterWriteIfAny(adapterId, rows, conn);
-    const lastSync = { at: Date.now(), rows: rows.length, startDate, endDate };
+    const lastSync = { at: Date.now(), rows: rows.length, startDate, endDate, ...(rows.withingsCursors ? { withingsCursors: rows.withingsCursors } : {}) };
     if (isVaulted) {
       const result = await setMetaVersioned(profileId, `last-sync:${adapterId}`, lastSync, versionKey, expectedVersion);
       if (!result.saved) return false;
@@ -553,7 +554,7 @@ export async function incrementalSyncWearable(adapterId: string, { force = false
   if (!connectionHasCredentials(adapterId, conn)) return { skipped: true as const, reason: 'not-connected' };
   const profileId = getActiveProfileId();
 
-  const lastSync = (await getMeta(profileId, `last-sync:${adapterId}`) as { endDate?: string; at?: number } | null);
+  const lastSync = (await getMeta(profileId, `last-sync:${adapterId}`) as { endDate?: string; at?: number; withingsCursors?: WithingsCursors } | null);
   const fallbackStart = daysAgoIso(7);
   // Always use AT LEAST a 7-day sync range. When `lastSync.endDate` is already
   // today (because the user synced earlier the same day), the previous
@@ -582,7 +583,8 @@ export async function incrementalSyncWearable(adapterId: string, { force = false
   // Pass `lastSyncUnix` so adapters that support incremental fetch (Withings)
   // can ask the API for "anything modified since" instead of a fixed window —
   // catches retroactive manual entries (BP backfilled a week later, etc.).
-  const rows = await fetchRange(adapter!, startDate, endDate, { lastSyncUnix: lastSync?.at || conn.lastSyncAt || null });
+  if (adapterId === 'withings' && !lastSync?.withingsCursors) startDate = daysAgoIso(BACKFILL_DAYS);
+  const rows = await fetchRange(adapter!, startDate, endDate, lastSync?.withingsCursors ? { withingsCursors: lastSync.withingsCursors } : {});
   const persisted = await persistFetchedRows(adapterId, profileId, rows, conn, startDate, endDate);
   return { rows: persisted ? rows.length : 0, startDate, endDate };
 }

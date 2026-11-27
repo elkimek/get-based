@@ -311,6 +311,8 @@ export async function handler(req: Request) {
         status: upstreamRes.status,
         headers: {
           ...corsHeaders(req),
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': "default-src 'none'; sandbox",
           'Content-Type': contentType || 'application/json',
         },
       });
@@ -321,6 +323,8 @@ export async function handler(req: Request) {
       status: upstreamRes.status,
       headers: {
         ...corsHeaders(req),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
         'Content-Type': contentType,
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
@@ -370,6 +374,8 @@ async function relayGuardedText(
       status: response.status,
       headers: {
         ...corsHeaders(req),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
         'Content-Type': response.headers.get('content-type') || 'application/json',
       },
     });
@@ -393,8 +399,9 @@ function relayOAuthTokenRequest(
   if (!result.ok) return proxyJsonResponse(req, 400, { error: result.error });
   const headers: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' };
   if (spec.basicAuth) {
+    if (/[:\r\n]/.test(String(result.clientId))) return proxyJsonResponse(req, 400, { error: `Invalid ${spec.provider} client_id` });
     headers.Accept = 'application/json;charset=UTF-8';
-    headers.Authorization = 'Basic ' + btoa(`${result.clientId}:${spec.secret}`);
+    headers.Authorization = 'Basic ' + Buffer.from(`${result.clientId}:${spec.secret}`, 'utf8').toString('base64');
   }
   return relayGuardedText(spec.endpoint, { method: 'POST', headers, body: result.form.toString() }, req, spec.fallback);
 }
@@ -504,7 +511,7 @@ async function handlePolarTokenRequest(payload: Record<string, unknown>, req: Pr
 async function handleGoogleHealthTokenRequest(payload: Record<string, unknown>, req: ProxyRelayRequest) {
   const env = typeof process !== 'undefined' ? process.env : {};
   const secret = env?.GOOGLE_HEALTH_CLIENT_SECRET;
-  const clientId = env?.GOOGLE_HEALTH_CLIENT_ID;
+  const clientId = typeof env?.GOOGLE_HEALTH_CLIENT_ID === 'string' ? env.GOOGLE_HEALTH_CLIENT_ID.trim() : '';
   if (env?.GOOGLE_HEALTH_ENABLED !== 'true' || !secret || !clientId) {
     return proxyJsonResponse(req, 503, { error: 'Google Health is disabled on this deployment' });
   }
@@ -513,5 +520,6 @@ async function handleGoogleHealthTokenRequest(payload: Record<string, unknown>, 
     provider: 'google_health', secret,
     endpoint: 'https://oauth2.googleapis.com/token',
     fallback: 'Google OAuth token endpoint unavailable',
+    clientId, clientMismatch: 'Google Health client_id does not match this deployment',
   });
 }

@@ -71,7 +71,7 @@ describe('SQLite profile-share object store', () => {
       .rejects.toThrow('too large');
   });
 
-  it('removes expired ciphertext and its expiry marker during maintenance', async () => {
+  it.each([false, true])('removes expired ciphertext and its marker when storage is full: %s', async (full) => {
     const store = makeStore();
     const id = 'expiredShareId0123456789';
     const expiresAt = Date.now() - 1_000;
@@ -84,6 +84,13 @@ describe('SQLite profile-share object store', () => {
       allowOverwrite: true,
     });
 
+    const put = store.put.bind(store);
+    if (full) store.put = async (pathname, body, options) => {
+      if (pathname.startsWith('profile-share-maintenance')) {
+        throw Object.assign(new Error('fixture capacity limit'), { code: 'ERR_SQLITE_ERROR', errcode: 13 });
+      }
+      return put(pathname, body, options);
+    };
     await maintainProfileShareStorage(store, Date.now() + (2 * 60 * 60 * 1000));
 
     expect(await store.get(`profile-shares/v2/${id}.json`)).toBeNull();

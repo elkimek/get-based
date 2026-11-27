@@ -20,7 +20,15 @@ import { cacheLocalAiModelDetails, getCachedLocalAiModelDetails } from './provid
 import { getModelPricing } from './schema.js';
 import type { NutritionAISettingsSnapshot, NutritionAIOption } from './nutrition-ai-settings-contract.js';
 
-import type { StoredProviderModel } from './api-provider-storage.js';
+import {
+  getPpqPrivateMode,
+  getVeniceE2EE,
+  isE2EEModel,
+  isPpqPrivateModel,
+  isRoutstrPrivateModeActive,
+  isRoutstrTinfoilModel,
+  type StoredProviderModel,
+} from './api-provider-storage.js';
 import { NUTRITION_AI_ROUTE_KEY, readNutritionAIRouteRaw, writeNutritionAIRouteRaw } from './nutrition-ai-route-store.js';
 
 type NutritionDiscovery = Awaited<ReturnType<typeof discoverLocalAI>>;
@@ -227,7 +235,15 @@ export function setNutritionAIRoute(route: unknown) {
   return cleaned;
 }
 
+function modelMatchesProviderPrivacy(provider: string, modelId: string, activeId: string) {
+  if (provider === 'venice' && (getVeniceE2EE() || isE2EEModel(activeId))) return isE2EEModel(modelId);
+  if (provider === 'ppq' && (getPpqPrivateMode() || isPpqPrivateModel(activeId))) return isPpqPrivateModel(modelId);
+  if (provider === 'routstr' && isRoutstrPrivateModeActive()) return isRoutstrTinfoilModel(modelId);
+  return true;
+}
+
 function modelCatalog(provider: string) {
+  const activeId = getActiveModelId(provider);
   const rows = provider === 'ollama'
     ? getCachedLocalAiModelDetails().modelDetails
       .filter(row => row?.vision === true)
@@ -236,10 +252,11 @@ function modelCatalog(provider: string) {
   const byId = new Map<string, StoredProviderModel & { name: string }>();
   for (const row of rows) {
     const id = String(row?.id || '').trim();
-    if (id && isConfirmedMealVisionModel(provider, id) && !byId.has(id)) byId.set(id, { id, name: String(row?.name || id) });
+    if (id && modelMatchesProviderPrivacy(provider, id, activeId) && isConfirmedMealVisionModel(provider, id) && !byId.has(id)) {
+      byId.set(id, { id, name: String(row?.name || id) });
+    }
   }
-  const activeId = getActiveModelId(provider);
-  if (activeId && isConfirmedMealVisionModel(provider, activeId) && !byId.has(activeId)) {
+  if (activeId && modelMatchesProviderPrivacy(provider, activeId, activeId) && isConfirmedMealVisionModel(provider, activeId) && !byId.has(activeId)) {
     byId.set(activeId, { id: activeId, name: getActiveModelDisplay(provider) || activeId });
   }
   const candidates = [...byId.values()].filter(model => ['custom', 'ollama'].includes(provider)

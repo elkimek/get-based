@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 // Dense fine-pointer controls retain their native sizing; touch targets use the coarse-pointer styles.
 test.describe('coarse-pointer touch targets', () => {
@@ -62,4 +62,117 @@ test.describe('coarse-pointer touch targets', () => {
     const deposit = panel.getByRole('textbox', { name: 'Pending deposit recovery token', exact: true }); const held = await deposit.elementHandle();
     await page.evaluate(async () => (await import('/js/routstr-settings-component.js')).disposeRoutstrSettings()); expect(await held!.evaluate(element => (element as HTMLTextAreaElement).value)).toBe(''); await held!.dispose(); await expect(panel).toHaveCount(0);
   });
+});
+
+test('wallet actions require the current Routstr account before opening a review', async ({ page, baseURL }) => {
+  if (!baseURL) throw new Error('Wallet ownership fixture needs the local test origin');
+  const origin = new URL(baseURL).origin;
+  const external: string[] = [];
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.origin === origin) return route.continue();
+    external.push(url.hostname);
+    return route.abort();
+  });
+  await page.routeWebSocket('**/*', socket => {
+    external.push(new URL(socket.url()).hostname);
+    socket.close();
+  });
+  await routeHtml(page, '**/routstr-wallet-owner-test',
+    '<!doctype html><html><body><main id="ai-provider-panel"><div data-routstr-settings-host></div></main></body></html>');
+  await page.goto('/routstr-wallet-owner-test');
+  const firstNode = 'https://original-node.synthetic.test';
+  const secondNode = 'https://next-node.synthetic.test';
+  const syntheticMint = 'https://synthetic-mint.test';
+  await page.route(secondNode + '/v1/info', route => route.fulfill({json: {mints: [syntheticMint]}}));
+  await page.evaluate(async ({node, mint}) => {
+    const [{ configureProviderPanelRendererRuntime }, panels] = await Promise.all([
+      import('/js/provider-panel-renderers-runtime.js'),
+      import('/js/provider-wallet-panels.js'),
+    ]);
+    const fixture = { selectedNode: node, transfers: [] as string[], exportReads: [] as string[] };
+    Object.assign(window, { walletOwnerFixture: fixture });
+    const transfer = (name: string) => async () => {
+      fixture.transfers.push(name);
+      throw new Error('The fixture must stop at the wallet review');
+    };
+    localStorage.setItem('labcharts-ai-provider', 'routstr');
+    configureProviderPanelRendererRuntime({ getSelectedNodeUrl: () => fixture.selectedNode });
+    panels.configureRoutstrWalletRuntime({
+      nostrGetSelectedNode: () => fixture.selectedNode,
+      cashuGetMintUrl: async () => mint,
+      cashuGetLocalBalance: async () => 12,
+      cashuGetPendingNodeRefunds: async () => [],
+      cashuExportWallet: async (requestedMint: string) => {
+        fixture.exportReads.push(requestedMint);
+        throw new Error('Synthetic private backup error');
+      },
+      cashuGetBalance: async () => 12,
+      cashuGetMaxWithdrawable: async () => 12,
+      cashuHasWalletSeed: async () => true,
+      cashuRecoverPendingFunding: async () => null,
+      cashuRecoverPendingDeposit: async () => null,
+      cashuRecoverPendingWithdraw: async () => null,
+      cashuGetPendingNodeRefund: async () => null,
+      cashuCreateFundingInvoice: transfer('fund'),
+      cashuCreateWithdrawQuote: transfer('quote'),
+      cashuExecuteWithdraw: transfer('withdraw'),
+      cashuSendAsToken: transfer('send'),
+      cashuDepositToNode: transfer('deposit to node'),
+    });
+    panels.hydrateRoutstrSettings();
+  }, {node: firstNode, mint: syntheticMint});
+
+  const wallet = page.getByRole('region', { name: 'Cashu wallet', exact: true });
+  const withdraw = wallet.getByRole('button', { name: 'Withdraw', exact: true });
+  const deposit = wallet.getByRole('button', { name: 'Deposit', exact: true });
+  const withdrawalReview = wallet.getByRole('region', { name: 'Withdraw wallet funds', exact: true });
+  const fundingReview = wallet.locator('[data-wallet-funding-view]');
+  await expect(wallet.locator('#routstr-wallet-balance')).toContainText('12 sats');
+  await withdraw.press('Enter');
+  await expect(withdrawalReview).toBeVisible();
+  await withdraw.press('Enter');
+  await expect(withdrawalReview).toHaveCount(0);
+
+  await page.evaluate(node => {
+    (window as Window & { walletOwnerFixture?: { selectedNode: string } }).walletOwnerFixture!.selectedNode = node;
+  }, secondNode);
+  await expect(page.locator('#routstr-node-label')).toHaveText(new URL(firstNode).hostname);
+  await deposit.press('Enter');
+  await expect(fundingReview).toHaveCount(0);
+  await expect(wallet.locator('#routstr-wallet-fund-area')).toBeHidden();
+
+  await page.evaluate(async () => (await import('/js/provider-wallet-panels.js')).hydrateRoutstrSettings());
+  await expect(page.locator('#routstr-node-label')).toHaveText(new URL(secondNode).hostname);
+  await deposit.press('Enter');
+  await expect(fundingReview).toBeVisible();
+
+  const more = wallet.getByRole('button', {name: 'More wallet actions'});
+  await more.press('Enter');
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  await wallet.getByRole('button', {name: '📤 Export Token'}).press('Escape');
+  await expect(more).toBeFocused();
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await more.press('Enter');
+  await wallet.getByRole('button', {name: '📤 Export Token'}).press('Enter');
+  const backup = wallet.getByRole('region', {name: 'Export wallet token'});
+  await expect(backup).toContainText('Funds and recovery records are preserved');
+  await expect(backup).not.toContainText('Synthetic private backup error');
+  await expect(fundingReview).toHaveCount(0);
+
+  await more.press('Enter');
+  await wallet.getByRole('button', {name: 'Saved node refunds'}).press('Enter');
+  const node = page.getByRole('region', {name: 'Routstr node', exact: true});
+  const nodeReview = node.getByRole('region', {name: 'Node accounts and recovery'});
+  await expect(nodeReview).toContainText('Saved node refunds');
+  await node.getByRole('button', {name: 'Deposit', exact: true}).press('Enter');
+  await expect(nodeReview.locator('#routstr-deposit-amount')).toBeVisible();
+  await expect(nodeReview).toContainText(new URL(secondNode).hostname);
+  expect(await page.evaluate(() => {
+    const {transfers, exportReads} = (window as Window & {walletOwnerFixture?: {
+      transfers: string[]; exportReads: string[];
+    }}).walletOwnerFixture!;
+    return {transfers, exportReads};
+  })).toEqual({transfers: [], exportReads: [syntheticMint]});
+  expect(external).toEqual([]);
 });

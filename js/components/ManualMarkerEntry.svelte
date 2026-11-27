@@ -17,6 +17,10 @@
         <label for="me-date">Date</label>
         <input type="date" id="me-date" value="{view.date}" max="{view.today}">
       </div>
+      <div class="me-field" id="me-sample-field" hidden>
+        <label for="me-sample">Collection</label>
+        <select id="me-sample"></select>
+      </div>
       <div class="me-field">
         <label for="me-value">Value <ManualMarkerEntryUnits view={view.unitPicker}/></label>
         <!-- svelte-ignore a11y_autofocus (Preserve the legacy native autofocus in this SSR facade; managed modal focus remains controller-owned at 50ms.) --><input type="number" id="me-value" step="any" placeholder="{view.placeholder}" autofocus>

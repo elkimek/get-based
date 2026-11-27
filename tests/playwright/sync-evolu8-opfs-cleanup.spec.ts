@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, coverageOnlyTest as test } from './coverage-fixture.js';
 
 test('v8 cleanup removes only unlocked superseded OPFS generations', async ({ page }) => {
   await page.goto('/');

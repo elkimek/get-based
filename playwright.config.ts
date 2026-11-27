@@ -34,6 +34,7 @@ export default defineConfig({
   },
   webServer: {
     command: `node dev-server.js ${PORT}`,
+    env: { GETBASED_DEV_TEST_FIXTURES: '1' },
     url: `http://127.0.0.1:${PORT}/`,
     // Direct Playwright runs must not silently use app files from another
     // checkout. run-tests.sh opts in after starting a server it owns.

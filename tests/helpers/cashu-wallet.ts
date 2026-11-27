@@ -1,5 +1,7 @@
 import { makeTestInvoice } from '../fixtures/lightning-invoices.js';
 import { validateLightningInvoice } from '../../js/routstr-validation.js';
+import { IDBObjectStore } from 'fake-indexeddb';
+import { vi } from 'vitest';
 type FixtureAmount = number | AmountStub;
 export interface FixtureProof { secret: string; amount: FixtureAmount; C: string; id?: string; spent?: boolean; pending?: boolean; uncloneable?: () => void }
 interface AmountStub { value: number }
@@ -58,6 +60,7 @@ function installCashuStub(options: {durableOps?: boolean; amountObjects?: boolea
     failReceive: false,
     failRestore: false,
     failProofPersistence: false,
+    failMetaWrite: null as ((key: string) => boolean) | null,
     failEncodeOnce: false,
     failMintPersistenceOnce: false,
     failMintOutputsAlreadySigned: false,
@@ -70,6 +73,20 @@ function installCashuStub(options: {durableOps?: boolean; amountObjects?: boolea
     selectFirst: false,
     receives: 0,
   };
+
+  const previousPut = IDBObjectStore.prototype.put;
+  if (vi.isMockFunction(previousPut)) previousPut.mockRestore();
+  const put = IDBObjectStore.prototype.put;
+  vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args) {
+    if (this.name === 'meta' && state.failMetaWrite?.(String((args[0] as { key?: unknown }).key))) {
+      throw new DOMException('quota full', 'QuotaExceededError');
+    }
+    if (this.name === 'proofs' && (state.failProofPersistence || state.failMintPersistenceOnce)) {
+      state.failMintPersistenceOnce = false;
+      throw new DOMException('Synthetic proof write failure', 'QuotaExceededError');
+    }
+    return put.apply(this, args);
+  });
 
   function splitSend(amount: FixtureAmount, proofs: FixtureProof[]) {
     const amountSats = amountNumber(amount);
@@ -193,7 +210,6 @@ function installCashuStub(options: {durableOps?: boolean; amountObjects?: boolea
       for (const output of [...preview.sendOutputs, ...preview.keepOutputs]) signatures.set(output.blindedMessage.B_, { id: output.blindedMessage.id, amount: output.blindedMessage.amount });
       if (state.failSwapAfter) { state.failSwapAfter = false; throw new Error('lost swap response'); }
       const result = preview.fixtureResult || { send: preview.sendOutputs.map(o => ({ ...o.fixtureProof })), keep: [...preview.keepOutputs.map(o => ({ ...o.fixtureProof })), ...preview.unselectedProofs] };
-      if (state.failProofPersistence && result.keep[0]) result.keep[0].uncloneable = () => {};
       return result;
     }
 
@@ -202,10 +218,6 @@ function installCashuStub(options: {durableOps?: boolean; amountObjects?: boolea
       for (const output of preview.outputData) signatures.set(output.blindedMessage.B_, { id: output.blindedMessage.id, amount: output.blindedMessage.amount });
       if (state.failMintOutputsAlreadySigned) { state.mintQuoteStates.set(preview.quote.quote, 'ISSUED'); throw new Error('outputs already signed'); }
       const proofs = preview.outputData.map(output => ({ ...output.fixtureProof }));
-      if (state.failMintPersistenceOnce) {
-        state.failMintPersistenceOnce = false;
-        proofs[0]!.uncloneable = () => {};
-      }
       return proofs;
     }
 
@@ -364,32 +376,21 @@ async function seedExistingUserCashuState({ mintUrl, proofs = [], pendingQuote, 
   }
 }
 
-async function readIdbMeta(key: IDBValidKey) {
-  const db = await openCashuTestDB();
-  try {
-    return await new Promise<unknown>((resolve, reject) => {
-      const tx = db.transaction('meta', 'readonly');
-      const req = tx.objectStore('meta').get(key);
-      req.onsuccess = () => resolve(req.result?.value ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } finally {
-    db.close();
-  }
+async function readIdbMeta(key: string) {
+  const store = await import('../../js/cashu-wallet-store.js');
+  return store._getMeta(key);
 }
 
 async function readIdbStore(storeName: string) {
-  const db = await openCashuTestDB();
-  try {
-    return await new Promise<unknown[]>((resolve, reject) => {
-      const tx = db.transaction(storeName, 'readonly');
-      const req = tx.objectStore(storeName).getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
-    });
-  } finally {
-    db.close();
-  }
+  const rows = await readCashuStore(storeName) as { secret?: string; _payload?: unknown }[];
+  if (storeName !== 'proofs') return rows;
+  const { decryptDeviceCredential } = await import('../../js/wearables-credential-vault.js');
+  return Promise.all(rows.map(async row => {
+    if (typeof row._payload !== 'string') return row;
+    const plaintext = await decryptDeviceCredential('cashu-proof:' + row.secret, row._payload);
+    if (plaintext === null) throw new Error('Synthetic wallet proof could not be opened.');
+    return JSON.parse(plaintext) as unknown;
+  }));
 }
 
 function jsonResponse(body: unknown, init: {status?: number} = {}) {

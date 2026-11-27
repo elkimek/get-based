@@ -904,6 +904,7 @@ test('light devices cover session detail edit log active card and rendered list 
         lightDevices: [device],
         deviceSessions: [session],
       };
+      if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not persist the fixture sessions');
       lightDevices.configureLightDevices({
         getDeviceSessionAIDetailView: (session: { id?: unknown }) => projectSessionAI({
           mode: 'detail', status: 'ok',
@@ -946,12 +947,19 @@ test('light devices cover session detail edit log active card and rendered list 
       outcomes.editDurationUsesPromptAndRecomputes = (((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)![0])!.durationMin === 17
         && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
 
+      const waitForDeviceSave = async (saved: () => boolean) => {
+        for (let i = 0; i < 100; i++) {
+          if (saved()) return;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        throw new Error('Device session change did not persist');
+      };
       await lightDevices.editDeviceSessionMode('devsess-one');
       const modeOverlay = document.querySelector<HTMLElement>('[aria-label="Edit session mode"]')?.closest('.modal-overlay');
       if (modeOverlay) {
         (modeOverlay.querySelector<HTMLSelectElement>('#dev-edit-mode'))!.value = 'red';
         (modeOverlay.querySelector<HTMLElement>('#dev-edit-mode-save'))!.click();
-        await Promise.resolve();
+        await waitForDeviceSave(() => state.importedData.deviceSessions?.[0]?.mode === 'red');
       }
       outcomes.editModeFiltersAndSavesMode = (((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)![0])!.mode === 'red'
         && !modeOverlay?.textContent.includes('Blocked');
@@ -970,7 +978,7 @@ test('light devices cover session detail edit log active card and rendered list 
       if (logDurationInput && logSaveButton) {
         logDurationInput.value = '9';
         logSaveButton.click();
-        await Promise.resolve();
+        await waitForDeviceSave(() => state.importedData.deviceSessions?.length === 2);
         outcomes.logDialogSavesNewSession = ((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)!.length === 2
           && (((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)![1])!.durationMin === 9
           && ((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions![1]!.bodyAreas as {includes(value:unknown):unknown}).includes('breast-chest');

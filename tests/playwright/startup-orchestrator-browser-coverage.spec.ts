@@ -45,7 +45,6 @@ async function openStartupOrchestratorPage(page: Page) {
       }
     `);
   await routeJavaScript(page, '**/js/utils.js*', `
-      export async function showConfirmDialog() { return false; }
       export function showNotification(message, type, duration) {
         window.__startupNotifications.push({ message, type, duration });
       }
@@ -58,7 +57,7 @@ async function openStartupOrchestratorPage(page: Page) {
       }
     `);
   await routeJavaScript(page, '**/js/sync-startup.js*', `
-      export function configureStartupSync() { window.__startupCalls.push('sync-startup'); }
+      export function configureStartupSync() { window.__startupCalls.push('configure-local-sync'); }
     `);
   await page.goto('/startup-orchestrator-browser-coverage', { waitUntil: 'load' });
 }
@@ -101,7 +100,7 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
 
       outcomes.startAppInstallsOneSetOfShellHooksWithoutUsageGlobal =
         !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('emf')
-        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'sync-startup').length === 1
+        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'configure-local-sync').length === 1
         && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'events').length === 1
         && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'refresh').length === 1
         && !('_getActiveProfileId' in window);

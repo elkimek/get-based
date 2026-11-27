@@ -140,6 +140,8 @@ describe('profile share client-side validation', () => {
       ...envelope,
       kdf: { ...envelope.kdf, iterations: PROFILE_SHARE_MIN_KDF_ITERATIONS - 1 },
     }, PASSWORD)).rejects.toThrow('Invalid shared profile encryption settings.');
+    await expect(decryptProfileShareEnvelope({ ...envelope, kdf: { ...envelope.kdf, iterations: PROFILE_SHARE_KDF_ITERATIONS + 1 } }, PASSWORD))
+      .rejects.toThrow('Invalid shared profile encryption settings.');
     await expect(decryptProfileShareEnvelope({ ...envelope, compression: 'brotli' }, PASSWORD))
       .rejects.toThrow('Unsupported share compression.');
     await expect(decryptProfileShareEnvelope(envelope, 'wrong-password-1234'))
@@ -193,4 +195,17 @@ describe('profile share client-side validation', () => {
     await expect(decryptProfileShareEnvelope(envelope, PASSWORD))
       .rejects.toThrow('Shared profile is too large to import.');
   }, 30_000);
+
+  it('rejects non-finite expiresAt and malformed salt or iv lengths', async () => {
+    const valid = await encryptProfileShareEnvelope(sampleExport(), PASSWORD, {
+      iterations: PROFILE_SHARE_MIN_KDF_ITERATIONS,
+      expiresAt: '2099-01-01T00:00:00.000Z',
+    });
+    await expect(decryptProfileShareEnvelope({ ...valid, expiresAt: 'not-a-date' }, PASSWORD))
+      .rejects.toThrow('This shared profile link has expired.');
+    await expect(decryptProfileShareEnvelope({ ...valid, kdf: { ...valid.kdf, salt: 'AAAA' } }, PASSWORD))
+      .rejects.toThrow('Invalid shared profile encryption settings.');
+    await expect(decryptProfileShareEnvelope({ ...valid, cipher: { ...valid.cipher, iv: 'AAAA' } }, PASSWORD))
+      .rejects.toThrow('Invalid shared profile encryption settings.');
+  });
 });

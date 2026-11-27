@@ -833,21 +833,26 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 15. Chart layers', 'font-weight:bold;color:#6366f1');
 
-  // Note overlay toggle
-  const noteModeBefore = S.noteOverlayMode || 'off';
-  dataModule.setNoteOverlay(noteModeBefore === 'on' ? 'off' : 'on');
-  await wait(50);
-  assert('Note overlay toggled', S.noteOverlayMode !== noteModeBefore);
-  dataModule.setNoteOverlay(noteModeBefore); // restore
-  await wait(50);
-
-  // Supplement overlay toggle
-  const suppModeBefore = S.suppOverlayMode || 'off';
-  dataModule.setSuppOverlay(suppModeBefore === 'on' ? 'off' : 'on');
-  await wait(50);
-  assert('Supplement overlay toggled', S.suppOverlayMode !== suppModeBefore);
-  dataModule.setSuppOverlay(suppModeBefore); // restore
-  await wait(50);
+  const { readLabOverlayPreferences } = await import('/js/lab-overlay-preferences.js');
+  const overlayProfile = S.currentProfile;
+  async function checkChartLayer(
+    label: string,
+    field: 'noteOverlayMode' | 'suppOverlayMode',
+    preference: 'notes' | 'supplements',
+    setMode: (mode: 'on' | 'off') => void,
+  ) {
+    const before = S[field] === 'on' ? 'on' : 'off';
+    const next = before === 'on' ? 'off' : 'on';
+    const waitForSavedMode = (mode: 'on' | 'off') => waitFor(() =>
+      S.currentProfile === overlayProfile && S[field] === mode
+      && readLabOverlayPreferences(overlayProfile)[preference] === (mode === 'on'));
+    setMode(next);
+    assert(label, await waitForSavedMode(next));
+    setMode(before);
+    if (!await waitForSavedMode(before)) throw new Error(`Could not restore the ${preference} chart layer.`);
+  }
+  await checkChartLayer('Note overlay toggled', 'noteOverlayMode', 'notes', dataModule.setNoteOverlay);
+  await checkChartLayer('Supplement overlay toggled', 'suppOverlayMode', 'supplements', dataModule.setSuppOverlay);
 
   // ═══════════════════════════════════════════════
   // 16. MANUAL ENTRY — open form, verify fields

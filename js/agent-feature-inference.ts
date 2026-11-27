@@ -134,7 +134,9 @@ export async function callCodexFeature(options: CodexFeatureOptions) {
   }
   const { requireAIProcessingApproval } = await import('./cloud-ai-consent.js');
   assertCurrent();
-  await requireAIProcessingApproval(target === 'local' ? 'codex-agent' : 'personal-agent-gateway', { kind: options.consentKind || (files.length ? 'meal-photo' : 'text'), modelId: options.model });
+  await requireAIProcessingApproval(target === 'local' ? 'codex-agent' : 'personal-agent-gateway', {
+    kind: options.consentKind || (files.length ? 'meal-photo' : 'text'), modelId: options.model, agentId: agent, targetId: target,
+  });
   assertCurrent();
   const imageUploadIds = await Promise.all(files.map(file => { assertCurrent(); return uploadAgentImage({
     endpoint,

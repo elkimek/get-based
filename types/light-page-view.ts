@@ -10,7 +10,7 @@ import type{LightSetupPresentationProps}from'../js/light-setup-presentation.js';
 export interface PageSessionOperations { id?: unknown; startedAt: number; endedAt?: unknown; paused?: unknown; pausedAt: number; accumulatedPausedMs?: number }
 export interface PageDeviceReader { brand?: unknown; model?: unknown }
 export interface PageCoordsOperations { source?: unknown; lat?: unknown; altitudeM?: number }
-export interface PageBudgetOperations { exceedsSupplementUL?: unknown; supplementIU: number; sunIU: number }
+export interface PageBudgetOperations { exceedsSupplementUL?: unknown; unknownPotency?: boolean; supplementIU: number; sunIU: number }
 export interface PageMetaOperations { label?: string; icon?: unknown; what?: unknown }
 export type PageTotalsOperations = Record<string, number>;
 export interface PageCalls extends Record<string, unknown> {

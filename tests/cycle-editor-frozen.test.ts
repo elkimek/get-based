@@ -1,6 +1,20 @@
 // @vitest-environment jsdom
+import {createRequire} from 'node:module';
 import fs from 'node:fs';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {expectNativeReview} from './helpers/native-review-dom.js';
+import type {CycleEditorPresentationView} from '../js/cycle-editor-presentation.js';
+
+const load = createRequire(import.meta.url);
+const projected = vi.hoisted(() => ({view: null as CycleEditorPresentationView | null}));
+vi.mock('../js/components/CycleEditorPresentation.svelte.html.js', async original => {
+ const actual = await original<typeof import('../js/components/CycleEditorPresentation.svelte.html.js')>();
+ return {...actual, renderHTML: ({view}: {view: CycleEditorPresentationView}) => {
+  projected.view = view;
+  return actual.renderHTML({view});
+ }};
+});
+
 const owned=vi.hoisted(()=>({state:{currentProfile:'synthetic-cycle-editor',profileSex:'female',importedData:{} as Record<string,unknown>},trace:[] as unknown[],raw:[] as unknown[],meta:[] as unknown[],loaded:true,stylesResult:true,confirm:true,clearStoreFailure:false,persistSuccess:true,timers:[] as {callback:()=>void;delay:number}[]}));
 vi.mock('../js/state.js',()=>({state:owned.state}));
 vi.mock('../js/utils.js',async original=>({...await original<Record<string,unknown>>(),showNotification:(...args:unknown[])=>owned.trace.push({port:'notify',args}),showConfirmDialog:async(text:string)=>{owned.trace.push({port:'confirm',text,accepted:owned.confirm});return owned.confirm;}}));
@@ -37,7 +51,37 @@ function button(action:string,index=0){const target=document.querySelectorAll<HT
 let restoreTimer=()=>{};
 beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(frozen.fixedNow);document.head.innerHTML='<meta data-cycle-stylesheet-anchor>';const timer=vi.spyOn(globalThis,'setTimeout').mockImplementation(((callback:TimerHandler,delay?:number)=>{if(typeof callback!=='function')throw new Error('Cycle fixture expects an actual callback');owned.timers.push({callback:callback as ()=>void,delay:Number(delay||0)});owned.trace.push({port:'timer',delay:Number(delay||0)});return 1;}) as typeof setTimeout);restoreTimer=()=>timer.mockRestore();});
 afterEach(()=>{restoreTimer();vi.useRealTimers();});
-it.each(editorSamples)('preserves original complete Cycle editor, native selected attrs/values and immutable profile $name',async sample=>{const before=JSON.stringify(sample);configure(sample);await openMenstrualCycleEditor();checkFinal(sample);expect(owned.state.importedData).toEqual(sample.initialState);expect(JSON.stringify(sample)).toBe(before);expect(document.querySelector('img[onerror],svg[onload]')).toBeNull();});
+it.each(editorSamples)('preserves original complete Cycle editor, native selected attrs/values and immutable profile $name', async sample => {
+ const before = JSON.stringify(sample);
+ projected.view = null;
+ configure(sample);
+ await openMenstrualCycleEditor();
+ checkFinal(sample);
+ expect(owned.state.importedData).toEqual(sample.initialState);
+ expect(JSON.stringify(sample)).toBe(before);
+ expect(document.querySelector('img[onerror],svg[onload]')).toBeNull();
+
+ const view = projected.view as CycleEditorPresentationView | null;
+ expect(view).not.toBeNull();
+ const component = load('../js/components/CycleEditorPresentation.svelte.native.js') as typeof import('../js/components/CycleEditorPresentation.svelte.native.js');
+ const published = document.getElementById('detail-modal')!;
+ await expectNativeReview(published.innerHTML, root => {
+  const mounted = component.mount(component.default, {target: root, props: {view: view!}});
+  component.flushSync();
+  return () => component.unmount(mounted);
+ }, root => {
+  const original = (id: string) => sample.controls.find(control => control.id === id);
+  for (const id of ['mc-cycle-status', 'mc-contraceptive', 'mc-period-flow']) {
+   const control = root.querySelector<HTMLSelectElement>('#' + id);
+   expect(control?.value ?? null).toBe(original(id)?.value ?? null);
+   expect(control?.selectedIndex ?? null).toBe(original(id)?.selectedIndex ?? null);
+  }
+  expect(root.querySelector<HTMLElement>('#mc-period-log-section')?.hidden).toBe(!view!.activeCycle);
+  expect(root.querySelector('img[onerror], svg[onload]')).toBeNull();
+ });
+ expect(owned.state.importedData).toEqual(sample.initialState);
+ expect(owned.trace).toEqual(sample.runtimeTrace);
+});
 it.each(frozen.samples.filter(sample=>sample.kind==='interaction'))('preserves actual original controller, state/raw/history/persistence/tour effects $name',async sample=>{
  const before=JSON.stringify(sample);configure(sample);await openMenstrualCycleEditor();checkStep(sample.steps[0]!);
  for(const step of sample.steps.slice(1)){
