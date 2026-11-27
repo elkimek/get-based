@@ -4,7 +4,10 @@ import type { Page } from '@playwright/test';
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import type { AIToolCall } from '../../shared/ai-tool-protocol.js';
 async function seed(page: Page, provider?: 'custom' | 'venice') {
-  await page.addInitScript(() => { for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed'); });
+  await page.addInitScript(() => {
+    for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+  });
   await page.goto('/app');
   await page.locator('html[data-app-ready]').waitFor();
   await page.evaluate(async provider => {
