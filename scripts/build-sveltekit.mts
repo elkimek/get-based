@@ -87,8 +87,16 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     await vendors.assertCopiedAssets(staticRoot);
     // Keep all authored/build inputs and public assets in atomic cache identity.
     // Revision is separate provenance; test exclusion needs a complete asset graph.
-    const revision = execFileSync('git', ['--no-optional-locks', 'rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-    const inventory = execFileSync('git', ['--no-optional-locks', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: ROOT, encoding: 'utf8' }).split('\0');
+    // Source-tarball and platform builds (e.g. Vercel/Cloudflare without .git) fall back
+    // to platform commit env vars while keeping the complete filesystem input walk.
+    const envRevision = [process.env.VERCEL_GIT_COMMIT_SHA, process.env.CF_PAGES_COMMIT_SHA, process.env.COMMIT_REF, process.env.GITHUB_SHA]
+      .find((value): value is string => typeof value === 'string' && /^[a-f0-9]{40}$/i.test(value.trim()))?.trim().toLowerCase();
+    let revision = envRevision ?? '0'.repeat(40);
+    let inventory: string[] = [];
+    try {
+      revision = execFileSync('git', ['--no-optional-locks', 'rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      inventory = execFileSync('git', ['--no-optional-locks', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\0');
+    } catch { /* No .git directory in uploaded/archive builds; filesystem walk covers all authored inputs. */ }
     const {fingerprint,sourceFiles,verificationDigest} = await createStaticBuildFingerprint(ROOT,revision,buildTag,inventory);
     for (const file of await filesIn(staticRoot)) fingerprint.update(path.relative(staticRoot, file)).update(await fs.readFile(file));
     const buildId = fingerprint.digest('hex');
