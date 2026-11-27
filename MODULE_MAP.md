@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 2136 |
-| Internal import edges | 7197 |
+| Internal import edges | 7198 |
 | Dynamic internal edges | 226 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -4436,7 +4436,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>public</code> family — 2 modules</summary>
 
-- [`js/public-demo-bootstrap.ts`](js/public-demo-bootstrap.ts) → [`js/export-loader.ts`](js/export-loader.ts), [`js/profile.ts`](js/profile.ts), [`js/public-demo-mode.ts`](js/public-demo-mode.ts)
+- [`js/public-demo-bootstrap.ts`](js/public-demo-bootstrap.ts) → [`js/export-loader.ts`](js/export-loader.ts), [`js/profile.ts`](js/profile.ts), [`js/public-demo-mode.ts`](js/public-demo-mode.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 - [`js/public-demo-mode.ts`](js/public-demo-mode.ts) → [`js/utils.ts`](js/utils.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 
 </details>

@@ -85,17 +85,6 @@ export function parseHandoffFragment(hash = typeof location !== 'undefined' ? lo
   return {nonce, sourceOrigin};
 }
 
-export function readReturnedDeploymentUrl(search = typeof location !== 'undefined' ? location.search : ''): string {
-  try {
-    const params = new URLSearchParams(search);
-    const returned = params.get('deployment-url') || params.get('destination') || '';
-    if (!returned) return '';
-    return normalizeDestinationOrigin(returned);
-  } catch {
-    return '';
-  }
-}
-
 export function buildHandoffTargetUrl(destinationOrigin: string, nonce: string, sourceOrigin = location.origin): string {
   return `${destinationOrigin}/app/migration.html#handoff=${encodeURIComponent(nonce)}&source=${encodeURIComponent(sourceOrigin)}`;
 }

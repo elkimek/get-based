@@ -1,3 +1,4 @@
+import {isPublicDemoOrigin} from '../shared/hosted-transition.js';
 import {getActiveProfileId, getProfiles, switchProfile} from './profile.js';
 import {loadDemoData} from './export-loader.js';
 import {isPublicDemoMode} from './public-demo-mode.js';
@@ -15,7 +16,7 @@ function findDemoProfile(sex: 'female' | 'male') {
 }
 
 export function resetLegacyPublicDemoStateIfNeeded(): void {
-  if (!isPublicDemoMode()) return;
+  if (typeof location === 'undefined' || !isPublicDemoOrigin(location.origin)) return;
   try {
     if (localStorage.getItem(PUBLIC_DEMO_STATE_VERSION_KEY) === PUBLIC_DEMO_STATE_VERSION) return;
     const toRemove: string[] = [];

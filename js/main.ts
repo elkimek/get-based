@@ -17,10 +17,9 @@ async function hasExistingBrowserRecords(): Promise<boolean> {
     return true;
   }
   try {
-    if (typeof indexedDB !== 'undefined' && typeof indexedDB.databases === 'function') {
-      const dbs = await indexedDB.databases();
-      if (dbs.some(db => typeof db.name === 'string' && APP_DB_PREFIX.test(db.name))) return true;
-    }
+    if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') return true;
+    const dbs = await indexedDB.databases();
+    if (dbs.some(db => typeof db.name === 'string' && APP_DB_PREFIX.test(db.name))) return true;
   } catch {
     return true;
   }

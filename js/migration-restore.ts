@@ -11,7 +11,7 @@ import { decryptMigrationSourceValue, decryptMigrationDeviceValue } from './migr
 import { LENS_LOCAL_STORAGE_LOCK } from './lens-local-lock.js';
 import type { MigrationArchive } from './migration-archive.js';
 
-export interface MigrationPending { id: string; blob: Blob; phase: string }
+export interface MigrationPending { id: string; blob: Blob; phase: string; handoff?: boolean }
 async function journalDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(MIGRATION_DATABASE, 1);
@@ -108,8 +108,9 @@ function verificationShape(data: {local: Record<string, string>; databases: unkn
   delete local['labcharts-migration-reviewed']; delete local['labcharts-sync-enabled'];
   return {local, databases: data.databases, files: data.files, credentials: data.credentials};
 }
-export async function restoreMigrationArchive(blob: Blob, password: string, originalPassphrase: string, progress: (text: string) => void = () => {}): Promise<MigrationArchive> {
+export async function restoreMigrationArchive(blob: Blob, password: string, originalPassphrase: string, progress: (text: string) => void = () => {}, options?: {handoff?: boolean}): Promise<MigrationArchive> {
   if (getHostedTransition(location.origin)?.phase === 'recovery') throw new Error('This hosted address is available for recovery only. Restore the migration file at your self-hosted address.');
+  const handoff = Boolean(options?.handoff);
   const archive = await inspectMigrationArchive(blob, password);
   const sourceKey = await sourceMigrationKey(archive.local, originalPassphrase);
   const storedProfiles = archive.local['labcharts-profiles'];
@@ -123,15 +124,18 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
       await requireSingleMigrationClient();
       const pending = await getPendingMigration();
       const fence = localStorage.getItem(MIGRATION_PENDING_KEY);
-      if ((pending && pending.id !== id) || (fence && fence !== id)) throw new Error('Another migration is pending. Resume it with its original file and password.');
-      if (pending && fence !== id) throw new Error('Recovery metadata is missing. Keep this file and recover into a fresh installation. Existing destination records were not changed.');
-      if (!pending) {
-        await requireEmptyMigrationDestination();
+      const replacingInterruptedHandoff = Boolean(pending?.handoff && fence === pending.id);
+      if (!replacingInterruptedHandoff) {
+        if ((pending && pending.id !== id) || (fence && fence !== id)) throw new Error('Another migration is pending. Resume it with its original file and password.');
+        if (pending && fence !== id) throw new Error('Recovery metadata is missing. Keep this file and recover into a fresh installation. Existing destination records were not changed.');
+      }
+      if (!pending || replacingInterruptedHandoff) {
+        if (!replacingInterruptedHandoff) await requireEmptyMigrationDestination();
         // Fence normal startup before retaining the encrypted file. If saving
         // the file fails, the user can reselect it without allowing app edits.
         localStorage.setItem(MIGRATION_PENDING_KEY, id);
         if (localStorage.getItem(MIGRATION_PENDING_KEY) !== id) throw new Error('The recovery fence could not be saved.');
-        await journal('readwrite', store => store.put({id, blob, phase: 'prepared'}, 'pending'));
+        await journal('readwrite', store => store.put({id, blob, phase: 'prepared', ...(handoff ? {handoff: true} : {})}, 'pending'));
       }
       localStorage.setItem(MIGRATION_PENDING_KEY, id);
       if (localStorage.getItem(MIGRATION_PENDING_KEY) !== id) throw new Error('The recovery fence could not be saved. No records were restored.');
@@ -139,7 +143,7 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
       const prepared = archive;
       validateMigrationArchive(prepared);
       await prepareMigrationDestination(prepared, originalPassphrase);
-      await journal('readwrite', store => store.put({id, blob, phase: 'restoring'}, 'pending'));
+      await journal('readwrite', store => store.put({id, blob, phase: 'restoring', ...(handoff ? {handoff: true} : {})}, 'pending'));
       for (const database of prepared.databases) {
         progress('Restoring saved database ' + (prepared.databases.indexOf(database) + 1) + ' of ' + prepared.databases.length + '…');
         await writeMigrationDatabase(database);

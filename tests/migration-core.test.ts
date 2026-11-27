@@ -550,3 +550,25 @@ it('refuses export when a backup restore is pending and strips orphaned rollback
   const restoredBlobs = await readMigrationDatabase('labcharts-blobs');
   expect(restoredBlobs.stores.find(s => s.name === 'kv')!.records).toEqual([]);
 });
+
+it('recovers cleanly when an automatic handoff restore is interrupted mid-write', async () => {
+  await source(false);
+  const firstHandoffBlob = await buildMigrationArchive('EphemeralFirstPass1234!', '');
+  const retryHandoffBlob = await buildMigrationArchive('EphemeralRetryPass5678!', '');
+  origin();
+  faults.writes = 0;
+  faults.failAt = 2;
+  await expect(restoreMigrationArchive(firstHandoffBlob, 'EphemeralFirstPass1234!', '', undefined, {handoff: true}))
+    .rejects.toThrow('Synthetic storage failure');
+  const pending = await getPendingMigration();
+  expect(pending?.handoff).toBe(true);
+  expect(localStorage.getItem(MIGRATION_PENDING_KEY)).toBe(pending?.id);
+
+  // Re-sending a fresh automatic handoff (with a new ephemeral password and archive id)
+  // replaces the interrupted handoff cleanly and clears the recovery fence on verification.
+  faults.failAt = 0;
+  const restored = await restoreMigrationArchive(retryHandoffBlob, 'EphemeralRetryPass5678!', '', undefined, {handoff: true});
+  expect(restored.inventory.profiles).toBe(1);
+  expect(await getPendingMigration()).toBeNull();
+  expect(localStorage.getItem(MIGRATION_PENDING_KEY)).toBeNull();
+});

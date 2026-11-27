@@ -8,8 +8,7 @@ export interface MigrationViewState {
   downloadKind: 'migration' | 'snapshot' | null;
   handoffMode: MigrationHandoffMode;
   handoffOrigin: string | null;
-  initialDestinationUrl: string;
-  busy: boolean; status: string; error: string; pending: boolean; complete: boolean;
+  busy: boolean; status: string; error: string; pending: boolean; pendingHandoff: boolean; complete: boolean;
   sourceEncrypted: boolean; summary: MigrationSummary | null; snapshots: MigrationSavedSnapshot[];
 }
 export interface MigrationActions {
@@ -22,7 +21,7 @@ export interface MigrationActions {
 }
 export const initialMigrationView = (): MigrationViewState => ({
   recoveryOnly: false, legacySyncBlocked: false, downloadKind: null,
-  handoffMode: 'idle', handoffOrigin: null, initialDestinationUrl: '',
-  busy: false, status: '', error: '', pending: false,
+  handoffMode: 'idle', handoffOrigin: null,
+  busy: false, status: '', error: '', pending: false, pendingHandoff: false,
   complete: false, sourceEncrypted: false, summary: null, snapshots: [],
 });

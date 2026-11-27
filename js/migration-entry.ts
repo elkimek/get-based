@@ -12,7 +12,6 @@ import {
   generateEphemeralTransferPassword,
   normalizeDestinationOrigin,
   parseHandoffFragment,
-  readReturnedDeploymentUrl,
   receiveHandoffPayload,
   startHandoffSession,
 } from './migration-handoff.js';
@@ -84,18 +83,20 @@ const actions: MigrationActions = {
     const password = handoffPassword;
     update({status: 'Checking this destination and restoring your records…'});
     try {
-      inspected = await restoreMigrationArchive(selected, password, original, status => update({status}));
+      inspected = await restoreMigrationArchive(selected, password, original, status => update({status}), {handoff: true});
       handoffPassword = null;
       selected = null;
       update({
         summary: summary(inspected),
         complete: true,
         pending: false,
+        pendingHandoff: false,
         handoffMode: 'idle',
         status: 'Recovery passed verification. Your original browser records have not been erased.',
       });
     } finally {
-      update({pending: !!(await getPendingMigration())});
+      const remaining = await getPendingMigration();
+      update({pending: !!remaining || !!localStorage.getItem('labcharts-migration-pending'), pendingHandoff: !!remaining?.handoff});
     }
   }),
   export: (password, original, options) => run(async () => {
@@ -127,18 +128,21 @@ const actions: MigrationActions = {
   inspect: (file, password) => run(async () => {
     if (getHostedTransition(location.origin)?.phase === 'recovery') throw new Error('Use your self-hosted address to inspect and restore a migration file.');
     inspected = null; handoffPassword = null; update({summary: null, handoffMode: 'idle'});
-    const pending = await getPendingMigration(); selected = file ?? pending?.blob ?? null;
+    const pending = await getPendingMigration(); selected = file ?? (pending?.handoff ? null : pending?.blob) ?? null;
     if (!selected) throw new Error('Choose a migration file.');
     inspected = await inspectMigrationArchive(selected, password);
-    update({summary: summary(inspected), status: 'File checked. No destination records have been changed.', pending: !!pending});
+    update({summary: summary(inspected), status: 'File checked. No destination records have been changed.', pending: !!pending, pendingHandoff: !!pending?.handoff});
   }),
   restore: (password, original) => run(async () => {
     if (!selected || !inspected) throw new Error('Check the migration file first.');
     update({status: 'Checking the destination and preparing recovery tools…'});
     try {
       inspected = await restoreMigrationArchive(selected, password, original, status => update({status}));
-      update({summary: summary(inspected), complete: true, pending: false, status: 'Recovery passed verification. Your source records have not been erased.'});
-    } finally {update({pending: !!(await getPendingMigration())});}
+      update({summary: summary(inspected), complete: true, pending: false, pendingHandoff: false, status: 'Recovery passed verification. Your source records have not been erased.'});
+    } finally {
+      const remaining = await getPendingMigration();
+      update({pending: !!remaining || !!localStorage.getItem('labcharts-migration-pending'), pendingHandoff: !!remaining?.handoff});
+    }
   }),
   cancel: () => {
     selected = null; inspected = null; handoffPassword = null;
@@ -166,13 +170,14 @@ const incomingHandoff = parseHandoffFragment();
 if (incomingHandoff) {
   try { history.replaceState(null, '', location.pathname); } catch { /* ignore */ }
 }
-const returnedDeploymentUrl = readReturnedDeploymentUrl();
 
 target.replaceChildren();
 view = mount(MigrationRecovery, {target, props: {initial: state, actions}});
 void run(async () => {
   const pending = await getPendingMigration();
+  const pendingHandoff = Boolean(pending?.handoff);
   const recoveryOnly = getHostedTransition(location.origin)?.phase === 'recovery';
+  const canAcceptIncomingHandoff = Boolean(incomingHandoff && !recoveryOnly && (!pending || pendingHandoff));
   if (pending && recoveryOnly) preparedDownload = {blob: pending.blob, name: 'getbased-pending-migration.json'};
   const databases = typeof indexedDB.databases === 'function' ? await indexedDB.databases() : [];
   if (databases.some(database => database.name === 'labcharts-backups')) {
@@ -180,24 +185,26 @@ void run(async () => {
   }
   update({
     recoveryOnly,
-    initialDestinationUrl: returnedDeploymentUrl,
     downloadKind: pending && recoveryOnly ? 'migration' : null,
     pending: !!pending || !!localStorage.getItem('labcharts-migration-pending'),
+    pendingHandoff,
     sourceEncrypted: localStorage.getItem('labcharts-encryption-enabled') === 'true',
     snapshots: snapshots.map((record, index) => ({index, date: typeof record.createdAt === 'string' && Number.isFinite(Date.parse(record.createdAt)) ? new Date(record.createdAt).toLocaleString() : 'Undated snapshot', encrypted: !!record.encrypted})),
-    status: incomingHandoff && !recoveryOnly && !pending
-      ? `Connecting to ${incomingHandoff.sourceOrigin} to receive your encrypted records…`
+    status: canAcceptIncomingHandoff
+      ? `Connecting to ${incomingHandoff!.sourceOrigin} to receive your encrypted records…`
       : pending && recoveryOnly
         ? 'Download the retained original migration file and restore it at your self-hosted address. Partial records here are retained.'
-        : pending
-          ? 'A destination recovery is pending. Enter the migration password to resume.'
-          : 'Your source records stay in this browser throughout migration.',
-    handoffMode: incomingHandoff && !recoveryOnly && !pending ? 'receiving' : 'idle',
-    handoffOrigin: incomingHandoff && !recoveryOnly && !pending ? incomingHandoff.sourceOrigin : null,
+        : pending && pendingHandoff
+          ? 'An automatic transfer was interrupted before finishing. Return to your original getbased tab and click Move my data automatically again, or choose a manual migration file below.'
+          : pending
+            ? 'A destination recovery is pending. Enter the migration password to resume.'
+            : 'Your source records stay in this browser throughout migration.',
+    handoffMode: canAcceptIncomingHandoff ? 'receiving' : 'idle',
+    handoffOrigin: canAcceptIncomingHandoff ? incomingHandoff!.sourceOrigin : null,
   });
   document.documentElement.dataset.migrationReady = '';
 
-  if (incomingHandoff && !recoveryOnly && !pending) {
+  if (canAcceptIncomingHandoff && incomingHandoff) {
     try {
       const received = await receiveHandoffPayload(incomingHandoff);
       selected = received.blob;

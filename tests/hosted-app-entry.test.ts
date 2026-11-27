@@ -60,6 +60,13 @@ it('fails safe and avoids redirecting when browser storage cannot be inspected',
   expect(replace).not.toHaveBeenCalled();
   expect(state.initialized).toHaveBeenCalledTimes(1);
 });
+it('fails safe and avoids redirecting when indexedDB.databases is unavailable', async () => {
+  state.transition = {phase: 'notice', demoUrl: 'https://getbased-demo.vercel.app'};
+  vi.stubGlobal('indexedDB', {});
+  await (await import('../js/main.js')).initialization;
+  expect(replace).not.toHaveBeenCalled();
+  expect(state.initialized).toHaveBeenCalledTimes(1);
+});
 it('starts the ordinary application when the hosted cutoff does not apply', async () => {
   await (await import('../js/main.js')).initialization;
   expect(state.initialized).toHaveBeenCalledTimes(1);

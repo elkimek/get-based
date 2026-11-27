@@ -6,7 +6,6 @@ import {
   isAllowedHandoffSourceOrigin,
   normalizeDestinationOrigin,
   parseHandoffFragment,
-  readReturnedDeploymentUrl,
 } from '../js/migration-handoff.js';
 
 describe('automated migration handoff validation', () => {
@@ -40,10 +39,5 @@ describe('automated migration handoff validation', () => {
     expect(parsed).toEqual({nonce, sourceOrigin: 'https://app.getbased.health'});
     expect(parseHandoffFragment('#handoff=short&source=https://app.getbased.health')).toBeNull();
     expect(parseHandoffFragment(`#handoff=${nonce}&source=https://evil.example`)).toBeNull();
-  });
-
-  it('reads returned Vercel deployment-url query parameters safely', () => {
-    expect(readReturnedDeploymentUrl('?deployment-url=my-getbased.vercel.app')).toBe('https://my-getbased.vercel.app');
-    expect(readReturnedDeploymentUrl('?deployment-url=https://app.getbased.health')).toBe('');
   });
 });

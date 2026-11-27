@@ -19,7 +19,6 @@
   const canAutoTransfer = $derived(!view.busy && destinationUrl.trim().length > 0 && (!view.sourceEncrypted || autoOriginal.length > 0) && (!view.recoveryOnly || !view.legacySyncBlocked || allowWithoutSyncIdentity));
   const isIncomingHandoff = $derived(view.handoffMode === 'receiving' || view.handoffMode === 'ready');
   export function update(next: MigrationViewState) {
-    if (!destinationUrl && next.initialDestinationUrl) destinationUrl = next.initialDestinationUrl;
     view = next;
   }
   export function clearSecrets() {password = ''; confirm = ''; original = ''; autoOriginal = ''; importPassword = ''; importOriginal = ''; showExportPassword = false; showImportPassword = false; file = null; consent = false; allowWithoutSyncIdentity = false; if (fileInput) fileInput.value = '';}
@@ -242,11 +241,11 @@
             <h2>{view.pending ? 'Resume recovery' : '2. Restore at your new address'}</h2>
           </div>
         </div>
-        <p class="mig-card-lead">{view.pending ? 'Enter the transfer password to resume the retained encrypted file, or reselect the original file if needed.' : 'Open this page on a fresh self-hosted installation (or installed PWA) to verify and restore a downloaded migration file.'}</p>
+        <p class="mig-card-lead">{view.pending ? (view.pendingHandoff ? 'An automatic transfer was interrupted before finishing. Return to your original getbased tab and click Move my data automatically again, or choose a manual migration file below.' : 'Enter the transfer password to resume the retained encrypted file, or reselect the original file if needed.') : 'Open this page on a fresh self-hosted installation (or installed PWA) to verify and restore a downloaded migration file.'}</p>
 
         <div class="mig-field-grid">
           <div class="mig-field">
-            <label class="mig-label" for="migration-file">Migration file{view.pending ? ' (reselect if needed)' : ''}</label>
+            <label class="mig-label" for="migration-file">Migration file{view.pending && !view.pendingHandoff ? ' (reselect if needed)' : ''}</label>
             <input class="mig-input" id="migration-file" type="file" bind:this={fileInput} accept="application/json,.json" disabled={view.busy} onchange={event => {file = event.currentTarget.files?.[0] ?? null; consent = false; importPassword = ''; importOriginal = ''; actions.cancel();}}/>
           </div>
 
@@ -260,7 +259,7 @@
         </div>
 
         <div class="mig-actions">
-          <button type="button" class={PROTECTION_SECONDARY} disabled={view.busy || (!file && !view.pending) || !importPassword} onclick={() => actions.inspect(file, importPassword)}>Check file</button>
+          <button type="button" class={PROTECTION_SECONDARY} disabled={view.busy || (!file && (!view.pending || view.pendingHandoff)) || !importPassword} onclick={() => actions.inspect(file, importPassword)}>Check file</button>
         </div>
 
         {#if view.summary}
