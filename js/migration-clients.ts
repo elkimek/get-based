@@ -2,7 +2,7 @@ async function recoveryWait<T>(operation: Promise<T>): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([operation, new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => reject(new Error('Offline recovery tools did not become ready. Check the connection and browser service-worker permissions, then retry. The source data is unchanged.')), 15000);
+      timer = setTimeout(() => reject(new Error('Offline recovery tools did not become ready. Check the connection and browser service-worker permissions, then retry. The source data is unchanged.')), 45000);
     })]);
   } finally {clearTimeout(timer);}
 }

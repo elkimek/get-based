@@ -654,9 +654,10 @@ function installServiceWorkerRuntime({
       return shell;
     };
     if (event.request.mode === 'navigate') {
+      const migrationDocument = url.pathname === '/app/migration.html' || url.pathname === '/app/migration';
       if (!isProduction) {
         event.respondWith(
-          fetchAndCache(event.request, event).catch(async () => (url.pathname === '/app/migration.html'
+          fetchAndCache(event.request, event).catch(async () => (migrationDocument
             ? await matchCurrentCache('/app/migration.html') : undefined) || ownedNavigationShell()) as Promise<Response>
         );
         return;
@@ -667,9 +668,9 @@ function installServiceWorkerRuntime({
         // Never promote unproven network documents into its owned app cache.
         const fetchNavigation = () => buildId ? fetch(event.request) : fetchAndCache(event.request, event);
         const cached = (await matchCurrentCache(event.request))
-          || (url.pathname === '/app/migration.html' ? await matchCurrentCache('/app/migration.html') : undefined);
+          || (migrationDocument ? await matchCurrentCache('/app/migration.html') : undefined);
         if (cached) {
-          if ((appDocument || url.pathname === '/app/migration.html') && cached.status === 200 && buildId && event.resultingClientId
+          if ((appDocument || migrationDocument) && cached.status === 200 && buildId && event.resultingClientId
             && await resolveCacheName() === `labcharts-vbuild-${buildId}`) {
             bindNavigationProof(event.resultingClientId);
           }
