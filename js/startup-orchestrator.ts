@@ -10,12 +10,15 @@ import { showNotification } from './utils.js';
 import { restorePendingImportReviewDraft } from './import-loader.js';
 import { configureStartupSync } from './sync-startup.js';
 import { runAppExtensionStartup } from './app-extension-runtime.js';
-import { resetLegacyPublicDemoStateIfNeeded } from './public-demo-bootstrap.js';
+import { isPublicDemoOrigin } from '../shared/hosted-transition.js';
 
 let appStarted = false;
 
 async function runStartupSequence() {
-  resetLegacyPublicDemoStateIfNeeded();
+  if (typeof location !== 'undefined' && isPublicDemoOrigin(location.origin)) {
+    const { resetLegacyPublicDemoStateIfNeeded } = await import('./public-demo-bootstrap.js');
+    resetLegacyPublicDemoStateIfNeeded();
+  }
 
   await initializeStartupFoundation();
 

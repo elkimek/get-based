@@ -1,6 +1,5 @@
 import {showHostedTransitionNotice} from './hosted-transition-notice.js';
-import {isPublicDemoMode} from './public-demo-mode.js';
-import {mountPublicDemoBanner} from './public-demo-bootstrap.js';
+import {isPublicDemoOrigin} from '../shared/hosted-transition.js';
 // startup-ui.js - first-render UI bootstrap after profile/OAuth startup
 
 import { applyProfileDisplayState } from './startup-profile.js';
@@ -106,9 +105,13 @@ function populateFooterVersion() {
   if (vTextEl) (vTextEl as {textContent:unknown}).textContent = getAppVersionRuntime();
 }
 
+function isPublicDemoStartup(): boolean {
+  return typeof location !== 'undefined' && isPublicDemoOrigin(location.origin);
+}
+
 function scheduleDeferredSyncAndCatalogWarmup() {
   requestAnimationFrame(() => setTimeout(() => {
-    if (!isPublicDemoMode() && isSyncConfigured()) void import('./sync.js')
+    if (!isPublicDemoStartup() && isSyncConfigured()) void import('./sync.js')
       .then(module => module.initSync())
       .then(() => renderSyncIndicator())
       .catch(e => console.warn('[sync] deferred init failed:', e));
@@ -117,8 +120,8 @@ function scheduleDeferredSyncAndCatalogWarmup() {
 }
 
 function scheduleStartupNudges() {
-  if (isPublicDemoMode()) {
-    mountPublicDemoBanner();
+  if (isPublicDemoStartup()) {
+    void import('./public-demo-bootstrap.js').then(({ mountPublicDemoBanner }) => mountPublicDemoBanner());
     return false;
   }
   // Legal acceptance is a gate: first-time users and users with stale
