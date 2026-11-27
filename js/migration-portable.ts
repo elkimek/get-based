@@ -107,6 +107,7 @@ export async function makeMigrationPortable(
       credentials[key] = await decryptDeviceCredentialString(credentialKey, key, value);
       delete local[key];
     }
+    if (key === 'labcharts-backup-restore-pending') throw new Error('An interrupted backup restore is still pending. Open the app to finish backup recovery, then return here.');
     if (/persona.*(?:journal|fence|transaction)|persona-storage/.test(key)) throw new Error('Open the app to finish persona recovery, then return here.');
   }
   let syncRecovery: MigrationSyncRecovery | null = null;
@@ -145,7 +146,29 @@ export async function makeMigrationPortable(
     if (database.name === 'labcharts-blobs') {
       for (const store of database.stores) {
         if (store.records.some(record => /-persona-transaction(?:-pending)?$/.test(String(record.key)))) throw new Error('Open the app to finish an existing edit recovery, then return here.');
-        store.records = store.records.filter(record => !/-(?:agent-draft-claims|app-control-)/.test(String(record.key)));
+        store.records = store.records.filter(record => String(record.key) !== 'labcharts-backup-restore-journal-v1' && !/-(?:agent-draft-claims|app-control-)/.test(String(record.key)));
+      }
+    }
+    if (database.name === 'getbased-cashu') {
+      for (const store of database.stores) {
+        if (store.name === 'proofs' || store.name === 'fee-proofs') {
+          for (const record of store.records) {
+            const row = object(record.value);
+            if (typeof row._payload !== 'string') continue;
+            const storageKey = typeof row.secret === 'string' && row.secret ? row.secret : String(record.key);
+            record.value = {...row, _payload: await decryptDeviceCredentialString(credentialKey, `cashu-proof:${storageKey}`, row._payload)};
+            record.protection = 'cashu-proof';
+          }
+        }
+        if (store.name === 'meta') {
+          for (const record of store.records) {
+            const row = object(record.value);
+            if (typeof row._payload !== 'string') continue;
+            const metaKey = typeof row.key === 'string' && row.key ? row.key : String(record.key);
+            record.value = {...row, _payload: await decryptDeviceCredentialString(credentialKey, `cashu-meta:${metaKey}`, row._payload)};
+            record.protection = 'cashu-meta';
+          }
+        }
       }
     }
     if (database.name.startsWith('labcharts-wearables-')) {
@@ -221,6 +244,8 @@ export async function prepareMigrationDestination(data: MigrationPortableData, p
   const sourceKey = await sourceMigrationKey(data.local, passphrase);
   const needsIdentityVault = data.databases.some(db => db.name === 'getbased-evolu8-identity'
     && db.stores.some(store => store.records.some(record => record.protection === 'evolu-identity')));
+  const needsCashuVault = data.databases.some(db => db.name === 'getbased-cashu'
+    && db.stores.some(store => store.records.some(record => record.protection === 'cashu-proof' || record.protection === 'cashu-meta')));
   let destinationVaultKey: CryptoKey | undefined;
   for (const database of data.databases) {
     const nutrition = database.name.startsWith('getbased-nutrition-');
@@ -228,7 +253,7 @@ export async function prepareMigrationDestination(data: MigrationPortableData, p
     const credentials = database.name === 'labcharts-wearables-credential-vault';
     if (!nutrition && !wearable) continue;
     if (!database.stores.some(store => store.records.some(record => record.protection))
-      && !(credentials && (Object.keys(data.credentials).length || needsIdentityVault))) continue;
+      && !(credentials && (Object.keys(data.credentials).length || needsIdentityVault || needsCashuVault))) continue;
     const key = await crypto.subtle.generateKey({name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
     if (credentials) destinationVaultKey = key;
     const meta = database.stores.find(store => store.name === 'meta');
@@ -274,6 +299,27 @@ export async function prepareMigrationDestination(data: MigrationPortableData, p
         record.value = {
           version: 1, token: row.token, ownerId: row.ownerId,
           envelope: 'd1:' + bytesToBase64(envelope.iv) + ':' + bytesToBase64(new Uint8Array(envelope.ciphertext)),
+        };
+        delete record.protection; delete record.passphraseWrapped;
+      }
+    }
+  }
+  if (needsCashuVault) {
+    if (!destinationVaultKey) throw new Error('The destination credential vault is missing.');
+    for (const database of data.databases) {
+      if (database.name !== 'getbased-cashu') continue;
+      for (const store of database.stores) for (const record of store.records) {
+        if (record.protection !== 'cashu-proof' && record.protection !== 'cashu-meta') continue;
+        const row = object(record.value);
+        const storageKey = record.protection === 'cashu-proof'
+          ? `cashu-proof:${String(row.secret)}`
+          : `cashu-meta:${String(row.key)}`;
+        const envelope = await encryptMigrationDeviceValue(destinationVaultKey, {
+          storageKey, plaintext: String(row._payload),
+        });
+        record.value = {
+          ...row,
+          _payload: 'd1:' + bytesToBase64(envelope.iv) + ':' + bytesToBase64(new Uint8Array(envelope.ciphertext)),
         };
         delete record.protection; delete record.passphraseWrapped;
       }

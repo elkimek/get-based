@@ -1,7 +1,7 @@
 export interface MigrationIndex { name: string; keyPath: string | string[]; unique: boolean; multiEntry: boolean }
 export interface MigrationRecord {
   key: IDBValidKey; value: unknown;
-  protection?: 'wearable-row' | 'wearable-meta' | 'nutrition' | 'nutrition-meta' | 'evolu-identity'; passphraseWrapped?: boolean;
+  protection?: 'wearable-row' | 'wearable-meta' | 'nutrition' | 'nutrition-meta' | 'evolu-identity' | 'cashu-proof' | 'cashu-meta'; passphraseWrapped?: boolean;
 }
 export interface MigrationStore {
   name: string; keyPath: string | string[] | null; autoIncrement: boolean;

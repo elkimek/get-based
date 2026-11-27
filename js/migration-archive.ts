@@ -25,6 +25,7 @@ export function readMigrationLocal(): Record<string, string> {
 }
 async function collect(passphrase: string, options: MigrationPortableOptions = {}) {
   if (localStorage.getItem(MIGRATION_PENDING_KEY)) throw new Error('Finish or resume the pending destination recovery before creating another migration archive.');
+  if (localStorage.getItem('labcharts-backup-restore-pending') !== null) throw new Error('An interrupted backup restore is still pending. Open the app to finish backup recovery, then return here.');
   const local = readMigrationLocal();
   const databases = [];
   for (const name of await existingMigrationDatabases()) databases.push(await readMigrationDatabase(name));
@@ -85,9 +86,12 @@ export function validateMigrationArchive(value: unknown): asserts value is Migra
   }
   if (typeof value.inventory.walletRecovery !== 'boolean') throw new Error('Invalid migration inventory.');
   for (const [key, stored] of Object.entries(value.local)) {
-    if (typeof stored !== 'string' || excludedMigrationLocalKey(key)) throw new Error('The migration file contains an invalid setting.');
+    if (typeof stored !== 'string' || excludedMigrationLocalKey(key) || key === 'labcharts-backup-restore-pending') throw new Error('The migration file contains an invalid setting.');
   }
-  for (const [key, stored] of Object.entries(value.credentials)) if (typeof stored !== 'string' || !key.startsWith('labcharts-') || excludedMigrationLocalKey(key)) throw new Error('The migration file contains an invalid credential.');
+  const validCredentialKey = (key: string) =>
+    (key.startsWith('labcharts-') || /^getbased-profile-shares-v1:[A-Za-z0-9_-]{20,80}$/.test(key))
+    && !excludedMigrationLocalKey(key);
+  for (const [key, stored] of Object.entries(value.credentials)) if (typeof stored !== 'string' || !validCredentialKey(key)) throw new Error('The migration file contains an invalid credential.');
   const names = new Set<string>();
   for (const database of value.databases) {
     if (!record(database) || typeof database.name !== 'string' || names.has(database.name)) throw new Error('Invalid migration database.');
@@ -109,7 +113,8 @@ export function validateMigrationArchive(value: unknown): asserts value is Migra
         const serialized = encodeMigrationValue(entry.key);
         if (keys.has(serialized)) throw new Error('Duplicate migration record key.');
         keys.add(serialized);
-        if (entry.protection !== undefined && !['wearable-row', 'wearable-meta', 'nutrition', 'nutrition-meta', 'evolu-identity'].includes(String(entry.protection))) throw new Error('Unsupported migration protection.');
+        if (database.name === 'labcharts-blobs' && entry.key === 'labcharts-backup-restore-journal-v1') throw new Error('The migration file contains an unrecovered backup restore journal.');
+        if (entry.protection !== undefined && !['wearable-row', 'wearable-meta', 'nutrition', 'nutrition-meta', 'evolu-identity', 'cashu-proof', 'cashu-meta'].includes(String(entry.protection))) throw new Error('Unsupported migration protection.');
         if (entry.passphraseWrapped !== undefined && typeof entry.passphraseWrapped !== 'boolean') throw new Error('Invalid migration protection.');
         if (entry.protection) {
           const row = entry.value;
@@ -121,6 +126,8 @@ export function validateMigrationArchive(value: unknown): asserts value is Migra
           if (entry.protection === 'nutrition-meta' && (!nutrition || store.name !== 'meta' || !record(row.value))) throw new Error('Invalid protected meal metadata.');
           if (entry.protection === 'wearable-meta' && (!wearable || store.name !== 'meta' || !record(row.v))) throw new Error('Invalid protected wearable metadata.');
           if (entry.protection === 'evolu-identity' && (database.name !== 'getbased-evolu8-identity' || store.name !== 'identity' || typeof row.token !== 'string' || !row.token || typeof row.ownerId !== 'string' || !row.ownerId || typeof row.mnemonic !== 'string' || !row.mnemonic)) throw new Error('Invalid protected Sync identity record.');
+          if (entry.protection === 'cashu-proof' && (database.name !== 'getbased-cashu' || !['proofs', 'fee-proofs'].includes(store.name) || typeof row.secret !== 'string' || !row.secret || typeof row._payload !== 'string')) throw new Error('Invalid protected Cashu proof record.');
+          if (entry.protection === 'cashu-meta' && (database.name !== 'getbased-cashu' || store.name !== 'meta' || typeof row.key !== 'string' || !row.key || typeof row._payload !== 'string')) throw new Error('Invalid protected Cashu metadata record.');
         }
 
       }

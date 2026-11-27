@@ -1,6 +1,6 @@
 import { IDBFactory, IDBObjectStore } from 'fake-indexeddb';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { bytesToBase64 } from '../js/base64.js';
+import { _base64ToBytes, bytesToBase64 } from '../js/base64.js';
 import { wrapDataKey } from '../js/crypto-passphrase-key.js';
 import { encodeMigrationValue, decodeMigrationValue } from '../js/migration-codec.js';
 import { sealMigration, openMigration, deriveMigrationKey, encryptMigrationDeviceValue, decryptMigrationDeviceValue } from '../js/migration-crypto.js';
@@ -457,4 +457,96 @@ it('allows opting out of missing legacy Sync identity only when explicitly reque
   const inspected = await inspectMigrationArchive(blob, password);
   expect(inspected.syncRecovery).toBeNull();
   expect(inspected.inventory.profiles).toBe(1);
+});
+
+it('re-encrypts plain-mode device-protected Cashu wallet proofs, fee proofs, and metadata for the destination key', async () => {
+  const device = await crypto.subtle.generateKey({name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+  const sealDevice = async (storageKey: string, plaintext: string) => {
+    const env = await encryptMigrationDeviceValue(device, {storageKey, plaintext});
+    return 'd1:' + bytesToBase64(env.iv) + ':' + bytesToBase64(new Uint8Array(env.ciphertext));
+  };
+  localStorage.setItem('labcharts-profiles', '[{"id":"wallet-plain","name":"Wallet plain"}]');
+  const proofKey = 'enc:v1:proof-digest-1';
+  const feeKey = 'enc:v1:fee-digest-1';
+  const proofJson = JSON.stringify({secret: 'raw-proof-secret', amount: 128, C: '02abc', id: '009a1f', _mint: 'https://mint.example'});
+  const feeJson = JSON.stringify({secret: 'raw-fee-secret', amount: 4, C: '02def', id: '009a1f', _mint: 'https://mint.example'});
+  const pendingSwapJson = JSON.stringify({value: {version: 2, operation: 'send', mint: 'https://mint.example', outputs: ['out1']}});
+  const sourceProofEnvelope = await sealDevice(`cashu-proof:${proofKey}`, proofJson);
+  const sourceFeeEnvelope = await sealDevice(`cashu-proof:${feeKey}`, feeJson);
+  const sourceMetaEnvelope = await sealDevice('cashu-meta:pendingSwap', pendingSwapJson);
+  await writeMigrationDatabase({name: 'labcharts-wearables-credential-vault', version: 1, stores: [
+    {name: 'daily-metrics', keyPath: ['source', 'date'], autoIncrement: false, indexes: [], records: []},
+    {name: 'meta', keyPath: 'k', autoIncrement: false, indexes: [], records: [{key: 'credential-vault-key:v1', value: {k: 'credential-vault-key:v1', v: device, updatedAt: 1}}]},
+  ]});
+  await writeMigrationDatabase({name: 'getbased-cashu', version: 2, stores: [
+    {name: 'fee-proofs', keyPath: 'secret', autoIncrement: false, indexes: [], records: [{key: feeKey, value: {secret: feeKey, _payload: sourceFeeEnvelope}}]},
+    {name: 'meta', keyPath: 'key', autoIncrement: false, indexes: [], records: [
+      {key: 'counter:009a1f', value: {key: 'counter:009a1f', value: 7}},
+      {key: 'pendingSwap', value: {key: 'pendingSwap', _payload: sourceMetaEnvelope}},
+    ]},
+    {name: 'proofs', keyPath: 'secret', autoIncrement: false, indexes: [], records: [{key: proofKey, value: {secret: proofKey, _payload: sourceProofEnvelope}}]},
+  ]});
+  const blob = await buildMigrationArchive(password, '');
+  origin();
+  await restoreMigrationArchive(blob, password, '');
+  const vaultDb = await readMigrationDatabase('labcharts-wearables-credential-vault');
+  const destKey = (vaultDb.stores.find(s => s.name === 'meta')!.records.find(r => r.key === 'credential-vault-key:v1')!.value as {v: CryptoKey}).v;
+  expect(destKey).not.toBe(device);
+  const restoredCashu = await readMigrationDatabase('getbased-cashu');
+  const openDest = async (envelope: string) => {
+    const [, iv, ct] = envelope.split(':');
+    return decryptMigrationDeviceValue(destKey, {version: 1, iv: _base64ToBytes(iv!), ciphertext: _base64ToBytes(ct!)}) as Promise<{storageKey: string; plaintext: string}>;
+  };
+  const restoredProof = restoredCashu.stores.find(s => s.name === 'proofs')!.records[0]!.value as {secret: string; _payload: string};
+  const restoredFee = restoredCashu.stores.find(s => s.name === 'fee-proofs')!.records[0]!.value as {secret: string; _payload: string};
+  const restoredMeta = restoredCashu.stores.find(s => s.name === 'meta')!.records;
+  const restoredSwap = restoredMeta.find(r => r.key === 'pendingSwap')!.value as {key: string; _payload: string};
+  expect(restoredProof._payload).not.toBe(sourceProofEnvelope);
+  expect(restoredFee._payload).not.toBe(sourceFeeEnvelope);
+  expect(restoredSwap._payload).not.toBe(sourceMetaEnvelope);
+  expect(await openDest(restoredProof._payload)).toEqual({storageKey: `cashu-proof:${proofKey}`, plaintext: proofJson});
+  expect(await openDest(restoredFee._payload)).toEqual({storageKey: `cashu-proof:${feeKey}`, plaintext: feeJson});
+  expect(await openDest(restoredSwap._payload)).toEqual({storageKey: 'cashu-meta:pendingSwap', plaintext: pendingSwapJson});
+  expect(restoredMeta.find(r => r.key === 'counter:009a1f')!.value).toEqual({key: 'counter:009a1f', value: 7});
+});
+
+it('migrates device-encrypted saved share-management records preserving authenticated keys', async () => {
+  const device = await crypto.subtle.generateKey({name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+  const shareKey = 'getbased-profile-shares-v1:SyntheticShareId1234567890';
+  const shareJson = JSON.stringify({id: 'SyntheticShareId1234567890', profileId: 'p1', manageToken: 'tok-1', expiresAt: '2099-01-01T00:00:00.000Z'});
+  const env = await encryptMigrationDeviceValue(device, {storageKey: shareKey, plaintext: shareJson});
+  const sourceEnvelope = 'd1:' + bytesToBase64(env.iv) + ':' + bytesToBase64(new Uint8Array(env.ciphertext));
+  localStorage.setItem('labcharts-profiles', '[{"id":"p1","name":"Shared profile"}]');
+  localStorage.setItem(shareKey, sourceEnvelope);
+  await writeMigrationDatabase({name: 'labcharts-wearables-credential-vault', version: 1, stores: [
+    {name: 'daily-metrics', keyPath: ['source', 'date'], autoIncrement: false, indexes: [], records: []},
+    {name: 'meta', keyPath: 'k', autoIncrement: false, indexes: [], records: [{key: 'credential-vault-key:v1', value: {k: 'credential-vault-key:v1', v: device, updatedAt: 1}}]},
+  ]});
+  const blob = await buildMigrationArchive(password, '');
+  origin();
+  await restoreMigrationArchive(blob, password, '');
+  const restoredEnvelope = localStorage.getItem(shareKey);
+  expect(restoredEnvelope).toMatch(/^d1:/);
+  expect(restoredEnvelope).not.toBe(sourceEnvelope);
+  const vaultDb = await readMigrationDatabase('labcharts-wearables-credential-vault');
+  const destKey = (vaultDb.stores.find(s => s.name === 'meta')!.records.find(r => r.key === 'credential-vault-key:v1')!.value as {v: CryptoKey}).v;
+  const [, iv, ct] = restoredEnvelope!.split(':');
+  const opened = await decryptMigrationDeviceValue(destKey, {version: 1, iv: _base64ToBytes(iv!), ciphertext: _base64ToBytes(ct!)}) as {storageKey: string; plaintext: string};
+  expect(opened).toEqual({storageKey: shareKey, plaintext: shareJson});
+});
+
+it('refuses export when a backup restore is pending and strips orphaned rollback journals', async () => {
+  localStorage.setItem('labcharts-profiles', '[{"id":"p1","name":"Backup profile"}]');
+  localStorage.setItem('labcharts-backup-restore-pending', 'rollback');
+  await writeMigrationDatabase({name: 'labcharts-blobs', version: 1, stores: [
+    {name: 'kv', keyPath: null, autoIncrement: false, indexes: [], records: [{key: 'labcharts-backup-restore-journal-v1', value: 'd1:stale:journal'}]},
+  ]});
+  await expect(buildMigrationArchive(password, '')).rejects.toThrow('interrupted backup restore is still pending');
+  // Once the fence is cleared, any orphaned rollback journal is excluded instead of copied with a dead device key.
+  localStorage.removeItem('labcharts-backup-restore-pending');
+  const blob = await buildMigrationArchive(password, '');
+  origin();
+  await restoreMigrationArchive(blob, password, '');
+  const restoredBlobs = await readMigrationDatabase('labcharts-blobs');
+  expect(restoredBlobs.stores.find(s => s.name === 'kv')!.records).toEqual([]);
 });

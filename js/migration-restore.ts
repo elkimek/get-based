@@ -62,7 +62,7 @@ function emptySnapshot(value: unknown): boolean {
 export async function requireEmptyMigrationDestination(): Promise<void> {
   const conflict = () => { throw new Error('This destination already contains records or a connected account. Recovery stopped before changing them. Use a fresh installation or keep a separate browser profile for the existing data.'); };
   const local = readMigrationLocal();
-  if (local['labcharts-encryption-enabled'] === 'true' || local['labcharts-sync-enabled'] === 'true') conflict();
+  if (local['labcharts-encryption-enabled'] === 'true' || local['labcharts-sync-enabled'] === 'true' || local['labcharts-backup-restore-pending'] !== undefined) conflict();
   for (const [key, value] of Object.entries(local)) {
     if (key === 'labcharts-profiles') {
       let profiles: unknown;
@@ -76,6 +76,7 @@ export async function requireEmptyMigrationDestination(): Promise<void> {
     else if (/^labcharts-.+-imported(?:$|-)/.test(key) && (!key.endsWith('-imported') || !emptyProfile(value))) conflict();
     else if (/^labcharts-.+-(?:chat(?:Draft|PersonalityCustom|-t_|-threads)?|persona-transaction)/.test(key) && !['', '[]', '{}', 'null'].includes(value)) conflict();
     else if (/(?:-key|-token|-mnemonic)$/.test(key) && value) conflict();
+    else if (key.startsWith('getbased-profile-shares-v1:') && value) conflict();
   }
   for (const name of await existingMigrationDatabases()) {
     const database = await readMigrationDatabase(name);
