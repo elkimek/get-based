@@ -31,6 +31,7 @@ import {
   clearLocalProfileDeleteIntent, isDemoProfileId, markLocalProfileDeleteIntent,
   queueEligibleProfileSync,
 } from './profile-sync-policy.js';
+import { isPublicDemoMode, isPublicDemoSeeding, notifyPublicDemoBlocked } from './public-demo-mode.js';
 export { migrateProfileData, profileStorageKey };
 import type { Biometrics } from '../types/profile-context-data.js';
 import type { ProfileData } from '../types/app-state.js';
@@ -316,6 +317,10 @@ export function sanitizeProfileAvatar(value: unknown): string | null {
 }
 
 export async function createProfile(name: string, opts: CreateProfileOptions = {}) {
+  if (isPublicDemoMode() && !isPublicDemoSeeding()) {
+    notifyPublicDemoBlocked('Creating profiles');
+    throw new Error('Creating profiles is disabled in the public demo.');
+  }
   const id = await mutateProfiles(profiles => {
     let candidate: string;
     if (opts.restoredId) {
@@ -371,6 +376,10 @@ function profileEdit(profileId: string, edit: (profile: StoredProfileRecord) => 
 }
 
 export async function renameProfile(profileId: string, newName: string) {
+  if (isPublicDemoMode() && !isPublicDemoSeeding()) {
+    notifyPublicDemoBlocked('Renaming profiles');
+    return false;
+  }
   const changed = await mutateProfiles(profileEdit(profileId, profile => {
     profile.name = newName;
   }));
@@ -379,6 +388,10 @@ export async function renameProfile(profileId: string, newName: string) {
 }
 
 export async function updateProfileMeta(profileId: string, updates: ProfileMetaUpdates, options: { expected?: StoredProfileRecord; canCommit?: () => boolean } = {}) {
+  if (isPublicDemoMode() && !isPublicDemoSeeding()) {
+    notifyPublicDemoBlocked('Editing profiles');
+    return false;
+  }
   const expected = options.expected ? structuredClone(options.expected) : null;
   const changed = await mutateProfiles(profiles => {
     if (options.canCommit && !options.canCommit()) throw Object.assign(new Error('Profile editing authorization changed. No change was applied.'), { noChangeApplied: true });
@@ -424,6 +437,10 @@ export function touchProfileTimestamp(profileId: string) {
 }
 
 export async function deleteProfile(profileId: string, onComplete?: () => void) {
+  if (isPublicDemoMode() && !isPublicDemoSeeding()) {
+    notifyPublicDemoBlocked('Deleting profiles');
+    return;
+  }
   const profiles = getProfiles();
   if (profiles.length <= 1) { profileDeps.showNotification("Cannot delete the last profile", "error"); return; }
   if (await profileDeps.showConfirmDialog('Delete this profile and all its data? This cannot be undone.')) {

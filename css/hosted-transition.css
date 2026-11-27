@@ -18,3 +18,14 @@
 .hosted-cutoff-dialog h1 {margin-bottom:16px}
 .hosted-cutoff-dialog p,.hosted-cutoff-dialog ul,.hosted-cutoff-dialog label {margin-top:12px;margin-bottom:12px}
 .hosted-cutoff-dialog ul {padding-left:20px}
+
+.public-demo-banner {gap:10px;padding:8px 16px;font-size:13px;border-bottom:1px solid var(--border, currentColor)}
+.public-demo-banner button,.public-demo-banner a {min-height:32px;padding:4px 10px;font-size:13px}
+.public-demo-switcher {display:inline-flex;align-items:center;gap:6px}
+.public-demo-switcher button.active {background:var(--accent, #4f8cff);border-color:var(--accent, #4f8cff);color:var(--on-accent, #ffffff);font-weight:600}
+body.public-demo-mode [data-shell-action="trigger-import"],
+body.public-demo-mode [data-shell-action="share-profile"],
+body.public-demo-mode [data-shell-action="open-feedback"],
+body.public-demo-mode .cl-new-btn,
+body.public-demo-mode .cl-tools-wrap,
+body.public-demo-mode .cl-row-actions {display:none !important}

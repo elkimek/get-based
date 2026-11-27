@@ -28,6 +28,7 @@ import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { getSelectedNodeUrl } from './nostr-discovery.js';
 import { addDemoNutrition } from './demo-nutrition.js';
+import { isPublicDemoMode, isPublicDemoSeeding, notifyPublicDemoBlocked } from './public-demo-mode.js';
 import {
   buildReportAgentContext as buildReportAgentContextImpl,
   collectReportData as collectReportDataImpl,
@@ -84,6 +85,10 @@ export function loadExportImportModule(): Promise<ExportImportModule> {
 
 
 export async function importDataJSON(file: File, options: JSONImportOptions = {}) {
+  if (isPublicDemoMode() && !isPublicDemoSeeding()) {
+    notifyPublicDemoBlocked('Importing JSON files');
+    return undefined;
+  }
   try {
     const module = exportImportModuleLoader.module || await loadExportImportModule();
     return await module.importDataJSON(file, options);
@@ -365,6 +370,10 @@ export async function exportAllDataJSON() {
 }
 
 export async function clearAllData() {
+  if (isPublicDemoMode()) {
+    notifyPublicDemoBlocked('Clearing demo data');
+    return;
+  }
   const profiles = getProfiles();
   const msg = profiles.length > 1
     ? `Clear ALL data across ${profiles.length} profiles, including the Cashu wallet balance and seed? This cannot be undone.`

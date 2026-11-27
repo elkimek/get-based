@@ -4,6 +4,7 @@ import { dispatchUtilsRuntimeEvent, getAppVersionRuntime } from './utils-runtime
 import { showNotification } from './utils.js';
 import { getDeploymentOperatorPolicy } from './deployment-policy.js';
 import { renderFirstLaunchLegal } from './legal-first-launch-presentation.js';
+import { isPublicDemoMode } from './public-demo-mode.js';
 import { TERMS_VERSION, PRIVACY_VERSION } from './legal-first-launch-view.js';
 export { TERMS_VERSION, PRIVACY_VERSION } from './legal-first-launch-view.js';
 
@@ -205,6 +206,10 @@ function handleLegalConsentChange(event: Event) {
 
 export function maybeShowLegalConsentGate() {
   applyDeploymentPolicyFooter();
+  if (isPublicDemoMode()) {
+    closeLegalConsentGate();
+    return false;
+  }
   const bootstrapResult = document.documentElement.dataset.legalConsentBootstrapResult;
   if (hasAcceptedCurrentLegal() || bootstrapResult === 'session') {
     if (bootstrapResult === 'persisted') backfillBootstrapAcceptanceMetadata();

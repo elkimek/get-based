@@ -12,6 +12,7 @@ import { getProfiles, getActiveProfileId, switchProfile, deleteProfile, updatePr
 import { getAvatarColor } from './nav.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { refreshClientProfileButton } from './client-list-runtime.js';
+import { isPublicDemoMode, notifyPublicDemoBlocked } from './public-demo-mode.js';
 import {
   configureClientListFormRuntime,
   handleClientFormChange,
@@ -395,6 +396,11 @@ function _handleClientClick(event: MouseEvent) {
   const action = actionEl.dataset.clAction;
   const id = actionEl.dataset.clProfileId || '';
   if (action === 'select-profile' && event.target instanceof Element && event.target.closest('.cl-row-actions')) return;
+  if (isPublicDemoMode() && action !== 'close' && action !== 'select-profile' && action !== 'tag-filter') {
+    notifyPublicDemoBlocked('Managing custom profiles');
+    event.preventDefault();
+    return;
+  }
   let handled = true;
 
   if (action === 'close') closeClientList();
@@ -437,6 +443,11 @@ function _handleClientChange(event: Event) {
 
   const action = el.dataset.clChangeAction;
   if (action === 'import-json' && el instanceof HTMLInputElement) {
+    if (isPublicDemoMode()) {
+      el.value = '';
+      notifyPublicDemoBlocked('Importing profiles');
+      return;
+    }
     const file = el.files?.[0];
     if (!file) return;
     closeClientList();

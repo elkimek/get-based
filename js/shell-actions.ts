@@ -8,6 +8,7 @@ import { handleImportStatusClick, isImportRunning } from './pdf-import-progress.
 import { openFeedbackModal } from './feedback.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { openChatContextModalRuntime } from './chat-runtime.js';
+import { isPublicDemoMode, notifyPublicDemoBlocked } from './public-demo-mode.js';
 
 
 // Private invocation views describe only operations performed here. Injected
@@ -124,6 +125,10 @@ function runShellAction(action: string) {
     shellNavDeps.closeMobileSidebar();
     return true;
   } else if (action === 'trigger-import') {
+    if (isPublicDemoMode()) {
+      notifyPublicDemoBlocked('Importing files');
+      return true;
+    }
     if (shellImportDeps.isImportRunning()) {
       shellImportDeps.handleImportStatusClick();
       return true;
@@ -131,6 +136,10 @@ function runShellAction(action: string) {
     clickFileInput('pdf-input');
     return true;
   } else if (action === 'share-profile') {
+    if (isPublicDemoMode()) {
+      notifyPublicDemoBlocked('Profile sharing');
+      return true;
+    }
     shellProfileShareDeps.openProfileShareModal();
     return true;
   } else if (action === 'open-tweaks') {
@@ -140,6 +149,10 @@ function runShellAction(action: string) {
     callShellRuntime('openSettingsModal');
     return true;
   } else if (action === 'open-feedback') {
+    if (isPublicDemoMode()) {
+      notifyPublicDemoBlocked('Feedback');
+      return true;
+    }
     shellFeedbackDeps.openFeedbackModal();
     return true;
   } else if (action === 'import-status') {
