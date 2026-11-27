@@ -334,7 +334,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // Verify specific factors against medical literature
   assert('FT4 factor 0.07769', UNIT_CONVERSIONS['thyroid.ft4']?.factor === 0.07769);
   assert('FT3 factor 0.6513', UNIT_CONVERSIONS['thyroid.ft3']?.factor === 0.6513);
-  assert('T3 total same factor as FT3', UNIT_CONVERSIONS['thyroid.t3total']?.factor === 0.6513);
+  assert('T3 total factor 65.13 (nmol/l→ng/dl)', UNIT_CONVERSIONS['thyroid.t3total']?.factor === 65.13);
   assert('T4 total same factor as FT4', UNIT_CONVERSIONS['thyroid.t4total']?.factor === 0.07769);
   assert('Transferrin factor 100 (g/l→mg/dl)', UNIT_CONVERSIONS['iron.transferrin']?.factor === 100);
   assert('TIBC factor matches iron', UNIT_CONVERSIONS['iron.tibc']?.factor === UNIT_CONVERSIONS['iron.iron']?.factor);
