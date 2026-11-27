@@ -566,8 +566,10 @@ it('recovers cleanly when an automatic handoff restore is interrupted mid-write 
   faults.failAt = 2;
   await expect(restoreMigrationArchive(firstHandoffBlob, 'EphemeralFirstPass1234!', '', undefined, {handoff: true}))
     .rejects.toThrow('Synthetic storage failure');
-  // Simulate partial localStorage/file remnants left from the interrupted first attempt.
+  // Simulate partial localStorage/file remnants left from the interrupted first attempt,
+  // plus an unrelated same-origin key that retry cleanup must preserve.
   localStorage.setItem('labcharts-stale-chatDraft_main', 'stale draft from first attempt');
+  localStorage.setItem('unrelated-origin-key', 'keep-me');
   const staleDir = await root.getDirectoryHandle('lens-local', {create: true});
   const staleFile = await staleDir.getFileHandle('stale.txt', {create: true});
   staleFile.bytes = new TextEncoder().encode('stale');
@@ -583,6 +585,7 @@ it('recovers cleanly when an automatic handoff restore is interrupted mid-write 
   expect(restored.inventory.profiles).toBe(1);
   expect(localStorage.getItem('labcharts-profiles')).toContain('Fresh profile');
   expect(localStorage.getItem('labcharts-stale-chatDraft_main')).toBeNull();
+  expect(localStorage.getItem('unrelated-origin-key')).toBe('keep-me');
   expect(await getPendingMigration()).toBeNull();
   expect(localStorage.getItem(MIGRATION_PENDING_KEY)).toBeNull();
   const remainingDbs = (await indexedDB.databases()).map(db => db.name).filter(name => name && name !== 'getbased-migration');

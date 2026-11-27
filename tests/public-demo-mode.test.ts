@@ -21,12 +21,12 @@ describe('public demo mode detection', () => {
     expect(isPublicDemoOrigin('http://127.0.0.1:8000')).toBe(false);
   });
 
-  it('activates on public demo hosts and only via query flag on loopback', () => {
-    expect(isPublicDemoMode({origin: 'https://getbased-demo.vercel.app', hostname: 'getbased-demo.vercel.app', search: ''})).toBe(true);
-    expect(isPublicDemoMode({origin: 'http://127.0.0.1:8000', hostname: '127.0.0.1', search: '?public-demo=1'})).toBe(true);
-    expect(isPublicDemoMode({origin: 'http://127.0.0.1:8000', hostname: '127.0.0.1', search: ''})).toBe(false);
-    expect(isPublicDemoMode({origin: 'https://app.getbased.health', hostname: 'app.getbased.health', search: '?public-demo=1'})).toBe(false);
-    expect(isPublicDemoMode({origin: 'https://my-fork.vercel.app', hostname: 'my-fork.vercel.app', search: '?public-demo=1'})).toBe(false);
+  it('activates strictly on dedicated public demo origins and ignores query flags', () => {
+    expect(isPublicDemoMode({origin: 'https://getbased-demo.vercel.app'})).toBe(true);
+    expect(isPublicDemoMode({origin: 'https://demo.getbased.health'})).toBe(true);
+    expect(isPublicDemoMode({origin: 'http://127.0.0.1:8000'})).toBe(false);
+    expect(isPublicDemoMode({origin: 'https://app.getbased.health'})).toBe(false);
+    expect(isPublicDemoMode({origin: 'https://my-fork.vercel.app'})).toBe(false);
   });
 
   it('tracks seeding depth cleanly even on error', async () => {

@@ -4,20 +4,9 @@ import {showNotification} from './utils.js';
 let seedingDepth = 0;
 let lastBlockedNoticeAt = 0;
 
-function isLoopbackHost(hostname: string): boolean {
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-}
-
-export function isPublicDemoMode(loc: Pick<Location, 'origin' | 'hostname' | 'search'> | undefined = typeof location !== 'undefined' ? location : undefined): boolean {
+export function isPublicDemoMode(loc: Pick<Location, 'origin'> | undefined = typeof location !== 'undefined' ? location : undefined): boolean {
   if (!loc) return false;
-  if (isPublicDemoOrigin(loc.origin)) return true;
-  if (isLoopbackHost(String(loc.hostname || '').toLowerCase())) {
-    try {
-      const params = new URLSearchParams(loc.search || '');
-      if (params.get('public-demo') === '1') return true;
-    } catch { /* ignore malformed query */ }
-  }
-  return false;
+  return isPublicDemoOrigin(loc.origin);
 }
 
 export function isPublicDemoSeeding(): boolean {

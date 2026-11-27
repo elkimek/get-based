@@ -11,7 +11,7 @@ import { decryptMigrationSourceValue, decryptMigrationDeviceValue } from './migr
 import { LENS_LOCAL_STORAGE_LOCK } from './lens-local-lock.js';
 import type { MigrationArchive } from './migration-archive.js';
 
-export interface MigrationPending { id: string; blob: Blob; phase: string; handoff?: boolean }
+export interface MigrationPending { id: string; blob: Blob; phase: string; handoff?: boolean; localKeys?: string[] }
 async function journalDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(MIGRATION_DATABASE, 1);
@@ -131,8 +131,11 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
       }
       if (!pending || replacingInterruptedHandoff) {
         if (replacingInterruptedHandoff) {
+          const trackedKeys = new Set(pending?.localKeys ?? []);
           for (const key of Object.keys(readMigrationLocal())) {
-            if (key !== MIGRATION_PENDING_KEY) localStorage.removeItem(key);
+            if (key !== MIGRATION_PENDING_KEY && (/^(?:labcharts-|getbased-)/.test(key) || trackedKeys.has(key))) {
+              localStorage.removeItem(key);
+            }
           }
           localStorage.removeItem('labcharts-migration-completed');
           localStorage.removeItem('labcharts-migration-reviewed');
@@ -145,7 +148,8 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
         // the file fails, the user can reselect it without allowing app edits.
         localStorage.setItem(MIGRATION_PENDING_KEY, id);
         if (localStorage.getItem(MIGRATION_PENDING_KEY) !== id) throw new Error('The recovery fence could not be saved.');
-        await journal('readwrite', store => store.put({id, blob, phase: 'prepared', ...(handoff ? {handoff: true} : {})}, 'pending'));
+        const handoffMeta = handoff ? {handoff: true, localKeys: Object.keys(archive.local)} : {};
+        await journal('readwrite', store => store.put({id, blob, phase: 'prepared', ...handoffMeta}, 'pending'));
       }
       localStorage.setItem(MIGRATION_PENDING_KEY, id);
       if (localStorage.getItem(MIGRATION_PENDING_KEY) !== id) throw new Error('The recovery fence could not be saved. No records were restored.');
@@ -153,7 +157,8 @@ export async function restoreMigrationArchive(blob: Blob, password: string, orig
       const prepared = archive;
       validateMigrationArchive(prepared);
       await prepareMigrationDestination(prepared, originalPassphrase);
-      await journal('readwrite', store => store.put({id, blob, phase: 'restoring', ...(handoff ? {handoff: true} : {})}, 'pending'));
+      const restoringMeta = handoff ? {handoff: true, localKeys: Object.keys(prepared.local)} : {};
+      await journal('readwrite', store => store.put({id, blob, phase: 'restoring', ...restoringMeta}, 'pending'));
       for (const database of prepared.databases) {
         progress('Restoring saved database ' + (prepared.databases.indexOf(database) + 1) + ' of ' + prepared.databases.length + '…');
         await writeMigrationDatabase(database);

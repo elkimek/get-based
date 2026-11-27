@@ -12,11 +12,7 @@
   const termsVersion = overlay.dataset.termsVersion || '';
   const privacyVersion = overlay.dataset.privacyVersion || '';
   const hostname = String(location.hostname || '').toLowerCase().replace(/\.$/, '');
-  const isLoopback = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-  let publicDemoHost = hostname === 'getbased-demo.vercel.app' || hostname === 'demo.getbased.health';
-  if (!publicDemoHost && isLoopback) {
-    try { publicDemoHost = new URLSearchParams(location.search || '').get('public-demo') === '1'; } catch {}
-  }
+  const publicDemoHost = hostname === 'getbased-demo.vercel.app' || hostname === 'demo.getbased.health';
   if (publicDemoHost) {
     overlay.remove();
     return;
