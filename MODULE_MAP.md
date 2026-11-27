@@ -10,7 +10,7 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 | Metric | Current |
 | --- | ---: |
 | Modules | 2135 |
-| Internal import edges | 7193 |
+| Internal import edges | 7194 |
 | Dynamic internal edges | 226 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -5244,7 +5244,7 @@ Native browser modules shipped with the static application.
 - [`js/tour-classes.ts`](js/tour-classes.ts) → no in-scope imports
 - [`js/tour-presentation.ts`](js/tour-presentation.ts) → no in-scope imports
 - [`js/tour-runtime.ts`](js/tour-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/tour.ts`](js/tour.ts) → [`js/components/TourPresentation.svelte`](js/components/TourPresentation.svelte), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/tour-classes.ts`](js/tour-classes.ts), [`js/tour-presentation.ts`](js/tour-presentation.ts), [`js/tour-runtime.ts`](js/tour-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/tour.ts`](js/tour.ts) → [`js/components/TourPresentation.svelte`](js/components/TourPresentation.svelte), [`js/profile.ts`](js/profile.ts), [`js/public-demo-mode.ts`](js/public-demo-mode.ts), [`js/state.ts`](js/state.ts), [`js/tour-classes.ts`](js/tour-classes.ts), [`js/tour-presentation.ts`](js/tour-presentation.ts), [`js/tour-runtime.ts`](js/tour-runtime.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 

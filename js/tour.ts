@@ -9,6 +9,7 @@ type TourActionTarget = EventTarget & { closest?: (selector: string) => HTMLElem
 
 import { profileStorageKey } from './profile.js';
 import { isStartupNudgeBlocked } from './utils.js';
+import { isPublicDemoMode } from './public-demo-mode.js';
 import { renderHTML as renderTourPresentation } from './components/TourPresentation.svelte.html.js';
 import { projectTourPresentation } from './tour-presentation.js';
 import { tourClasses } from './tour-classes.js';
@@ -293,20 +294,24 @@ function positionTooltip(rect: DOMRect, position: TourPosition) {
 }
 
 export function startEmptyTour(auto?: boolean) {
+  if (auto && isPublicDemoMode()) return false;
   return runTour(EMPTY_TOUR_STEPS, profileKey('emptyTour'), auto);
 }
 
 export function startTour(auto?: boolean) {
+  if (auto && isPublicDemoMode()) return false;
   return runTour(TOUR_STEPS, profileKey('tour'), auto);
 }
 
 export function startGuidedTour(auto?: boolean) {
+  if (auto && isPublicDemoMode()) return false;
   return getTourTargetElement('.welcome-primary-panel')
     ? startEmptyTour(auto)
     : startTour(auto);
 }
 
 export function startCycleTour(auto?: boolean) {
+  if (auto && isPublicDemoMode()) return false;
   if (!CYCLE_SURFACE_TARGETS.some(target => getTourTargetElement(target))) return false;
   return runTour(CYCLE_TOUR_STEPS, profileKey('cycleTour'), auto);
 }

@@ -4210,3 +4210,7 @@ tests/pwa/sveltekit-island-ownership.spec.js.map
 /tests/pwa/cli-companion-fixture.js
 /tests/pwa/agent-access-fixture.js
 /tests/helpers/companion-pairing-browser.js
+/js/public-demo-mode.js
+/js/public-demo-bootstrap.js
+/scripts/build-public-demo-deploy.mjs
+/tests/public-demo-mode.test.js
