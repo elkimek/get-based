@@ -20,13 +20,15 @@ describe('automated migration handoff validation', () => {
     expect(() => normalizeDestinationOrigin('http://example.com', 'https://app.getbased.health')).toThrow(/https:\/\//);
   });
 
-  it('restricts incoming handoff source origins to official hosted origins and loopback', () => {
-    expect(isAllowedHandoffSourceOrigin('https://app.getbased.health')).toBe(true);
-    expect(isAllowedHandoffSourceOrigin('https://get-based.vercel.app')).toBe(true);
-    expect(isAllowedHandoffSourceOrigin('http://127.0.0.1:8000')).toBe(true);
-    expect(isAllowedHandoffSourceOrigin('http://localhost:8000')).toBe(true);
-    expect(isAllowedHandoffSourceOrigin('https://evil.example')).toBe(false);
-    expect(isAllowedHandoffSourceOrigin('https://app.getbased.health.evil.example')).toBe(false);
+  it('restricts incoming handoff source origins to official hosted origins on remote deployments and loopback-to-loopback locally', () => {
+    expect(isAllowedHandoffSourceOrigin('https://app.getbased.health', 'https://my-getbased.vercel.app')).toBe(true);
+    expect(isAllowedHandoffSourceOrigin('https://get-based.vercel.app', 'https://my-getbased.vercel.app')).toBe(true);
+    expect(isAllowedHandoffSourceOrigin('http://127.0.0.1:8000', 'http://localhost:8000')).toBe(true);
+    expect(isAllowedHandoffSourceOrigin('http://localhost:8000', 'http://127.0.0.1:8000')).toBe(true);
+    expect(isAllowedHandoffSourceOrigin('http://127.0.0.1:8000', 'https://my-getbased.vercel.app')).toBe(false);
+    expect(isAllowedHandoffSourceOrigin('http://localhost:8000', 'https://my-getbased.vercel.app')).toBe(false);
+    expect(isAllowedHandoffSourceOrigin('https://evil.example', 'https://my-getbased.vercel.app')).toBe(false);
+    expect(isAllowedHandoffSourceOrigin('https://app.getbased.health.evil.example', 'https://my-getbased.vercel.app')).toBe(false);
   });
 
   it('generates strong ephemeral passwords and strict hex nonces', () => {

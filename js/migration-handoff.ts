@@ -48,12 +48,24 @@ export function normalizeDestinationOrigin(rawUrl: string, currentOrigin = typeo
   return target;
 }
 
-export function isAllowedHandoffSourceOrigin(origin: string): boolean {
+export function isAllowedHandoffSourceOrigin(
+  origin: string,
+  destinationOrigin = typeof location !== 'undefined' ? location.origin : '',
+): boolean {
   let url: URL;
   try { url = new URL(origin); } catch { return false; }
   url.hostname = url.hostname.replace(/\.$/, '');
   if (OFFICIAL_HOSTED_ORIGINS.has(url.origin)) return true;
-  return (url.protocol === 'http:' || url.protocol === 'https:') && isLoopbackHost(url.hostname.toLowerCase());
+  if ((url.protocol === 'http:' || url.protocol === 'https:') && isLoopbackHost(url.hostname.toLowerCase())) {
+    try {
+      const dest = new URL(destinationOrigin);
+      dest.hostname = dest.hostname.replace(/\.$/, '');
+      return isLoopbackHost(dest.hostname.toLowerCase());
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 export function generateEphemeralTransferPassword(): string {
@@ -75,13 +87,16 @@ export interface IncomingHandoffParams {
   sourceOrigin: string;
 }
 
-export function parseHandoffFragment(hash = typeof location !== 'undefined' ? location.hash : ''): IncomingHandoffParams | null {
+export function parseHandoffFragment(
+  hash = typeof location !== 'undefined' ? location.hash : '',
+  destinationOrigin = typeof location !== 'undefined' ? location.origin : '',
+): IncomingHandoffParams | null {
   const clean = hash.replace(/^#/, '');
   if (!clean) return null;
   const params = new URLSearchParams(clean);
   const nonce = params.get('handoff') || '';
   const sourceOrigin = params.get('source') || '';
-  if (!/^[a-f0-9]{32}$/.test(nonce) || !isAllowedHandoffSourceOrigin(sourceOrigin)) return null;
+  if (!/^[a-f0-9]{32}$/.test(nonce) || !isAllowedHandoffSourceOrigin(sourceOrigin, destinationOrigin)) return null;
   return {nonce, sourceOrigin};
 }
 
