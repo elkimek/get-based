@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 2135 |
-| Internal import edges | 7194 |
+| Modules | 2136 |
+| Internal import edges | 7197 |
 | Dynamic internal edges | 226 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -3791,7 +3791,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>migration</code> family — 13 modules</summary>
+<details><summary><code>migration</code> family — 14 modules</summary>
 
 - [`js/migration-archive.ts`](js/migration-archive.ts) → [`js/lens-local-lock.ts`](js/lens-local-lock.ts), [`js/migration-clients.ts`](js/migration-clients.ts), [`js/migration-codec.ts`](js/migration-codec.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/migration-database.ts`](js/migration-database.ts), [`js/migration-digest.ts`](js/migration-digest.ts), [`js/migration-files.ts`](js/migration-files.ts), [`js/migration-portable.ts`](js/migration-portable.ts), [`js/persona-storage-transaction.ts`](js/persona-storage-transaction.ts) *(dynamic)*
 - [`js/migration-clients.ts`](js/migration-clients.ts) → no in-scope imports
@@ -3799,8 +3799,9 @@ Native browser modules shipped with the static application.
 - [`js/migration-crypto.ts`](js/migration-crypto.ts) → [`js/base64.ts`](js/base64.ts), [`js/migration-codec.ts`](js/migration-codec.ts)
 - [`js/migration-database.ts`](js/migration-database.ts) → no in-scope imports
 - [`js/migration-digest.ts`](js/migration-digest.ts) → [`js/migration-codec.ts`](js/migration-codec.ts)
-- [`js/migration-entry.ts`](js/migration-entry.ts) → [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/components/MigrationRecovery.svelte`](js/components/MigrationRecovery.svelte), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-restore.ts`](js/migration-restore.ts), [`js/migration-snapshots.ts`](js/migration-snapshots.ts), [`js/migration-view.ts`](js/migration-view.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
+- [`js/migration-entry.ts`](js/migration-entry.ts) → [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/components/MigrationRecovery.svelte`](js/components/MigrationRecovery.svelte), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-handoff.ts`](js/migration-handoff.ts), [`js/migration-restore.ts`](js/migration-restore.ts), [`js/migration-snapshots.ts`](js/migration-snapshots.ts), [`js/migration-view.ts`](js/migration-view.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 - [`js/migration-files.ts`](js/migration-files.ts) → [`js/base64.ts`](js/base64.ts)
+- [`js/migration-handoff.ts`](js/migration-handoff.ts) → [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 - [`js/migration-navigation.ts`](js/migration-navigation.ts) → no in-scope imports
 - [`js/migration-portable.ts`](js/migration-portable.ts) → [`js/base64.ts`](js/base64.ts), [`js/crypto-passphrase-key.ts`](js/crypto-passphrase-key.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/storage-object-codec.ts`](js/storage-object-codec.ts)
 - [`js/migration-restore.ts`](js/migration-restore.ts) → [`js/lens-local-lock.ts`](js/lens-local-lock.ts), [`js/migration-archive.ts`](js/migration-archive.ts), [`js/migration-clients.ts`](js/migration-clients.ts), [`js/migration-crypto.ts`](js/migration-crypto.ts), [`js/migration-database.ts`](js/migration-database.ts), [`js/migration-digest.ts`](js/migration-digest.ts), [`js/migration-files.ts`](js/migration-files.ts), [`js/migration-portable.ts`](js/migration-portable.ts), [`js/profile-defaults.ts`](js/profile-defaults.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
@@ -3811,7 +3812,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>MigrationRecovery.svelte</code> family — 1 module</summary>
 
-- [`js/components/MigrationRecovery.svelte`](js/components/MigrationRecovery.svelte) → [`js/settings-protection-classes.ts`](js/settings-protection-classes.ts)
+- [`js/components/MigrationRecovery.svelte`](js/components/MigrationRecovery.svelte) → [`js/migration-handoff.ts`](js/migration-handoff.ts), [`js/settings-protection-classes.ts`](js/settings-protection-classes.ts)
 
 </details>
 

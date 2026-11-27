@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "sourceInventoryDigest": "eb06452d3f013ac35e5fd825451973f56f006a21706086bfc33fec8022fe4619",
-  "scannedFiles": 2052,
+  "sourceInventoryDigest": "35bd4b2211bfc1fa69aba9dda17f91d95fb5975bdf36bdd0661012d32ebd5952",
+  "scannedFiles": 2053,
   "sinkCount": 305,
   "files": {
     "js/biology-scores.js": {

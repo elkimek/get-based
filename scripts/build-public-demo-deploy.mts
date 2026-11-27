@@ -62,6 +62,11 @@ export async function buildPublicDemoAppDeploy(
         },
         continue: true,
       },
+      {
+        src: '^/app/migration\\.html$',
+        headers: {'Cross-Origin-Opener-Policy': 'unsafe-none'},
+        continue: true,
+      },
       {src: '^/app/?$', dest: '/index.html'},
     ],
   };

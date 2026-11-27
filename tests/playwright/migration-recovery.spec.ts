@@ -272,3 +272,31 @@ test('an open-tab cutoff retains its modal and exact unsent copies until explici
   expect(await page.evaluate(async () => (await import('/js/crypto.js')).encryptedGetItem('labcharts-default-chatDraft_cutoff-test'))).toBe('Synthetic unsent cutoff text');
   expect(await page.evaluate(() => localStorage.getItem('labcharts-profiles'))).toContain('default');
 });
+
+test('automated one-click tab handoff transfers encrypted data across origins without a manual password or file', async ({page}) => {
+  test.setTimeout(120000);
+  await prepare(page, '/app');
+  await seed(page, false);
+  await openMigration(page);
+  const sourceOrigin = new URL(page.url()).origin;
+  const targetOrigin = sourceOrigin.replace('127.0.0.1', 'localhost');
+  expect(targetOrigin).not.toBe(sourceOrigin);
+
+  const popupPromise = page.waitForEvent('popup');
+  await page.locator('#migration-destination').fill(targetOrigin);
+  await page.getByRole('button', {name: 'Move my data automatically →', exact: true}).click();
+
+  const target = await popupPromise;
+  await expect(target.locator('html[data-migration-ready]')).toBeAttached({timeout: 30000});
+  await expect(target.locator('[data-migration-summary]')).toBeVisible({timeout: 30000});
+  await expect(target.locator('[data-migration-summary]')).toContainText(sourceOrigin);
+  await expect(page.getByRole('status')).toContainText(targetOrigin, {timeout: 30000});
+
+  await target.getByRole('checkbox').check();
+  await target.getByRole('button', {name: 'Restore migration file', exact: true}).click();
+  await expect(target.getByRole('heading', {name: 'Recovery verified', exact: true})).toBeVisible({timeout: 30000});
+  expect(await target.evaluate(() => localStorage.getItem('labcharts-profiles'))).toContain('Synthetic migration profile');
+  // Source browser data stays untouched as a safety net.
+  expect(await page.evaluate(() => localStorage.getItem('labcharts-profiles'))).toContain('Synthetic migration profile');
+  await target.close();
+});

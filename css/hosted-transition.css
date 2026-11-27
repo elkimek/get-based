@@ -236,6 +236,133 @@ body.mig-body {
   border-color:color-mix(in srgb, var(--green, #22c55e) 45%, transparent);
   background:linear-gradient(180deg, var(--green-bg, rgba(34,197,94,0.08)) 0%, var(--bg-card, #131622) 120px);
 }
+.mig-card-featured {
+  border-color:color-mix(in srgb, var(--accent, #4f8cff) 38%, transparent);
+  background:linear-gradient(180deg, var(--accent-fill, rgba(79,140,255,0.08)) 0%, var(--bg-card, #131622) 140px);
+}
+.mig-deploy-block {
+  margin-bottom:22px;
+  padding-bottom:20px;
+  border-bottom:1px solid var(--border, rgba(255,255,255,0.08));
+}
+.mig-substep-title {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:14px;
+  font-weight:600;
+  color:var(--text-primary, #e8eaf0);
+  margin-bottom:12px;
+}
+.mig-substep-title .mig-step-num {
+  margin-bottom:0;
+}
+.mig-deploy-grid {
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+}
+.mig-deploy-btn {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border-radius:12px;
+  text-decoration:none;
+  border:1px solid var(--border, rgba(255,255,255,0.12));
+  background:var(--bg-secondary, #0f111a);
+  color:var(--text-primary, #e8eaf0);
+  transition:transform 0.12s,border-color 0.15s,background 0.15s;
+}
+.mig-deploy-btn:hover {
+  transform:translateY(-1px);
+  border-color:var(--accent, #4f8cff);
+  background:var(--bg-hover, rgba(255,255,255,0.06));
+}
+.mig-deploy-vercel .mig-deploy-logo {
+  background:#000000;
+  color:#ffffff;
+  border:1px solid rgba(255,255,255,0.18);
+}
+.mig-deploy-cloudflare .mig-deploy-logo {
+  background:rgba(243,128,32,0.15);
+  color:#f38020;
+  border:1px solid rgba(243,128,32,0.35);
+}
+.mig-deploy-logo {
+  flex:0 0 38px;
+  width:38px;
+  height:38px;
+  border-radius:10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.mig-deploy-copy {
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.mig-deploy-copy strong {
+  font-size:14px;
+  font-weight:600;
+  color:var(--text-primary, #e8eaf0);
+}
+.mig-deploy-copy span {
+  font-size:12px;
+  color:var(--text-secondary, #8b90a0);
+}
+.mig-deploy-arrow {
+  flex:0 0 auto;
+  font-size:15px;
+  color:var(--text-muted, #6e7488);
+}
+.mig-deploy-note {
+  margin:10px 0 0;
+  font-size:12.5px;
+  color:var(--text-secondary, #8b90a0);
+}
+.mig-deploy-note code {
+  font-size:12px;
+  padding:1px 5px;
+  border-radius:4px;
+  background:var(--bg-secondary, #0f111a);
+  border:1px solid var(--border, rgba(255,255,255,0.08));
+}
+.mig-transfer-row {
+  display:flex;
+  align-items:flex-end;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.mig-transfer-input-col {
+  flex:1 1 280px;
+  margin-bottom:0;
+}
+.mig-transfer-cta {
+  min-height:42px;
+  white-space:nowrap;
+}
+.mig-divider {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:28px 0 8px;
+  color:var(--text-muted, #6e7488);
+  font-size:12px;
+  font-weight:500;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+}
+.mig-divider::before,
+.mig-divider::after {
+  content:'';
+  flex:1 1 auto;
+  height:1px;
+  background:var(--border, rgba(255,255,255,0.08));
+}
 .mig-card-head {
   display:flex;
   align-items:flex-start;
@@ -470,7 +597,9 @@ body.mig-body {
 .mig-checklist li {margin-bottom:6px}
 @media (max-width: 680px) {
   .mig-steps {grid-template-columns:1fr}
+  .mig-deploy-grid {grid-template-columns:1fr}
   .mig-field-grid {grid-template-columns:1fr}
+  .mig-transfer-cta {width:100%}
   .mig-card {padding:18px 16px}
   .mig-shell {padding:20px 14px 48px}
   .mig-topbar-inner {padding:10px 14px}

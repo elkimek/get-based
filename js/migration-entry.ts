@@ -8,10 +8,19 @@ import type { MigrationSnapshotLabel } from './migration-snapshots.js';
 import { serializeBackupSnapshot } from './backup-serialization.js';
 import type { MigrationArchive } from './migration-archive.js';
 import type { MigrationActions, MigrationViewState } from './migration-view.js';
+import {
+  generateEphemeralTransferPassword,
+  normalizeDestinationOrigin,
+  parseHandoffFragment,
+  readReturnedDeploymentUrl,
+  receiveHandoffPayload,
+  startHandoffSession,
+} from './migration-handoff.js';
 
 const target = document.getElementById('migration-root');
 if (!target) throw new Error('Recovery surface is missing.');
 let state = initialMigrationView(), selected: Blob | null = null, inspected: MigrationArchive | null = null;
+let handoffPassword: string | null = null;
 let snapshots: MigrationSnapshotLabel[] = [];
 let preparedDownload: {blob: Blob; name: string} | null = null;
 let clipboardClearTimer: ReturnType<typeof setTimeout> | null = null;
@@ -34,6 +43,61 @@ async function run(operation: () => Promise<void>) {
   finally {update({busy: false});}
 }
 const actions: MigrationActions = {
+  transfer: (destinationUrl, original, options) => {
+    if (state.busy) return Promise.resolve();
+    let destinationOrigin: string;
+    let session: ReturnType<typeof startHandoffSession>;
+    try {
+      destinationOrigin = normalizeDestinationOrigin(destinationUrl);
+      // Open synchronously inside the click gesture so pop-up blockers allow it.
+      session = startHandoffSession(destinationOrigin);
+    } catch (error) {
+      update({error: error instanceof Error ? error.message : 'Could not open your new getbased URL.'});
+      return Promise.resolve();
+    }
+    return run(async () => {
+      const recoveryOnly = getHostedTransition(location.origin)?.phase === 'recovery';
+      const allowMissingLegacySync = !!(recoveryOnly && options?.allowMissingLegacySync);
+      const ephemeralPassword = generateEphemeralTransferPassword();
+      update({handoffMode: 'sending', handoffOrigin: destinationOrigin, status: 'Preparing your encrypted transfer package…'});
+      try {
+        const blob = await buildMigrationArchive(ephemeralPassword, original, status => update({status}), {allowMissingLegacySync});
+        await session.deliver(blob, ephemeralPassword, status => update({status}));
+        update({
+          legacySyncBlocked: false,
+          handoffMode: 'sent',
+          status: `Sent your encrypted records directly to ${destinationOrigin}. Switch to that tab to confirm and finish.`,
+        });
+      } catch (error) {
+        session.cancel();
+        update({handoffMode: 'idle', handoffOrigin: null});
+        if (recoveryOnly && error instanceof Error && error.message.includes('finish Sync identity recovery')) {
+          update({legacySyncBlocked: true});
+          throw new Error('Legacy Sync recovery words were not migrated before the hosted cutoff. Confirm below to transfer all local health records without legacy Sync recovery words.');
+        }
+        throw error;
+      }
+    });
+  },
+  restoreHandoff: (original) => run(async () => {
+    if (!selected || !inspected || !handoffPassword) throw new Error('The incoming transfer is no longer active. Return to your original tab and click Move my data automatically again.');
+    const password = handoffPassword;
+    update({status: 'Checking this destination and restoring your records…'});
+    try {
+      inspected = await restoreMigrationArchive(selected, password, original, status => update({status}));
+      handoffPassword = null;
+      selected = null;
+      update({
+        summary: summary(inspected),
+        complete: true,
+        pending: false,
+        handoffMode: 'idle',
+        status: 'Recovery passed verification. Your original browser records have not been erased.',
+      });
+    } finally {
+      update({pending: !!(await getPendingMigration())});
+    }
+  }),
   export: (password, original, options) => run(async () => {
     const recoveryOnly = getHostedTransition(location.origin)?.phase === 'recovery';
     const allowMissingLegacySync = !!(recoveryOnly && options?.allowMissingLegacySync);
@@ -62,7 +126,7 @@ const actions: MigrationActions = {
   },
   inspect: (file, password) => run(async () => {
     if (getHostedTransition(location.origin)?.phase === 'recovery') throw new Error('Use your self-hosted address to inspect and restore a migration file.');
-    inspected = null; update({summary: null});
+    inspected = null; handoffPassword = null; update({summary: null, handoffMode: 'idle'});
     const pending = await getPendingMigration(); selected = file ?? pending?.blob ?? null;
     if (!selected) throw new Error('Choose a migration file.');
     inspected = await inspectMigrationArchive(selected, password);
@@ -76,11 +140,14 @@ const actions: MigrationActions = {
       update({summary: summary(inspected), complete: true, pending: false, status: 'Recovery passed verification. Your source records have not been erased.'});
     } finally {update({pending: !!(await getPendingMigration())});}
   }),
-  cancel: () => {selected = null; inspected = null; update({summary: null, status: 'Choose and check the migration file before restoring. No destination records were changed.', error: ''});},
+  cancel: () => {
+    selected = null; inspected = null; handoffPassword = null;
+    update({summary: null, handoffMode: 'idle', handoffOrigin: null, status: 'Choose an automatic transfer above or use manual file restore below. No destination records were changed.', error: ''});
+  },
   snapshot: index => run(async () => {
-    const selected = snapshots[index];
-    if (!selected) throw new Error('The saved snapshot is unavailable. Reload this page and retry.');
-    const stored = await readMigrationSnapshot(selected.key);
+    const selectedSnap = snapshots[index];
+    if (!selectedSnap) throw new Error('The saved snapshot is unavailable. Reload this page and retry.');
+    const stored = await readMigrationSnapshot(selectedSnap.key);
     if (stored?.snapshot?.format !== 'labcharts-backup' || stored.snapshot.version !== 1) throw new Error('The saved snapshot is missing or unsupported.');
     preparedDownload = {blob: new Blob([serializeBackupSnapshot(stored.snapshot)!], {type: 'application/json'}), name: 'getbased-saved-snapshot.json'};
     update({downloadKind: 'snapshot', status: 'The saved snapshot is ready. Choose Download saved backup to save it.'});
@@ -94,6 +161,13 @@ const actions: MigrationActions = {
     clipboardClearTimer = setTimeout(() => {clipboardClearTimer = null; void navigator.clipboard.writeText('').catch(() => {});}, 60000);
   }),
 };
+
+const incomingHandoff = parseHandoffFragment();
+if (incomingHandoff) {
+  try { history.replaceState(null, '', location.pathname); } catch { /* ignore */ }
+}
+const returnedDeploymentUrl = readReturnedDeploymentUrl();
+
 target.replaceChildren();
 view = mount(MigrationRecovery, {target, props: {initial: state, actions}});
 void run(async () => {
@@ -104,8 +178,42 @@ void run(async () => {
   if (databases.some(database => database.name === 'labcharts-backups')) {
     snapshots = await migrationSnapshotCatalog();
   }
-  update({recoveryOnly, downloadKind: pending && recoveryOnly ? 'migration' : null, pending: !!pending || !!localStorage.getItem('labcharts-migration-pending'), sourceEncrypted: localStorage.getItem('labcharts-encryption-enabled') === 'true',
+  update({
+    recoveryOnly,
+    initialDestinationUrl: returnedDeploymentUrl,
+    downloadKind: pending && recoveryOnly ? 'migration' : null,
+    pending: !!pending || !!localStorage.getItem('labcharts-migration-pending'),
+    sourceEncrypted: localStorage.getItem('labcharts-encryption-enabled') === 'true',
     snapshots: snapshots.map((record, index) => ({index, date: typeof record.createdAt === 'string' && Number.isFinite(Date.parse(record.createdAt)) ? new Date(record.createdAt).toLocaleString() : 'Undated snapshot', encrypted: !!record.encrypted})),
-    status: pending && recoveryOnly ? 'Download the retained original migration file and restore it at your self-hosted address. Partial records here are retained.' : pending ? 'A destination recovery is pending. Enter the migration password to resume.' : 'Your source records stay in this browser throughout migration.'});
+    status: incomingHandoff && !recoveryOnly && !pending
+      ? `Connecting to ${incomingHandoff.sourceOrigin} to receive your encrypted records…`
+      : pending && recoveryOnly
+        ? 'Download the retained original migration file and restore it at your self-hosted address. Partial records here are retained.'
+        : pending
+          ? 'A destination recovery is pending. Enter the migration password to resume.'
+          : 'Your source records stay in this browser throughout migration.',
+    handoffMode: incomingHandoff && !recoveryOnly && !pending ? 'receiving' : 'idle',
+    handoffOrigin: incomingHandoff && !recoveryOnly && !pending ? incomingHandoff.sourceOrigin : null,
+  });
   document.documentElement.dataset.migrationReady = '';
+
+  if (incomingHandoff && !recoveryOnly && !pending) {
+    try {
+      const received = await receiveHandoffPayload(incomingHandoff);
+      selected = received.blob;
+      handoffPassword = received.password;
+      inspected = await inspectMigrationArchive(received.blob, received.password);
+      update({
+        handoffMode: 'ready',
+        summary: summary(inspected),
+        status: `Received and verified encrypted data from ${received.sourceOrigin}. Review the summary below and restore.`,
+      });
+    } catch (error) {
+      update({
+        handoffMode: 'idle',
+        handoffOrigin: null,
+        error: error instanceof Error ? error.message : 'Could not receive the automatic transfer. Use Manual file transfer below.',
+      });
+    }
+  }
 });
