@@ -5,6 +5,7 @@ let seedingDepth = 0;
 let lastBlockedNoticeAt = 0;
 
 export function isPublicDemoMode(loc: Pick<Location, 'origin'> | undefined = typeof location !== 'undefined' ? location : undefined): boolean {
+  if (typeof document !== 'undefined' && document.documentElement?.dataset?.publicDemo === 'true') return true;
   if (!loc) return false;
   return isPublicDemoOrigin(loc.origin);
 }
@@ -27,5 +28,5 @@ export function notifyPublicDemoBlocked(feature?: string): void {
   if (now - lastBlockedNoticeAt < 1500) return;
   lastBlockedNoticeAt = now;
   const prefix = feature ? `${feature} is disabled in the public demo.` : 'Demo mode is read-only.';
-  showNotification(`${prefix} Explore Demo Sarah and Demo Alex here, or self-host getbased to track your own data.`, 'info', 6000);
+  showNotification(`${prefix} Explore Demo Sarah and Demo Alex here, or deploy your own private copy of getbased to track your own data.`, 'info', 6000);
 }

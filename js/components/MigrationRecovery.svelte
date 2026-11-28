@@ -37,7 +37,7 @@
     </div>
     <nav class="mig-nav" aria-label="Migration navigation">
       {#if view.recoveryOnly}
-        <a class="mig-nav-link" href="https://getbased-demo.vercel.app" target="_blank" rel="noreferrer">Try the read-only demo</a>
+        <a class="mig-nav-link" href="https://getbased.health/self-hosting" target="_blank" rel="noreferrer">Self-hosting announcement</a>
       {:else if !view.pending}
         <a class="mig-nav-link" href="/app">Back to getbased</a>
       {/if}

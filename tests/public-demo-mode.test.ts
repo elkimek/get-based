@@ -21,12 +21,14 @@ describe('public demo mode detection', () => {
     expect(isPublicDemoOrigin('http://127.0.0.1:8000')).toBe(false);
   });
 
-  it('activates strictly on dedicated public demo origins and ignores query flags', () => {
+  it('activates strictly on dedicated public demo origins or explicit hosted in-place demo flag', () => {
     expect(isPublicDemoMode({origin: 'https://getbased-demo.vercel.app'})).toBe(true);
     expect(isPublicDemoMode({origin: 'https://demo.getbased.health'})).toBe(true);
     expect(isPublicDemoMode({origin: 'http://127.0.0.1:8000'})).toBe(false);
     expect(isPublicDemoMode({origin: 'https://app.getbased.health'})).toBe(false);
     expect(isPublicDemoMode({origin: 'https://my-fork.vercel.app'})).toBe(false);
+    vi.stubGlobal('document', {documentElement: {dataset: {publicDemo: 'true'}}});
+    expect(isPublicDemoMode({origin: 'https://app.getbased.health'})).toBe(true);
   });
 
   it('tracks seeding depth cleanly even on error', async () => {

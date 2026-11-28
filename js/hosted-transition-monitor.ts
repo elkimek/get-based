@@ -2,6 +2,7 @@ import {getHostedTransition} from '../shared/hosted-transition.js';
 
 /** Timers alone miss suspended tabs. Recheck wall time on every resume too. */
 export function watchHostedTransitionCutoff(onCutoff: () => void): () => void {
+  if (typeof document !== 'undefined' && document.documentElement?.dataset?.publicDemo === 'true') return () => {};
   if (!getHostedTransition(location.origin)) return () => {};
   let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
   const stop = () => {
