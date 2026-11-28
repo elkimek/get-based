@@ -33,11 +33,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Install planner dependencies
+      - name: Install and compile TypeScript sources
         if: github.event_name == 'pull_request'
         run: |
           npm ci --ignore-scripts
-          npx --no-install tsc --module nodenext --moduleResolution nodenext --target esnext --skipLibCheck scripts/pr-test-scope.mts
+          node scripts/build-typescript.ts
       - name: Select affected sync tests
         id: scope
         if: github.event_name == 'pull_request'
