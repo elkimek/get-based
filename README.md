@@ -4,7 +4,14 @@
 wearables, light exposure, lifestyle context, notes and optional AI analysis into
 one browser-based workspace, with no account required.
 
-**[Live demo](https://getbased-demo.vercel.app)** · **[Self-host](#self-host)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
+**[Live demo](https://app.getbased.health)** · **[Self-host](#self-host)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
+
+<p>
+  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based&project-name=my-getbased&repository-name=my-getbased"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>&nbsp;
+  <a href="https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a>
+</p>
+
+> Deploy your own private HTTPS copy in one click (**Vercel** recommended — includes `/api/proxy` for wearables OAuth and UV lookups; **Cloudflare Workers** — static PWA on Cloudflare's global edge). [`app.getbased.health`](https://app.getbased.health) runs in interactive demo mode for new visitors.
 
 ![getbased Dashboard](dashboard.png)
 
@@ -70,35 +77,33 @@ provider credentials and integration requirements; see the
 
 **getbased** is a pure PWA: all health records stay in your own browser storage, and you can run your own private HTTPS copy with **no terminal required**.
 
-### Option 1: Personal deploy on Vercel (recommended, no terminal)
+### Option 1: One-click deploy on Vercel (recommended, no terminal)
 
-1. **[Fork getbased on GitHub](https://github.com/elkimek/get-based/fork)** → click **Create fork**.
-2. Open **[Vercel New Project](https://vercel.com/new)**, sign in with GitHub, select your `get-based` fork and click **Deploy** (no environment variables required).
-3. Wait a few minutes for the first build to finish — you get your own permanent HTTPS address (for example `https://my-getbased.vercel.app`) that works 24/7 on desktop, iPhone, iPad and Android.
-4. Your deployment runs under your own account with official analytics automatically disabled and a built-in same-origin `/api/proxy`.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based&project-name=my-getbased&repository-name=my-getbased)
 
-### Option 2: Cloudflare Pages (no terminal, static PWA)
+1. Click **Deploy with Vercel**, sign in with GitHub, and click **Create** (Vercel clones the repository into your GitHub account and builds automatically — no environment variables required).
+2. Wait a few minutes for the first build to finish — you get your own permanent HTTPS address (for example `https://my-getbased.vercel.app`) that works 24/7 on desktop, iPhone, iPad and Android.
+3. Your deployment runs under your own account with official analytics automatically disabled and a built-in same-origin `/api/proxy` for wearables OAuth and UV lookups.
 
-1. **[Fork getbased on GitHub](https://github.com/elkimek/get-based/fork)** → click **Create fork**.
-2. Connect your fork in **Cloudflare Pages** with:
-   - **Build command:** `node scripts/fetch-catalog.mjs && npm run production:build`
-   - **Build output directory:** `dist`
-   - **Environment variable:** `NODE_VERSION=24`
+### Option 2: One-click deploy on Cloudflare Workers (no terminal, static PWA)
 
-The production build emits `dist/_headers` (CSP, COOP/COEP for OPFS/Sync) and `dist/_redirects` (`/app` routing) automatically. Static-only hosting runs all local tracking, Knowledge Base, encrypted Sync and direct-CORS AI providers without a server `/api/proxy`.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based)
+
+1. Click **Deploy to Cloudflare**, sign in with GitHub, and click **Create and Deploy** (Cloudflare clones the repository into your GitHub account and uses `wrangler.jsonc` automatically).
+2. The production build emits `dist/_headers` (CSP, COOP/COEP for OPFS/Sync) and `dist/_redirects` (`/app` routing) automatically. Static-only hosting runs all local tracking, Knowledge Base, encrypted Sync and direct-CORS AI providers without a server `/api/proxy`.
 
 ### Keeping your deployment up to date (no terminal)
 
-Because you deployed from your own GitHub fork, your URL and browser storage stay permanent across updates:
+Because you deployed from your own GitHub repository, your URL and browser storage stay permanent across updates:
 
-- **Manual 1-click update:** Open your fork on GitHub and click **Sync fork → Update branch**. Vercel or Cloudflare Pages rebuilds automatically, and your devices show the normal in-app **Update available** banner. *(Tip: click **Watch → Custom → Releases** on this repository to get notified of new versions.)*
-- **Automatic daily updates (opt-in):** Open your fork's **Actions** tab on GitHub and enable the **Sync upstream updates** workflow once. Your fork checks daily for new upstream updates (never overwriting custom edits; if there is a conflict or a workflow change, it stops so you can review it on GitHub), triggers a rebuild automatically, and notifies you inside the app.
+- **Manual 1-click update:** Open your repository on GitHub and click **Sync fork → Update branch** (or run the **Sync upstream updates** action). Vercel or Cloudflare Workers rebuilds automatically, and your devices show the normal in-app **Update available** banner. *(Tip: click **Watch → Custom → Releases** on this repository to get notified of new versions.)*
+- **Automatic daily updates (opt-in):** Open your repository's **Actions** tab on GitHub and enable the **Sync upstream updates** workflow once. It checks daily for new upstream updates (never overwriting custom edits; if there is a conflict or a workflow change, it stops so you can review it on GitHub), triggers a rebuild automatically, and notifies you inside the app.
 
 ### Moving existing data from `app.getbased.health`
 
-1. At the original address, open **Settings → Data → Backup & Restore → Start migration** (or `/app/migration.html`) and download your password-protected migration file. Your original browser data is not modified or erased.
-2. Open `/app/migration.html` at your new self-hosted HTTPS address, check the file summary, and restore it into a fresh browser profile or installed PWA.
-3. Open your self-hosted app, verify your profiles and records (Sync starts off so you can check first), and keep the original browser data until everything is verified.
+1. At `app.getbased.health`, open **Settings → Data → Backup & Restore → Start migration** (or `/app/migration.html`).
+2. Click **Deploy with Vercel** or **Deploy to Cloudflare** to launch your own copy, paste your new HTTPS URL, confirm it, and click **Move my data automatically →**. Your encrypted archive transfers directly between your two browser tabs without needing a transfer password or manual file upload (manual encrypted file export/restore is also available below it for offline or cross-device moves).
+3. Confirm and restore in the new tab, open your self-hosted app, verify your profiles and records (Sync starts off so you can check first), and keep the original browser data until everything is verified.
 
 ### Option 3: Local computer (Node.js + optional Tailscale Serve)
 

@@ -5,6 +5,7 @@ import {showConfirmDialog, showNotification} from './utils.js';
 const SEEN = 'labcharts-hosted-transition-seen';
 function migrate() {void openMigrationRecovery().catch(error => showNotification(error instanceof Error ? error.message : 'Migration could not start. Keep this window open and retry.', 'error', 12000));}
 export function showHostedTransitionNotice(): Promise<void> | null {
+  if (typeof document !== 'undefined' && document.documentElement?.dataset?.publicDemo === 'true') return null;
   const transition = getHostedTransition(location.origin);
   if (!transition || transition.phase !== 'notice' || document.getElementById('hosted-transition-banner')) return null;
   const date = new Date(transition.cutoffAt).toLocaleString(undefined, {dateStyle: 'long', timeStyle: 'short'});

@@ -2,6 +2,7 @@ import {isPublicDemoOrigin} from '../shared/hosted-transition.js';
 import {getActiveProfileId, getProfiles, switchProfile} from './profile.js';
 import {loadDemoData} from './export-loader.js';
 import {isPublicDemoMode} from './public-demo-mode.js';
+import {VERCEL_DEPLOY_URL, CLOUDFLARE_DEPLOY_URL} from './migration-handoff.js';
 
 const PUBLIC_DEMO_STATE_VERSION_KEY = 'getbased-public-demo-v';
 const PUBLIC_DEMO_STATE_VERSION = '2';
@@ -91,7 +92,7 @@ export function mountPublicDemoBanner(): void {
   const text = document.createElement('span');
   const strong = document.createElement('strong');
   strong.textContent = 'Interactive demo — ';
-  text.append(strong, 'choose Demo Sarah or Demo Alex to explore. Creating profiles, imports, and live AI are disabled.');
+  text.append(strong, 'explore Demo Sarah or Demo Alex. Deploy your own private copy to use your own data.');
 
   const switcher = document.createElement('div');
   switcher.className = 'public-demo-switcher';
@@ -110,11 +111,13 @@ export function mountPublicDemoBanner(): void {
   };
   switcher.append(makeSwitchButton('female', 'Demo Sarah'), makeSwitchButton('male', 'Demo Alex'));
 
-  const makeLink = (href: string, label: string) => {
+  const makeLink = (href: string, label: string, sameTab = false) => {
     const link = document.createElement('a');
     link.href = href;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
+    if (!sameTab) {
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+    }
     link.textContent = label;
     return link;
   };
@@ -122,9 +125,10 @@ export function mountPublicDemoBanner(): void {
   banner.append(
     text,
     switcher,
-    makeLink('https://docs.getbased.health/guides/self-hosting', 'Self-host getbased'),
-    makeLink('https://github.com/elkimek/get-based/fork', 'Fork on GitHub'),
-    makeLink('https://app.getbased.health/app/migration.html', 'Recover hosted data'),
+    makeLink(VERCEL_DEPLOY_URL, 'Deploy with Vercel'),
+    makeLink(CLOUDFLARE_DEPLOY_URL, 'Deploy to Cloudflare'),
+    makeLink('https://docs.getbased.health/guides/self-hosting', 'Self-host guide'),
+    makeLink('/app/migration.html', 'Move hosted data', true),
   );
   document.body.prepend(banner);
   globalThis.addEventListener('profile-switched', syncPublicDemoBannerState);

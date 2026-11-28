@@ -109,7 +109,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>+layout.svelte</code> family — 1 module</summary>
 
-- [`js/kit/routes/app/+layout.svelte`](js/kit/routes/app/+layout.svelte) → [`js/main.ts`](js/main.ts) *(dynamic)*, [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
+- [`js/kit/routes/app/+layout.svelte`](js/kit/routes/app/+layout.svelte) → [`js/main.ts`](js/main.ts) *(dynamic)*
 
 </details>
 
@@ -4436,7 +4436,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>public</code> family — 2 modules</summary>
 
-- [`js/public-demo-bootstrap.ts`](js/public-demo-bootstrap.ts) → [`js/export-loader.ts`](js/export-loader.ts), [`js/profile.ts`](js/profile.ts), [`js/public-demo-mode.ts`](js/public-demo-mode.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
+- [`js/public-demo-bootstrap.ts`](js/public-demo-bootstrap.ts) → [`js/export-loader.ts`](js/export-loader.ts), [`js/migration-handoff.ts`](js/migration-handoff.ts), [`js/profile.ts`](js/profile.ts), [`js/public-demo-mode.ts`](js/public-demo-mode.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 - [`js/public-demo-mode.ts`](js/public-demo-mode.ts) → [`js/utils.ts`](js/utils.ts), [`shared/hosted-transition.ts`](shared/hosted-transition.ts)
 
 </details>

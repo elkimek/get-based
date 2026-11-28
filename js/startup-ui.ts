@@ -106,7 +106,8 @@ function populateFooterVersion() {
 }
 
 function isPublicDemoStartup(): boolean {
-  return typeof location !== 'undefined' && isPublicDemoOrigin(location.origin);
+  return (typeof document !== 'undefined' && document.documentElement?.dataset?.publicDemo === 'true')
+    || (typeof location !== 'undefined' && isPublicDemoOrigin(location.origin));
 }
 
 function scheduleDeferredSyncAndCatalogWarmup() {
