@@ -481,6 +481,9 @@ describe('shipping SvelteKit production build', () => {
     expect(headers).toContain('Cross-Origin-Opener-Policy: same-origin');
     expect(headers).toContain('Cross-Origin-Embedder-Policy: credentialless');
     expect(headers).toContain('Content-Security-Policy:');
+    expect(headers).toContain('/app/migration.html\n  ! Cross-Origin-Opener-Policy\n  Cross-Origin-Opener-Policy: unsafe-none');
+    expect(headers).toContain('/version.js\n  Cache-Control: no-cache');
+    expect(headers).toContain('/service-worker.js\n  Cache-Control: no-cache');
     expect(headers).not.toContain('Onion-Location');
     expect(redirects).toContain('/app /index.html 200');
   });

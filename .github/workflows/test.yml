@@ -32,7 +32,7 @@ env:
   CI_TEST_PLAN: .local-notes/ci/plan.json
 jobs:
   prepare:
-    if: github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime')
+    if: (github.repository == 'elkimek/get-based' || (github.event_name != 'push' && github.event_name != 'schedule')) && (github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -564,7 +564,7 @@ jobs:
   test:
     name: ${{ github.event_name == 'workflow_dispatch' && (inputs.diagnostic == 'webkit-lens-wearable' || inputs.diagnostic == 'webkit-pwa-routstr' || inputs.diagnostic == 'webkit-evolu-runtime') && 'DIAGNOSTIC normal gate omitted' || 'test' }}
     needs: [prepare, unit, native, kit, performance, coverage]
-    if: always() && (github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime'))
+    if: always() && (github.repository == 'elkimek/get-based' || (github.event_name != 'push' && github.event_name != 'schedule')) && (github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

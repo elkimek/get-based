@@ -92,7 +92,7 @@ export function mountPublicDemoBanner(): void {
   const text = document.createElement('span');
   const strong = document.createElement('strong');
   strong.textContent = 'Interactive demo — ';
-  text.append(strong, 'explore Demo Sarah or Demo Alex. Deploy your own private copy to use your own data.');
+  text.append(strong, 'explore Demo Sarah or Demo Alex. Deploy your own personal copy to use your own data.');
 
   const switcher = document.createElement('div');
   switcher.className = 'public-demo-switcher';

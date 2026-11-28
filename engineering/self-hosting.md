@@ -8,26 +8,27 @@ computer, you can also run the prebuilt Node.js package or build from source.
 
 ## Option 1: Personal deploy on Vercel (recommended, no terminal)
 
-1. **[Fork getbased on GitHub](https://github.com/elkimek/get-based/fork)** and
-   click **Create fork** (forking — rather than making a detached clone — keeps
-   one-click updates working).
-2. Open **[Vercel New Project](https://vercel.com/new)**, sign in with GitHub,
-   import your `get-based` fork and click **Deploy** (no environment variables
-   required).
-3. Wait a few minutes for the first build to complete, then open your permanent
+1. Click **[Deploy with Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based&project-name=my-getbased&repository-name=my-getbased)**, sign in with GitHub, choose **Create private Git Repository** (recommended), and click **Create** (no environment variables required).
+2. Wait a few minutes for the first build to complete, then open your permanent
    HTTPS address (for example `https://my-getbased.vercel.app/app`) on your
    computer, phone and tablet, and install it as a PWA if desired.
 
 Why this is the smoothest PWA path:
 - **Zero terminal, zero Node.js, always online** across desktop, iOS and Android.
-- **Easy updates:** open your fork on GitHub and click **Sync fork → Update
-  branch** whenever you want a new release — or enable the included
-  **Sync upstream updates** workflow in your fork's **Actions** tab once for
-  automatic daily updates. Vercel rebuilds to the exact same URL and your app
-  shows the normal in-app update banner.
+- **Automatic updates:** the included **Sync upstream updates** GitHub Action
+  checks `elkimek/get-based` `main` every 6 hours, commits app updates under
+  your GitHub account (skipping upstream CI workflow edits so `GITHUB_TOKEN`
+  never blocks updates, and stopping safely if you made custom app edits), and
+  rebuilds to the exact same URL. Your app then shows the normal in-app
+  **Update available** banner. You can also run **Sync upstream updates**
+  manually from your repository's **Actions** tab anytime (or add an optional
+  `DEPLOY_HOOK_URL` repository secret if you prefer triggering a Vercel Deploy
+  Hook directly).
 - **Independent deployment:** official `getbased` analytics are automatically
   disabled on non-official hosts, and your deployment is never treated as the
-  operated hosted origin.
+  operated hosted origin. The URL serves only the open-source app bundle while
+  your records stay in browser storage; if you want a login wall in front of
+  the URL, enable Vercel Deployment Protection or use Option 3 (Tailscale Serve).
 - **Built-in `/api/proxy`:** your own Vercel deployment automatically runs its
   own same-origin compatibility proxy (for postal geocoding, NVIDIA attestation
   and compatible provider requests) without extra server configuration.
@@ -36,21 +37,24 @@ Why this is the smoothest PWA path:
   Reconnecting OAuth wearables on your own domain requires registering your own
   provider client credentials, or using CSV/manual import.
 
-## Option 2: Cloudflare Pages or Netlify (no terminal, static PWA)
+## Option 2: Cloudflare Workers / Pages or Netlify (no terminal, static PWA)
 
-1. **[Fork getbased on GitHub](https://github.com/elkimek/get-based/fork)** and
-   click **Create fork**.
-2. Connect your fork in Cloudflare Pages or Netlify with:
+1. Click **[Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Felkimek%2Fget-based)**, sign in with GitHub, choose **Private** repository (recommended), and click **Create and Deploy** (Cloudflare uses `wrangler.jsonc` automatically).
+   Alternatively, connect a fork in Cloudflare Pages or Netlify with:
    - **Build command:** `node scripts/fetch-catalog.mjs && npm run production:build`
    - **Output directory:** `dist`
    - **Node.js version:** `24` (24.20 or later within version 24)
 
 The production build writes `dist/_headers` (CSP, `Cross-Origin-Opener-Policy:
-same-origin`, `Cross-Origin-Embedder-Policy: credentialless` for OPFS/Sync, and
-cache headers) and `dist/_redirects` (`/app` → `/index.html`) automatically.
-Static-only hosting runs all local tracking, Knowledge Base, encrypted Sync and
-direct-CORS AI providers without `/api/proxy`. Updating works the same way via
-GitHub **Sync fork** or the opt-in **Sync upstream updates** Actions workflow.
+same-origin`, `Cross-Origin-Embedder-Policy: credentialless` for OPFS/Sync,
+`Cache-Control: no-cache` for `/version.js` and `/service-worker.js`, and
+immutable cache headers) and `dist/_redirects` (`/app` → `/index.html`)
+automatically. Static-only hosting runs all local tracking, Knowledge Base,
+encrypted Sync and direct-CORS AI providers without `/api/proxy`. Updating runs
+automatically via the included **Sync upstream updates** Actions workflow
+(which preserves your custom Worker `"name"` in `wrangler.jsonc`), and you can
+optionally place **Cloudflare Access (Zero Trust)** in front of your Worker URL
+for login-gated access on Cloudflare's free tier.
 
 ## Option 3: Local computer (Node.js package or source build)
 
@@ -184,14 +188,19 @@ Press **Ctrl+C** in the getbased terminal to stop the server. Restart it with
 This source setup does not install a system service or open a firewall port.
 
 Before updating, download a fresh backup and record the current revision with
-`git rev-parse HEAD`. Stop the server, then update a clean checkout:
+`git rev-parse HEAD`. Stop the server, then update a clean checkout in one
+command:
 
 ```bash
-git pull --ff-only
-npm ci
-npm run production:build
+npm run self-host:update
 npm run self-host
 ```
+
+(`npm run self-host:update` runs `git pull --ff-only`, `npm ci`,
+`node scripts/fetch-catalog.mjs` and `npm run production:build`.) For the
+prebuilt tarball package, download the new `getbased-self-host.tgz` release
+asset, run `npm install --global ./getbased-self-host.tgz`, and restart
+`getbased`.
 
 Use the app's existing update prompt when a new version is available. If the
 build fails, keep the source browser data and backup; resolve the build before
