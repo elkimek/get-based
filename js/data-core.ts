@@ -25,27 +25,27 @@ export function createDataCore(ports: DataCorePorts) {
 
 
   // PRIVATE CYCLE PHASE & DATE FORMAT HELPERS (avoids circular dep with cycle.js)
-  const _shortMonthYearFmt = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
-  const _dateLabelCache = new Map<string, string>();
+  const _shortMonthYearFmt = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }), _dateLabelCache = new Map<string, string>();
   function _formatShortMonthYear(dateStr: string): string {
     let label = _dateLabelCache.get(dateStr);
     if (label === undefined) { label = _shortMonthYearFmt.format(new Date(dateStr + 'T00:00:00')); if (_dateLabelCache.size < 2048) _dateLabelCache.set(dateStr, label); }
     return label;
   }
-  interface PreparedCycle { sortedMs: number[]; cycleLen: number; periodLen: number; ovulationDay: number }
-  function _prepareCyclePeriods(mc: CycleMetadata | null | undefined): PreparedCycle | null {
-    if (!mc?.periods?.length) return null;
-    const sortedMs = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate)).map(p => Date.parse(p.startDate + 'T00:00:00Z'));
-    const cycleLen = mc.cycleLength || 28;
-    return { sortedMs, cycleLen, periodLen: mc.periodLength || 5, ovulationDay: cycleLen - 14 };
-  }
-  function _getCyclePhasePrepared(dateStr: string, p: PreparedCycle | null): DrawPhase | null {
-    const targetMs = p ? Date.parse(dateStr + 'T00:00:00Z') : NaN;
-    const periodMs = Number.isFinite(targetMs) ? p!.sortedMs.find(ms => ms <= targetMs) : undefined;
-    if (periodMs === undefined || !Number.isFinite(periodMs)) return null;
-    const cycleDay = Math.floor((targetMs - periodMs) / 86400000) + 1;
-    if (cycleDay > p!.cycleLen + 7) return null;
-    const [phase, phaseName] = cycleDay <= p!.periodLen ? ['menstrual', 'Menstrual'] : cycleDay < p!.ovulationDay - 1 ? ['follicular', 'Follicular'] : cycleDay <= p!.ovulationDay + 1 ? ['ovulatory', 'Ovulatory'] : ['luteal', 'Luteal'];
+  let _cachedPeriodsRef: CycleMetadata['periods'] | null = null, _cachedPeriodsKey = '', _cachedPeriodsMs: number[] = [];
+  function _getCyclePhase(dateStr: string, mc: CycleMetadata | null | undefined): DrawPhase | null {
+    const periods = mc?.periods, targetMs = periods?.length ? Date.parse(dateStr + 'T00:00:00Z') : NaN;
+    if (!periods || !Number.isFinite(targetMs)) return null;
+    const periodsKey = periods.map(p => p.startDate).join('|');
+    if (periods !== _cachedPeriodsRef || periodsKey !== _cachedPeriodsKey) { _cachedPeriodsRef = periods; _cachedPeriodsKey = periodsKey; _cachedPeriodsMs = periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate)).map(p => Date.parse(p.startDate + 'T00:00:00Z')); }
+    const periodMs = _cachedPeriodsMs.find(ms => ms <= targetMs);
+    const cycleDay = periodMs !== undefined && Number.isFinite(periodMs) ? Math.floor((targetMs - periodMs) / 86400000) + 1 : Infinity, cycleLen = mc!.cycleLength || 28;
+    if (cycleDay > cycleLen + 7) return null;
+    const periodLen = mc!.periodLength || 5, ovulationDay = cycleLen - 14;
+    let phase, phaseName;
+    if (cycleDay <= periodLen) { phase = 'menstrual'; phaseName = 'Menstrual'; }
+    else if (cycleDay < ovulationDay - 1) { phase = 'follicular'; phaseName = 'Follicular'; }
+    else if (cycleDay <= ovulationDay + 1) { phase = 'ovulatory'; phaseName = 'Ovulatory'; }
+    else { phase = 'luteal'; phaseName = 'Luteal'; }
     return { cycleDay, phase, phaseName, source: 'predicted' };
   }
 
@@ -472,14 +472,13 @@ export function createDataCore(ports: DataCorePorts) {
     const _hasActiveNaturalCycle = isFemale && !_isHormonalBC && (!mc?.cycleStatus || mc.cycleStatus === 'regular');
     const _hasPredictableCycle = _hasActiveNaturalCycle && mc?.periods?.length! > 0
       && (!mc?.regularity || mc.regularity === 'regular');
-    const _preparedCycle = _hasPredictableCycle ? _prepareCyclePeriods(mc) : null;
     const drawPhases = sortedDates.map(d => {
       let recorded = _getRecordedDrawCyclePhase(entryContextByDate[d]);
       if (!recorded && labCollections[d]) {
         const uniq = new Map(Object.values(labCollections[d]!).map(c => _getRecordedDrawCyclePhase(c.context)).filter((p): p is DrawPhase => Boolean(p)).map(p => [`${p.phase}|${p.cycleDay ?? ''}|${p.phaseDetailName ?? ''}`, p]));
         if (uniq.size === 1) recorded = [...uniq.values()][0]!;
       }
-      return recorded && _hasActiveNaturalCycle ? recorded : (_preparedCycle ? _getCyclePhasePrepared(d, _preparedCycle) : null);
+      return recorded && _hasActiveNaturalCycle ? recorded : (_hasPredictableCycle ? _getCyclePhase(d, mc) : null);
     });
     const _hasCyclePhases = drawPhases.some(Boolean);
 
