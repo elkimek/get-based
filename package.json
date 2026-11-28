@@ -85,7 +85,7 @@
   "devDependencies": {
     "@cashu/cashu-ts": "4.11.0",
     "@csstools/css-tokenizer": "4.0.2",
-    "@evolu/common": "8.24.1",
+    "@evolu/common": "8.30.0",
     "@evolu/web": "3.6.5",
     "@jridgewell/trace-mapping": "0.3.31",
     "@noble/curves": "2.2.0",
