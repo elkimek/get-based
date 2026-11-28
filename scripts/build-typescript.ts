@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 // Emit JavaScript at the existing runtime URLs. TypeScript is the only authored
 // source for migrated modules; generated siblings are ignored by Git.
-import { execFile, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { promisify } from 'node:util';
 import { API } from 'typescript/unstable/sync';
 import * as ts from 'typescript/unstable/ast';
 
-const execFileAsync = promisify(execFile);
 const INDENT_RE = /^ {4,}/m;
 
 // The build runs before emitted siblings exist. Node24 loads this actual owned
@@ -191,32 +189,18 @@ function finalizeTypeScriptBuild(rootDir: string, fixtures: readonly string[], o
 export function buildTypeScript(rootDir = root): void {
   const { fixtures, outputs, configFiles } = prepareTypeScriptBuild(rootDir);
   const tsc = path.join(rootDir, 'node_modules/typescript/bin/tsc');
+  // Run sequentially: tsconfig.fixture-migration.json and tsconfig.migration.json
+  // overlap on imported sources, and tsconfig.bootstrap-migration.json must emit last
+  // with moduleDetection: "legacy" so classic scripts (e.g. vendor/bip39-minimal.js)
+  // are never overwritten with NodeNext `export {};` markers.
   for (const configFile of configFiles) {
     execFileSync(process.execPath, [tsc, '-p', configFile], { cwd: rootDir, stdio: 'inherit' });
   }
   finalizeTypeScriptBuild(rootDir, fixtures, outputs);
 }
 
-export async function buildTypeScriptAsync(rootDir = root): Promise<void> {
-  const { fixtures, outputs, configFiles } = prepareTypeScriptBuild(rootDir);
-  const tsc = path.join(rootDir, 'node_modules/typescript/bin/tsc');
-  await Promise.all(configFiles.map(async configFile => {
-    try {
-      const { stdout, stderr } = await execFileAsync(process.execPath, [tsc, '-p', configFile], { cwd: rootDir, maxBuffer: 16 * 1024 * 1024 });
-      if (stdout) process.stdout.write(stdout);
-      if (stderr) process.stderr.write(stderr);
-    } catch (error) {
-      const err = error as { stdout?: string; stderr?: string };
-      if (err.stdout) process.stdout.write(err.stdout);
-      if (err.stderr) process.stderr.write(err.stderr);
-      throw error;
-    }
-  }));
-  finalizeTypeScriptBuild(rootDir, fixtures, outputs);
-}
-
 if (process.argv[1] && path.resolve(process.argv[1]) === script) {
   // Tailwind-generated inline values and their exact key types exist before TS/Svelte parsing.
   execFileSync(process.execPath, [path.join(root, 'scripts/build-inline-style-maps.mts')], {cwd: root, stdio: 'inherit'});
-  await buildTypeScriptAsync();
+  buildTypeScript();
 }

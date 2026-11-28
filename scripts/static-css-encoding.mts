@@ -95,7 +95,7 @@ export function encodeStaticCss(_file: string, source: string): string {
   const compacted = compactCssTokens(source);
   try { assertEquivalentStaticCss(source, compacted); }
   catch { return source; }
-  return Buffer.byteLength(compacted) < Buffer.byteLength(source) ? compacted : source;
+  return compacted.length > 0 && Buffer.byteLength(compacted) < Buffer.byteLength(source) ? compacted : source;
 }
 
 export function verifyStaticCss(file: string, source: string, output: string): void {
