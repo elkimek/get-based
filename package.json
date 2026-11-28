@@ -114,7 +114,7 @@
     "@vitest/istanbul-lib-instrument": "2.1.0"
   },
   "dependencies": {
-    "@vercel/blob": "2.8.0",
+    "@vercel/blob": "2.9.0",
     "ehbp": "0.3.2",
     "tinfoil": "^1.2.1",
     "undici": "8.12.3"
