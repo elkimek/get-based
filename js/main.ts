@@ -52,7 +52,7 @@ async function hasExistingPersonalRecords(): Promise<boolean> {
     if (appDbs.length > 0) {
       if (!demoSession) return true;
       const isDemoDb = (name: string) => {
-        if (name === 'labcharts-blobs' || name === 'labcharts-wearables-credential-vault') return true;
+        if (name === 'labcharts-blobs' || name === 'labcharts-backups' || name === 'labcharts-wearables-credential-vault') return true;
         const allowedIds = new Set([...demoProfileIds, 'default']);
         for (const id of allowedIds) {
           if (name === `labcharts-wearables-${id}` || name === `labcharts-cycle-${id}` || name === `getbased-nutrition-${id}`) return true;
