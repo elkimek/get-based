@@ -144,15 +144,15 @@ describe('manual WebKit diagnostic isolation', () => {
     expect(value, `${name}.${key}`).toBeTruthy();
     return value!.replace(/^\$\{\{\s*|\s*\}\}$/g, '');
   }
-  function evaluate(value: string, event: string, diagnostic: string, success = true): unknown {
+  function evaluate(value: string, event: string, diagnostic: string, success = true, repository = 'elkimek/get-based'): unknown {
     // Evaluate only the actual finite GitHub predicate subset used by these jobs.
-    return runInNewContext(value, {github: {event_name: event}, inputs: {diagnostic}, always: () => true, success: () => success}, {timeout: 100});
+    return runInNewContext(value, {github: {event_name: event, repository}, inputs: {diagnostic}, always: () => true, success: () => success}, {timeout: 100});
   }
   function verifyGates(source: string) {
     const prepare = expression(source, 'prepare', 'if'), aggregate = expression(source, 'test', 'if');
     const diagnosticJob = expression(source, 'webkit_diagnostics', 'if'), pwaDiagnosticJob = expression(source, 'webkit_pwa_routstr_diagnostics', 'if'), aggregateName = expression(source, 'test', 'name');
     expect(source).toContain("default: 'off'\n        options: ['off', 'webkit-lens-wearable', 'webkit-pwa-routstr', 'webkit-evolu-runtime']");
-    for (const event of ['pull_request', 'push', 'workflow_call', 'workflow_dispatch']) for (const mode of ['off', '', 'webkit-lens-wearable', 'webkit-pwa-routstr', 'webkit-evolu-runtime', 'foreign']) {
+    for (const event of ['pull_request', 'push', 'schedule', 'workflow_call', 'workflow_dispatch']) for (const mode of ['off', '', 'webkit-lens-wearable', 'webkit-pwa-routstr', 'webkit-evolu-runtime', 'foreign']) {
       const lensDiagnostic = event === 'workflow_dispatch' && mode === 'webkit-lens-wearable';
       const pwaDiagnostic = event === 'workflow_dispatch' && mode === 'webkit-pwa-routstr';
       const evoluDiagnostic = event === 'workflow_dispatch' && mode === 'webkit-evolu-runtime';
@@ -167,6 +167,10 @@ describe('manual WebKit diagnostic isolation', () => {
         const actual = /\balways\(\)/.test(aggregate) ? aggregate : `success() && (${aggregate})`;
         expect(evaluate(actual, event, mode, priorSuccess), `${event}/${mode}/${priorSuccess} aggregate`).toBe(!diagnostic);
       }
+      // Self-host 1-click clones skip automatic push/schedule CI runs.
+      const cloneExpected = !diagnostic && event !== 'push' && event !== 'schedule';
+      expect(evaluate(prepare, event, mode, true, 'user/my-getbased'), `clone ${event}/${mode} prepare`).toBe(cloneExpected);
+      expect(evaluate(aggregate, event, mode, true, 'user/my-getbased'), `clone ${event}/${mode} aggregate`).toBe(cloneExpected);
     }
     const group = /^  group: (.+)$/m.exec(source)?.[1];
     expect(group).toContain("${{ inputs.full_suite == true && 'full' || 'scoped' }}${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable' && '-webkit-diagnostic' || '' }}");
@@ -176,7 +180,7 @@ describe('manual WebKit diagnostic isolation', () => {
   it('keeps every normal event and failed-prepare aggregator intact, including forged diagnostic inputs', () => verifyGates(workflow));
   it('rejects event bypass, missing always, default-on diagnostics and a misleading required check name', () => {
     for (const changed of [
-      workflow.replace("    if: github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime')", "    if: inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr'"),
+      workflow.replace("    if: (github.repository == 'elkimek/get-based' || (github.event_name != 'push' && github.event_name != 'schedule')) && (github.event_name != 'workflow_dispatch' || (inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr' && inputs.diagnostic != 'webkit-evolu-runtime'))", "    if: inputs.diagnostic != 'webkit-lens-wearable' && inputs.diagnostic != 'webkit-pwa-routstr'"),
       workflow.replace('    if: always() && (', '    if: ('),
       workflow.replace("    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-lens-wearable'", "    if: inputs.diagnostic == 'webkit-lens-wearable'"),
       workflow.replace("    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic == 'webkit-pwa-routstr'", "    if: inputs.diagnostic == 'webkit-pwa-routstr'"),

@@ -1,6 +1,7 @@
 {
   "name": "get-based",
   "compatibility_date": "2026-11-26",
+  "preview_urls": false,
   "build": {
     "command": "node scripts/fetch-catalog.mjs && npm run production:build"
   },

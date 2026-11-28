@@ -154,7 +154,7 @@
               <span class="mig-deploy-arrow" aria-hidden="true">↗</span>
             </a>
           </div>
-          <p class="mig-deploy-note">Sign in with GitHub, click <strong>Create / Deploy</strong>, and copy your new address (for example <code>https://my-getbased.vercel.app</code>).</p>
+          <p class="mig-deploy-note">Sign in with GitHub, choose <strong>Private repository</strong> (recommended), click <strong>Create / Deploy</strong>, and copy your new address (for example <code>https://my-getbased.vercel.app</code>).</p>
         </div>
 
         <div class="mig-transfer-block">

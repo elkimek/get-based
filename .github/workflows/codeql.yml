@@ -23,6 +23,7 @@ concurrency:
 jobs:
   analyze:
     name: Analyze
+    if: github.repository == 'elkimek/get-based' || (github.event_name != 'push' && github.event_name != 'schedule')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:

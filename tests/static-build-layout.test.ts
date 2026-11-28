@@ -27,16 +27,35 @@ it('publishes exact public metadata without copying source, API implementations 
  for(const [file,body] of Object.entries(files))expect(await readFile(path.join(output,file),'utf8')).toBe(body);
  expect((await readdir(output)).sort()).toEqual(['.well-known','robots.txt','sitemap.xml']);
 });
-it('uses static SvelteKit as the default build and preserves explicit native budget validation',async()=>{
- const pkg=JSON.parse(await readFile('package.json','utf8')) as {scripts:Record<string,string>};
+it('uses static SvelteKit as the default build and keeps Vercel, Cloudflare and local self-host configs aligned',async()=>{
+ const pkg=JSON.parse(await readFile('package.json','utf8')) as {engines:{node:string};scripts:Record<string,string>};
  expect(pkg.scripts['production:build']).toBe('node scripts/build-sveltekit.mjs --output dist');
  expect(pkg.scripts['production:check']).toBe('node scripts/build-sveltekit.mjs --check');
  expect(pkg.scripts['preproduction:build']).toBe('npm run typescript:build');
  expect(pkg.scripts['preproduction:check']).toBe('npm run typescript:build');
+ expect(pkg.scripts['build']).toBe('node scripts/fetch-catalog.mjs && npm run production:build');
+ expect(pkg.scripts['self-host:update']).toBe('git pull --ff-only && npm ci && node scripts/fetch-catalog.mjs && npm run production:build');
  expect(pkg.scripts['native:compatibility:check']).toBe('node scripts/build-production.mjs --check');
- const vercel=JSON.parse(await readFile('vercel.json','utf8')) as {buildCommand:string;outputDirectory:string;routes:Array<{src:string;dest?:string;headers?:Record<string,string>}>;functions:Record<string,unknown>};
- expect(vercel.buildCommand).toBe('node scripts/fetch-catalog.mjs && npm run production:build');expect(vercel.outputDirectory).toBe('dist');
+ expect((await readFile('.nvmrc','utf8')).trim()).toBe('24');
+ expect(pkg.engines.node).toMatch(/^>=24\./);
+ const vercel=JSON.parse(await readFile('vercel.json','utf8')) as {
+  git?:{deploymentEnabled?:Record<string,boolean>};buildCommand:string;outputDirectory:string;
+  routes:Array<{src:string;dest?:string;headers?:Record<string,string>}>;functions:Record<string,unknown>;
+ };
+ expect(vercel.git?.deploymentEnabled).toEqual({main:true,'**':false});
+ expect(vercel.buildCommand).toBe(pkg.scripts['build']);expect(vercel.outputDirectory).toBe('dist');
  expect(vercel.routes.find(row=>row.src==='^/app/?$')?.dest).toBe('/index.html');
  expect(vercel.routes.find(row=>row.src==='^/_app/immutable/(.*)$')?.headers?.['Cache-Control']).toBe('public, max-age=31536000, immutable');
+ expect(vercel.routes.find(row=>row.src==='^/(?:version|service-worker)\\.js$')?.headers?.['Cache-Control']).toBe('no-cache');
+ expect(vercel.routes.find(row=>row.src==='^/app/migration\\.html$')?.headers?.['Cross-Origin-Opener-Policy']).toBe('unsafe-none');
  expect(vercel.functions).toHaveProperty('api/proxy.ts');
+ const wrangler=JSON.parse(await readFile('wrangler.jsonc','utf8')) as {
+  name:string;compatibility_date:string;preview_urls:boolean;
+  build:{command:string};assets:{directory:string;html_handling:string;not_found_handling:string};
+ };
+ expect(wrangler.name).toBe('get-based');
+ expect(wrangler.compatibility_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+ expect(wrangler.preview_urls).toBe(false);
+ expect(wrangler.build.command).toBe(pkg.scripts['build']);
+ expect(wrangler.assets).toEqual({directory:'./dist',html_handling:'none',not_found_handling:'single-page-application'});
 });

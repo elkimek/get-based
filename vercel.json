@@ -23,6 +23,13 @@
       "continue": true
     },
     {
+      "src": "^/(?:version|service-worker)\\.js$",
+      "headers": {
+        "Cache-Control": "no-cache"
+      },
+      "continue": true
+    },
+    {
       "src": "^/_app/immutable/(.*)$",
       "headers": {
         "Cache-Control": "public, max-age=31536000, immutable"

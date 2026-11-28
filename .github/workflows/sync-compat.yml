@@ -18,6 +18,7 @@ concurrency:
 jobs:
   scope:
     name: Select sync compatibility scope
+    if: github.repository == 'elkimek/get-based' || github.event_name != 'push'
     runs-on: ubuntu-latest
     outputs:
       sync: ${{ steps.scope.outputs.sync }}

@@ -3,9 +3,10 @@ name: Sync upstream updates
 on:
   workflow_dispatch:
   schedule:
-    # Check daily on user forks. GitHub keeps scheduled workflows disabled on new
-    # forks until the fork owner explicitly clicks "Enable workflows" in Actions.
-    - cron: '0 6 * * *'
+    # Check every 6 hours on user clones and forks. On 1-click Vercel/Cloudflare
+    # clones Actions run automatically; on GitHub forks the owner enables
+    # scheduled workflows once in the Actions tab.
+    - cron: '17 */6 * * *'
 
 permissions:
   contents: write
@@ -24,45 +25,154 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_OWNER_ID: ${{ github.repository_owner_id }}
           IS_FORK: ${{ github.event.repository.fork }}
+          UPSTREAM_URL: https://github.com/elkimek/get-based.git
+          DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
         run: |
-          set +e
-          if [ "$IS_FORK" = "true" ]; then
+          set -euo pipefail
+
+          SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/dev/null}"
+
+          trigger_deploy_hook() {
+            if [ -n "${DEPLOY_HOOK_URL:-}" ]; then
+              curl --fail --silent --show-error -X POST "$DEPLOY_HOOK_URL" >/dev/null
+            fi
+          }
+
+          if [ "${IS_FORK:-false}" = "true" ]; then
+            set +e
             output=$(gh api --method POST "/repos/${REPO}/merge-upstream" -f branch=main 2>&1)
             status=$?
             set -e
             echo "$output"
             if [ "$status" -eq 0 ]; then
-              echo "Fork main branch is up to date with upstream. Connected Vercel/Cloudflare deployments rebuild automatically." >> "$GITHUB_STEP_SUMMARY"
+              trigger_deploy_hook
+              echo "Fork main branch is up to date with upstream. Connected Vercel/Cloudflare deployments rebuild automatically." >> "$SUMMARY_FILE"
               exit 0
             fi
-            if echo "$output" | grep -qi "workflow"; then
-              echo "Upstream includes a GitHub Actions workflow update that GitHub requires you to accept manually. Open your fork and click **Sync fork → Update branch**." >> "$GITHUB_STEP_SUMMARY"
-              exit 1
-            fi
             if echo "$output" | grep -qi "conflict"; then
-              echo "Your fork has custom changes that conflict with upstream. Review and sync manually on GitHub." >> "$GITHUB_STEP_SUMMARY"
+              echo "Your fork has custom changes that conflict with upstream. Review and sync manually on GitHub." >> "$SUMMARY_FILE"
               exit 1
             fi
-            exit "$status"
+            if ! echo "$output" | grep -qi "workflow"; then
+              exit "$status"
+            fi
+            echo "Upstream includes a GitHub Actions workflow update; syncing app files while keeping your local workflow files intact."
           fi
-          set -e
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git clone --branch main "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" repo
-          cd repo
-          git remote add upstream https://github.com/elkimek/get-based.git
-          git fetch upstream main
-          if git merge-base --is-ancestor upstream/main HEAD; then
-            echo "Repository main branch is already up to date with upstream." >> "$GITHUB_STEP_SUMMARY"
+
+          WORK_DIR="$(mktemp -d)"
+          trap 'rm -rf "$WORK_DIR"' EXIT
+          ORIGIN_URL="${ORIGIN_URL:-https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git}"
+
+          git clone --branch main "$ORIGIN_URL" "$WORK_DIR/repo"
+          cd "$WORK_DIR/repo"
+
+          # Stamp commits with the repository owner's verified GitHub noreply
+          # identity so Vercel Hobby private repositories accept the deployment.
+          if [ -n "${REPO_OWNER_ID:-}" ]; then
+            AUTHOR_EMAIL="${REPO_OWNER_ID}+${REPO_OWNER}@users.noreply.github.com"
+          else
+            AUTHOR_EMAIL="${REPO_OWNER}@users.noreply.github.com"
+          fi
+          git config user.name "$REPO_OWNER"
+          git config user.email "$AUTHOR_EMAIL"
+
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch --no-tags upstream main
+
+          UPSTREAM_SHA="$(git rev-parse upstream/main)"
+          UPSTREAM_SHORT="$(git rev-parse --short upstream/main)"
+
+          read_wrangler_name() {
+            node -e '
+              const fs = require("node:fs");
+              const file = process.argv[1];
+              if (!fs.existsSync(file)) process.exit(0);
+              const raw = fs.readFileSync(file, "utf8");
+              const match = raw.match(/"name"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+              if (match) process.stdout.write(JSON.parse("\"" + match[1] + "\""));
+            ' "$1"
+          }
+
+          restore_wrangler_name() {
+            LOCAL_NAME="$1" node -e '
+              const fs = require("node:fs");
+              const file = process.argv[1];
+              const name = process.env.LOCAL_NAME || "";
+              if (!name || !fs.existsSync(file)) process.exit(0);
+              const raw = fs.readFileSync(file, "utf8");
+              const updated = raw.replace(/("name"\s*:\s*)"([^"\\]*(?:\\.[^"\\]*)*)"/, "$1" + JSON.stringify(name));
+              if (updated !== raw) fs.writeFileSync(file, updated);
+            ' "$2"
+          }
+
+          LOCAL_WRANGLER_NAME="$(read_wrangler_name wrangler.jsonc)"
+          LAST_UPSTREAM="$(git log -1 --format=%B | sed -n 's/^Upstream-Commit: \([0-9a-f]\{40\}\)$/\1/p' | tail -n 1 || true)"
+
+          if [ -n "$LAST_UPSTREAM" ]; then
+            if [ "$LAST_UPSTREAM" = "$UPSTREAM_SHA" ]; then
+              echo "Repository main branch is already synced to latest upstream (${UPSTREAM_SHORT})." >> "$SUMMARY_FILE"
+              exit 0
+            fi
+            if ! git cat-file -e "${LAST_UPSTREAM}^{commit}" 2>/dev/null; then
+              echo "Could not verify prior upstream baseline commit (${LAST_UPSTREAM}). Sync manually on GitHub." >> "$SUMMARY_FILE"
+              exit 1
+            fi
+            if ! git diff --quiet "$LAST_UPSTREAM" HEAD -- . ':!.github/workflows' ':!wrangler.jsonc'; then
+              echo "Stopped because your repository has custom edits outside automated sync commits. Review and merge manually on GitHub." >> "$SUMMARY_FILE"
+              exit 1
+            fi
+          elif git merge-base --is-ancestor HEAD upstream/main; then
+            if [ "$(git rev-parse HEAD)" = "$UPSTREAM_SHA" ]; then
+              echo "Repository main branch is already up to date with upstream (${UPSTREAM_SHORT})." >> "$SUMMARY_FILE"
+              exit 0
+            fi
+          else
+            COMMIT_COUNT="$(git rev-list --count HEAD)"
+            ALLOW_INITIAL_CLONE=false
+            if [ "$COMMIT_COUNT" -eq 1 ]; then
+              ALLOW_INITIAL_CLONE=true
+            elif [ "$COMMIT_COUNT" -eq 2 ]; then
+              DIFF_FILES="$(git diff --name-only HEAD~1 HEAD | sort -u)"
+              if [ "$DIFF_FILES" = "wrangler.jsonc" ]; then
+                ALLOW_INITIAL_CLONE=true
+              fi
+            fi
+            if [ "$ALLOW_INITIAL_CLONE" != "true" ]; then
+              echo "Stopped because your repository has custom commits that diverge from upstream. Review and merge manually on GitHub." >> "$SUMMARY_FILE"
+              exit 1
+            fi
+          fi
+
+          # Keep local .github/workflows untouched so GITHUB_TOKEN is never
+          # blocked when upstream modifies CI workflows.
+          if [ -d .github/workflows ]; then
+            cp -a .github/workflows "$WORK_DIR/saved-workflows"
+          fi
+
+          git rm -rf --quiet --ignore-unmatch .
+          git checkout upstream/main -- .
+
+          rm -rf .github/workflows
+          if [ -d "$WORK_DIR/saved-workflows" ]; then
+            mkdir -p .github
+            cp -a "$WORK_DIR/saved-workflows" .github/workflows
+          fi
+
+          UPSTREAM_WRANGLER_NAME="$(read_wrangler_name wrangler.jsonc)"
+          if [ -n "$LOCAL_WRANGLER_NAME" ] && [ "$LOCAL_WRANGLER_NAME" != "$UPSTREAM_WRANGLER_NAME" ]; then
+            restore_wrangler_name "$LOCAL_WRANGLER_NAME" wrangler.jsonc
+          fi
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Repository main branch already has all latest upstream app changes (${UPSTREAM_SHORT})." >> "$SUMMARY_FILE"
             exit 0
           fi
-          if ! git merge --ff-only upstream/main; then
-            echo "Fast-forward merge stopped because your repository has custom commits that diverge from upstream. Review and merge manually on GitHub." >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          if ! git push origin HEAD:main; then
-            echo "Push stopped (for example if upstream includes a GitHub Actions workflow update). Sync manually on GitHub." >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          echo "Repository main branch fast-forwarded to latest upstream. Connected Vercel/Cloudflare deployments rebuild automatically." >> "$GITHUB_STEP_SUMMARY"
+
+          git commit -m "Sync getbased with upstream (${UPSTREAM_SHORT})" -m "Upstream-Commit: ${UPSTREAM_SHA}"
+          git push origin HEAD:main
+          trigger_deploy_hook
+          echo "Repository main branch synced to latest upstream (${UPSTREAM_SHORT}). Connected Vercel/Cloudflare deployments rebuild automatically." >> "$SUMMARY_FILE"
