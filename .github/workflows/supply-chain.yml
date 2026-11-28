@@ -51,14 +51,16 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install dependencies and compile native sources
-        run: npm ci
+      - name: Install and compile TypeScript sources
+        run: |
+          npm ci --ignore-scripts
+          node scripts/build-typescript.ts
 
       - name: Validate vendored component inventory
         run: npm run supply-chain:check
 
       - name: Generate combined CycloneDX SBOM
-        run: npm run sbom
+        run: node scripts/supply-chain.mjs --sbom artifacts/getbased.cdx.json
 
       - name: Upload CycloneDX SBOM
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -86,11 +88,13 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install dependencies and compile native sources
-        run: npm ci
+      - name: Install and compile TypeScript sources
+        run: |
+          npm ci --ignore-scripts
+          node scripts/build-typescript.ts
 
       - name: Build vendored dependency snapshot
-        run: npm run --silent supply-chain:snapshot > "$RUNNER_TEMP/vendor-dependency-snapshot.json"
+        run: node scripts/supply-chain.mjs --snapshot > "$RUNNER_TEMP/vendor-dependency-snapshot.json"
 
       - name: Submit snapshot to GitHub dependency graph
         env:

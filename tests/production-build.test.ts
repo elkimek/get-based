@@ -1,4 +1,5 @@
-import {verifyStaticRawModule} from '../scripts/static-raw-encoding.mjs';
+import {COMPACTABLE_STATIC_VENDOR_SCRIPTS, verifyStaticRawModule} from '../scripts/static-raw-encoding.mjs';
+import {verifyStaticCss} from '../scripts/static-css-encoding.mjs';
 import assert from 'node:assert/strict';
 import {STARTUP_DATA_MODULES} from '../scripts/startup-data-chunks.mjs';
 import {createHash} from 'node:crypto';
@@ -119,6 +120,14 @@ beforeAll(async () => {
     if (encoding) {
       assert.equal(createHash('sha256').update(canonical).digest('hex'), encoding[0], 'Exact frozen legacy source: ' + url);
       assert.equal(createHash('sha256').update(await fs.readFile(supplied)).digest('hex'), encoding[1], 'Exact complete compact encoding: ' + url);
+      continue;
+    }
+    if (Object.hasOwn(COMPACTABLE_STATIC_VENDOR_SCRIPTS, url)) {
+      await verifyStaticRawModule(url, canonical.toString(), await fs.readFile(supplied, 'utf8'), COMPACTABLE_STATIC_VENDOR_SCRIPTS[url]!);
+      continue;
+    }
+    if (url.endsWith('.css')) {
+      verifyStaticCss(url, canonical.toString(), await fs.readFile(supplied, 'utf8'));
       continue;
     }
     if (rawAssets.has(url)) {await verifyStaticRawModule(url, canonical.toString(), await fs.readFile(supplied, 'utf8')); continue;}

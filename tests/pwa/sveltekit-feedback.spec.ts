@@ -8,6 +8,7 @@ import {createDefaultProfileData, migrateProfileData} from '../../js/profile.js'
 import type {ProfileData} from '../../types/app-state.js';
 import {startKitServer} from './kit-release-server.js';
 import {qualifyArtifactModuleSource} from './kit-native-receipts.js';
+import {verifyStaticCss} from '../../scripts/static-css-encoding.mjs';
 import {installDiscussionFixture} from '../helpers/chat-discussion-fixture.js';
 import {installOfflineStartupDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 import {readyLightArtifact as ready} from '../helpers/light-artifact-navigation.js';
@@ -52,7 +53,7 @@ async function artifactInputs() {
     assert(chunks.length > 0, 'Actual artifact omits Feedback module: ' + module);
     mappings.push({module, sourceBytes: Buffer.byteLength(current), sourceSHA256: sha(current), chunks: [...new Set(chunks)]});
   }
-  assert.deepEqual(await fs.readFile(path.join(directory, 'css/modal-shared.css')), await fs.readFile('css/modal-shared.css'), 'Fresh canonical modal CSS in static artifact');
+  verifyStaticCss('/css/modal-shared.css', await fs.readFile('css/modal-shared.css', 'utf8'), await fs.readFile(path.join(directory, 'css/modal-shared.css'), 'utf8'));
   const sw = await fs.readFile(path.join(directory, 'service-worker.js'), 'utf8');
   const version = await fs.readFile(path.join(directory, 'version.js'), 'utf8');
   const shellMatch = sw.match(/const APP_SHELL = (\[[\s\S]*?\]);/), buildId = sw.match(/const BUILD_ID = '([^']+)';/)?.[1];

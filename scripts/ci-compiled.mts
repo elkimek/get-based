@@ -130,21 +130,27 @@ export async function sealCompiledInputs(root = ROOT): Promise<CompiledManifest>
     for (const entry of await fs.readdir(path.join(root, directory)).catch((error: NodeJS.ErrnoException) => {if (error.code === 'ENOENT') return []; throw error;})) candidates.add(directory + '/' + entry);
   }
   candidates.add('styles.css'); candidates.add('themes-extra.css'); candidates.add('index.html');
+  const allowedCandidates = [...candidates].sort().filter(file => outputAllowed(file, known));
   const outputs: Member[] = [];
-  for (const file of [...candidates].sort()) {
-    if (!outputAllowed(file, known)) continue;
-    const exists = await fs.lstat(path.join(root, file)).catch((error: NodeJS.ErrnoException) => {if (error.code === 'ENOENT') return null; throw error;});
-    if (exists) outputs.push(await member(root, file));
+  const bodies: Buffer[] = [];
+  for (let index = 0; index < allowedCandidates.length; index += 16) {
+    const batch = await Promise.all(allowedCandidates.slice(index, index + 16).map(async file => {
+      const exists = await fs.lstat(path.join(root, file)).catch((error: NodeJS.ErrnoException) => {if (error.code === 'ENOENT') return null; throw error;});
+      if (!exists) return null;
+      portable(file);
+      const body = await regular(path.join(root, file));
+      return {member: {file, bytes: body.length, sha256: hash(body)}, body};
+    }));
+    for (const item of batch) {
+      if (!item) continue;
+      outputs.push(item.member);
+      bodies.push(item.body);
+    }
   }
   const manifest = validate({schemaVersion: 1, revision: git(root, 'rev-parse', 'HEAD').trim(), nodeMajor: Number(process.versions.node.split('.')[0]), inputs, outputs});
   if (sharedChunks) assert.deepEqual(outputs.filter(row => isSvelteCompatibilityChunk(row.file)).map(row => row.file), sharedChunks, 'Exact Svelte compatibility transport inventory');
   await safeDirectory(root, TRANSPORT);
   assert.equal((await fs.readdir(transport)).length, 0, 'Seal a new compiled transport');
-  const bodies: Buffer[] = [];
-  for (const output of outputs) {
-    const body = await regular(path.join(root, output.file));
-    assert.equal(hash(body), output.sha256, 'Stable output while sealing'); bodies.push(body);
-  }
   await fs.writeFile(path.join(transport, 'payload.br'), brotliCompressSync(Buffer.concat(bodies), {params: {[zlibConstants.BROTLI_PARAM_QUALITY]: 4, [zlibConstants.BROTLI_PARAM_LGWIN]: 24}}), {flag: 'wx'});
   await fs.writeFile(path.join(transport, 'manifest.json'), JSON.stringify(manifest) + '\n', {flag: 'wx'});
   return manifest;
@@ -176,25 +182,36 @@ async function qualified(root: string) {
 export async function restoreCompiledInputs(root = ROOT): Promise<CompiledManifest> {
   // Prequalify the complete payload and every input before replacing any output.
   const {manifest, payload} = await qualified(root);
+  const dirs = new Set(manifest.outputs.map(output => path.posix.dirname(output.file)));
+  for (const dir of dirs) await safeDirectory(root, dir);
+  const slices: Array<{file: string; body: Buffer}> = [];
   let offset = 0;
   for (const output of manifest.outputs) {
-    await safeDirectory(root, path.posix.dirname(output.file));
-    const target = path.join(root, output.file);
-    // Open without truncating; qualify and write the same object. A pathname
-    // swap cannot redirect the write, and hard links cannot clobber source data.
-    const handle = await fs.open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW | constants.O_NONBLOCK)
-      .catch((error: NodeJS.ErrnoException) => {if (error.code === 'ELOOP') throw new Error('No linked output target'); throw error;});
-    try {
-      const info = await handle.stat(); assert(info.isFile() && info.nlink === 1, 'No linked output target');
-      await handle.truncate(0); await handle.writeFile(payload.subarray(offset, offset + output.bytes));
-    } finally {await handle.close();}
+    slices.push({file: output.file, body: payload.subarray(offset, offset + output.bytes)});
     offset += output.bytes;
+  }
+  for (let index = 0; index < slices.length; index += 16) {
+    await Promise.all(slices.slice(index, index + 16).map(async ({file, body}) => {
+      const target = path.join(root, file);
+      // Open without truncating; qualify and write the same object. A pathname
+      // swap cannot redirect the write, and hard links cannot clobber source data.
+      const handle = await fs.open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+        .catch((error: NodeJS.ErrnoException) => {if (error.code === 'ELOOP') throw new Error('No linked output target'); throw error;});
+      try {
+        const info = await handle.stat(); assert(info.isFile() && info.nlink === 1, 'No linked output target');
+        await handle.truncate(0); await handle.writeFile(body);
+      } finally {await handle.close();}
+    }));
   }
   return manifest;
 }
 export async function verifyCompiledInputs(root = ROOT): Promise<CompiledManifest> {
   const {manifest} = await qualified(root);
-  for (const output of manifest.outputs) assert.deepEqual(await member(root, output.file), output, 'Exact restored compiler output');
+  for (let index = 0; index < manifest.outputs.length; index += 16) {
+    await Promise.all(manifest.outputs.slice(index, index + 16).map(async output => {
+      assert.deepEqual(await member(root, output.file), output, 'Exact restored compiler output');
+    }));
+  }
   return manifest;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -142,17 +142,32 @@ function sinkDigest(sinks: readonly DomSink[]) {
   return crypto.createHash('sha256').update(JSON.stringify(reviewedSurface)).digest('hex');
 }
 
+const SINK_CANDIDATE_RE = /(?:innerHTML|outerHTML|srcdoc|insertAdjacentHTML|createContextualFragment|setHTMLUnsafe|write|writeln|\\u|\\x)/;
+
 export function createDomSinkPolicy(root = ROOT) {
   const files = listJavaScriptFiles(path.join(root, 'js'));
   const sinkFiles: Record<string, DomSinkFilePolicy> = {};
   let sinkCount = 0;
-  const parsedSources = files.length ? withParsedSources(
-    new Map(files.map(file => [syntaxFile(file), scriptSource(file, fs.readFileSync(file, 'utf8'))])),
+  const rawSources = new Map<string, string>();
+  const parseCandidates = new Map<string, string>();
+  for (const file of files) {
+    const raw = fs.readFileSync(file, 'utf8');
+    rawSources.set(file, raw);
+    const extracted = scriptSource(file, raw);
+    if (SINK_CANDIDATE_RE.test(extracted)) {
+      parseCandidates.set(syntaxFile(file), extracted);
+    }
+  }
+  const parsedSources = parseCandidates.size ? withParsedSources(
+    parseCandidates,
     sources => new Map([...sources].map(([file, sourceFile]) => [file, domSinksFromFile(sourceFile)])),
   ) : new Map<string, DomSink[]>();
   for (const absolute of files) {
     const relative = runtimePath(path.relative(root, absolute).split(path.sep).join('/'));
-    const sinks = [...parsedSources.get(syntaxFile(absolute))!, ...svelteMarkupSinks(fs.readFileSync(absolute, 'utf8'), absolute)];
+    const raw = rawSources.get(absolute)!;
+    const jsSinks = parsedSources.get(syntaxFile(absolute)) ?? [];
+    const markupSinks = absolute.endsWith('.svelte') ? svelteMarkupSinks(raw, absolute) : [];
+    const sinks = markupSinks.length ? [...jsSinks, ...markupSinks] : jsSinks;
     if (!sinks.length) continue;
     sinkCount += sinks.length;
     sinkFiles[relative] = {

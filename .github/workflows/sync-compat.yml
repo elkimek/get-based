@@ -26,15 +26,18 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         if: github.event_name == 'pull_request'
         with:
           node-version: 24
           cache: npm
-      - name: Install planner dependencies
+      - name: Install and compile TypeScript sources
         if: github.event_name == 'pull_request'
-        run: npm ci
+        run: |
+          npm ci --ignore-scripts
+          node scripts/build-typescript.ts
       - name: Select affected sync tests
         id: scope
         if: github.event_name == 'pull_request'
@@ -88,9 +91,21 @@ jobs:
 
       - name: Install app and relay dependencies
         run: |
-          npm ci
-          npm ci --prefix .ci/getbased-relay
-          npm run build --prefix .ci/getbased-relay
+          npm ci &
+          app_pid=$!
+          (npm ci --prefix .ci/getbased-relay && npm run build --prefix .ci/getbased-relay) &
+          relay_pid=$!
+          wait "$app_pid"
+          wait "$relay_pid"
+
+      - name: Resolve Playwright version for browser cache
+        id: pw_version
+        run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ matrix.peer-browser }}-${{ steps.pw_version.outputs.version }}
 
       - name: Install browser engines
         env:
@@ -203,6 +218,17 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Resolve Playwright version for browser cache
+        id: pw_version
+        run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/Library/Caches/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ matrix.browser }}-${{ steps.pw_version.outputs.version }}
 
       - name: Install browser engine and Linux dependencies
         if: runner.os == 'Linux'

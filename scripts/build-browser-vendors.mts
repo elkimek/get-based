@@ -70,8 +70,7 @@ const lock: LockReader = JSON.parse(await fs.readFile(path.join(ROOT, 'package-l
 const bundlerEntry = lock.packages?.['node_modules/rolldown'];
 if (bundlerEntry?.version !== '1.2.12' || !bundlerEntry?.integrity) throw new Error('rolldown must be directly locked to 1.2.12 with integrity metadata');
 
-const generatedTargets: GeneratedVendorTarget[] = [];
-for (const target of TARGETS) {
+const generatedTargets: GeneratedVendorTarget[] = await Promise.all(TARGETS.map(async target => {
   const packageEntry = lock.packages?.[`node_modules/${target.package}`];
   if (!packageEntry?.version || !packageEntry?.integrity) {
     throw new Error(`${target.package} is missing version/integrity in package-lock.json`);
@@ -105,14 +104,14 @@ for (const target of TARGETS) {
   const banner = `// @ts-nocheck\n// Generated from ${target.package}@${packageEntry.version}; run npm run vendor:check.\n`;
   const cleanCode = chunks[0]!.code.replace(/[ \t]+$/gm, '');
   const generated = banner + (cleanCode.endsWith('\n') ? cleanCode : `${cleanCode}\n`);
-  generatedTargets.push({
+  return {
     ...target,
     version: packageEntry.version,
     integrity: packageEntry.integrity,
     generated,
     sha256: createHash('sha256').update(generated).digest('hex'),
-  });
-}
+  };
+}));
 
 const expectedManifest = {
   schemaVersion: 2,

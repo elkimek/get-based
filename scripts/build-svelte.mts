@@ -2,6 +2,7 @@
 // Compile authored components at stable native URLs for compatibility and
 // coverage. The static Kit build consumes their sources with a shared runtime.
 import fs from 'node:fs/promises';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'rolldown';
@@ -268,6 +269,7 @@ async function buildCompatibility(check: boolean) {
   }
   const dependencyGraph = new Map<string, string[]>();
   const shared: string[] = [];
+  const tasks: Array<{ directory: string; relative: string; output: SvelteOutput; files: string[] }> = [];
   for (const [directory, entries] of byDirectory) {
     assert(compatibilityDirectory(directory));
     const relative = path.relative(ROOT, directory).replaceAll(path.sep, '/');
@@ -276,14 +278,26 @@ async function buildCompatibility(check: boolean) {
       const isolated = selected.filter(file => standalone(file, output));
       const groups = [selected.filter(file => !standalone(file, output)), ...isolated.map(file => [file])];
       for (const files of groups) {
-        if (!files.length) continue;
-        const group = await compileGroup(files, directory, output);
-        await writeGroup(group, directory, check);
-        shared.push(...group.shared.map(file => relative + '/' + file));
-        for (const [file, children] of group.dependencies) {
-          dependencyGraph.set('/' + relative + '/' + file, children.map(child => '/' + relative + '/' + child));
-        }
+        if (files.length) tasks.push({ directory, relative, output, files });
       }
+    }
+  }
+  const compiledGroups: Array<{ directory: string; relative: string; group: CompiledGroup }> = new Array(tasks.length);
+  let nextTask = 0;
+  async function compileWorker() {
+    while (nextTask < tasks.length) {
+      const index = nextTask++;
+      const task = tasks[index]!;
+      const group = await compileGroup(task.files, task.directory, task.output);
+      await writeGroup(group, task.directory, check);
+      compiledGroups[index] = { directory: task.directory, relative: task.relative, group };
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, availableParallelism()), 6, tasks.length) }, compileWorker));
+  for (const { relative, group } of compiledGroups) {
+    shared.push(...group.shared.map(file => relative + '/' + file));
+    for (const [file, children] of group.dependencies) {
+      dependencyGraph.set('/' + relative + '/' + file, children.map(child => '/' + relative + '/' + child));
     }
   }
   const manifest = path.join(ROOT, SVELTE_COMPATIBILITY_MANIFEST);

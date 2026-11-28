@@ -48,7 +48,7 @@
     "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs",
     "pretest:critical-coverage": "npm run typescript:build",
     "test:critical-coverage": "vitest run --config vitest.critical.config.js",
-    "typescript:build": "node scripts/build-typescript.ts && npm run styles:build && npm run svelte:build",
+    "typescript:build": "node scripts/build-typescript.ts && node scripts/build-styles.mjs --skip-inline-maps && npm run svelte:build",
     "typecheck:migration": "tsc -p tsconfig.migration.json --noEmit",
     "typecheck:migration-tests": "tsc -p tsconfig.migration-tests.json",
     "migration:progress": "node scripts/migration-progress.js",

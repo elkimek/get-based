@@ -17,9 +17,9 @@ import { renderCoverageMarkdown, renderCoverageHtml } from './coverage-report.mj
 import {readNativeFunctionCoverage, type NativeCoverageReceipt} from './native-coverage-receipt.mjs';
 import {readCoverageInventories, readQualifiedNativeCoverageUnion} from './ci-results.mjs';
 import {
-  coverageEntryMatchesSource,
   coverageFunctionRange,
   isTopLevelScriptFunction,
+  sourceFingerprint,
 } from './coverage-model-helpers.mjs';
 
 import type { Browser, Page } from 'playwright';
@@ -161,9 +161,22 @@ function sourceForFile(file: string) {
   return source;
 }
 
+const fingerprintCache = new Map<string, ReturnType<typeof sourceFingerprint>>();
+
+function fingerprintForFile(file: string) {
+  let cached = fingerprintCache.get(file);
+  if (!cached) {
+    cached = sourceFingerprint(sourceForFile(file));
+    fingerprintCache.set(file, cached);
+  }
+  return cached;
+}
+
 function matchesRepositorySource(entry: RawEntry) {
-  const file = canonicalFile(entry.url);
-  return coverageEntryMatchesSource(entry, sourceForFile(file));
+  if (!entry?.sourceHash) return true;
+  const fingerprint = fingerprintForFile(canonicalFile(entry.url));
+  return entry.sourceLength === fingerprint.sourceLength
+    && entry.sourceHash === fingerprint.sourceHash;
 }
 
 function lineOffsets(source: string) {
@@ -243,6 +256,7 @@ function addFunction(metrics: FileMetrics, key: string, name: unknown, called: b
 
 export function addBrowserEntriesToModel(model: CoverageModel, entries: readonly RawEntry[]) {
   const canonical = new Map<string, RawEntry>();
+  const matched: Array<{ file: string; entry: RawEntry }> = [];
 
   for (const entry of entries) {
     if (!isAppSource(entry.url) || !matchesRepositorySource(entry)) continue;
@@ -250,6 +264,7 @@ export function addBrowserEntriesToModel(model: CoverageModel, entries: readonly
     const total = (entrySource(entry) as { length?: number }).length || sourceForFile(file).length;
     if (!total) continue;
 
+    matched.push({ file, entry });
     const metrics = getFileMetrics(model, file, total, 'playwright');
     addCoveredRanges(metrics, calledRanges(entry));
 
@@ -275,9 +290,7 @@ export function addBrowserEntriesToModel(model: CoverageModel, entries: readonly
       });
   }
 
-  for (const entry of entries) {
-    if (!isAppSource(entry.url) || !matchesRepositorySource(entry)) continue;
-    const file = canonicalFile(entry.url);
+  for (const { file, entry } of matched) {
     if (entry === canonical.get(file)) continue;
     const metrics = model.get(file);
     if (!metrics) continue;
@@ -542,10 +555,11 @@ async function writeCoverageReport(playwrightModel: CoverageModel, fixtures: rea
     },
     generatedAt: new Date().toISOString(),
   };
+  const markdown = renderCoverageMarkdown(report);
   fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2));
-  fs.writeFileSync(path.join(repoRoot, 'tests', '.coverage.md'), renderCoverageMarkdown(report));
+  fs.writeFileSync(path.join(repoRoot, 'tests', '.coverage.md'), markdown);
   fs.writeFileSync(path.join(repoRoot, 'tests', '.coverage.html'), renderCoverageHtml(report));
-  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, renderCoverageMarkdown(report));
+  if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
 
   if (nativeDiagnostics) {
     const unknown = nativeDiagnostics.unknownFunctions.flatMap(file => file.entries);

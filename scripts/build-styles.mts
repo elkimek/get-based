@@ -8,13 +8,16 @@ import {compileSharedThemeStyles} from './shared-theme-style-ownership.mjs';
 import {compileRemainingFeatureStyles} from './remaining-feature-style-ownership.mjs';
 import {compileContextEditorStyles} from './context-modal-style-ownership.mjs';
 // Compile scoped Tailwind styles at the established lazy stylesheet URLs.
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import {buildInlineStyleMaps} from './build-inline-style-maps.mjs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { restoreFeedbackNoticeRule } from './feedback-native-rule.mjs';
+
+const execFileAsync = promisify(execFile);
 import { compile } from '@tailwindcss/node';
 import { compileCategoryViewsNativeStyles } from './category-views-native-styles.mjs';
 import { compileStartupBannerStyles } from './startup-banner-style-ownership.mjs';
@@ -47,13 +50,12 @@ async function compileStyles(baseName: string, utilityName: string | readonly Ut
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-styles-'));
     try {
         const entries = typeof utilityName === 'string' ? [{ name: utilityName, minify: true }] : utilityName;
-        const utilities: string[] = [];
-        for (const [index, entry] of entries.entries()) {
+        const utilities = await Promise.all(entries.map(async (entry, index) => {
             const compiled = path.join(directory, `utilities-${index}.css`);
             const args = [path.join(ROOT, 'node_modules/@tailwindcss/cli/dist/index.mjs'),
                 '--input', path.join(ROOT, 'css', entry.name), '--output', compiled];
             if (entry.minify) args.push('--minify');
-            execFileSync(process.execPath, args, { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'] });
+            await execFileAsync(process.execPath, args, { cwd: ROOT, maxBuffer: 16 * 1024 * 1024 });
             let utilityCSS = await fs.readFile(compiled, 'utf8');
             if (entry.name === 'feedback-entry.tailwind.css') {
                 if (entry.minify)
@@ -61,8 +63,8 @@ async function compileStyles(baseName: string, utilityName: string | readonly Ut
                 const recipeSource = await fs.readFile(path.join(ROOT, 'css/feedback.tailwind.css'), 'utf8');
                 utilityCSS = restoreFeedbackNoticeRule(utilityCSS, recipeSource);
             }
-            utilities.push(utilityCSS.trimEnd());
-        }
+            return utilityCSS.trimEnd();
+        }));
         const basePath = path.join(ROOT, 'css', baseName);
         const baseInput = await fs.readFile(basePath, 'utf8');
         const lane = baseName === 'app-shell.base.css' ? 'app-shell' : baseName === 'redesign-shell.base.css' ? 'redesign-shell' : null;
@@ -191,7 +193,7 @@ export async function buildMarkerDetailStyles({ outputPath = path.join(ROOT, 'cs
 }
 
 export async function buildDashboardWelcomeStyles({check = false}: StyleOptions = {}): Promise<void> {
-    for (const [lane, name] of [['welcome', 'dashboard-welcome'], ['greeting', 'dashboard-core']] as const) {
+    await Promise.all(([['welcome', 'dashboard-welcome'], ['greeting', 'dashboard-core']] as const).map(async ([lane, name]) => {
         const inputPath = path.join(ROOT, 'css', name + '.base.css');
         const input = await fs.readFile(inputPath, 'utf8');
         const {css} = await compileDashboardWelcomeStyles(lane, input, inputPath, ROOT);
@@ -199,7 +201,7 @@ export async function buildDashboardWelcomeStyles({check = false}: StyleOptions 
         if (check) {
             if (await fs.readFile(outputPath, 'utf8') !== css) throw new Error(name + ' CSS is stale');
         } else await fs.writeFile(outputPath, css);
-    }
+    }));
 }
 
 export async function buildDashboardDataStyles({outputPath=path.join(ROOT,'css/dashboard-data.css'),check=false}:StyleOptions={}):Promise<void>{
@@ -247,7 +249,7 @@ export async function buildMobileDashboardStyles({ outputPath = path.join(ROOT, 
 
 /** Keep the existing lazy Chat URLs while compiling their complete scoped layout. */
 export async function buildChatLayoutStyles({check=false}:StyleOptions={}):Promise<void>{
-    for(const[lane,inputName,outputName]of [
+    await Promise.all(([
         ["chat-actions", "css/chat-actions.base.css", "css/chat-actions.css"],
         ["chat-composer", "css/chat-composer.base.css", "css/chat-composer.css"],
         ["chat-messages", "css/chat-messages.base.css", "css/chat-messages.css"],
@@ -256,12 +258,12 @@ export async function buildChatLayoutStyles({check=false}:StyleOptions={}):Promi
         ["chat-closed", "css/chat-panel.base.css", "css/chat-panel.css"],
         ["chat-redesign", "css/chat-redesign.base.css", "css/chat-redesign.css"],
         ["chat-responsive", "css/chat-responsive.base.css", "css/chat-responsive.css"]
-    ] as const){
+    ] as const).map(async ([lane,inputName,outputName]) => {
         const inputPath=path.join(ROOT,inputName),outputPath=path.join(ROOT,outputName);
         const {css}=await compileSettingsChatLayoutStyles(lane,await fs.readFile(inputPath,'utf8'),inputPath,ROOT);
         if(check){if(await fs.readFile(outputPath,'utf8')!==css)throw new Error(outputName+' CSS is stale; run npm run styles:build');}
         else await fs.writeFile(outputPath,css);
-    }
+    }));
 }
 
 export async function buildFoundationStyles({outputPath=path.join(ROOT,'styles.css'),check=false}:StyleOptions={}):Promise<void>{
@@ -288,40 +290,56 @@ export async function buildInlineThemeStyles({outputPath=path.join(ROOT,'index.h
     else if(output!==index)await fs.writeFile(outputPath,output);
 }
 
+async function runBounded(tasks: ReadonlyArray<() => Promise<void>>, concurrency: number): Promise<void> {
+    let next = 0;
+    async function worker() {
+        while (next < tasks.length) {
+            const task = tasks[next++]!;
+            await task();
+        }
+    }
+    await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const check = process.argv.includes('--check');
-    await buildInlineStyleMaps(ROOT,undefined,check);
-    await buildInlineThemeStyles({check});
-    await buildFoundationStyles({check});
-    await buildExtraThemeStyles({check});
-    await buildChatLayoutStyles({ check });
-    await buildMobileDashboardStyles({ check });
-    await buildAppShellStyles({ check });
-    await buildRedesignShellStyles({ check });
-    await buildModalStyles({ check });
-    await buildMarkerDetailStyles({ check });
-    await buildGeneticsStyles({ check });
-    await buildEMFInterpretationStyles({ check });
-    await buildWearableStyles({ check });
-    await buildImportStyles({ check });
-    await buildCycleStyles({ check });
-    await buildRecommendationStyles({ check });
-    await buildStyles({ check });
-    await buildProtectionStyles({ check });
-    await buildChatStyles({ check });
-    await buildChatRedesignStyles({ check });
-    await buildLightSetupStyles({ check });
-    await buildClientListStyles({ check });
-    await buildCategoryViewsStyles({ check });
-    await buildDashboardWelcomeStyles({ check });
-    await buildDashboardDataStyles({ check });
-    await compileStyles('light-conditions-now.base.css', 'light-conditions-now.tailwind.css', path.join(ROOT, 'css/light-conditions-now.css'), check, 'Light conditions');
-    await compileStyles('dashboard-widgets.base.css', 'biology-scores.tailwind.css', path.join(ROOT, 'css/dashboard-widgets.css'), check, 'Dashboard widgets');
-    await compileStyles('light-tools.base.css', 'light-tools.tailwind.css', path.join(ROOT, 'css/light-tools.css'), check, 'Light tools');
-    await compileStyles('light-env.base.css', 'light-env.tailwind.css', path.join(ROOT, 'css/light-env.css'), check, 'Light environment');
-    await compileStyles('light-devices.base.css', 'light-devices.tailwind.css', path.join(ROOT, 'css/light-devices.css'), check, 'Light device library');
-    await compileStyles('light-sun.base.css', 'light-page.tailwind.css', path.join(ROOT, 'css/light-sun.css'), check, 'Light page');
-    await compileStyles('nutrition.base.css', 'nutrition.tailwind.css', path.join(ROOT, 'css/nutrition.css'), check, 'Nutrition');
-    await compileStyles('context-editor.base.css', 'context-editor.tailwind.css', path.join(ROOT, 'css/context-editor.css'), check, 'Context editor');
-    await compileStyles('context-profile.base.css', 'context-catalog.tailwind.css', path.join(ROOT, 'css/context-profile.css'), check, 'Context catalog');
+    if (!process.argv.includes('--skip-inline-maps')) {
+        await buildInlineStyleMaps(ROOT,undefined,check);
+    }
+    const tasks: Array<() => Promise<void>> = [
+        () => buildInlineThemeStyles({check}),
+        () => buildFoundationStyles({check}),
+        () => buildExtraThemeStyles({check}),
+        () => buildChatLayoutStyles({ check }),
+        () => buildMobileDashboardStyles({ check }),
+        () => buildAppShellStyles({ check }),
+        () => buildRedesignShellStyles({ check }),
+        () => buildModalStyles({ check }),
+        () => buildMarkerDetailStyles({ check }),
+        () => buildGeneticsStyles({ check }),
+        () => buildEMFInterpretationStyles({ check }),
+        () => buildWearableStyles({ check }),
+        () => buildImportStyles({ check }),
+        () => buildCycleStyles({ check }),
+        () => buildRecommendationStyles({ check }),
+        () => buildStyles({ check }),
+        () => buildProtectionStyles({ check }),
+        () => buildChatStyles({ check }),
+        () => buildChatRedesignStyles({ check }),
+        () => buildLightSetupStyles({ check }),
+        () => buildClientListStyles({ check }),
+        () => buildCategoryViewsStyles({ check }),
+        () => buildDashboardWelcomeStyles({ check }),
+        () => buildDashboardDataStyles({ check }),
+        () => compileStyles('light-conditions-now.base.css', 'light-conditions-now.tailwind.css', path.join(ROOT, 'css/light-conditions-now.css'), check, 'Light conditions'),
+        () => compileStyles('dashboard-widgets.base.css', 'biology-scores.tailwind.css', path.join(ROOT, 'css/dashboard-widgets.css'), check, 'Dashboard widgets'),
+        () => compileStyles('light-tools.base.css', 'light-tools.tailwind.css', path.join(ROOT, 'css/light-tools.css'), check, 'Light tools'),
+        () => compileStyles('light-env.base.css', 'light-env.tailwind.css', path.join(ROOT, 'css/light-env.css'), check, 'Light environment'),
+        () => compileStyles('light-devices.base.css', 'light-devices.tailwind.css', path.join(ROOT, 'css/light-devices.css'), check, 'Light device library'),
+        () => compileStyles('light-sun.base.css', 'light-page.tailwind.css', path.join(ROOT, 'css/light-sun.css'), check, 'Light page'),
+        () => compileStyles('nutrition.base.css', 'nutrition.tailwind.css', path.join(ROOT, 'css/nutrition.css'), check, 'Nutrition'),
+        () => compileStyles('context-editor.base.css', 'context-editor.tailwind.css', path.join(ROOT, 'css/context-editor.css'), check, 'Context editor'),
+        () => compileStyles('context-profile.base.css', 'context-catalog.tailwind.css', path.join(ROOT, 'css/context-profile.css'), check, 'Context catalog'),
+    ];
+    await runBounded(tasks, Math.max(1, os.availableParallelism()));
 }

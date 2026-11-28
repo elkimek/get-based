@@ -56,17 +56,24 @@ async function createTransportDirectory(root: string, target: string): Promise<v
 }
 export async function inventoryCIArtifact(artifact: string): Promise<FileIdentity[]> {
   await directory(artifact);
-  const files: FileIdentity[] = [];
+  const pathsToHash: string[] = [];
   async function visit(relative: string): Promise<void> {
     for (const entry of await fs.readdir(path.join(artifact, relative), {withFileTypes: true})) {
       const file = relative ? relative + '/' + entry.name : entry.name;
       portable(file);
       assert(!entry.isSymbolicLink(), 'No linked artifact member: ' + file);
       if (entry.isDirectory()) await visit(file);
-      else {assert(entry.isFile(), 'Only regular artifact files'); const body = await regular(path.join(artifact, file)); files.push({file, bytes: body.length, sha256: hash(body)});}
+      else {assert(entry.isFile(), 'Only regular artifact files'); pathsToHash.push(file);}
     }
   }
   await visit('');
+  const files: FileIdentity[] = [];
+  for (let index = 0; index < pathsToHash.length; index += 16) {
+    files.push(...await Promise.all(pathsToHash.slice(index, index + 16).map(async file => {
+      const body = await regular(path.join(artifact, file));
+      return {file, bytes: body.length, sha256: hash(body)};
+    })));
+  }
   assert(files.length > 0, 'Nonempty artifact inventory');
   return files.sort((left, right) => left.file.localeCompare(right.file, 'en'));
 }
@@ -102,9 +109,9 @@ async function metadata(artifact: string): Promise<Pick<ArtifactManifest, 'revis
 async function currentSources(root: string, artifact: string, manifest: Pick<ArtifactManifest, 'revision' | 'verificationDigest' | 'sourceInputCount'>): Promise<void> {
   // These emitted dependencies are deliberately loaded only AFTER installation.
   // restore needs only Node builtins and works in a pristine checkout.
-  const [{createStaticBuildFingerprint}, {inlineServiceWorkerAssets}, {parseAppShellEntries}, {sourceModuleURL, compactStaticJsonBody, productionRawModuleAssets}, {verifyLegacyEvoluAsset}, {verifyStaticRawModule}] = await Promise.all([
+  const [{createStaticBuildFingerprint}, {inlineServiceWorkerAssets}, {parseAppShellEntries}, {sourceModuleURL, compactStaticJsonBody, productionRawModuleAssets}, {verifyLegacyEvoluAsset}, {COMPACTABLE_STATIC_VENDOR_SCRIPTS, verifyStaticRawModule}, {verifyStaticCss}] = await Promise.all([
     import('./static-build-inputs.mjs'), import('./service-worker-source.js'), import('./app-shell-budget.mjs'),
-    import('./static-build-assets.mjs'), import('./legacy-evolu-compaction.mjs'), import('./static-raw-encoding.mjs'),
+    import('./static-build-assets.mjs'), import('./legacy-evolu-compaction.mjs'), import('./static-raw-encoding.mjs'), import('./static-css-encoding.mjs'),
   ]);
   const inventory = execFileSync('git', ['--no-optional-locks', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], {cwd: root, encoding: 'utf8'}).split('\0');
   const current = await createStaticBuildFingerprint(root, manifest.revision, '', inventory);
@@ -122,6 +129,14 @@ async function currentSources(root: string, artifact: string, manifest: Pick<Art
     const supplied = await regular(path.join(artifact, url.slice(1))), canonical = await regular(path.join(root, url.slice(1)));
     if (url.startsWith('/vendor/evolu/') && url.endsWith('.js')
       && await verifyLegacyEvoluAsset(url.slice(1), canonical.toString(), supplied.toString())) continue;
+    if (Object.hasOwn(COMPACTABLE_STATIC_VENDOR_SCRIPTS, url)) {
+      await verifyStaticRawModule(url, canonical.toString(), supplied.toString(), COMPACTABLE_STATIC_VENDOR_SCRIPTS[url]!);
+      continue;
+    }
+    if (url.endsWith('.css')) {
+      verifyStaticCss(url, canonical.toString(), supplied.toString());
+      continue;
+    }
     if (url.endsWith('.js') || url.endsWith('.mjs')) {
       rawModules ??= await productionRawModuleAssets();
       if (rawModules.has(url)) {await verifyStaticRawModule(url, canonical.toString(), supplied.toString()); continue;}

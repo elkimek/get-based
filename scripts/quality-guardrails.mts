@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { availableParallelism } from 'node:os';
 import path from 'node:path';
+import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { stripTypeScriptTypes } from 'node:module';
@@ -241,13 +242,74 @@ function nodeCheck(args: string[], input?: string) {
   return child;
 }
 
-async function syntaxCheckFile(file: string) {
+const ESM_SYNTAX_WORKER = `
+import vm from 'node:vm';
+import readline from 'node:readline';
+const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+rl.on('line', line => {
+  if (!line) return;
+  const { id, code, file } = JSON.parse(line);
+  try {
+    new vm.SourceTextModule(code, { identifier: file });
+    process.stdout.write(JSON.stringify({ id, ok: true }) + '\\n');
+  } catch {
+    process.stdout.write(JSON.stringify({ id, ok: false }) + '\\n');
+  }
+});
+`;
+
+interface EsmSyntaxWorker {
+  check(file: string, code: string): Promise<boolean>;
+  close(): void;
+}
+
+function createEsmSyntaxWorker(): EsmSyntaxWorker {
+  const child = spawn(process.execPath, ['--experimental-vm-modules', '--input-type=module', '-e', ESM_SYNTAX_WORKER], {
+    cwd: ROOT,
+    stdio: ['pipe', 'pipe', 'ignore'],
+  });
+  const pending = new Map<number, (ok: boolean) => void>();
+  let seq = 0;
+  const rl = readline.createInterface({ input: child.stdout, crlfDelay: Infinity });
+  rl.on('line', line => {
+    const message = JSON.parse(line) as { id: number; ok: boolean };
+    const resolve = pending.get(message.id);
+    if (resolve) {
+      pending.delete(message.id);
+      resolve(message.ok);
+    }
+  });
+  child.on('exit', () => {
+    for (const resolve of pending.values()) resolve(false);
+    pending.clear();
+  });
+  return {
+    check(file: string, code: string) {
+      return new Promise<boolean>(resolve => {
+        const id = ++seq;
+        pending.set(id, resolve);
+        child.stdin.write(JSON.stringify({ id, file, code }) + '\n');
+      });
+    },
+    close() {
+      rl.close();
+      child.stdin.end();
+    },
+  };
+}
+
+async function syntaxCheckFile(file: string, esmWorker: EsmSyntaxWorker) {
   if (file.endsWith('.svelte')) {
     const result = compile(fs.readFileSync(file, 'utf8'), { filename: file, generate: 'client', css: 'external' });
     if (result.warnings.length) throw new Error(result.warnings.map(warning => warning.message).join('\n'));
-    await nodeCheck(['--input-type=module', '--check'], result.js.code);
+    if (!await esmWorker.check(file, result.js.code)) {
+      await nodeCheck(['--input-type=module', '--check'], result.js.code);
+    }
   } else if (/\.[cm]?ts$/.test(file)) {
-    await nodeCheck(['--input-type=module', '--check'], stripTypeScriptTypes(fs.readFileSync(file, 'utf8')));
+    const stripped = stripTypeScriptTypes(fs.readFileSync(file, 'utf8'));
+    if (!await esmWorker.check(file, stripped)) {
+      await nodeCheck(['--input-type=module', '--check'], stripped);
+    }
   } else {
     await nodeCheck(['--check', file]);
   }
@@ -256,19 +318,25 @@ async function syntaxCheckFile(file: string) {
 async function syntaxCheck(files: string[]) {
   const results: Array<string | null> = new Array(files.length).fill(null);
   let next = 0;
-  async function worker() {
-    while (next < files.length) {
-      const index = next++;
-      const file = files[index]!;
-      try {
-        await syntaxCheckFile(file);
-      } catch (err) {
-        const output = `${(err as ProcessOutputError).stdout || ''}${(err as ProcessOutputError).stderr || ''}`.trim();
-        results[index] = `${repoRel(file)}${output ? `\n${output}` : ''}`;
+  const workerCount = Math.min(availableParallelism(), files.length);
+  const workers = Array.from({ length: workerCount }, () => createEsmSyntaxWorker());
+  try {
+    async function worker(esmWorker: EsmSyntaxWorker) {
+      while (next < files.length) {
+        const index = next++;
+        const file = files[index]!;
+        try {
+          await syntaxCheckFile(file, esmWorker);
+        } catch (err) {
+          const output = `${(err as ProcessOutputError).stdout || ''}${(err as ProcessOutputError).stderr || ''}`.trim();
+          results[index] = `${repoRel(file)}${output ? `\n${output}` : ''}`;
+        }
       }
     }
+    await Promise.all(workers.map(worker));
+  } finally {
+    for (const esmWorker of workers) esmWorker.close();
   }
-  await Promise.all(Array.from({ length: Math.min(availableParallelism(), files.length) }, worker));
   const errors = results.filter((error): error is string => error !== null);
   if (errors.length) fail('all JS/TS/Svelte sources compile and parse with node --check', errors.slice(0, 5).join('\n\n'));
   else pass(`all JS/TS/Svelte sources compile and parse with node --check (${files.length} files)`);

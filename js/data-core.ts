@@ -24,21 +24,23 @@ export function createDataCore(ports: DataCorePorts) {
   }
 
 
-  // ═══════════════════════════════════════════════
-  // PRIVATE CYCLE PHASE HELPER (avoids circular dep with cycle.js)
-  // ═══════════════════════════════════════════════
+  // PRIVATE CYCLE PHASE & DATE FORMAT HELPERS (avoids circular dep with cycle.js)
+  const _shortMonthYearFmt = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }), _dateLabelCache = new Map<string, string>();
+  function _formatShortMonthYear(dateStr: string): string {
+    let label = _dateLabelCache.get(dateStr);
+    if (label === undefined) { label = _shortMonthYearFmt.format(new Date(dateStr + 'T00:00:00')); if (_dateLabelCache.size < 2048) _dateLabelCache.set(dateStr, label); }
+    return label;
+  }
+  let _cachedPeriodsRef: CycleMetadata['periods'] | null = null, _cachedPeriodsKey = '', _cachedPeriodsMs: number[] = [];
   function _getCyclePhase(dateStr: string, mc: CycleMetadata | null | undefined): DrawPhase | null {
-    if (!mc || !mc.periods || mc.periods.length === 0) return null;
-    const targetMs = Date.parse(dateStr + 'T00:00:00Z');
-    if (!Number.isFinite(targetMs)) return null;
-    const sorted = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
-    const periodStart = sorted.find(p => Date.parse(p.startDate + 'T00:00:00Z') <= targetMs)?.startDate || null;
-    if (!periodStart) return null;
-    const cycleDay = Math.floor((targetMs - Date.parse(periodStart + 'T00:00:00Z')) / 86400000) + 1;
-    const cycleLen = mc.cycleLength || 28;
+    const periods = mc?.periods, targetMs = periods?.length ? Date.parse(dateStr + 'T00:00:00Z') : NaN;
+    if (!periods || !Number.isFinite(targetMs)) return null;
+    const periodsKey = periods.map(p => p.startDate).join('|');
+    if (periods !== _cachedPeriodsRef || periodsKey !== _cachedPeriodsKey) { _cachedPeriodsRef = periods; _cachedPeriodsKey = periodsKey; _cachedPeriodsMs = periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate)).map(p => Date.parse(p.startDate + 'T00:00:00Z')); }
+    const periodMs = _cachedPeriodsMs.find(ms => ms <= targetMs);
+    const cycleDay = periodMs !== undefined && Number.isFinite(periodMs) ? Math.floor((targetMs - periodMs) / 86400000) + 1 : Infinity, cycleLen = mc!.cycleLength || 28;
     if (cycleDay > cycleLen + 7) return null;
-    const periodLen = mc.periodLength || 5;
-    const ovulationDay = cycleLen - 14;
+    const periodLen = mc!.periodLength || 5, ovulationDay = cycleLen - 14;
     let phase, phaseName;
     if (cycleDay <= periodLen) { phase = 'menstrual'; phaseName = 'Menstrual'; }
     else if (cycleDay < ovulationDay - 1) { phase = 'follicular'; phaseName = 'Follicular'; }
@@ -460,10 +462,7 @@ export function createDataCore(ports: DataCorePorts) {
     const sortedDates = [...regularDates].sort();
     data.dates = sortedDates;
     data.entryContextByDate = entryContextByDate;
-    data.dateLabels = sortedDates.map(d => {
-      const dt = new Date(d + 'T00:00:00');
-      return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    });
+    data.dateLabels = sortedDates.map(_formatShortMonthYear);
 
     // Cycle phase gating — shared by phase labels (charts) and phase-specific ref ranges
     const isFemale = ports.state.profileSex === 'female';
@@ -504,9 +503,7 @@ export function createDataCore(ports: DataCorePorts) {
           if (singleDate) break;
         }
         cat.singleDate = singleDate;
-        const singleDateLabel = singleDate
-          ? new Date(singleDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-          : null;
+        const singleDateLabel = singleDate ? _formatShortMonthYear(singleDate) : null;
         cat.singleDateLabel = singleDateLabel;
         for (const [markerKey, marker] of Object.entries(cat.markers)) {
           marker.singlePoint = true;

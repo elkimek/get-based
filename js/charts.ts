@@ -3,7 +3,7 @@ import type { ProfileNote } from '../types/app-state.js';
 import type { SupplementRecord } from '../types/supplement-data.js';
 import type { ChartConstructor, ChartInstance, ChartScale } from './charts-runtime.js';
 
-type DrawingScale = Pick<ChartScale, 'getPixelForValue'> & { type?: string };
+type DrawingScale = Pick<ChartScale, 'getPixelForValue'> & { type?: string; min?: number; max?: number };
 interface NoteDot { x: number; y: number; radius: number; note: ProfileNote }
 interface SupplementBar {
   x: number; y: number; w: number; h: number; supplement: SupplementRecord; ongoing: boolean;
@@ -239,6 +239,11 @@ export const personalBaselinePlugin = {
   },
 };
 
+const _chartMonthYearFmt = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' });
+const _chartFullDateFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const _noteDotsCache = new WeakMap<DrawingChart, { key: string; notes: unknown; chartDates: unknown; dots: NoteDot[] }>();
+const _suppBarsCache = new WeakMap<DrawingChart, { key: string; supplements: unknown; chartDates: unknown; rects: SupplementBar[] }>();
+
 export const noteAnnotationPlugin = {
   id: "noteAnnotations",
   _getNoteDots(chart: DrawingChart) {
@@ -246,10 +251,15 @@ export const noteAnnotationPlugin = {
     if (!opts || !opts.notes || !opts.notes.length || !chart.chartArea) return [];
     const { chartArea: { left, right, top }, scales: { x } } = chart;
     if (!x) return [];
-    const isTime = x.type === 'time';
     const chartDates = opts.chartDates || [];
-    const dots: NoteDot[] = [];
     const DOT_RADIUS = getChartViewportWidthRuntime() <= 768 ? 8 : 5;
+    const cacheKey = `${left}|${right}|${top}|${x.type}|${x.min}|${x.max}|${opts.notes.length}|${chartDates.length}|${DOT_RADIUS}`;
+    const cached = _noteDotsCache.get(chart);
+    if (cached && cached.key === cacheKey && cached.notes === opts.notes && cached.chartDates === chartDates) {
+      return cached.dots;
+    }
+    const isTime = x.type === 'time';
+    const dots: NoteDot[] = [];
     const DOT_Y = top + DOT_RADIUS + 2;
     for (const note of opts.notes) {
       let pixelX: number | undefined;
@@ -257,7 +267,7 @@ export const noteAnnotationPlugin = {
         pixelX = x.getPixelForValue(new Date(note.date + 'T00:00:00').getTime());
       } else {
         // Category scale: match label or interpolate between chartDates
-        const noteDateLabel = new Date(note.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const noteDateLabel = _chartMonthYearFmt.format(new Date(note.date + 'T00:00:00'));
         const idx = (chart.data.labels || []).indexOf(noteDateLabel);
         if (idx !== -1) { pixelX = x.getPixelForValue(idx); }
         else if (chartDates.length >= 2 && note.date >= chartDates[0]! && note.date <= chartDates[chartDates.length - 1]!) {
@@ -273,6 +283,7 @@ export const noteAnnotationPlugin = {
       if (pixelX == null || isNaN(pixelX) || pixelX < left || pixelX > right) continue;
       dots.push({ x: pixelX, y: DOT_Y, radius: DOT_RADIUS, note });
     }
+    _noteDotsCache.set(chart, { key: cacheKey, notes: opts.notes, chartDates, dots });
     return dots;
   },
   afterDatasetsDraw(chart: DrawingChart) {
@@ -291,7 +302,7 @@ export const noteAnnotationPlugin = {
     // Draw tooltip for hovered dot
     if (chart._hoveredNoteDot) {
       const dot = chart._hoveredNoteDot;
-      const dateStr = new Date(dot.note.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const dateStr = _chartFullDateFmt.format(new Date(dot.note.date + 'T00:00:00'));
       const text = dot.note.text.length > 60 ? dot.note.text.slice(0, 60) + '...' : dot.note.text;
       ctx.font = "12px Inter, sans-serif";
       const dateWidth = ctx.measureText(dateStr).width;
@@ -393,8 +404,15 @@ export const supplementBarPlugin = {
     const cfg = chart.options.plugins.supplementBars;
     if (!cfg || !cfg.supplements || !cfg.supplements.length) return [];
     const { left, right, top } = chart.chartArea;
-    const BAR_H = 12, GAP = 2, TOP_PAD = 4;
+    const x = chart.scales.x;
     const today = localDateKey();
+    const chartDates = (cfg as SupplementBarOptions).chartDates || [];
+    const cacheKey = `${left}|${right}|${top}|${x.type}|${x.min}|${x.max}|${cfg.supplements.length}|${chartDates.length}|${today}`;
+    const cached = _suppBarsCache.get(chart);
+    if (cached && cached.key === cacheKey && cached.supplements === cfg.supplements && cached.chartDates === chartDates) {
+      return cached.rects;
+    }
+    const BAR_H = 12, GAP = 2, TOP_PAD = 4;
     const rects: SupplementBar[] = [];
     cfg.supplements.forEach((s, i) => {
       const pds = (s.periods && s.periods.length > 0) ? s.periods : [{ start: s.startDate, end: s.endDate }];
@@ -413,6 +431,7 @@ export const supplementBarPlugin = {
         });
       }
     });
+    _suppBarsCache.set(chart, { key: cacheKey, supplements: cfg.supplements, chartDates, rects });
     return rects;
   },
   afterDatasetsDraw(chart: DrawingChart) {
@@ -449,7 +468,7 @@ export const supplementBarPlugin = {
     if (chart._hoveredSuppBar) {
       const r = chart._hoveredSuppBar;
       const s = r.supplement;
-      const fmtDate = (d: string | undefined) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const fmtDate = (d: string | undefined) => _chartFullDateFmt.format(new Date(d + 'T00:00:00'));
       const line1 = `${s.name}${s.dosage ? ' — ' + s.dosage : ''}`;
       const line2 = `${fmtDate(r.periodStart)} \u2192 ${r.periodEnd ? fmtDate(r.periodEnd) : 'ongoing'}`;
       const line3 = s.note ? (s.note.length > 60 ? s.note.slice(0, 57) + '...' : s.note) : null;
@@ -707,10 +726,17 @@ export function createLineChart(id: string, marker: ActiveMarker, dateLabels: st
 
 export {refreshChartThemeColors} from './chart-theme-refresh.js';
 
+let _markerDescCacheRaw: string | null = null;
+let _markerDescCache: Record<string, unknown> = {};
+
 export function getMarkerDescription(markerId: string): unknown {
   const marker = state.markerRegistry[markerId];
   if (marker && marker.desc) return marker.desc;
   // Fallback to localStorage cache for custom markers
-  const cache: Record<string, unknown> = JSON.parse(localStorage.getItem('labcharts-marker-desc') || '{}');
-  return cache[markerId] || null;
+  const raw = localStorage.getItem('labcharts-marker-desc') || '{}';
+  if (raw !== _markerDescCacheRaw) {
+    _markerDescCacheRaw = raw;
+    _markerDescCache = JSON.parse(raw) as Record<string, unknown>;
+  }
+  return _markerDescCache[markerId] || null;
 }
