@@ -134,7 +134,7 @@ export const UNIT_CONVERSIONS: Record<string, PrimaryUnitConversion> = {
   'thyroid.ft4': { factor: 0.07769, usUnit: 'ng/dl', type: 'multiply' },
   'thyroid.ft3': { factor: 0.6513, usUnit: 'pg/ml', type: 'multiply' },
   'thyroid.t4total': { factor: 0.07769, usUnit: '\u00b5g/dl', type: 'multiply' },
-  'thyroid.t3total': { factor: 0.6513, usUnit: 'ng/dl', type: 'multiply' },
+  'thyroid.t3total': { factor: 65.13, usUnit: 'ng/dl', type: 'multiply' },
   'thyroid.thyroglobulin': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'diabetes.hba1c': { type: 'hba1c' },
   'calculatedRatios.tgHdlRatio': { factor: 2.29, usUnit: '', type: 'multiply' },
