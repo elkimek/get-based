@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { stripTypeScriptTypes } from 'node:module';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 import { isSvelteCompatibilityChunk } from './svelte-compatibility-outputs.mjs';
@@ -230,35 +232,44 @@ function collectSyntaxFiles() {
   ])].sort();
 }
 
-function syntaxCheck(files: string[]) {
-  const errors = [];
-  for (const file of files) {
-    try {
-      if (file.endsWith('.svelte')) {
-        const result = compile(fs.readFileSync(file, 'utf8'), { filename: file, generate: 'client', css: 'external' });
-        if (result.warnings.length) throw new Error(result.warnings.map(warning => warning.message).join('\n'));
-        execFileSync(process.execPath, ['--input-type=module', '--check'], {
-          cwd: ROOT, encoding: 'utf8', input: result.js.code,
-          stdio: ['pipe', 'pipe', 'pipe'],
-        });
-      } else if (/\.[cm]?ts$/.test(file)) {
-        execFileSync(process.execPath, ['--input-type=module', '--check'], {
-          cwd: ROOT, encoding: 'utf8',
-          input: stripTypeScriptTypes(fs.readFileSync(file, 'utf8')),
-          stdio: ['pipe', 'pipe', 'pipe'],
-        });
-      } else {
-        execFileSync(process.execPath, ['--check', file], {
-          cwd: ROOT,
-          encoding: 'utf8',
-          stdio: ['ignore', 'pipe', 'pipe'],
-        });
+const execFileAsync = promisify(execFile);
+
+function nodeCheck(args: string[], input?: string) {
+  const child = execFileAsync(process.execPath, args, { cwd: ROOT, encoding: 'utf8' });
+  if (input === undefined) child.child.stdin?.end();
+  else child.child.stdin?.end(input);
+  return child;
+}
+
+async function syntaxCheckFile(file: string) {
+  if (file.endsWith('.svelte')) {
+    const result = compile(fs.readFileSync(file, 'utf8'), { filename: file, generate: 'client', css: 'external' });
+    if (result.warnings.length) throw new Error(result.warnings.map(warning => warning.message).join('\n'));
+    await nodeCheck(['--input-type=module', '--check'], result.js.code);
+  } else if (/\.[cm]?ts$/.test(file)) {
+    await nodeCheck(['--input-type=module', '--check'], stripTypeScriptTypes(fs.readFileSync(file, 'utf8')));
+  } else {
+    await nodeCheck(['--check', file]);
+  }
+}
+
+async function syntaxCheck(files: string[]) {
+  const results: Array<string | null> = new Array(files.length).fill(null);
+  let next = 0;
+  async function worker() {
+    while (next < files.length) {
+      const index = next++;
+      const file = files[index]!;
+      try {
+        await syntaxCheckFile(file);
+      } catch (err) {
+        const output = `${(err as ProcessOutputError).stdout || ''}${(err as ProcessOutputError).stderr || ''}`.trim();
+        results[index] = `${repoRel(file)}${output ? `\n${output}` : ''}`;
       }
-    } catch (err) {
-      const output = `${(err as ProcessOutputError).stdout || ''}${(err as ProcessOutputError).stderr || ''}`.trim();
-      errors.push(`${repoRel(file)}${output ? `\n${output}` : ''}`);
     }
   }
+  await Promise.all(Array.from({ length: Math.min(availableParallelism(), files.length) }, worker));
+  const errors = results.filter((error): error is string => error !== null);
   if (errors.length) fail('all JS/TS/Svelte sources compile and parse with node --check', errors.slice(0, 5).join('\n\n'));
   else pass(`all JS/TS/Svelte sources compile and parse with node --check (${files.length} files)`);
 }
@@ -268,7 +279,7 @@ function compareBudget(name: string, actual: number, baseline: number) {
   else fail(`${name} stays within baseline`, `${actual} > ${baseline}`);
 }
 
-function main() {
+async function main() {
   console.log('=== Quality Guardrails ===\n');
   const baseline = readBaseline();
   const metrics = collectAppMetrics();
@@ -331,10 +342,10 @@ function main() {
       `${metrics.largestFile.file} has ${metrics.largestFile.lines} lines > ${baseline.maxJsFileLines}`);
   }
 
-  syntaxCheck(collectSyntaxFiles());
+  await syntaxCheck(collectSyntaxFiles());
 
   console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
   process.exit(failed > 0 ? 1 : 0);
 }
 
-main();
+await main();
