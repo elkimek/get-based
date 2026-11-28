@@ -76,7 +76,7 @@ it('keeps returning hosted demo-only visitors locked in in-place demo mode after
       'labcharts-active-profile': 'p_sarah',
       'labcharts-sidebar-collapsed': 'true',
     },
-    [{name: 'labcharts-blobs'}, {name: 'getbased-nutrition-default'}, {name: 'labcharts-wearables-p_sarah'}, {name: 'getbased-nutrition-p_sarah'}],
+    [{name: 'labcharts-blobs'}, {name: 'labcharts-backups'}, {name: 'getbased-nutrition-default'}, {name: 'labcharts-wearables-default'}, {name: 'labcharts-wearables-p_sarah'}, {name: 'getbased-nutrition-p_sarah'}],
   );
   await (await import('../js/main.js')).initialization;
   expect(replace).not.toHaveBeenCalled();
