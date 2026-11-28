@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'rolldown';
 import type { BuildOptions, RolldownOutput } from 'rolldown';
 
-type EvoluBundleTarget = {entry: string; output: string; treeshake?: boolean};
+type EvoluBundleTarget = {entry: string; output: string; treeshake?: BuildOptions['treeshake']};
 type LockedPackageReader = {version?: unknown; integrity?: unknown};
 type LockReader = {packages?: Record<string, LockedPackageReader>};
 type BundlerOptionsReader = Omit<BuildOptions, 'treeshake'> & {treeshake: BuildOptions['treeshake']};
@@ -19,6 +19,17 @@ const CHECK_ONLY = process.argv.includes('--check');
 const OUTPUT_DIR = 'vendor/evolu8/v8.24.1-web3.6.5';
 const MANIFEST = `${OUTPUT_DIR}/manifest.json`;
 
+// @evolu/web declares "sideEffects": false, so keep worker entrypoints side-effectful
+// while still allowing dead-code elimination across unused @evolu/common & @evolu/web modules.
+const WORKER_TREESHAKE: BuildOptions['treeshake'] = {
+  moduleSideEffects(id: string) {
+    const normalized = id.replaceAll('\\', '/');
+    return normalized.endsWith('/Db.worker.js')
+      || normalized.endsWith('/Shared.worker.js')
+      || normalized.includes('/scripts/vendor-entries/');
+  },
+};
+
 const BUNDLES: EvoluBundleTarget[] = [
   {
     entry: 'scripts/vendor-entries/evolu8.js',
@@ -27,12 +38,12 @@ const BUNDLES: EvoluBundleTarget[] = [
   {
     entry: 'scripts/vendor-entries/evolu8-db-worker.js',
     output: `${OUTPUT_DIR}/Db.worker.js`,
-    treeshake: false,
+    treeshake: WORKER_TREESHAKE,
   },
   {
     entry: 'scripts/vendor-entries/evolu8-shared-worker.js',
     output: `${OUTPUT_DIR}/Shared.worker.js`,
-    treeshake: false,
+    treeshake: WORKER_TREESHAKE,
   },
 ];
 
@@ -75,8 +86,7 @@ if (packages['@evolu/common']!.version !== '8.24.1') throw new Error('@evolu/com
 if (packages['@evolu/web']!.version !== '3.6.5') throw new Error('@evolu/web must be locked to 3.6.5');
 if (packages['@evolu/sqlite-wasm']!.version !== '3.54.1-build3') throw new Error('@evolu/sqlite-wasm must be locked to 3.54.1-build3');
 
-const generatedBundles: Array<EvoluBundleTarget & {bytes: string; sha256: string}> = [];
-for (const target of BUNDLES) {
+const generatedBundles: Array<EvoluBundleTarget & {bytes: string; sha256: string}> = await Promise.all(BUNDLES.map(async target => {
   const result = await (build as (options: BundlerOptionsReader) => Promise<RolldownOutput>)({
     input: path.join(ROOT, target.entry),
     platform: 'browser',
@@ -103,8 +113,8 @@ for (const target of BUNDLES) {
   const banner = '// @ts-nocheck\n// Generated from locked Evolu 8 packages; run npm run vendor:evolu8:check.\n';
   const cleanCode = chunks[0]!.code.replace(/[ \t]+$/gm, '');
   const bytes = banner + (cleanCode.endsWith('\n') ? cleanCode : `${cleanCode}\n`);
-  generatedBundles.push({ ...target, bytes, sha256: sha256(bytes) });
-}
+  return { ...target, bytes, sha256: sha256(bytes) };
+}));
 
 const generatedCopies = await Promise.all(COPIES.map(async target => {
   const bytes = await fs.readFile(path.join(ROOT, target.source));

@@ -100,7 +100,9 @@ function qualify(chunks: OutputChunk[], raw: Record<string, string>): Pair[] {
       || [...canonical.imports, ...canonical.dynamicImports].some(file => file === canonical.fileName || file === retry.fileName)) continue;
     const before = raw[identity(canonical)], retryBefore = raw[identity(retry)];
     assert(typeof before === 'string' && typeof retryBefore === 'string', 'Missing Kit prehash source');
-    if (syntax(canonical.code).hasImportMeta || syntax(before).hasImportMeta || syntax(retryBefore).hasImportMeta) continue;
+    if (syntax(canonical.code, {allowVitePreloadImportMeta: true}).hasImportMeta
+      || syntax(before, {allowVitePreloadImportMeta: true}).hasImportMeta
+      || syntax(retryBefore, {allowVitePreloadImportMeta: true}).hasImportMeta) continue;
     result.push({canonicalId, retryId});
   }
   return result.sort((a, b) => a.canonicalId.localeCompare(b.canonicalId));
@@ -184,7 +186,7 @@ export function createKitRetryChunksPlugin({pass, planFile, summaryFile}: {
           && path.posix.dirname(canonical.fileName) === path.posix.dirname(retry.fileName)
           && ![...canonical.imports, ...canonical.dynamicImports].some(file => file === canonical.fileName || file === retry.fileName),
           'Final Kit retry body, mappings or resources differ');
-        assert(!syntax(canonical.code).hasImportMeta, 'Final Kit retry gained import.meta');
+        assert(!syntax(canonical.code, {allowVitePreloadImportMeta: true}).hasImportMeta, 'Final Kit retry gained import.meta');
         const url = '/' + canonical.fileName;
         assert(/^\/_app\/immutable\/chunks\/[A-Za-z0-9_-]{8,}\.js$/.test(url), 'Closed Kit retry namespace required');
         aliases[url] = digest(canonical.code); removed.set(retry.fileName, canonical.fileName);

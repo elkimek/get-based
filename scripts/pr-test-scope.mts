@@ -78,47 +78,102 @@ const SHIPPING_PERFORMANCE_ROOTS = new Set([
   '.github/workflows/test.yml',
 ]);
 
+function createReferenceCollector(file: string, knownFiles: Set<string>) {
+  const refs = new Set<string>();
+  const dir = path.posix.dirname(file);
+  const add = (raw: string) => {
+    if (!raw || raw.length > 260 || raw.includes('\n') || (!raw.includes('.') && !raw.includes('/'))) return;
+    const queryIdx = raw.search(/[?#]/);
+    const clean = queryIdx >= 0 ? raw.slice(0, queryIdx) : raw;
+    if (!clean) return;
+    const direct = clean.startsWith('/') ? clean.slice(1) : clean;
+    const joined = path.posix.normalize(path.posix.join(dir, clean));
+    for (const base of direct === joined ? [direct] : [direct, joined]) {
+      const mapped = /\.svelte\.(?:native|html)\.js$/.test(base)
+        ? base.replace(/\.(?:native|html)\.js$/, '')
+        : base.replace(/\.mjs$/, '.mts').replace(/\.cjs$/, '.cts').replace(/\.js$/, '.ts');
+      if (mapped !== file && knownFiles.has(mapped)) refs.add(mapped);
+      if (base !== mapped && base !== file && knownFiles.has(base)) refs.add(base);
+    }
+  };
+  return { refs, add };
+}
+
+function addHtmlReferences(source: string, add: (raw: string) => void) {
+  if (!source.includes('src=') && !source.includes('href=')) return;
+  for (const match of source.matchAll(/(?:src|href)=["']([^"']+)["']/g)) add(match[1]!);
+}
+
+function jsonFileReferences(file: string, source: string, knownFiles: Set<string>): Set<string> | null {
+  let parsed: unknown;
+  try { parsed = JSON.parse(source); } catch { return null; }
+  const { refs, add } = createReferenceCollector(file, knownFiles);
+  const stack: unknown[] = [parsed];
+  while (stack.length) {
+    const current = stack.pop();
+    if (typeof current === 'string') {
+      add(current);
+    } else if (Array.isArray(current)) {
+      for (let i = 0; i < current.length; i++) stack.push(current[i]);
+    } else if (current && typeof current === 'object') {
+      for (const [key, value] of Object.entries(current as Record<string, unknown>)) {
+        add(key);
+        stack.push(value);
+      }
+    }
+  }
+  addHtmlReferences(source, add);
+  return refs;
+}
+
 export function fileReferences(file: string, source: string, knownFiles: Set<string>): Set<string> {
+  if (file.endsWith('.json')) {
+    const refs = jsonFileReferences(file, source, knownFiles);
+    if (refs) return refs;
+  }
   // Non-code text used the JavaScript grammar in the original source reader.
   const syntaxName = file.endsWith('.svelte') ? syntaxFile(file) : /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
   return withParsedSource(scriptSource(file, source), syntaxName, parsed => referencesFromFile(file, source, knownFiles, parsed));
 }
 
 function referencesFromFile(file: string, source: string, knownFiles: Set<string>, parsed: ts.SourceFile): Set<string> {
-  const refs = new Set<string>();
-  const add = (raw: string) => {
-    const clean = raw.split(/[?#]/, 1)[0]!;
-    const candidates = [
-      clean.replace(/^\//, ''),
-      path.posix.normalize(path.posix.join(path.posix.dirname(file), clean)),
-    ];
-    for (const candidate of candidates.flatMap(candidate => [/\.svelte\.(?:native|html)\.js$/.test(candidate) ? candidate.replace(/\.(?:native|html)\.js$/, '') : candidate.replace(/\.mjs$/, '.mts').replace(/\.cjs$/, '.cts').replace(/\.js$/, '.ts'), candidate])) {
-      if (candidate !== file && knownFiles.has(candidate)) refs.add(candidate);
-    }
-  };
+  const { refs, add } = createReferenceCollector(file, knownFiles);
   const visit = (node: ts.Node): void => {
     if (ts.isStringLiteralLikeNode(node)) add(node.text);
     node.forEachChild(visit);
   };
   visit(parsed);
   // Also handle HTML script/link attributes and paths embedded in HTML strings.
-  for (const match of source.matchAll(/(?:src|href)=["']([^"']+)["']/g)) add(match[1]!);
+  addHtmlReferences(source, add);
   return refs;
 }
 
 function referencesForSources(sources: Map<string, string>, knownFiles: Set<string>) {
-  const eligible = [...sources].filter(([file]) => SOURCE.test(file));
+  const result = new Map<string, Set<string>>();
+  const eligible: Array<[string, string]> = [];
+  for (const [file, source] of sources) {
+    if (!SOURCE.test(file)) continue;
+    if (file.endsWith('.json')) {
+      const refs = jsonFileReferences(file, source, knownFiles);
+      if (refs) { result.set(file, refs); continue; }
+    }
+    eligible.push([file, source]);
+  }
   const syntaxSources = new Map(eligible.map(([file, source]) => [
     file.endsWith('.svelte') ? syntaxFile(file) : /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`, scriptSource(file, source),
   ]));
   // Preserve independent source reads when a non-code syntax alias collides.
   if (!eligible.length || syntaxSources.size !== eligible.length) {
-    return new Map(eligible.map(([file, source]) => [file, fileReferences(file, source, knownFiles)]));
+    for (const [file, source] of eligible) result.set(file, fileReferences(file, source, knownFiles));
+    return result;
   }
-  return withParsedSources(syntaxSources, parsed => new Map(eligible.map(([file, source]) => {
-    const syntaxName = file.endsWith('.svelte') ? syntaxFile(file) : /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
-    return [file, referencesFromFile(file, source, knownFiles, parsed.get(syntaxName)!)];
-  })));
+  withParsedSources(syntaxSources, parsed => {
+    for (const [file, source] of eligible) {
+      const syntaxName = file.endsWith('.svelte') ? syntaxFile(file) : /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
+      result.set(file, referencesFromFile(file, source, knownFiles, parsed.get(syntaxName)!));
+    }
+  });
+  return result;
 }
 
 /** Qualify only additive module URLs. Removals, mutations, unknown files and

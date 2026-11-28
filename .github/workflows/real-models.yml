@@ -46,6 +46,13 @@ jobs:
         run: |
           case "$SELECTED_MODEL" in knowledge|voice) ;; *) echo 'Unknown model scenario'; exit 1 ;; esac
       - run: npm ci
+      - name: Resolve Playwright version for browser cache
+        id: pw_version
+        run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-chromium-${{ steps.pw_version.outputs.version }}
       - run: npx playwright install --with-deps chromium
       - name: Knowledge indexing and persisted reload
         if: inputs.model == 'knowledge'

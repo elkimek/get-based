@@ -29,7 +29,7 @@ export function staticKitConfig({ root, temporary, version }: StaticKitOptions, 
       embedded: true,
       // These generated artifacts are already compiled, not authored rune modules.
       experimental: { compileModule: { exclude: [/\.svelte\.(?:native|html)\.js$/, compiledSvelteModulePattern(root)] } },
-      adapter: adapter({ pages: path.join(temporary, 'site'), assets: path.join(temporary, 'site') }),
+      adapter: retryPass === 'inventory' ? { name: 'getbased-inventory-noop', adapt() {} } : adapter({ pages: path.join(temporary, 'site'), assets: path.join(temporary, 'site') }),
       files: {
         src: path.join(root, 'js/kit'), routes: path.join(root, 'js/kit/routes'),
         assets: path.join(temporary, 'static'), appTemplate: path.join(temporary, 'app.html'),
@@ -38,7 +38,9 @@ export function staticKitConfig({ root, temporary, version }: StaticKitOptions, 
       outDir: path.join(temporary, '.svelte-kit'),
       moduleExtensions: ['.ts'],
       paths: { relative: false }, serviceWorker: { register: false },
-      prerender: { crawl: false, entries: ['/app'] },
+      prerender: retryPass === 'inventory'
+        ? { crawl: false, entries: [], handleUnseenRoutes: 'ignore' }
+        : { crawl: false, entries: ['/app'] },
       version: { name: version, pollInterval: 0 },
     }), ...(retry ? [retry.finalizePlugin] : [])],
   });

@@ -32,6 +32,7 @@ async function fixture() {
   await write('dist/service-worker.js', `const BUILD_ID = '${buildId}';\n` + shell);
   for (const file of ['data/recommendations.json', 'css/source.css', 'js/raw.js']) await write('dist/' + file, await fs.readFile(path.join(root, file), 'utf8'));
   await write('dist/data/recommendations.json', '{"slots":{},"products":{}}');
+  await write('dist/css/source.css', '.synthetic{color:red;}');
   const source = await createStaticBuildFingerprint(root, revision, '', []);
   await write('dist/build-metrics.json', JSON.stringify({framework: 'SvelteKit 3 / Svelte 5', static: true, revision, buildId, verificationDigest: source.verificationDigest, sourceInputCount: source.sourceFiles.length}));
   return {root, options, write, revision, buildId};
@@ -68,6 +69,16 @@ describe('exact CI artifact transport', () => {
     manifest.files = await inventoryCIArtifact(path.join(sample.root, 'dist'));
     await sample.write(sample.options.transport + '/manifest.json', JSON.stringify(manifest));
     await expect(verifyCIArtifact(sample.options)).rejects.toThrow('Artifact catalog encoding remains exact');
+  });
+
+  it('seals lossless static CSS encoding and rejects altered CSS even after resealing the tree inventory', async () => {
+    const sample = await fixture();
+    const manifest = await sealCIArtifact(sample.options);
+    expect(await verifyCIArtifact(sample.options)).toEqual(manifest);
+    await sample.write('dist/css/source.css', '.synthetic{color:blue;}');
+    manifest.files = await inventoryCIArtifact(path.join(sample.root, 'dist'));
+    await sample.write(sample.options.transport + '/manifest.json', JSON.stringify(manifest));
+    await expect(verifyCIArtifact(sample.options)).rejects.toThrow('Exact current static CSS encoding: /css/source.css');
   });
 
   it.each(['input', 'output'])('seals the complete pinned legacy encoding and rejects a changed %s even after resealing the tree inventory', async mutation => {

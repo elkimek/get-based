@@ -56,8 +56,30 @@ function stringValue(node: AstNode): string | null {
     || !('cooked' in quasi.value) || typeof quasi.value.cooked !== 'string') return null;
   return quasi.value.cooked;
 }
-function syntax(code: string): Syntax {
+function isImportMetaUrl(node: unknown): boolean {
+  if (!isNode(node) || node.type !== 'MemberExpression' || node.computed) return false;
+  const object = node.object, property = node.property;
+  return isNode(object) && object.type === 'MetaProperty'
+    && isNode(object.meta) && object.meta.type === 'Identifier' && object.meta.name === 'import'
+    && isNode(object.property) && object.property.type === 'Identifier' && object.property.name === 'meta'
+    && isNode(property) && property.type === 'Identifier' && property.name === 'url';
+}
+function isVitePreloadImportMeta(call: AstNode): AstNode | null {
+  if (call.type !== 'CallExpression' || !isNode(call.callee) || call.callee.type !== 'Identifier') return null;
+  if (!Array.isArray(call.arguments) || call.arguments.length !== 3) return null;
+  const [loader, deps, baseUrl] = call.arguments as unknown[];
+  if (!isNode(loader) || loader.type !== 'ArrowFunctionExpression') return null;
+  const validDeps = isNode(deps) && (
+    (deps.type === 'ArrayExpression' && Array.isArray(deps.elements) && deps.elements.length === 0)
+    || (deps.type === 'Identifier' && deps.name === '__VITE_PRELOAD__')
+    || (deps.type === 'CallExpression' && isNode(deps.callee) && deps.callee.type === 'Identifier' && deps.callee.name === '__vite__mapDeps')
+  );
+  if (!validDeps || !isImportMetaUrl(baseUrl)) return null;
+  return (baseUrl as AstNode).object as AstNode;
+}
+function syntax(code: string, {allowVitePreloadImportMeta = false}: {allowVitePreloadImportMeta?: boolean} = {}): Syntax {
   const result: Syntax = {references: [], hasImportMeta: false};
+  const exemptedMeta = new Set<AstNode>();
   const add = (source: unknown, kind: ImportReference['kind']) => {
     if (!isNode(source)) return;
     const value = stringValue(source);
@@ -65,7 +87,11 @@ function syntax(code: string): Syntax {
   };
   const walk = (node: unknown): void => {
     if (!isNode(node)) return;
-    if (node.type === 'MetaProperty') result.hasImportMeta = true;
+    if (allowVitePreloadImportMeta && node.type === 'CallExpression') {
+      const meta = isVitePreloadImportMeta(node);
+      if (meta) exemptedMeta.add(meta);
+    }
+    if (node.type === 'MetaProperty' && !exemptedMeta.has(node)) result.hasImportMeta = true;
     if (['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration'].includes(node.type)) {
       add(node.source, 'static');
     }

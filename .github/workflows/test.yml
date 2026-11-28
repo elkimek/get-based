@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || inputs.full_suite == true) && 1 || 0 }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -103,8 +103,10 @@ jobs:
       - name: Verify exact assembled shipping contracts
         run: node node_modules/vitest/vitest.mjs run tests/production-build.test.ts
       - name: Package the exact qualified self-host artifact
+        if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: node scripts/build-self-host-package.mjs --artifact dist --output artifacts/self-host
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         with:
           name: self-host-package
           path: artifacts/self-host
@@ -120,6 +122,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: shipping-inputs
+          compression-level: 1
           path: |
             dist
             .local-notes/ci/transport
@@ -165,6 +168,15 @@ jobs:
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
+      - name: Resolve Playwright version for browser cache
+        id: pw_version
+        if: needs.prepare.outputs.full != 'true' && needs.prepare.outputs.performance == 'true' && needs.prepare.outputs.kit != 'true'
+        run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        if: needs.prepare.outputs.full != 'true' && needs.prepare.outputs.performance == 'true' && needs.prepare.outputs.kit != 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-chromium-${{ steps.pw_version.outputs.version }}
       - name: Install Chromium for resource budgets without shipping cases
         if: needs.prepare.outputs.full != 'true' && needs.prepare.outputs.performance == 'true' && needs.prepare.outputs.kit != 'true'
         run: npx --no-install playwright install --with-deps chromium
@@ -231,10 +243,13 @@ jobs:
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
+      - name: Resolve Playwright version for browser cache
+        id: pw_version
+        run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-browsers-${{ runner.os }}-${{ matrix.engine }}-${{ steps.pw_version.outputs.version }}
       - name: Install selected headless engines
         env:
           ENGINE: ${{ matrix.engine }}
@@ -310,12 +325,15 @@ jobs:
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
+      - name: Resolve Playwright version for browser cache
+        id: pw_version
+        run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cache/ms-playwright
             ~/Library/Caches/ms-playwright
-          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-browsers-${{ runner.os }}-${{ matrix.engine }}-${{ steps.pw_version.outputs.version }}
       - name: Install selected headless engines
         env:
           ENGINE: ${{ matrix.engine }}
@@ -462,6 +480,13 @@ jobs:
         run: npm ci
       - name: Verify exact shipping bytes and current authored sources
         run: node scripts/ci-artifact.mjs verify --artifact dist --transport .local-notes/ci/transport --github-env
+      - name: Resolve Playwright version for browser cache
+        id: pw_version
+        run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-chromium-${{ steps.pw_version.outputs.version }}
       - run: npx --no-install playwright install --with-deps chromium
       - name: Enforce unchanged startup, first-use and offline budgets in isolation
         run: node scripts/sveltekit-performance-budget.mjs --artifact "$GETBASED_KIT_ARTIFACT" --output .local-notes/ci/performance

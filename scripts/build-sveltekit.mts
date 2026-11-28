@@ -16,7 +16,8 @@ import {planPrecacheFontAssets} from './font-assets.mjs';
 import {qualifyBrowserVendorAssets} from './browser-vendor-contracts.mjs';
 import {applySqliteAssetPrecache} from './sqlite-assets.mjs';
 import {measureSvelteKitResources,enforceSvelteKitResourceBudget} from './sveltekit-resource-budget.mjs';
-import {compactStaticRawModules} from './static-raw-encoding.mjs';
+import {compactStaticRawModules, compactStaticVendorScripts} from './static-raw-encoding.mjs';
+import {compactStaticCss} from './static-css-encoding.mjs';
 import {compactLegacyEvoluAssets} from './legacy-evolu-compaction.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -90,7 +91,9 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
       if (relative !== 'getbased-companion.mjs') await fs.copyFile(path.join(ROOT, relative), destination);
     }
     const rawModuleEncoding = await compactStaticRawModules(staticRoot, rawAssets);
+    const staticVendorEncoding = await compactStaticVendorScripts(staticRoot, rawUrls);
     const staticJson = await compactStaticJson(staticRoot, rawUrls);
+    const staticCss = await compactStaticCss(staticRoot, rawUrls);
     const legacyEvoluEncoding = await compactLegacyEvoluAssets(staticRoot);
     await vendors.assertCopiedAssets(staticRoot);
     // Keep all authored/build inputs and public assets in atomic cache identity.
@@ -149,7 +152,7 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     const summary = { revision, buildId, sourceInputCount: sourceFiles.length, verificationDigest, framework: 'SvelteKit 3 / Svelte 5', static: true, javascriptFiles: jsFiles.length,
       javascriptDecodedBytes: bytes, appShellResources: shell.resources, appShellDecodedBytes: shell.decodedBytes,
       resourceBudget,
-      retryChunks, staticJson, legacyEvoluEncoding, rawModuleEncoding,
+      retryChunks, staticJson, staticCss, legacyEvoluEncoding, rawModuleEncoding, staticVendorEncoding,
       legacyAppShellLimits: previousLimits.maximums,
       legacyLimitDelta: { resources: shell.resources - previousLimits.maximums.resources,
         decodedBytes: shell.decodedBytes - previousLimits.maximums.decodedBytes },

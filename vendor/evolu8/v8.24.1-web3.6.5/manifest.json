@@ -27,12 +27,12 @@
     {
       "entry": "scripts/vendor-entries/evolu8-db-worker.js",
       "output": "vendor/evolu8/v8.24.1-web3.6.5/Db.worker.js",
-      "sha256": "bfd99de94cbce3dc8a818fffc2ab75026a570483b8ae63cd190f085a12e6db8d"
+      "sha256": "6e5a4f094175b095258dfc50fabe8097f548f360f7ad3674d8b769b974a45be8"
     },
     {
       "entry": "scripts/vendor-entries/evolu8-shared-worker.js",
       "output": "vendor/evolu8/v8.24.1-web3.6.5/Shared.worker.js",
-      "sha256": "5e665907a95073ff06fe6db5ef59cf33e664d2fe85f1834f0cae25312f997ab8"
+      "sha256": "673cdab81672ad02d5ed769192b33edeef60799f0b33dfbcc853ab4fd106d403"
     }
   ],
   "assets": [

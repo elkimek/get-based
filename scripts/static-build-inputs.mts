@@ -52,10 +52,14 @@ export async function createStaticBuildFingerprint(root:string,revision:string,b
   const sourceFiles=await staticBuildInputFiles(root,gitInventory);
   const fingerprint=createHash('sha256').update('getbased-static-application-v2\0').update(buildTag).update('\0');
   const verification=createHash('sha256').update(revision).update('\0').update(buildTag).update('\0');
-  for(const relative of sourceFiles){
-    const body=await fs.readFile(path.join(root,relative));
-    verification.update(relative).update('\0').update(body).update('\0');
-    fingerprint.update(relative).update('\0').update(body).update('\0');
+  for(let index=0;index<sourceFiles.length;index+=16){
+    const slice=sourceFiles.slice(index,index+16);
+    const bodies=await Promise.all(slice.map(relative=>fs.readFile(path.join(root,relative))));
+    for(let i=0;i<slice.length;i++){
+      const relative=slice[i]!,body=bodies[i]!;
+      verification.update(relative).update('\0').update(body).update('\0');
+      fingerprint.update(relative).update('\0').update(body).update('\0');
+    }
   }
   return {fingerprint,sourceFiles,verificationDigest:verification.digest('hex')};
 }

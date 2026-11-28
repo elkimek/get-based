@@ -25,7 +25,50 @@ const object = (value: unknown): value is Record<string, unknown> => value !== n
 // Compare JSON values, not that incidental order, when detecting concurrent edits.
 const canonicalJSON = (value: unknown) => JSON.stringify(value, (_key, item: unknown) => object(item)
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
-export const profileDataValuesEqual = (a: unknown, b: unknown) => canonicalJSON(a) === canonicalJSON(b);
+const isOmittedInObject = (value: unknown) => value === undefined || typeof value === 'function' || typeof value === 'symbol';
+const normalizeJsonScalar = (value: unknown, inArray: boolean): unknown => {
+  if (typeof value === 'number') return Number.isFinite(value) ? (value === 0 ? 0 : value) : null;
+  if (inArray && isOmittedInObject(value)) return null;
+  if (!inArray && isOmittedInObject(value)) return undefined;
+  return value;
+};
+const hasCustomToJSON = (value: unknown) => value !== null && typeof value === 'object'
+  && typeof (value as { toJSON?: unknown }).toJSON === 'function';
+function jsonValuesEqual(a: unknown, b: unknown, inArray = false): boolean {
+  const na = normalizeJsonScalar(a, inArray);
+  const nb = normalizeJsonScalar(b, inArray);
+  if (na === nb) return true;
+  if (na === null || nb === null || typeof na !== 'object' || typeof nb !== 'object') return false;
+  if (hasCustomToJSON(na) || hasCustomToJSON(nb)) return canonicalJSON(na) === canonicalJSON(nb);
+  const aIsArray = Array.isArray(na);
+  if (aIsArray !== Array.isArray(nb)) return false;
+  if (aIsArray) {
+    const arrA = na as unknown[], arrB = nb as unknown[];
+    if (arrA.length !== arrB.length) return false;
+    for (let i = 0; i < arrA.length; i++) {
+      if (!jsonValuesEqual(arrA[i], arrB[i], true)) return false;
+    }
+    return true;
+  }
+  const objA = na as Record<string, unknown>, objB = nb as Record<string, unknown>;
+  const keysA = Object.keys(objA);
+  let countA = 0;
+  for (let i = 0; i < keysA.length; i++) {
+    const key = keysA[i]!;
+    const va = objA[key];
+    if (isOmittedInObject(va)) continue;
+    countA++;
+    if (!Object.hasOwn(objB, key) || isOmittedInObject(objB[key])) return false;
+    if (!jsonValuesEqual(va, objB[key], false)) return false;
+  }
+  const keysB = Object.keys(objB);
+  let countB = 0;
+  for (let i = 0; i < keysB.length; i++) {
+    if (!isOmittedInObject(objB[keysB[i]!])) countB++;
+  }
+  return countA === countB;
+}
+export const profileDataValuesEqual = (a: unknown, b: unknown) => jsonValuesEqual(a, b, false);
 const equal = profileDataValuesEqual;
 export class ProfileWriteConflict extends Error {}
 

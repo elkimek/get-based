@@ -6,6 +6,7 @@ import * as ts from 'typescript/unstable/ast';
 import {withParsedSource} from '../../scripts/native-typescript-ast.js';
 import {expect, test, type Locator, type Page} from '@playwright/test';
 import {createSvelteFacadePlugin} from '../../scripts/svelte-facade-plugin.mjs';
+import {verifyStaticCss} from '../../scripts/static-css-encoding.mjs';
 import {captureOfflineLaunchDiagnostics, navigateWithOfflineLaunchDiagnostics} from '../helpers/offline-launch-diagnostics.js';
 
 // Shared read-only static artifact, bundled state and native cache/profile receipts.
@@ -110,7 +111,7 @@ export async function artifactInputs(modules: readonly string[], stylesheets: re
     mappings.push({module, sourceBytes: Buffer.byteLength(current), sourceSHA256: sha(current), chunks: [...new Set(chunks)]});
   }
   for (const css of stylesheets)
-    assert.deepEqual(await fs.readFile(path.join(directory, css)), await fs.readFile(css), 'Fresh canonical CSS in static artifact: ' + css);
+    verifyStaticCss('/' + css, await fs.readFile(css, 'utf8'), await fs.readFile(path.join(directory, css), 'utf8'));
   const sw = await fs.readFile(path.join(directory, 'service-worker.js'), 'utf8');
   const version = await fs.readFile(path.join(directory, 'version.js'), 'utf8');
   const shellMatch = sw.match(/const APP_SHELL = (\[[\s\S]*?\]);/), buildId = sw.match(/const BUILD_ID = '([^']+)';/)?.[1];

@@ -93,6 +93,12 @@ it.each([
   expect(summary.removedPhysicalFiles).toBe(0); expect(summary.canonicalBodyHashes).toEqual({});
   expect(output).toHaveLength(first.length);
 });
+it('deduplicates chunks whose only import.meta.url is Vite preload base resolution', async () => {
+  const f = await fixture('const __vitePreload=(fn)=>fn();export const next=()=>__vitePreload(()=>Promise.resolve(1),[],import.meta.url);');
+  const first = chunks(await f.run('inventory')), output = chunks(await f.run('transport'));
+  const summary = JSON.parse(await fs.readFile(f.summaryFile, 'utf8')) as KitRetrySummary;
+  expect(summary.removedPhysicalFiles).toBe(1); expect(output).toHaveLength(first.length - 1);
+});
 it('rejects changed prehash inputs before emitting a qualified transport', async () => {
   const f = await fixture(undefined, {unstable: true}); await f.run('inventory');
   await expect(f.run('transport')).rejects.toThrow('Non-deterministic Kit prehash input');

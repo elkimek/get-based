@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 // Emit JavaScript at the existing runtime URLs. TypeScript is the only authored
 // source for migrated modules; generated siblings are ignored by Git.
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { promisify } from 'node:util';
 import { API } from 'typescript/unstable/sync';
 import * as ts from 'typescript/unstable/ast';
+
+const execFileAsync = promisify(execFile);
+const INDENT_RE = /^ {4,}/m;
 
 // The build runs before emitted siblings exist. Node24 loads this actual owned
 // TypeScript source synchronously; its namespace is checked against that source.
@@ -77,6 +81,7 @@ export function compactRuntimeIndentation(source: string): string {
 }
 
 function compactParsedRuntimeIndentation(source: string, file: ts.SourceFile): string {
+  if (!INDENT_RE.test(source)) return source;
   const protectedRanges: Array<{ start: number; end: number }> = [];
   function protect(node: ts.Node): void {
     if (ts.isStringLiteralLikeNode(node) || ts.isTemplateLiteralToken(node) || ts.isRegularExpressionLiteral(node)) {
@@ -85,16 +90,19 @@ function compactParsedRuntimeIndentation(source: string, file: ts.SourceFile): s
     node.forEachChild(protect);
   }
   protect(file);
-  const scanner = ts.createScanner(false, ts.LanguageVariant.Standard, source);
-  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFile; token = scanner.scan()) {
-    // Raw template text can expose a lone hash after a substitution. The
-    // genuine scanner's explicit rescan advances this otherwise empty token.
-    if (token === ts.SyntaxKind.PrivateIdentifier && scanner.getTokenStart() === scanner.getTokenEnd()) {
-      scanner.reScanHashToken();
-    }
-    if (scanner.getTokenStart() === scanner.getTokenEnd()) throw new Error('Native runtime scanner made no progress');
-    if (token === ts.SyntaxKind.SingleLineCommentTrivia || token === ts.SyntaxKind.MultiLineCommentTrivia) {
-      protectedRanges.push({ start: scanner.getTokenStart(), end: scanner.getTokenEnd() });
+  // Single-line comments end before line terminators so only multiline comments can enclose leading spaces.
+  if (source.includes('/*')) {
+    const scanner = ts.createScanner(false, ts.LanguageVariant.Standard, source);
+    for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFile; token = scanner.scan()) {
+      // Raw template text can expose a lone hash after a substitution. The
+      // genuine scanner's explicit rescan advances this otherwise empty token.
+      if (token === ts.SyntaxKind.PrivateIdentifier && scanner.getTokenStart() === scanner.getTokenEnd()) {
+        scanner.reScanHashToken();
+      }
+      if (scanner.getTokenStart() === scanner.getTokenEnd()) throw new Error('Native runtime scanner made no progress');
+      if (token === ts.SyntaxKind.MultiLineCommentTrivia) {
+        protectedRanges.push({ start: scanner.getTokenStart(), end: scanner.getTokenEnd() });
+      }
     }
   }
   protectedRanges.sort((a, b) => a.start - b.start);
@@ -106,7 +114,21 @@ function compactParsedRuntimeIndentation(source: string, file: ts.SourceFile): s
   });
 }
 
-export function buildTypeScript(rootDir = root): void {
+const TS_BUILD_CONFIGS = [
+  'tsconfig.migration.json',
+  'tsconfig.worker-migration.json',
+  'tsconfig.fixture-migration.json',
+  'tsconfig.bootstrap-migration.json',
+] as const;
+
+const CLASSIC_NON_STRICT_OUTPUTS = [
+  'service-worker', 'service-worker-runtime', 'service-worker-assets', 'version',
+  'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap',
+  'js/analytics-bootstrap', 'js/app-extension-bootstrap', 'vendor/bip39-minimal',
+  'vendor/chartjs-adapter-native',
+] as const;
+
+function prepareTypeScriptBuild(rootDir: string) {
   const manifest = classicBrowserFixtureEntries(rootDir);
   const fixtures = manifest.filter(name => existsSync(path.join(rootDir, name)));
   const testSources = new Map(readdirSync(path.join(rootDir, 'tests'))
@@ -121,26 +143,34 @@ export function buildTypeScript(rootDir = root): void {
   // Reject accidental module payload before any compilation overwrites an existing URL.
   for (const name of fixtures) fixtureFunction(readFileSync(path.join(rootDir, name), 'utf8'), name, false);
   const outputs = new Set<string>();
+  const configFiles: string[] = [];
   const api = new API({ cwd: rootDir });
   try {
-    for (const config of ['tsconfig.migration.json', 'tsconfig.worker-migration.json', 'tsconfig.fixture-migration.json', 'tsconfig.bootstrap-migration.json']) {
+    for (const config of TS_BUILD_CONFIGS) {
       const configFile = path.join(rootDir, config);
+      configFiles.push(configFile);
       for (const source of api.parseConfigFile(configFile).fileNames) {
         if (/\.(?:ts|mts)$/.test(source) && !source.endsWith('.d.ts')) {
           outputs.add(source.replace(/\.mts$/, '.mjs').replace(/\.ts$/, '.js'));
         }
       }
-      execFileSync(process.execPath, [
-        path.join(rootDir, 'node_modules/typescript/bin/tsc'),
-        '-p', configFile,
-      ], { cwd: rootDir, stdio: 'inherit' });
     }
   } finally { api.close(); }
-  const runtimeSources = new Map([...outputs].map(output => [output, readFileSync(output, 'utf8')]));
+  return { fixtures, outputs, configFiles };
+}
+
+function finalizeTypeScriptBuild(rootDir: string, fixtures: readonly string[], outputs: ReadonlySet<string>) {
+  const runtimeSources = new Map<string, string>();
+  for (const output of outputs) {
+    const text = readFileSync(output, 'utf8');
+    if (INDENT_RE.test(text)) runtimeSources.set(output, text);
+  }
   if (runtimeSources.size) {
     const compacted = withParsedSources(runtimeSources, files => new Map([...files].map(([output, file]) =>
       [output, compactParsedRuntimeIndentation(runtimeSources.get(output)!, file)])));
-    for (const [output, source] of compacted) writeFileSync(output, source);
+    for (const [output, source] of compacted) {
+      if (source !== runtimeSources.get(output)) writeFileSync(output, source);
+    }
   }
   // Validate every compiled wrapper before replacing any wrapper with its body.
   const bodies = fixtures.map(name => {
@@ -150,14 +180,43 @@ export function buildTypeScript(rootDir = root): void {
   for (const { output, body } of bodies) writeFileSync(output, body);
   // TS7 always emits strict mode. Classic scripts retain their original execution
   // mode; this affects emission only, and every source still passes strict checks.
-  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap', 'js/analytics-bootstrap', 'js/app-extension-bootstrap', 'vendor/bip39-minimal', 'vendor/chartjs-adapter-native']) {
+  for (const name of CLASSIC_NON_STRICT_OUTPUTS) {
     const output = path.join(rootDir, name + '.js');
-    writeFileSync(output, readFileSync(output, 'utf8').replace(/^"use strict";\r?\n/, ''));
+    const text = readFileSync(output, 'utf8');
+    const stripped = text.replace(/^"use strict";\r?\n/, '');
+    if (stripped !== text) writeFileSync(output, stripped);
   }
+}
+
+export function buildTypeScript(rootDir = root): void {
+  const { fixtures, outputs, configFiles } = prepareTypeScriptBuild(rootDir);
+  const tsc = path.join(rootDir, 'node_modules/typescript/bin/tsc');
+  for (const configFile of configFiles) {
+    execFileSync(process.execPath, [tsc, '-p', configFile], { cwd: rootDir, stdio: 'inherit' });
+  }
+  finalizeTypeScriptBuild(rootDir, fixtures, outputs);
+}
+
+export async function buildTypeScriptAsync(rootDir = root): Promise<void> {
+  const { fixtures, outputs, configFiles } = prepareTypeScriptBuild(rootDir);
+  const tsc = path.join(rootDir, 'node_modules/typescript/bin/tsc');
+  await Promise.all(configFiles.map(async configFile => {
+    try {
+      const { stdout, stderr } = await execFileAsync(process.execPath, [tsc, '-p', configFile], { cwd: rootDir, maxBuffer: 16 * 1024 * 1024 });
+      if (stdout) process.stdout.write(stdout);
+      if (stderr) process.stderr.write(stderr);
+    } catch (error) {
+      const err = error as { stdout?: string; stderr?: string };
+      if (err.stdout) process.stdout.write(err.stdout);
+      if (err.stderr) process.stderr.write(err.stderr);
+      throw error;
+    }
+  }));
+  finalizeTypeScriptBuild(rootDir, fixtures, outputs);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === script) {
   // Tailwind-generated inline values and their exact key types exist before TS/Svelte parsing.
   execFileSync(process.execPath, [path.join(root, 'scripts/build-inline-style-maps.mts')], {cwd: root, stdio: 'inherit'});
-  buildTypeScript();
+  await buildTypeScriptAsync();
 }
