@@ -9,6 +9,8 @@ import { withParsedSource } from './native-typescript-ast.js';
 export function rewriteNativeAssetBase(code: string, file: string, root: string) {
   const relative = path.relative(root, file).replaceAll(path.sep, '/');
   if (!relative.startsWith('js/') || !relative.endsWith('.js') || relative.includes('../')) return null;
+  // `meta` in import.meta cannot contain escapes, so modules without the word need no parse.
+  if (!/\bmeta\b/.test(code)) return null;
   const rewritten = new MagicString(code);
   let changed = false;
   withParsedSource(code, file, source => {
